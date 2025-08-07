@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
         iframe: document.getElementById('content-frame'),
         welcome: document.getElementById('welcome-screen'),
         themeToggle: document.getElementById('theme-toggle'),
+        siteTitle: document.getElementById('site-title'),
         html: document.documentElement,
     };
 
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const showProject = (projectId) => {
         dom.welcome.classList.add('hidden');
         dom.iframe.classList.remove('hidden');
+        // The path is now relative to the deployed site root
         dom.iframe.src = `pages/${projectId}/index.html`;
 
         document.querySelectorAll('#project-nav a').forEach(a => {
@@ -39,11 +41,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleRoute = () => {
-        const projectId = window.location.pathname.substring(1);
+        const path = window.location.pathname;
+        // Check if path is just "/" or "/index.html"
+        if (path === '/' || path === '/index.html') {
+            showWelcome();
+            return;
+        }
+        const projectId = path.substring(1);
         if (projectId && projects.some(p => p.id === projectId)) {
             showProject(projectId);
         } else {
+            // If the URL is invalid, redirect to the home page
+            history.replaceState({}, '', '/');
             showWelcome();
+        }
+    };
+
+    const navigate = (path) => {
+        if (window.location.pathname !== path) {
+            history.pushState({}, '', path);
+            handleRoute();
         }
     };
 
@@ -51,17 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
     dom.nav.addEventListener('click', e => {
         if (e.target.tagName === 'A') {
             e.preventDefault();
-            const url = e.target.getAttribute('href');
-            if (window.location.pathname !== url) {
-                history.pushState({}, '', url);
-                handleRoute();
-            }
+            navigate(e.target.getAttribute('href'));
         }
     });
 
+    dom.siteTitle.addEventListener('click', () => {
+        navigate('/');
+    });
+
     dom.themeToggle.addEventListener('click', () => {
-        const currentTheme = dom.html.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        const newTheme = dom.html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
         dom.html.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
     });
@@ -69,11 +85,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('popstate', handleRoute);
 
     // --- Initialization ---
-    const savedTheme = localStorage.getItem('theme') || 'light';
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     dom.html.setAttribute('data-theme', savedTheme);
 
     fetch('projects.json')
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return res.json();
+        })
         .then(data => {
             projects = data;
             renderNav();
