@@ -2,7 +2,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-const PAGES_DIR = 'pages';
+const PAGES_DIR = 'public/pages';
 const PUBLIC_DIR = 'public'; // Vite will copy contents of 'public' to the final build
 
 async function build() {
