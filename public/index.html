@@ -21,18 +21,20 @@
             font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg); color: var(--text);
             transition: background-color 0.2s, color 0.2s;
+            overflow: hidden;
         }
         #app { display: flex; height: 100vh; }
         #sidebar {
             width: var(--sidebar-width); background-color: var(--sidebar-bg);
             border-right: 1px solid var(--border); display: flex; flex-direction: column;
+            flex-shrink: 0;
         }
         #sidebar header {
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 1rem; height: var(--header-height);
             border-bottom: 1px solid var(--border);
         }
-        #sidebar h1 { font-size: 1.25rem; }
+        #sidebar h1 { font-size: 1.25rem; cursor: pointer; }
         #theme-toggle {
             background: none; border: none; cursor: pointer; font-size: 1.5rem;
             padding: 0.5rem; border-radius: 50%; line-height: 1;
@@ -42,6 +44,7 @@
         #project-nav a {
             display: block; text-decoration: none; color: var(--text);
             padding: 0.75rem 1.5rem; border-left: 3px solid transparent;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         #project-nav a:hover { background-color: var(--nav-hover); }
         #project-nav a.active {
@@ -54,9 +57,10 @@
         .hidden { display: none; }
         @media (max-width: 768px) {
             #app { flex-direction: column; }
-            #sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            #sidebar { width: 100%; height: auto; border-right: none; }
             #project-nav { display: flex; overflow-x: auto; padding: 0; border-top: 1px solid var(--border); }
-            #project-nav a { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+            #project-nav a { border-left: none; border-bottom: 3px solid transparent; }
+            #content-area { overflow-y: auto; }
         }
     </style>
 </head>
@@ -64,7 +68,7 @@
     <div id="app">
         <aside id="sidebar">
             <header>
-                <h1>Showcase</h1>
+                <h1 id="site-title">Showcase</h1>
                 <button id="theme-toggle" title="Toggle theme">🌓</button>
             </header>
             <nav id="project-nav"><p class="nav-message">Loading...</p></nav>

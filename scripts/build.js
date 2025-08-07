@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const PAGES_DIR = 'pages';
-const OUTPUT_DIR = 'dist'; // Vercel's default output is 'public', but 'dist' is a common standard
+const OUTPUT_DIR = 'dist'; // Vercel will deploy this folder
 
 async function build() {
     console.log('🚀 Starting build...');
