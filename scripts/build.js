@@ -1,50 +1,71 @@
-// scripts/build.js
+// scripts/build.js (New Recursive Version)
 import fs from 'fs/promises';
 import path from 'path';
 
 const PAGES_DIR = 'public/pages';
-const PUBLIC_DIR = 'public'; // Vite will copy contents of 'public' to the final build
 
-async function build() {
-    console.log('🚀 Starting pre-build script...');
-    try {
-        const projectFolders = (await fs.readdir(PAGES_DIR, { withFileTypes: true }))
-            .filter(dirent => dirent.isDirectory());
+// This function recursively scans directories to build a nested structure
+async function discoverAndBuild(directory) {
+    const items = [];
+    const entries = await fs.readdir(directory, { withFileTypes: true });
 
-        const projects = [];
-        for (const folder of projectFolders) {
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const fullPath = path.join(directory, entry.name);
+
+        // Check if it's a category
+        if (entry.name.startsWith('cat.')) {
+            items.push({
+                id: entry.name,
+                name: entry.name.substring(4).replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                type: 'category',
+                children: await discoverAndBuild(fullPath) // Recursion!
+            });
+        } else {
+            // Otherwise, check if it's a valid project folder
             try {
-                // Check if an index.html exists to consider it a valid project
-                await fs.access(path.join(PAGES_DIR, folder.name, 'index.html'));
-                projects.push({
-                    id: folder.name,
-                    name: folder.name.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                await fs.access(path.join(fullPath, 'index.html'));
+                items.push({
+                    id: entry.name,
+                    name: entry.name.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    type: 'project'
                 });
             } catch {
-                // Ignore folders that aren't valid projects
+                // Not a project, ignore
             }
         }
-        projects.sort((a, b) => a.name.localeCompare(b.name));
-        console.log(`🔍 Found ${projects.length} projects.`);
+    }
+    
+    // Sort with categories first, then alphabetically
+    return items.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'category' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+    });
+}
 
-        // Write the projects list to a JSON file inside the `public` directory
+
+async function main() {
+    console.log('🚀 Starting build with nested discovery...');
+    try {
+        const projectTree = await discoverAndBuild(PAGES_DIR);
+        console.log(`🔍 Discovered project structure.`);
+
         await fs.writeFile(
-            path.join(PUBLIC_DIR, 'projects.json'),
-            JSON.stringify(projects)
+            path.join('public', 'projects.json'),
+            JSON.stringify(projectTree, null, 2)
         );
-        console.log('✅ Created projects.json in public directory.');
-
+        console.log('✅ Created nested projects.json in public directory.');
+        console.log('🎉 Build successful!');
     } catch (error) {
-        // If the `pages` directory doesn't exist, don't fail the build.
-        // Just create an empty projects list.
-        if (error.code === 'ENOENT' && error.path === 'pages') {
-             console.warn('⚠️  `pages` directory not found. Creating empty projects list.');
-             await fs.writeFile(path.join(PUBLIC_DIR, 'projects.json'),'[]');
+        if (error.code === 'ENOENT' && error.path === 'public/pages') {
+             console.warn('⚠️  `public/pages` directory not found. Creating empty projects list.');
+             await fs.writeFile(path.join('public', 'projects.json'), '[]');
         } else {
-            console.error('🔥 Pre-build script failed:', error);
+            console.error('🔥 Build failed:', error);
             process.exit(1);
         }
     }
 }
 
-build();
+main();
