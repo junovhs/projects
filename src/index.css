@@ -112,3 +112,41 @@ body {
     border: none;
     background-color: var(--bg);
 }
+/* Add these new styles to the bottom of src/index.css */
+
+.category-item {
+    padding: 0.25rem 0;
+}
+
+.category-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 0.75rem 1rem;
+    margin: 0 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.category-toggle:hover {
+    background-color: var(--border);
+}
+
+.category-arrow {
+    font-size: 0.6em;
+    margin-right: 0.5rem;
+    transition: transform 0.2s ease;
+}
+
+.category-arrow.open {
+    transform: rotate(90deg);
+}
+
+.category-children {
+    padding-left: 1.25rem;
+}
