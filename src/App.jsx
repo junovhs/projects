@@ -16,6 +16,7 @@ const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
 export default function App() {
   const [projects, setProjects] = useState([]);
+  // Dark only for sidebar + welcome
   const [sidebarDark, setSidebarDark] = useState(true);
   const location = useLocation();
 
@@ -26,7 +27,7 @@ export default function App() {
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
 
-  // Build a lookup: slug -> full relative path (id)
+  // slug -> full path
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -37,6 +38,19 @@ export default function App() {
       if (n.children) stack.push(...n.children);
     }
     return map;
+  }, [projects]);
+
+  // flattened list for the Home view
+  const flatProjects = useMemo(() => {
+    const out = [];
+    function walk(nodes, parentCat = null) {
+      nodes?.forEach((n) => {
+        if (n.type === 'project') out.push({ ...n, category: parentCat });
+        if (n.type === 'category') walk(n.children, n.name);
+      });
+    }
+    walk(projects);
+    return out;
   }, [projects]);
 
   return (
@@ -59,8 +73,8 @@ export default function App() {
             className="page"
           >
             <Routes location={location}>
-              <Route path="/" element={<WelcomePage isDark={sidebarDark} />} />
-              {/* single catch-all; component resolves slug OR legacy path */}
+              <Route path="/" element={<WelcomePage isDark={sidebarDark} projects={flatProjects} />} />
+              {/* catch-all; component resolves slug OR legacy path */}
               <Route path="/*" element={<ProjectPage slugToPath={slugToPath} />} />
             </Routes>
           </motion.div>

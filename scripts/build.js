@@ -1,5 +1,5 @@
 // scripts/build.js
-// Build: generates projects.json (with slugs), runs Vite, and copies /pages to /dist/pages.
+// Build: generates projects.json (with slugs + optional metadata), runs Vite, and copies /pages to /dist/pages.
 
 import fs from 'fs/promises';
 import path from 'path';
@@ -9,21 +9,21 @@ const PAGES_DIR = 'pages';
 const PUBLIC_DIR = 'public';
 const OUTPUT_DIR = 'dist';
 
-// ---- helpers -------------------------------------------------------------
+// ---------- helpers ----------
 function titleize(s) {
   return s.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
 }
 function slugify(str) {
   return String(str)
     .toLowerCase()
-    .normalize('NFKD')                         // remove diacritics
+    .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')               // non-alnum -> dash
-    .replace(/^-+|-+$/g, '')                   // trim dashes
-    .replace(/-{2,}/g, '-');                   // collapse
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
 }
 
-// global registry so slugs are unique across the whole tree
+// unique slugs across tree
 const slugTaken = new Map(); // slug -> relPath
 function uniqueSlug(base, relPath) {
   let slug = base || 'project';
@@ -35,7 +35,18 @@ function uniqueSlug(base, relPath) {
   return slug;
 }
 
-// ---- discovery -----------------------------------------------------------
+async function readMeta(fullPath) {
+  // Optional /pages/.../meta.json with {title, date, tags, summary}
+  try {
+    const raw = await fs.readFile(path.join(fullPath, 'meta.json'), 'utf8');
+    const json = JSON.parse(raw);
+    return json && typeof json === 'object' ? json : {};
+  } catch {
+    return {};
+  }
+}
+
+// ---------- discovery ----------
 async function scan(dir, rel = '') {
   const items = [];
   let entries = [];
@@ -53,7 +64,7 @@ async function scan(dir, rel = '') {
 
     if (entry.name.startsWith('cat.')) {
       items.push({
-        id: relPath, // real folder name (includes "cat.")
+        id: relPath,
         name: titleize(entry.name.slice(4)),
         type: 'category',
         children: await scan(fullPath, relPath),
@@ -61,15 +72,22 @@ async function scan(dir, rel = '') {
     } else {
       try {
         await fs.access(path.join(fullPath, 'index.html'));
+        const meta = await readMeta(fullPath);
+        const stat = await fs.stat(fullPath);
+        const name = meta.title ? String(meta.title) : titleize(entry.name);
         const slug = uniqueSlug(slugify(entry.name), relPath);
+
         items.push({
-          id: relPath,         // full relative path used to resolve the iframe src
-          slug,                // pretty, category-less URL segment
-          name: titleize(entry.name),
+          id: relPath,            // full relative path used for iframe src
+          slug,                   // short URL /<slug>
+          name,                   // display name (can be overridden by meta.title)
           type: 'project',
+          updatedAt: (meta.date ? new Date(meta.date) : stat.mtime).toISOString(),
+          tags: Array.isArray(meta.tags) ? meta.tags : undefined,
+          summary: typeof meta.summary === 'string' ? meta.summary : undefined,
         });
       } catch {
-        // no index.html → ignore
+        // no index.html -> ignore
       }
     }
   }
@@ -81,7 +99,7 @@ async function scan(dir, rel = '') {
   });
 }
 
-// ---- main ----------------------------------------------------------------
+// ---------- main ----------
 async function main() {
   console.log('🚀 Showcase build start');
   const tree = await scan(PAGES_DIR);

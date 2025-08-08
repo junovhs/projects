@@ -3,13 +3,8 @@ import { useLocation } from 'react-router-dom';
 
 export default function ProjectPage({ slugToPath = {} }) {
   const { pathname } = useLocation();
-  // strip leading slash, decode for spaces/& etc.
   const raw = decodeURIComponent(pathname.replace(/^\/+/, ''));
-
-  // If it contains a slash, treat as legacy full path.
-  // Otherwise, resolve slug -> full path via map.
   const relPath = raw.includes('/') ? raw : slugToPath[raw];
-
   const projectUrl = relPath ? `/pages/${relPath}/index.html` : null;
 
   return (

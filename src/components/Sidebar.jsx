@@ -24,7 +24,7 @@ function iconEmojiFor(name) {
   return '📁';
 }
 
-/** One-open-per-level accordion control */
+/** One-open-per-level accordion */
 function useAccordionDefault(projects) {
   const firstCategoryId = useMemo(() => {
     const first = (projects || []).find((x) => x.type === 'category');
@@ -60,7 +60,6 @@ function GroupRow({ name, open, onToggle, badge, icon }) {
 
 function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
   if (item.type === 'project') {
-    // Link uses the pretty, category-less slug
     const to = `/${encodePathSeg(item.slug || item.id)}`;
     return (
       <li className="tree-leaf" style={{ '--depth': depth }}>
@@ -77,7 +76,6 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
     );
   }
 
-  // Category node
   const open = isOpen(parentId, item.id);
   const badge = countProjects(item);
   return (
@@ -115,11 +113,11 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
     <aside className={'sidebar' + (isDark ? ' theme-dark' : '')}>
       <header className="sidebar-header">
         <Link to="/" className="brand" aria-label="Home">
-          <span className="brand-dot" />
+          {/* removed blue dot; flatter brand */}
           Showcase
         </Link>
 
-        {/* CodePen-style toggle (compact, fully closed SVGs) */}
+        {/* Flat toggle (no 3D) */}
         <input
           id={toggleId}
           type="checkbox"
@@ -127,22 +125,12 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
           checked={isDark}
           onChange={onToggleDark}
         />
-        <label htmlFor={toggleId} className="dm-toggle" aria-label="Toggle dark mode">
+        <label htmlFor={toggleId} className="dm-toggle dm-flat" aria-label="Toggle dark mode">
           <svg className="sun" viewBox="0 0 24 24" aria-hidden>
-            <circle cx="12" cy="12" r="4" />
-            <circle cx="12" cy="2" r="1" />
-            <circle cx="12" cy="22" r="1" />
-            <circle cx="2" cy="12" r="1" />
-            <circle cx="22" cy="12" r="1" />
-            <circle cx="4.5" cy="4.5" r="1" />
-            <circle cx="19.5" cy="4.5" r="1" />
-            <circle cx="4.5" cy="19.5" r="1" />
-            <circle cx="19.5" cy="19.5" r="1" />
+            <circle cx="12" cy="12" r="5" />
           </svg>
           <svg className="moon" viewBox="0 0 24 24" aria-hidden>
-            <path d="M21 14.5A9 9 0 0 1 9.5 3 7.5 7.5 0 1 0 21 14.5z" />
-            <circle cx="16.5" cy="6.5" r="0.8" />
-            <circle cx="18.5" cy="8.3" r="0.5" />
+            <path d="M20 14.5A9 9 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z" />
           </svg>
         </label>
       </header>
