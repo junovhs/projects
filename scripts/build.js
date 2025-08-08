@@ -1,88 +1,83 @@
-// scripts/build.js (New Self-Contained Version)
+// scripts/build.js
+// Build: generates projects.json, runs Vite, and copies /pages to /dist/pages.
+
 import fs from 'fs/promises';
 import path from 'path';
-import { execSync } from 'child_process'; // Import a tool to run shell commands
+import { execSync } from 'child_process';
 
-// --- Configuration ---
 const PAGES_DIR = 'pages';
 const PUBLIC_DIR = 'public';
-const OUTPUT_DIR = 'dist'; // The final deployment folder
+const OUTPUT_DIR = 'dist';
 
-// --- Main Build Function ---
-async function main() {
-    console.log('🚀 Starting Showcase build process...');
-    try {
-        // --- Step 1: Discover projects and create projects.json ---
-        console.log('🔍 Scanning for projects...');
-        const projectTree = await discoverAndBuild(PAGES_DIR);
-        console.log(`✅ Discovered project structure with ${projectTree.length} top-level items.`);
-        
-        await fs.writeFile(
-            path.join(PUBLIC_DIR, 'projects.json'),
-            JSON.stringify(projectTree, null, 2)
-        );
-        console.log('✅ Created projects.json in public directory.');
-
-        // --- Step 2: Run the standard Vite build process ---
-        console.log('📦 Building the React application with Vite...');
-        execSync('vite build', { stdio: 'inherit' });
-        console.log('✅ Vite build complete.');
-
-        // --- Step 3: Copy the 'pages' directory into the final output ---
-        console.log(`🚚 Copying '${PAGES_DIR}' directory to '${OUTPUT_DIR}'...`);
-        await fs.cp(PAGES_DIR, path.join(OUTPUT_DIR, PAGES_DIR), { recursive: true });
-        console.log(`✅ Copied pages successfully.`);
-        
-        console.log('🎉 Showcase build finished!');
-
-    } catch (error) {
-        if (error.code === 'ENOENT' && (error.path === 'pages' || error.path === 'public/pages')) {
-             console.warn('⚠️  `pages` directory not found. Creating empty projects list.');
-             await fs.writeFile(path.join(PUBLIC_DIR, 'projects.json'), '[]');
-             // Still try to build the main app
-             execSync('vite build', { stdio: 'inherit' });
-        } else {
-            console.error('🔥 Build failed:', error);
-            process.exit(1);
-        }
-    }
+function titleize(s) {
+  return s.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
+async function scan(dir, rel = '') {
+  const items = [];
+  let entries = [];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return items;
+  }
 
-// --- Helper Functions (No changes needed below this line) ---
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
 
-async function discoverAndBuild(directory) {
-    const items = [];
-    try {
-        const entries = await fs.readdir(directory, { withFileTypes: true });
-        for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
-            const fullPath = path.join(directory, entry.name);
-            if (entry.name.startsWith('cat.')) {
-                items.push({
-                    id: entry.name,
-                    name: entry.name.substring(4).replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                    type: 'category',
-                    children: await discoverAndBuild(fullPath)
-                });
-            } else {
-                try {
-                    await fs.access(path.join(fullPath, 'index.html'));
-                    items.push({
-                        id: entry.name,
-                        name: entry.name.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                        type: 'project'
-                    });
-                } catch {}
-            }
-        }
-        return items.sort((a, b) => {
-            if (a.type !== b.type) return a.type === 'category' ? -1 : 1;
-            return a.name.localeCompare(b.name);
+    const fullPath = path.join(dir, entry.name);
+    const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+
+    if (entry.name.startsWith('cat.')) {
+      items.push({
+        id: relPath, // keep the real folder name (includes "cat.")
+        name: titleize(entry.name.slice(4)), // pretty label without "cat."
+        type: 'category',
+        children: await scan(fullPath, relPath),
+      });
+    } else {
+      try {
+        await fs.access(path.join(fullPath, 'index.html'));
+        items.push({
+          id: relPath, // FULL relative path, not just the folder name
+          name: titleize(entry.name),
+          type: 'project',
         });
-    } catch {
-        return []; // Return empty array if pages dir doesn't exist
+      } catch {
+        // no index.html → ignore
+      }
     }
+  }
+
+  // Categories first, then alphabetical
+  return items.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'category' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
 }
 
-main();
+async function main() {
+  console.log('🚀 Showcase build start');
+  const tree = await scan(PAGES_DIR);
+
+  await fs.writeFile(
+    path.join(PUBLIC_DIR, 'projects.json'),
+    JSON.stringify(tree, null, 2)
+  );
+  console.log('✅ Wrote public/projects.json');
+
+  console.log('📦 Running Vite build…');
+  execSync('vite build', { stdio: 'inherit' });
+  console.log('✅ Vite build complete');
+
+  console.log('📁 Copying pages → dist/pages …');
+  await fs.cp(PAGES_DIR, path.join(OUTPUT_DIR, PAGES_DIR), { recursive: true });
+  console.log('✅ Done');
+
+  console.log('🎉 Build finished');
+}
+
+main().catch((err) => {
+  console.error('🔥 Build failed', err);
+  process.exit(1);
+});
