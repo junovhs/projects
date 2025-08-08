@@ -44,7 +44,24 @@ function useAccordionDefault(projects) {
   }
 
   const isOpen = (parentId, id) => openByParent[parentId] === id;
-  return { isOpen, toggle };
+
+  // allow programmatic open (from App when route changes)
+  function openChain(childId, parentMap) {
+    if (!childId) return;
+    const updates = {};
+    let child = childId;
+    let parent = parentMap[child];
+    let upper = 'root';
+    while (parent) {
+      updates[upper] = parent;        // only one open per level
+      upper = parent;
+      child = parent;
+      parent = parentMap[child];
+    }
+    setOpenByParent((m) => ({ ...m, ...updates }));
+  }
+
+  return { isOpen, toggle, openChain };
 }
 
 function GroupRow({ name, open, onToggle, badge, icon }) {
@@ -105,19 +122,24 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
   );
 }
 
-export default function Sidebar({ projects, isDark, onToggleDark }) {
-  const { isOpen, toggle } = useAccordionDefault(projects);
+export default function Sidebar({ projects, isDark, onToggleDark, activeRelPath, parentMap }) {
+  const { isOpen, toggle, openChain } = useAccordionDefault(projects);
   const toggleId = 'sidebar-toggle';
+
+  // When route changes to a project, open its category chain and scroll it into view
+  useEffect(() => {
+    if (!activeRelPath) return;
+    openChain(activeRelPath, parentMap);
+    const el = document.querySelector('.nav .tree-leaf-btn.active');
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [activeRelPath, parentMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <aside className={'sidebar' + (isDark ? ' theme-dark' : '')}>
       <header className="sidebar-header">
-        <Link to="/" className="brand" aria-label="Home">
-          {/* removed blue dot; flatter brand */}
-          Showcase
-        </Link>
+        <Link to="/" className="brand" aria-label="Home">Showcase</Link>
 
-        {/* Flat toggle (no 3D) */}
+        {/* Flat toggle */}
         <input
           id={toggleId}
           type="checkbox"

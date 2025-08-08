@@ -14,10 +14,27 @@ const pageVariants = {
 };
 const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
+function buildMaps(nodes) {
+  // childId -> parentId (for both categories and projects)
+  const parentMap = {};
+  const flat = [];
+  function walk(list, parentId = 'root', parentCatName = null) {
+    list?.forEach((n) => {
+      parentMap[n.id] = parentId;
+      if (n.type === 'project') {
+        flat.push({ ...n, category: parentCatName });
+      } else if (n.type === 'category') {
+        walk(n.children, n.id, n.name);
+      }
+    });
+  }
+  walk(nodes);
+  return { parentMap, flat };
+}
+
 export default function App() {
   const [projects, setProjects] = useState([]);
-  // Dark only for sidebar + welcome
-  const [sidebarDark, setSidebarDark] = useState(true);
+  const [sidebarDark, setSidebarDark] = useState(true); // dark only for sidebar + welcome
   const location = useLocation();
 
   useEffect(() => {
@@ -40,18 +57,12 @@ export default function App() {
     return map;
   }, [projects]);
 
-  // flattened list for the Home view
-  const flatProjects = useMemo(() => {
-    const out = [];
-    function walk(nodes, parentCat = null) {
-      nodes?.forEach((n) => {
-        if (n.type === 'project') out.push({ ...n, category: parentCat });
-        if (n.type === 'category') walk(n.children, n.name);
-      });
-    }
-    walk(projects);
-    return out;
-  }, [projects]);
+  // parent chain + flat list for Welcome grid
+  const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
+
+  // compute active project full path from URL
+  const raw = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
+  const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
   return (
     <div className="app-shell">
@@ -59,6 +70,8 @@ export default function App() {
         projects={projects}
         isDark={sidebarDark}
         onToggleDark={() => setSidebarDark((v) => !v)}
+        activeRelPath={activeRelPath}
+        parentMap={parentMap}
       />
 
       <main className="content">
@@ -73,7 +86,7 @@ export default function App() {
             className="page"
           >
             <Routes location={location}>
-              <Route path="/" element={<WelcomePage isDark={sidebarDark} projects={flatProjects} />} />
+              <Route path="/" element={<WelcomePage isDark={sidebarDark} projects={flat} />} />
               {/* catch-all; component resolves slug OR legacy path */}
               <Route path="/*" element={<ProjectPage slugToPath={slugToPath} />} />
             </Routes>
