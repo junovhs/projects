@@ -1,109 +1,106 @@
 // src/components/Sidebar.jsx
-import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 
-function encodePathSeg(p) {
-  return p.split('/').map(encodeURIComponent).join('/');
-}
-
-/** Count total descendant projects for a category node */
+/** Utilities */
 function countProjects(node) {
   if (!node) return 0;
   if (node.type === 'project') return 1;
-  return (node.children || []).reduce((acc, n) => acc + countProjects(n), 0);
+  return (node.children || []).reduce((n, c) => n + countProjects(c), 0);
 }
-
-/** Simple icon “emoji” mapping — zero deps */
-function iconEmojiFor(name) {
-  const n = (name || '').toLowerCase();
-  if (n.includes('lifestyle')) return '✨';
-  if (n.includes('optic') || n.includes('design')) return '⧉';
-  if (n.includes('research')) return '🧪';
-  if (n.includes('utilit') || n.includes('tool')) return '☰';
-  if (n.includes('travel')) return '🗂';
+function iconEmojiFor(name = '') {
+  const n = name.toLowerCase();
+  if (/\blifestyle\b/.test(n)) return '🌿';
+  if (/optics|design/.test(n)) return '🎨';
+  if (/research/.test(n)) return '🔬';
+  if (/travel/.test(n)) return '🧳';
+  if (/utilities?/.test(n)) return '🧰';
   return '📁';
 }
-
-/** One-open-per-level accordion */
-function useAccordionDefault(projects) {
-  const firstCategoryId = useMemo(() => {
-    const first = (projects || []).find((x) => x.type === 'category');
-    return first ? first.id : null;
-  }, [projects]);
-
-  const [openByParent, setOpenByParent] = useState({ root: firstCategoryId });
-  useEffect(() => {
-    setOpenByParent({ root: firstCategoryId });
-  }, [firstCategoryId]);
-
-  function toggle(parentId, id) {
-    setOpenByParent((m) => ({
-      ...m,
-      [parentId]: m[parentId] === id ? null : id,
-    }));
-  }
-
-  const isOpen = (parentId, id) => openByParent[parentId] === id;
-
-  // allow programmatic open (from App when route changes)
-  function openChain(childId, parentMap) {
-    if (!childId) return;
-    const updates = {};
-    let child = childId;
-    let parent = parentMap[child];
-    let upper = 'root';
-    while (parent) {
-      updates[upper] = parent;        // only one open per level
-      upper = parent;
-      child = parent;
-      parent = parentMap[child];
+function useAccordionDefault() {
+  const [open, setOpen] = useState({});
+  const key = (p, id) => `${p}/${id}`;
+  const isOpen = (p, id) => !!open[key(p, id)];
+  const toggle = (p, id) => setOpen((m) => ({ ...m, [key(p, id)]: !m[key(p, id)] }));
+  const openChain = (leafId, parentMap) => {
+    if (!leafId || !parentMap) return;
+    let cur = parentMap[leafId];
+    const next = {};
+    while (cur && cur !== 'root') {
+      const parent = parentMap[cur];
+      if (!parent) break;
+      next[key(parent, cur)] = true;
+      cur = parent;
     }
-    setOpenByParent((m) => ({ ...m, ...updates }));
-  }
-
+    setOpen((m) => ({ ...m, ...next }));
+  };
   return { isOpen, toggle, openChain };
 }
 
-function GroupRow({ name, open, onToggle, badge, icon }) {
-  return (
-    <div className="tree-group-row" role="button" onClick={onToggle} aria-expanded={open}>
-      <span className="tree-disclosure">{open ? '▾' : '▸'}</span>
-      <span className="tree-emoji" aria-hidden>{icon}</span>
-      <span className="tree-label">{name}</span>
-      <span className="tree-badge" aria-label={`${badge} items`}>{badge}</span>
-    </div>
-  );
-}
-
-function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
+/** Tree node */
+function TreeNode({
+  item,
+  depth,
+  parentId,
+  isOpen,
+  onToggle,
+  activeRelPath,
+  onOpenAbout,
+  onToggleAbout,
+  isAboutOpen,
+  navigate,
+}) {
   if (item.type === 'project') {
-    const to = `/${encodePathSeg(item.slug || item.id)}`;
+    const to = `/${encodeURIComponent(item.slug || item.id)}`;
+    const isActiveLeaf = item.id === activeRelPath;
+
+    const handleAbout = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isActiveLeaf) onToggleAbout();
+      else {
+        navigate(to);
+        onOpenAbout();
+      }
+    };
+
     return (
-      <li className="tree-leaf" style={{ '--depth': depth }}>
+      <li className={'tree-leaf' + (isActiveLeaf ? ' active' : '')} style={{ '--depth': depth }}>
         <span className="tree-connector" aria-hidden />
-        <NavLink
-          to={to}
-          className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}
-          title={item.name}
-        >
-          <span className="leaf-dot" aria-hidden />
-          <span className="leaf-text">{item.name}</span>
-        </NavLink>
+        <div className="leaf-row">
+          <NavLink to={to} className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}>
+            <span className="leaf-dot" aria-hidden />
+            <span className="leaf-text">{item.name}</span>
+          </NavLink>
+          <button
+            className="about-btn"
+            aria-pressed={isActiveLeaf && isAboutOpen}
+            onClick={handleAbout}
+            title="About"
+          >
+            About
+          </button>
+        </div>
       </li>
     );
   }
 
+  // Category
   const open = isOpen(parentId, item.id);
   const badge = countProjects(item);
   return (
     <li className="tree-group" style={{ '--depth': depth }}>
-      <GroupRow
-        name={item.name}
-        open={open}
-        onToggle={() => onToggle(parentId, item.id)}
-        badge={badge}
-        icon={iconEmojiFor(item.name)}
-      />
+      <div
+        className="tree-group-row"
+        role="button"
+        onClick={() => onToggle(parentId, item.id)}
+        aria-expanded={open}
+      >
+        <span className="tree-disclosure">{open ? '▾' : '▸'}</span>
+        <span className="tree-emoji" aria-hidden>{iconEmojiFor(item.name)}</span>
+        <span className="tree-label">{item.name}</span>
+        <span className="tree-badge" aria-label={`${badge} items`}>{badge}</span>
+      </div>
       <div className={'tree-collapse ' + (open ? 'open' : '')}>
         <ul className="tree-children">
           {(item.children || []).map((child) => (
@@ -114,6 +111,11 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
               parentId={item.id}
               isOpen={isOpen}
               onToggle={onToggle}
+              activeRelPath={activeRelPath}
+              onOpenAbout={onOpenAbout}
+              onToggleAbout={onToggleAbout}
+              isAboutOpen={isAboutOpen}
+              navigate={navigate}
             />
           ))}
         </ul>
@@ -122,24 +124,33 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
   );
 }
 
-export default function Sidebar({ projects, isDark, onToggleDark, activeRelPath, parentMap }) {
+/** Sidebar root */
+export default function Sidebar({
+  projects,
+  isDark,
+  onToggleDark,
+  activeRelPath,
+  parentMap,
+  onOpenAbout,
+  onToggleAbout,
+  isAboutOpen,
+}) {
   const { isOpen, toggle, openChain } = useAccordionDefault(projects);
   const toggleId = 'sidebar-toggle';
+  const navigate = useNavigate();
 
-  // When route changes to a project, open its category chain and scroll it into view
   useEffect(() => {
     if (!activeRelPath) return;
     openChain(activeRelPath, parentMap);
     const el = document.querySelector('.nav .tree-leaf-btn.active');
     if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [activeRelPath, parentMap]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeRelPath, parentMap]); // eslint-disable-line
 
   return (
     <aside className={'sidebar' + (isDark ? ' theme-dark' : '')}>
       <header className="sidebar-header">
         <Link to="/" className="brand" aria-label="Home">Showcase</Link>
 
-        {/* Flat toggle */}
         <input
           id={toggleId}
           type="checkbox"
@@ -148,12 +159,8 @@ export default function Sidebar({ projects, isDark, onToggleDark, activeRelPath,
           onChange={onToggleDark}
         />
         <label htmlFor={toggleId} className="dm-toggle dm-flat" aria-label="Toggle dark mode">
-          <svg className="sun" viewBox="0 0 24 24" aria-hidden>
-            <circle cx="12" cy="12" r="5" />
-          </svg>
-          <svg className="moon" viewBox="0 0 24 24" aria-hidden>
-            <path d="M20 14.5A9 9 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z" />
-          </svg>
+          <svg className="sun" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="5" /></svg>
+          <svg className="moon" viewBox="0 0 24 24" aria-hidden><path d="M20 14.5A9 9 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z" /></svg>
         </label>
       </header>
 
@@ -167,6 +174,11 @@ export default function Sidebar({ projects, isDark, onToggleDark, activeRelPath,
               parentId="root"
               isOpen={isOpen}
               onToggle={toggle}
+              activeRelPath={activeRelPath}
+              onOpenAbout={onOpenAbout}
+              onToggleAbout={onToggleAbout}
+              isAboutOpen={isAboutOpen}
+              navigate={navigate}
             />
           ))}
         </ul>

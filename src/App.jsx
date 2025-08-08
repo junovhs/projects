@@ -15,11 +15,10 @@ const pageVariants = {
 const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
 function buildMaps(nodes) {
-  // childId -> parentId (for both categories and projects)
   const parentMap = {};
   const flat = [];
   function walk(list, parentId = 'root', parentCatName = null) {
-    list?.forEach((n) => {
+    (list || []).forEach((n) => {
       parentMap[n.id] = parentId;
       if (n.type === 'project') {
         flat.push({ ...n, category: parentCatName });
@@ -34,7 +33,8 @@ function buildMaps(nodes) {
 
 export default function App() {
   const [projects, setProjects] = useState([]);
-  const [sidebarDark, setSidebarDark] = useState(true); // dark only for sidebar + welcome
+  const [sidebarDark, setSidebarDark] = useState(true); // Dark mode only for sidebar/welcome
+  const [aboutOpen, setAboutOpen] = useState(false);     // Controls the right “About” panel
   const location = useLocation();
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function App() {
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
 
-  // slug -> full path
+  // slug -> full path (e.g., "tp-cruise-image-search" -> "TravelPerks/Tp Cruise Image Search")
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -57,10 +57,9 @@ export default function App() {
     return map;
   }, [projects]);
 
-  // parent chain + flat list for Welcome grid
   const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
 
-  // compute active project full path from URL
+  // Active project path from URL (supports legacy path or slug)
   const raw = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
@@ -72,6 +71,10 @@ export default function App() {
         onToggleDark={() => setSidebarDark((v) => !v)}
         activeRelPath={activeRelPath}
         parentMap={parentMap}
+        // Sidebar “About” button hooks
+        onOpenAbout={() => setAboutOpen(true)}
+        onToggleAbout={() => setAboutOpen((v) => !v)}
+        isAboutOpen={aboutOpen}
       />
 
       <main className="content">
@@ -87,8 +90,16 @@ export default function App() {
           >
             <Routes location={location}>
               <Route path="/" element={<WelcomePage isDark={sidebarDark} projects={flat} />} />
-              {/* catch-all; component resolves slug OR legacy path */}
-              <Route path="/*" element={<ProjectPage slugToPath={slugToPath} />} />
+              <Route
+                path="/*"
+                element={
+                  <ProjectPage
+                    slugToPath={slugToPath}
+                    panelOpen={aboutOpen}
+                    setPanelOpen={setAboutOpen}
+                  />
+                }
+              />
             </Routes>
           </motion.div>
         </AnimatePresence>

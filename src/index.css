@@ -1,4 +1,4 @@
-/* ---- Base / Theme (unchanged essentials) ---- */
+/* ---- Base / Theme ---- */
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -66,7 +66,7 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
 .sidebar.theme-dark .dm-toggle.dm-flat { background: var(--track-dark); border-color: #223048; }
 .dm-toggle.dm-flat::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 999px;
-  background: var(--thumb); transition: transform .2s ease, background .2s ease; box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  background: var(--thumb); transition: transform .2s ease, background .2s ease; box-shadow: 0 1px 2px rgba(0,0,0,15);
 }
 .sidebar.theme-dark .dm-toggle.dm-flat::after { background: var(--thumb-dark); }
 .dm-toggle.dm-flat svg { position: absolute; width: 16px; top: 7px; opacity: .85; }
@@ -131,27 +131,6 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
 .project-layout { display: grid; grid-template-columns: 1fr 0px; width: 100%; }
 .project-layout.with-panel { grid-template-columns: 1fr 420px; }
 .project-left { display: flex; flex-direction: column; min-width: 0; }
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--surface);
-}
-.toolbar .btn {
-  padding: 6px 10px; border-radius: 10px; background: color-mix(in oklab, var(--surface) 70%, transparent);
-  border: 1px solid var(--border);
-}
-.toolbar .btn:hover { outline: 1px solid color-mix(in oklab, var(--accent) 35%, var(--border)); }
-.switch { display: inline-flex; align-items: center; gap: 8px; }
-.switch .slider {
-  width: 36px; height: 20px; background: #cfd6e2; border: 1px solid var(--border);
-  border-radius: 999px; position: relative; display: inline-block;
-}
-.switch input { appearance: none; position: absolute; width: 36px; height: 20px; margin: 0; opacity: 0; }
-.switch .slider::after {
-  content: ""; position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 999px; background: #fff;
-  transition: transform .2s ease;
-}
-.switch input:checked + .slider::after { transform: translateX(16px); }
-.switch .label { color: var(--muted); font-size: 14px; }
 
 .iframe-wrap { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; }
 .project-iframe { border: 0; display: block; width: 100%; height: 100%; }
@@ -166,3 +145,24 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
 .about p { margin: 8px 0; }
 .about code { background: color-mix(in oklab, var(--surface) 60%, transparent); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); }
 .note { margin-top: 16px; color: var(--muted); font-size: 13px; }
+
+/* ---- New: Sidebar "About" button next to project name ---- */
+.leaf-row { display: flex; align-items: center; gap: 8px; }
+.tree-leaf-btn { flex: 1; } /* let the name take remaining space */
+
+.about-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 70%, transparent);
+  color: var(--text);
+  opacity: 0;
+  transition: opacity .15s ease, outline-color .15s ease;
+}
+.tree-leaf:hover .about-btn,
+.tree-leaf.active .about-btn { opacity: 1; }
+
+.about-btn[aria-pressed="true"] {
+  outline: 1px solid color-mix(in oklab, var(--accent) 35%, var(--border));
+}
