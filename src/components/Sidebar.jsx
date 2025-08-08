@@ -7,25 +7,29 @@ function encodePath(p) {
 }
 
 function NavItem({ item }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [open, setOpen] = useState(true);
 
   if (item.type === 'project') {
     return (
-      <NavLink to={`/${encodePath(item.id)}`} className="nav-link">
-        {item.name}
+      <NavLink
+        to={`/${encodePath(item.id)}`}
+        className={({ isActive }) => 'nav-link' + (isActive ? ' active' : '')}
+        title={item.name}
+      >
+        <span className="dot" /> {item.name}
       </NavLink>
     );
   }
 
   if (item.type === 'category') {
     return (
-      <div className="category-item">
-        <button onClick={() => setIsOpen((o) => !o)} className="category-toggle">
-          <span className={`category-arrow ${isOpen ? 'open' : ''}`}>▶</span>
-          {item.name}
+      <div className="category">
+        <button className="category-btn" onClick={() => setOpen((o) => !o)}>
+          <span className={'chev' + (open ? ' open' : '')}>▶</span>
+          <span className="category-name">{item.name}</span>
         </button>
-        {isOpen && (
-          <div className="category-children">
+        {open && (
+          <div className="children">
             {item.children.map((child) => (
               <NavItem key={child.id} item={child} />
             ))}
@@ -42,11 +46,25 @@ export default function Sidebar({ projects, theme, toggleTheme }) {
   return (
     <aside className="sidebar">
       <header className="sidebar-header">
-        <Link to="/"><h1>Showcase</h1></Link>
-        <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === 'dark' ? '🌙' : '☀️'}
+        <Link to="/" className="brand" aria-label="Home">
+          <span className="brand-dot" />
+          Showcase
+        </Link>
+
+        {/* Modern, minimal toggle */}
+        <button
+          className={'toggle ' + (theme === 'dark' ? 'is-dark' : 'is-light')}
+          onClick={toggleTheme}
+          aria-label="Toggle dark mode"
+          title="Toggle theme"
+        >
+          <span className="toggle-track" />
+          <span className="toggle-thumb" />
+          <span className="toggle-icon sun" aria-hidden>☀️</span>
+          <span className="toggle-icon moon" aria-hidden>🌙</span>
         </button>
       </header>
+
       <nav className="nav">
         {projects.map((item) => (
           <NavItem key={item.id} item={item} />
