@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Emoji Steganography Encoder/Decoder</title>
+  <style>
+    :root {
+      --primary-color: #007bff;
+      --primary-hover: #0056b3;
+      --bg-light: #f5f5f5;
+      --card-bg: #ffffff;
+      --text-color: #333;
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --transition: 0.3s ease-in-out;
+    }
+    
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg-light);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text-color);
+    }
+    
+    /* Container to limit width and center content */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    
+    /* Layout for main and side panels */
+    .layout {
+      display: flex;
+      gap: 20px;
+    }
+    
+    /* Main panel styling */
+    .main-panel {
+      flex: 2;
+    }
+    
+    /* Side panel styling */
+    .side-panel {
+      flex: 1;
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    
+    /* Section styling */
+    .section {
+      margin-bottom: 30px;
+    }
+    
+    /* Headers */
+    h1 {
+      color: var(--primary-color);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    h2 {
+      color: var(--primary-color);
+      margin-bottom: 10px;
+    }
+    
+    h3 {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+      color: #555;
+    }
+    
+    /* Paragraphs */
+    p {
+      line-height: 1.6;
+    }
+    
+    /* Inputs and textarea */
+    textarea,
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      transition: border var(--transition);
+    }
+    
+    textarea:focus,
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    
+    /* Buttons */
+    button {
+      background-color: var(--primary-color);
+      color: #fff;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background-color var(--transition), transform var(--transition);
+      margin-bottom: 10px;
+    }
+    
+    button:hover {
+      background-color: var(--primary-hover);
+      transform: scale(1.02);
+    }
+    
+    /* Result display */
+    .result {
+      padding: 10px;
+      background: #eee;
+      border-radius: 4px;
+      min-height: 20px;
+      word-wrap: break-word;
+      font-size: 1.2em;
+      margin-top: 5px;
+    }
+    
+    /* Sidebar content styling */
+    .sidebar-content {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    /* Disclaimer styling */
+    .disclaimer {
+      padding: 15px;
+      background: #fafafa;
+      border-left: 4px solid #ff9800;
+      border-radius: 4px;
+      font-size: 0.9em;
+      animation: fadeIn 1s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    
+    /* Labels */
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      margin-bottom: 5px;
+      display: block;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+      }
+    }
+    
+    /* Transformation details styling */
+    .details-panel {
+      background: #f0f0f0;
+      border: 1px dashed #ccc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    
+    .details-panel pre {
+      white-space: pre-wrap;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Emoji Steganography Encoder/Decoder</h1>
+    <div class="layout">
+      <!-- Main Panel -->
+      <div class="main-panel">
+        <!-- Encode Section -->
+        <div class="section" id="encodeSection">
+          <h2>Encode Text</h2>
+          <textarea id="inputText" rows="5" placeholder="Enter text to encode here..."></textarea>
+          <label for="encodePassword">Password (optional for encryption):</label>
+          <input type="password" id="encodePassword" placeholder="Enter password here..." />
+          <button id="encodeBtn">Encode to Emoji</button>
+          <button id="toggleEncodeDetailsBtn">Show Transformation Details</button>
+          <div id="encodedDetails" class="details-panel" style="display:none;">
+            <h3>Transformation Details</h3>
+            <pre id="transformationSteps"></pre>
+          </div>
+          <p>Encoded Emoji:</p>
+          <div id="encodedEmoji" class="result"></div>
+        </div>
+        
+        <!-- Decode Section -->
+        <div class="section" id="decodeSection">
+          <h2>Decode Emoji</h2>
+          <input type="text" id="encodedInput" placeholder="Paste encoded emoji here..." />
+          <label for="decodePassword">Password (if encrypted):</label>
+          <input type="password" id="decodePassword" placeholder="Enter password here..." />
+          <button id="decodeBtn">Decode Text</button>
+          <button id="toggleDecodeDetailsBtn">Show Transformation Details</button>
+          <div id="decodedDetails" class="details-panel" style="display:none;">
+            <h3>Transformation Details</h3>
+            <pre id="decodeTransformationSteps"></pre>
+          </div>
+          <p>Decoded Text:</p>
+          <div id="decodedText" class="result"></div>
+        </div>
+      </div>
+      
+      <!-- Side Panel -->
+      <div class="side-panel">
+        <div class="sidebar-content">
+          <div>
+            <h2>About This Tool</h2>
+            <p>
+              This tool lets you encode a large amount of text into a single emoji by concealing hidden data using invisible zero‐width characters.
+              Input text in the encode section and witness how an ordinary emoji unveils a secret message.
+              Use the decode function to revert the hidden message back to its original form.
+            </p>
+          </div>
+          <div class="disclaimer">
+            <h2>Disclaimer</h2>
+            <p>
+              This code demonstrates an emoji‐based steganography technique where invisible zero‐width characters are used to encode hidden data within an emoji.
+              While this technique can be used for benign purposes such as watermarking or message obfuscation, it also highlights a potential exploit where malicious actors could conceal harmful or misleading information in AI models, social media, or automated systems that do not properly sanitize or detect hidden Unicode characters.
+              Use responsibly and ensure ethical considerations when implementing similar techniques.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants for steganography
+    const coverEmoji = "😊";
+    const ZERO_WIDTH_SPACE = "\u200B";      // Represents binary "0"
+    const ZERO_WIDTH_NON_JOINER = "\u200C";   // Represents binary "1"
+    const ZERO_WIDTH_JOINER = "\u200D";       // Delimiter between blocks
+    const BIT_LENGTH = 21; // Fixed bit-length per Unicode code point
+
+    // Web Crypto helpers
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    function getRandomBytes(length) {
+      const bytes = new Uint8Array(length);
+      window.crypto.getRandomValues(bytes);
+      return bytes;
+    }
+
+    async function deriveKey(password, salt, iterations = 100000) {
+      const keyMaterial = await window.crypto.subtle.importKey(
+        "raw",
+        encoder.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+      return window.crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: salt,
+          iterations: iterations,
+          hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    // --- Encryption Functions ---
+    // Standard encryption (returns base64 string)
+    async function encryptText(plainText, password) {
+      const salt = getRandomBytes(16);
+      const iv = getRandomBytes(12); // 12 bytes for AES-GCM
+      const key = await deriveKey(password, salt);
+      const ciphertext = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        encoder.encode(plainText)
+      );
+      const saltIvCipher = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+      saltIvCipher.set(salt, 0);
+      saltIvCipher.set(iv, salt.byteLength);
+      saltIvCipher.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
+      return btoa(String.fromCharCode(...saltIvCipher));
+    }
+
+    // Encryption with details for educational display
+    async function encryptTextWithDetails(plainText, password) {
+      const salt = getRandomBytes(16);
+      const iv = getRandomBytes(12);
+      const key = await deriveKey(password, salt);
+      const ciphertextBuffer = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        encoder.encode(plainText)
+      );
+      const ciphertext = new Uint8Array(ciphertextBuffer);
+      const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+      combined.set(salt, 0);
+      combined.set(iv, salt.byteLength);
+      combined.set(ciphertext, salt.byteLength + iv.byteLength);
+      const encryptedBase64 = btoa(String.fromCharCode(...combined));
+      return {
+        salt: btoa(String.fromCharCode(...salt)),
+        iv: btoa(String.fromCharCode(...iv)),
+        ciphertext: btoa(String.fromCharCode(...ciphertext)),
+        encryptedBase64: encryptedBase64
+      };
+    }
+
+    // --- Decryption Functions ---
+    async function decryptText(encryptedBase64, password) {
+      const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+      const salt = combined.slice(0, 16);
+      const iv = combined.slice(16, 28);
+      const ciphertext = combined.slice(28);
+      const key = await deriveKey(password, salt);
+      try {
+        const decrypted = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          ciphertext
+        );
+        return decoder.decode(decrypted);
+      } catch (err) {
+        console.error("Decryption failed:", err);
+        alert("Decryption failed. Possibly an incorrect password or corrupted data.");
+        return "";
+      }
+    }
+
+    // --- Steganography (Invisible Character) Functions ---
+    function encodeInvisible(str) {
+      const encodedBlocks = [];
+      for (const char of str) {
+        const codePoint = char.codePointAt(0);
+        const binaryStr = codePoint.toString(2).padStart(BIT_LENGTH, "0");
+        const invisibleBlock = [...binaryStr]
+          .map(bit => bit === "0" ? ZERO_WIDTH_SPACE : ZERO_WIDTH_NON_JOINER)
+          .join("");
+        encodedBlocks.push(invisibleBlock);
+      }
+      const invisibleData = encodedBlocks.join(ZERO_WIDTH_JOINER);
+      return coverEmoji + invisibleData;
+    }
+    
+    function decodeInvisible(emojiStr) {
+      if (!emojiStr.startsWith(coverEmoji)) {
+        alert("Encoded string does not start with the expected cover emoji.");
+        return "";
+      }
+      const hiddenData = emojiStr.slice(coverEmoji.length);
+      if (!hiddenData) return "";
+      const blocks = hiddenData.split(ZERO_WIDTH_JOINER);
+      let base64Str = "";
+      for (const block of blocks) {
+        if (block.length === 0) continue;
+        const binaryStr = [...block]
+          .map(ch => {
+            if (ch === ZERO_WIDTH_SPACE) return "0";
+            else if (ch === ZERO_WIDTH_NON_JOINER) return "1";
+            else return "";
+          })
+          .join("");
+        const codePoint = parseInt(binaryStr, 2);
+        base64Str += String.fromCodePoint(codePoint);
+      }
+      return base64Str;
+    }
+    
+    // --- Plain Encoding/Decoding (without encryption) ---
+    function encodePlain(plainText) {
+      if (!plainText) return coverEmoji;
+      const encodedBlocks = [];
+      for (const char of plainText) {
+        const cp = char.codePointAt(0);
+        const binaryStr = cp.toString(2).padStart(BIT_LENGTH, "0");
+        const invisibleBlock = [...binaryStr].map(bit => bit === "0" ? ZERO_WIDTH_SPACE : ZERO_WIDTH_NON_JOINER).join("");
+        encodedBlocks.push(invisibleBlock);
+      }
+      return coverEmoji + encodedBlocks.join(ZERO_WIDTH_JOINER);
+    }
+    
+    function decodePlain(encodedEmojiStr) {
+      if (!encodedEmojiStr.startsWith(coverEmoji)) {
+        alert("Encoded string does not start with the expected cover emoji.");
+        return "";
+      }
+      const hiddenData = encodedEmojiStr.slice(coverEmoji.length);
+      if (!hiddenData) return "";
+      const blocks = hiddenData.split(ZERO_WIDTH_JOINER);
+      let decodedText = "";
+      for (const block of blocks) {
+        if (!block.length) continue;
+        const binaryStr = [...block].map(ch => {
+          if (ch === ZERO_WIDTH_SPACE) return "0";
+          else if (ch === ZERO_WIDTH_NON_JOINER) return "1";
+          else return "";
+        }).join("");
+        const cp = parseInt(binaryStr, 2);
+        decodedText += String.fromCodePoint(cp);
+      }
+      return decodedText;
+    }
+    
+    // --- Combined Encode Function with Optional Educational Details ---
+    async function encodeCombined(plainText, password, showDetails) {
+      if (!plainText) return { encoded: coverEmoji, details: "" };
+      if (password && password.trim() !== "") {
+        if (showDetails) {
+          const details = await encryptTextWithDetails(plainText, password);
+          const invisibleEncoded = encodeInvisible(details.encryptedBase64);
+          let debugText = "Encryption Mode (AES-GCM):\n";
+          debugText += `Salt (base64): ${details.salt}\n`;
+          debugText += `IV (base64): ${details.iv}\n`;
+          debugText += `Ciphertext (base64): ${details.ciphertext}\n`;
+          debugText += `Combined Encrypted (base64): ${details.encryptedBase64}\n`;
+          debugText += `\nInvisible Encoding:\n` + debugTransformation(details.encryptedBase64);
+          return { encoded: invisibleEncoded, details: debugText };
+        } else {
+          const encryptedBase64 = await encryptText(plainText, password);
+          return { encoded: encodeInvisible(encryptedBase64), details: "" };
+        }
+      } else {
+        if (showDetails) {
+          let debugLines = [];
+          let encodedBlocks = [];
+          for (const char of plainText) {
+            const cp = char.codePointAt(0);
+            const binaryStr = cp.toString(2).padStart(BIT_LENGTH, "0");
+            const invisibleBlock = [...binaryStr].map(bit => bit === "0" ? ZERO_WIDTH_SPACE : ZERO_WIDTH_NON_JOINER).join("");
+            debugLines.push(`Character: '${char}' | Code Point: ${cp} (U+${cp.toString(16).toUpperCase()})\nBinary: ${binaryStr}\nInvisible: ${invisibleBlock}\n`);
+            encodedBlocks.push(invisibleBlock);
+          }
+          const result = coverEmoji + encodedBlocks.join(ZERO_WIDTH_JOINER);
+          debugLines.push(`\nFinal Encoded Emoji: ${result}`);
+          return { encoded: result, details: debugLines.join("\n") };
+        } else {
+          return { encoded: encodePlain(plainText), details: "" };
+        }
+      }
+    }
+    
+    // --- Combined Decode Function with Optional Educational Details ---
+    async function decodeCombined(encodedEmojiStr, password, showDetails) {
+      if (!encodedEmojiStr.startsWith(coverEmoji)) {
+        alert("Encoded string does not start with the expected cover emoji.");
+        return { decoded: "", details: "" };
+      }
+      if (password && password.trim() !== "") {
+        // Encrypted mode
+        if (showDetails) {
+          let debugText = "Encrypted Mode (AES-GCM):\n";
+          const encryptedBase64 = decodeInvisible(encodedEmojiStr);
+          debugText += `Extracted Encrypted (base64): ${encryptedBase64}\n`;
+          // For educational purposes, we can try to extract salt, IV and ciphertext.
+          const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+          const salt = combined.slice(0, 16);
+          const iv = combined.slice(16, 28);
+          const ciphertext = combined.slice(28);
+          debugText += `Salt (base64): ${btoa(String.fromCharCode(...salt))}\n`;
+          debugText += `IV (base64): ${btoa(String.fromCharCode(...iv))}\n`;
+          debugText += `Ciphertext (base64): ${btoa(String.fromCharCode(...ciphertext))}\n`;
+          const decoded = await decryptText(encryptedBase64, password);
+          debugText += `\nDecrypted Text: ${decoded}`;
+          return { decoded: decoded, details: debugText };
+        } else {
+          const encryptedBase64 = decodeInvisible(encodedEmojiStr);
+          const decoded = await decryptText(encryptedBase64, password);
+          return { decoded: decoded, details: "" };
+        }
+      } else {
+        // Plain mode
+        if (showDetails) {
+          let debugLines = [];
+          const hiddenData = encodedEmojiStr.slice(coverEmoji.length);
+          debugLines.push(`Hidden Data: ${hiddenData}`);
+          const blocks = hiddenData.split(ZERO_WIDTH_JOINER);
+          let decodedText = "";
+          blocks.forEach((block, index) => {
+            if (block.length === 0) return;
+            const binaryStr = [...block].map(ch => ch === ZERO_WIDTH_SPACE ? "0" : ch === ZERO_WIDTH_NON_JOINER ? "1" : "").join("");
+            const cp = parseInt(binaryStr, 2);
+            const char = String.fromCodePoint(cp);
+            debugLines.push(`Block ${index + 1}:\nBinary: ${binaryStr}\nCode Point: ${cp} (U+${cp.toString(16).toUpperCase()})\nCharacter: '${char}'\n`);
+            decodedText += char;
+          });
+          debugLines.push(`\nFinal Decoded Text: ${decodedText}`);
+          return { decoded: decodedText, details: debugLines.join("\n") };
+        } else {
+          return { decoded: decodePlain(encodedEmojiStr), details: "" };
+        }
+      }
+    }
+    
+    // Helper to show invisible transformation for a given string (used in encryption details)
+    function debugTransformation(str) {
+      let debugLines = [];
+      for (const char of str) {
+        const cp = char.codePointAt(0);
+        const binaryStr = cp.toString(2).padStart(BIT_LENGTH, "0");
+        const invisibleBlock = [...binaryStr].map(bit => bit === "0" ? ZERO_WIDTH_SPACE : ZERO_WIDTH_NON_JOINER).join("");
+        debugLines.push(`'${char}' => ${binaryStr} => ${invisibleBlock}`);
+      }
+      return debugLines.join("\n");
+    }
+    
+    // --- DOM Event Listeners ---
+    document.addEventListener("DOMContentLoaded", () => {
+      const encodeBtn = document.getElementById("encodeBtn");
+      const decodeBtn = document.getElementById("decodeBtn");
+      const toggleEncodeDetailsBtn = document.getElementById("toggleEncodeDetailsBtn");
+      const toggleDecodeDetailsBtn = document.getElementById("toggleDecodeDetailsBtn");
+      const encodedDetailsDiv = document.getElementById("encodedDetails");
+      const decodedDetailsDiv = document.getElementById("decodedDetails");
+      
+      let showEncodeDetails = false;
+      let showDecodeDetails = false;
+      
+      toggleEncodeDetailsBtn.addEventListener("click", () => {
+        showEncodeDetails = !showEncodeDetails;
+        encodedDetailsDiv.style.display = showEncodeDetails ? "block" : "none";
+        toggleEncodeDetailsBtn.textContent = showEncodeDetails ? "Hide Transformation Details" : "Show Transformation Details";
+      });
+      
+      toggleDecodeDetailsBtn.addEventListener("click", () => {
+        showDecodeDetails = !showDecodeDetails;
+        decodedDetailsDiv.style.display = showDecodeDetails ? "block" : "none";
+        toggleDecodeDetailsBtn.textContent = showDecodeDetails ? "Hide Transformation Details" : "Show Transformation Details";
+      });
+      
+      encodeBtn.addEventListener("click", async () => {
+        const inputText = document.getElementById("inputText").value;
+        const password = document.getElementById("encodePassword").value;
+        const { encoded, details } = await encodeCombined(inputText, password, showEncodeDetails);
+        document.getElementById("encodedEmoji").textContent = encoded;
+        document.getElementById("transformationSteps").textContent = details;
+      });
+      
+      decodeBtn.addEventListener("click", async () => {
+        const encodedInput = document.getElementById("encodedInput").value;
+        const password = document.getElementById("decodePassword").value;
+        const { decoded, details } = await decodeCombined(encodedInput, password, showDecodeDetails);
+        document.getElementById("decodedText").textContent = decoded;
+        document.getElementById("decodeTransformationSteps").textContent = details;
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Combined GIF Command Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    label { display: block; margin-top: 10px; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 5px; }
+    button { margin-top: 10px; padding: 10px 15px; }
+    textarea { width: 100%; height: 150px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Combined GIF Command Generator</h1>
+  <p>Enter your parameters below. (The default crop values are <code>crop=1440:1072:240:4</code> for a 1920×1080 video.)</p>
+  <form id="commandForm">
+    <label for="videoPath">Video File Path:</label>
+    <input type="text" id="videoPath" placeholder="e.g., C:\Users\Spencer\Documents\DALLE\gouache2_gif.mp4" required>
+    
+    <label for="outputWidth">Desired Output Width (px):</label>
+    <input type="number" id="outputWidth" placeholder="e.g., 800" required>
+    
+    <label for="frameRate">Frame Rate (fps):</label>
+    <input type="number" id="frameRate" placeholder="e.g., 24" required>
+    
+    <button type="button" onclick="generateCommand()">Generate Command</button>
+  </form>
+  <textarea id="commandOutput" readonly placeholder="The combined command will appear here..."></textarea>
+  
+  <script>
+    function generateCommand() {
+      const videoPath = document.getElementById("videoPath").value.trim();
+      const outputWidth = parseInt(document.getElementById("outputWidth").value);
+      const frameRate = document.getElementById("frameRate").value.trim();
+      
+      if (!videoPath || isNaN(outputWidth) || !frameRate) {
+        alert("Please fill in all fields correctly.");
+        return;
+      }
+      
+      // Extract folder and base name from the video path
+      const separators = /[\\/]/;
+      const parts = videoPath.split(separators);
+      const fileName = parts.pop();
+      const folder = parts.join("\\");
+      const baseName = fileName.split('.')[0];
+      
+      // Use the default crop values from crop detection
+      const cropFilter = "crop=1440:1072:240:4";
+      
+      // Calculate output height to preserve the aspect ratio of the cropped video (1440x1072)
+      const outputHeight = Math.round(outputWidth * 1072 / 1440);
+      
+      // Build output file paths (in the same folder as the input)
+      const croppedPath = `${folder}\\${baseName}_cropped.mp4`;
+      const palettePath = `${folder}\\${baseName}_palette.png`;
+      const gifPath = `${folder}\\${baseName}.gif`;
+      
+      // Combine all steps into one command string using && to chain commands
+      const command = `ffmpeg -i "${videoPath}" -vf "${cropFilter}" -y "${croppedPath}" && ` +
+                      `ffmpeg -i "${croppedPath}" -vf "fps=${frameRate},scale=${outputWidth}:${outputHeight}:flags=lanczos,palettegen" -y "${palettePath}" && ` +
+                      `ffmpeg -i "${croppedPath}" -i "${palettePath}" -filter_complex "fps=${frameRate},scale=${outputWidth}:${outputHeight}:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer" -y "${gifPath}"`;
+      
+      document.getElementById("commandOutput").value = command;
+    }
+  </script>
+</body>
+</html>
