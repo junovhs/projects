@@ -1,0 +1,186 @@
+```html
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BlockPatch — fuzzy replacer (robust)</title>
+<style>
+  html,body{margin:0;background:#0f1115;color:#e8ecf5;font:14px/1.35 system-ui,Segoe UI,Roboto,sans-serif}
+  header{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #1b2130;background:#0b0e14}
+  h1{margin:0;font-size:14px;background:linear-gradient(90deg,#5dd1ff,#b486ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .btn{background:#161b26;border:1px solid #2b3346;color:#e8ecf5;border-radius:8px;padding:6px 10px;cursor:pointer}
+  .btn:hover{background:#1d2433}
+  .hint{color:#9aa6be;font-size:12px;margin-left:auto}
+  main{display:grid;grid-template-columns:1fr 380px;gap:10px;padding:10px}
+  textarea{width:100%;min-height:320px;background:#0f1320;color:#e8ecf5;border:1px solid #23304a;border-radius:8px;padding:10px;resize:vertical}
+  section{background:#101523;border:1px solid #1f2740;border-radius:10px;overflow:hidden}
+  section h2{margin:0;padding:8px 10px;background:#131a2b;border-bottom:1px solid #202a45;font-size:12px;color:#cbd4ea}
+  #list{max-height:460px;overflow:auto}
+  .row{padding:8px 10px;border-bottom:1px solid #162038}
+  .row b{font-weight:600}
+  pre{margin:0;padding:8px 10px;white-space:pre-wrap;background:#0c111e;border-top:1px solid #1b2641;color:#cfe1ff}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+  .ok{color:#6be27e}.err{color:#ff8080}.warn{color:#ffd27d}
+  .controls{display:flex;align-items:center;gap:10px}
+  .controls input{width:70px;background:#0f1320;border:1px solid #23304a;border-radius:6px;color:#e8ecf5;padding:4px 6px}
+</style>
+<header>
+  <h1>BlockPatch (fuzzy)</h1>
+  <div class="controls">
+    <button id="pick" class="btn">Pick folder</button>
+    <button id="preview" class="btn">Preview</button>
+    <button id="apply" class="btn">Apply all</button>
+    <label>Fuzz <input id="fuzz" type="number" step="0.01" min="0" max="1" value="0.80"></label>
+  </div>
+  <span id="status" class="hint">Idle</span>
+</header>
+<main>
+  <section>
+    <h2>1) Paste blocks (fuzzy find → replace)</h2>
+    <textarea id="blocks" spellcheck="false" placeholder="Format:
+
+>>> file: path/to/file.ext | fuzz=0.8 | mode=ci,ws,rx
+--- from
+(old-ish snippet)
+--- to
+(replacement)
+<<<
+
+Notes:
+- mode flags: ci=case-insensitive, ws=collapse whitespace, rx=from is regex, undo=restore file.bak
+- .bak backup is created on first write; CRLF/BOM preserved."></textarea>
+    <pre id="err" style="display:none"></pre>
+  </section>
+  <section>
+    <h2>2) Files & results</h2>
+    <div id="list"></div>
+    <pre id="previewPane"></pre>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const st=t=>{const el=$('status');if(el)el.textContent=t;};
+let rootDir=null,items=[];
+
+$('pick').onclick=async()=>{try{rootDir=await window.showDirectoryPicker();st('Folder ready')}catch{st('Folder not picked')}};
+$('preview').onclick=async()=>{try{items=parseBlocks($('blocks').value);$('err').style.display='none'}catch(e){$('err').textContent=e.message;$('err').style.display='block';st('Parse error');return}await renderList(true)};
+$('apply').onclick=async()=>{if(!rootDir){alert('Pick a folder first');return}if(!items.length){try{items=parseBlocks($('blocks').value)}catch(e){alert('Parse error: '+e.message);return}}let ok=0,fail=0;for(const it of items){try{await applyOne(it);ok++}catch(e){console.warn(e);fail++}}await renderList(false);st(`Applied ${ok}, failed ${fail}`)};
+
+/* -------- Parse blocks with per-block opts -------- */
+function parseBlocks(txt){
+  const lines=txt.replace(/\r\n?/g,'\n').split('\n');let i=0,res=[];
+  while(i<lines.length){
+    while(i<lines.length&&!lines[i].startsWith('>>> file:'))i++;
+    if(i>=lines.length)break;
+    const hdr=lines[i++].slice(9).trim();const [path,...ops]=hdr.split('|').map(s=>s.trim());
+    const opts={};for(const kv of ops){const m=kv.match(/^(\w+)\s*=\s*(.+)$/);if(m)opts[m[1]]=m[2];else if(kv)opts[kv]=true;}
+    if(lines[i++]!=='--- from')throw new Error('Expected "--- from" for '+path);
+    const from=[];while(i<lines.length&&lines[i]!=='--- to')from.push(lines[i++]);
+    if(lines[i++]!=='--- to')throw new Error('Expected "--- to" for '+path);
+    const to=[];while(i<lines.length&&lines[i]!=='<<<')to.push(lines[i++]);
+    if(lines[i++]!=='<<<')throw new Error('Expected "<<<" end for '+path);
+    res.push({file:path,from:from.join('\n'),to:to.join('\n'),opts});
+  }
+  if(!res.length)throw new Error('No blocks found');
+  return res;
+}
+
+/* -------- FS helpers -------- */
+async function readFile(path){if(!rootDir)throw new Error('No folder');const h=await resolveFileHandle(path,false);const f=await h.getFile();return await f.text()}
+async function writeFile(path,content){const h=await resolveFileHandle(path,true);const w=await h.createWritable();await w.write(content);await w.close()}
+async function resolveFileHandle(path,create){const parts=path.split('/');const name=parts.pop();let dir=rootDir;for(const seg of parts){dir=await dir.getDirectoryHandle(seg,{create})}return await dir.getFileHandle(name,{create})}
+
+/* -------- Levenshtein + similarity -------- */
+function levenshtein(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;const v0=new Uint16Array(n+1),v1=new Uint16Array(n+1);for(let j=0;j<=n;j++)v0[j]=j;for(let i=0;i<m;i++){v1[0]=i+1;const ac=a.charCodeAt(i);for(let j=0;j<n;j++){const cost=ac===b.charCodeAt(j)?0:1;v1[j+1]=Math.min(v1[j]+1,v0[j+1]+1,v0[j]+cost)}v0.set(v1)}return v0[n]}
+function similarity(a,b){const M=Math.max(a.length,b.length)||1;return 1-(levenshtein(a,b)/M)}
+
+/* -------- Normalization + fuzzy finder -------- */
+function norm(s,mode){if(mode?.includes('ci'))s=s.toLowerCase();if(mode?.includes('ws'))s=s.replace(/\s+/g,' ');return s}
+function findFuzzy(hay,needle,threshold,mode){
+  if(mode?.includes('rx')){
+    const re=new RegExp(needle,mode.includes('ci')?'gis':'gs');let best={index:-1,len:0,score:0},m;
+    while((m=re.exec(hay))){const len=(m[0]??'').length;const score=Math.min(1,Math.max(len/Math.max(needle.length,1),0.8));if(score>best.score)best={index:m.index,len,score}}
+    return best.score>=threshold?best:{index:-1,len:0,score:best.score};
+  }
+  const H=norm(hay,mode),N=norm(needle,mode);
+  if(!N.length)return{index:0,len:0,score:1};
+  const ex=H.indexOf(N);
+  if(ex>=0){ // map rough index back to original string
+    let idx=ex,len=N.length;return{index:idx,len,score:1}
+  }
+  const linesH=H.split('\n'),linesN=N.split('\n'),L=Math.max(1,linesN.length),pad=Math.ceil(L*0.5);
+  const offs=[];{let o=0;for(const ln of hay.split('\n')){offs.push(o);o+=ln.length+1}}
+  let best={index:-1,len:0,score:0},second=0;
+  const step=Math.max(1,Math.floor(L/2));
+  for(let a=0;a<linesH.length;a+=step){
+    const s=Math.max(0,a-pad),e=Math.min(linesH.length,s+L+pad*2);
+    for(let i=s;i<=e-L;i++){
+      const slice=linesH.slice(i,i+L).join('\n');
+      const score=similarity(slice,N);
+      if(score>best.score){second=best.score;best={index:offs[i],len:slice.length,score}}
+      else if(score>second){second=score}
+    }
+  }
+  best.tie=(Math.abs(best.score-second)<=0.01);
+  return best.score>=threshold?best:{index:-1,len:0,score:best.score,tie:best.tie};
+}
+
+/* -------- Preview & apply -------- */
+async function renderList(isPreview){
+  const list=$('list');list.innerHTML='';const pane=$('previewPane');pane.textContent='';
+  for(const it of items){
+    const thr=it.opts?.fuzz?clamp(parseFloat(it.opts.fuzz)||0,0,1):clamp(parseFloat($('fuzz').value)||0.8,0,1);
+    const mode=(it.opts?.mode||'').split(',').map(s=>s.trim()).filter(Boolean);
+    let status='',cls='warn',extra='';
+    try{
+      const raw=await readFile(it.file);
+      const hit=findFuzzy(raw,it.from,thr,mode);
+      if(hit.index>=0){status=`match @ ${hit.index} (score ${hit.score.toFixed(2)}${hit.tie?', tie':''})`;cls=hit.tie?'warn':'ok';
+        if(isPreview){
+          const pre=raw.slice(Math.max(0,hit.index-120),hit.index);
+          const mat=raw.slice(hit.index,hit.index+hit.len);
+          const post=raw.slice(hit.index+hit.len,Math.min(raw.length,hit.index+hit.len+120));
+          extra=`…${pre}▏${mat}▕${post}…`;
+        }
+      }else{status=`no match (best ${hit.score.toFixed(2)})`;cls='err'}
+    }catch(e){status='file error: '+e.message;cls='err'}
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<div><b>${escapeHtml(it.file)}</b> — <span class="${cls}">${escapeHtml(status)}</span></div>`;
+    if(extra)row.innerHTML+=`<pre>${escapeHtml(extra)}</pre>`;
+    list.appendChild(row);
+  }
+}
+
+async function applyOne(it){
+  // read and preserve BOM/EOL
+  let raw=await readFile(it.file);
+  const hasBOM=raw.charCodeAt(0)===0xFEFF;if(hasBOM)raw=raw.slice(1);
+  const isCRLF=/\r\n/.test(raw), EOL=isCRLF?'\r\n':'\n';
+
+  // undo mode restores .bak
+  if((it.opts?.mode||'').includes('undo')){const bak=await readMaybe(it.file+'.bak');if(bak==null)throw new Error('No .bak for '+it.file);await writeFile(it.file,bak);return;}
+
+  const thr=it.opts?.fuzz?clamp(parseFloat(it.opts.fuzz)||0,0,1):clamp(parseFloat($('fuzz').value)||0.8,0,1);
+  const mode=(it.opts?.mode||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const hit=findFuzzy(raw,it.from,thr,mode);
+  if(hit.index<0)throw new Error(`No match in ${it.file} (best ${hit.score.toFixed(2)})`);
+  if(hit.tie)throw new Error(`Ambiguous match in ${it.file} (multiple ~equal hits)`);
+
+  // backup once
+  const hasBak=await readMaybe(it.file+'.bak');if(hasBak==null)await writeFile(it.file+'.bak',raw);
+
+  // normalize to LF for replace, then restore EOLs
+  const lfRaw=raw.replace(/\r\n/g,'\n'), lfTo=it.to.replace(/\r\n/g,'\n');
+  const outLF=lfRaw.slice(0,hit.index)+lfTo+lfRaw.slice(hit.index+hit.len);
+  let out=isCRLF?outLF.replace(/\n/g,EOL):outLF;
+  if(hasBOM)out='\uFEFF'+out;
+  await writeFile(it.file,out);
+}
+
+async function readMaybe(path){try{return await readFile(path)}catch{return null}}
+
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+</script>
+</html>
+```

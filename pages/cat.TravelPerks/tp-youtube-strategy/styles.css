@@ -1,0 +1,687 @@
+:root {
+    --primary: #2563EB;
+    --primary-dark: #1D4ED8;
+    --primary-light: #60A5FA;
+    --secondary: #8B5CF6;
+    --accent: #F59E0B;
+    --text: #1F2937;
+    --text-light: #4B5563;
+    --text-lighter: #9CA3AF;
+    --background: #FFFFFF;
+    --background-alt: #F9FAFB;
+    --border: #E5E7EB;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --error: #EF4444;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    /* Ensure no global overflow issues are hiding content */
+    overflow-x: hidden; 
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    line-height: 1.5;
+    background-color: var(--background);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+h1 {
+    font-size: 3.5rem;
+    margin-bottom: 1.5rem;
+}
+
+h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+/* Layout */
+section {
+    padding: 5rem 2rem;
+}
+
+.section-header {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 3rem;
+}
+
+.section-header p {
+    font-size: 1.25rem;
+    color: var(--text-light);
+}
+
+/* Header Fixes */
+header {
+    /* Explicitly set display and ensure it takes up width */
+    display: block; 
+    width: 100%;
+    position: relative; /* Establish stacking context if needed */
+    z-index: 1; /* Ensure header isn't somehow behind body background */
+}
+
+/* Navigation */
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background-color: rgba(255, 255, 255, 0.95);
+    position: sticky;
+    top: 0;
+    z-index: 100; /* Nav should be above header content */
+    backdrop-filter: blur(5px);
+    border-bottom: 1px solid var(--border);
+}
+
+.logo {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.logo-text {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary, .btn-primary-sm {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-primary-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.btn-primary, .btn-primary-sm {
+    background-color: var(--primary);
+    color: white;
+    border: 1px solid var(--primary);
+}
+
+.btn-primary:hover, .btn-primary-sm:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* Hero Section */
+.hero-section {
+    display: flex;
+    align-items: center;
+    padding: 5rem 2rem;
+    /* Use min-height instead of height to avoid potential collapse */
+    min-height: calc(80vh - 80px); /* Adjust for potential nav height */
+    background: linear-gradient(to bottom, white, var(--background-alt));
+    width: 100%; /* Ensure it spans the full width */
+    position: relative; /* Ensure it's part of the normal flow */
+    z-index: 2; /* Ensure hero content is above header background but below nav */
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 600px;
+    z-index: 3; /* Ensure text is above potentially overlapping elements */
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: var(--text-light);
+    margin-bottom: 2rem;
+}
+
+.hero-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3; /* Ensure image is above potentially overlapping elements */
+}
+
+.cruise-illustration {
+    max-width: 100%;
+    height: auto;
+    /* Let width control size primarily to avoid squashing */
+    max-height: 400px; 
+    width: clamp(250px, 80%, 500px); /* Responsive width */
+    display: block; /* Ensure it behaves as a block element */
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); } /* Reduced float distance slightly */
+    100% { transform: translateY(0px); }
+}
+
+/* Series Section */
+.series-section {
+    background-color: var(--background-alt);
+}
+
+.series-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.series-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    /* Removed fixed height: 100% - let content determine height */
+    position: relative;
+    overflow: hidden; /* Keep overflow hidden for max-height transition */
+    cursor: pointer;
+}
+
+.series-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.series-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.series-card:hover::before {
+    opacity: 1;
+}
+
+.series-card::after {
+    content: '+';
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary);
+    transition: transform 0.3s ease;
+}
+
+.series-card.expanded::after {
+    content: '−';
+}
+
+.series-icon {
+    margin-bottom: 1.5rem;
+}
+
+.series-card h3 {
+    margin-bottom: 1rem;
+}
+
+.series-card p {
+    color: var(--text-light);
+    flex-grow: 1;
+}
+
+.series-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+}
+
+.primary {
+    background-color: rgba(139, 92, 246, 0.1);
+    color: var(--secondary);
+}
+
+.supporting {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+}
+
+.primary-series {
+    border-left: 3px solid var(--secondary);
+}
+
+.video-list {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-out; /* Smoother transition */
+    margin-top: 1rem;
+    /* Ensure visibility is handled correctly with max-height */
+    visibility: hidden; 
+    opacity: 0;
+    transition: max-height 0.5s ease-out, opacity 0.3s 0.2s ease-out, visibility 0s 0.5s; /* Delay opacity/visibility */
+
+}
+
+.series-card.expanded .video-list {
+     max-height: 500px; /* Set a reasonable max-height for expansion */
+     visibility: visible;
+     opacity: 1;
+     transition: max-height 0.5s ease-out, opacity 0.3s ease-out, visibility 0s 0s; /* Show immediately */
+}
+
+.video-list ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0; /* Remove default ul margin */
+}
+
+.video-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.video-list li:last-child {
+    border-bottom: none;
+}
+
+/* Strategy Section */
+.strategy-table {
+    max-width: 1200px; 
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.table-header, .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 0.8fr 0.8fr 1.5fr 1.5fr; 
+    padding: 1rem 1.5rem;
+    gap: 1rem; 
+    align-items: center; 
+}
+
+.table-header {
+    background-color: var(--primary);
+    color: white;
+    font-weight: 600;
+}
+
+.table-row {
+    border-bottom: 1px solid var(--border);
+}
+
+.table-row:last-child {
+    border-bottom: none;
+}
+
+.lift-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.low {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.medium {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+}
+
+.high {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+/* Why Section */
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.benefit-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease;
+}
+
+.benefit-card:hover {
+    transform: translateY(-5px);
+}
+
+.benefit-icon {
+    margin-bottom: 1.5rem;
+}
+
+.benefit-card h3 {
+    margin-bottom: 1rem;
+}
+
+/* Cadence Summary Styles */
+.cadence-summary {
+    max-width: 1000px;
+    margin: 3rem auto 0; 
+    text-align: center;
+}
+
+.cadence-bullets {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap; 
+}
+
+.cadence-bullet {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bullet-icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 1.25rem;
+    border-radius: 50%;
+    flex-shrink: 0; 
+}
+
+.bullet-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-align: left; 
+}
+
+/* Goals Section */
+.goals-section {
+    background-color: var(--background-alt);
+}
+
+.goals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto 3rem;
+}
+
+.goal-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    height: 100%;
+}
+
+.goal-icon {
+    margin-bottom: 1.5rem;
+}
+
+.goal-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 1.5rem;
+}
+
+.goal-list li {
+    padding: 0.5rem 0;
+    position: relative;
+    padding-left: 1.5rem;
+    color: var(--text-light);
+}
+
+.goal-list li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: bold;
+}
+
+/* Responsive Styles */
+@media (max-width: 992px) { 
+    .table-header {
+        display: none; 
+    }
+
+    .table-row {
+        grid-template-columns: 1fr; 
+        padding: 1rem;
+        border: 1px solid var(--border); /* Add border for separation */
+        border-radius: 8px; /* Rounded corners */
+        margin-bottom: 1rem; /* Space between cards */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background-color: white;
+    }
+
+    .table-row div {
+        padding: 0.6rem 0;
+        display: flex; 
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        justify-content: space-between; 
+        align-items: center; /* Align items vertically */
+        border-bottom: 1px dashed var(--border);
+        gap: 0.5rem; /* Add gap between label and value */
+    }
+     .table-row div:last-child {
+         border-bottom: none;
+     }
+
+    .table-row div::before { 
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--primary);
+        margin-right: 1rem;
+        flex-basis: 100px; /* Give label a minimum width */
+        flex-shrink: 0;
+    }
+    
+    /* Ensure data-labels are correctly applied - remove explicit nth-child overrides if JS is handling it */
+    /* Keep this structure if JS addTableLabels is working */
+    .table-row div span { /* Target the value part */
+       text-align: right;
+       flex-grow: 1;
+    }
+
+    .lift-badge {
+        margin-left: 0; /* Let flexbox handle positioning */
+        padding: 0.3rem 0.6rem; /* Slightly larger padding */
+    }
+}
+
+
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    section {
+        padding: 3rem 1rem; /* Reduce padding on smaller screens */
+    }
+    
+    .hero-section {
+        flex-direction: column;
+        padding: 3rem 1.5rem;
+        text-align: center; /* Center text when stacked */
+        min-height: 70vh; /* Adjust min height */
+    }
+    
+    .hero-content {
+        margin-bottom: 3rem; /* Increased space */
+        max-width: 100%; /* Allow full width */
+    }
+    
+    .cta-buttons {
+        justify-content: center;
+    }
+    
+    /* Consider adding a mobile nav toggle later if needed */
+    .nav-links {
+        display: none; 
+    }
+    
+    /* Responsive table styles already handled by max-width: 992px */
+
+    .cadence-bullets {
+        flex-direction: column;
+        gap: 1.5rem;
+        align-items: center; 
+    }
+     .cadence-bullet {
+         width: 100%;
+         max-width: 300px; 
+         justify-content: flex-start; 
+     }
+}
+
+/* Animation initialization styles */
+.series-card, .benefit-card, .goal-card {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Styles added when element is in view */
+.series-card.in-view, 
+.benefit-card.in-view, 
+.goal-card.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ===================================== */
+/* Limit Content Width and Center        */
+/* ===================================== */
+
+/* Target the hero section */
+.hero-section {
+    max-width: 1200px;   /* Set the maximum width */
+    margin-left: auto;  /* Center horizontally */
+    margin-right: auto;
+    /* Optional: Adjust padding if needed now that it's centered */
+    /* The original padding was 5rem 2rem */
+    /* You might want to remove horizontal padding now */
+    padding-left: 1rem;  /* Example: Keep some padding */
+    padding-right: 1rem; /* Example: Keep some padding */
+}
+
+/* Target the direct section children of the body (below the header) */
+body > section {
+    max-width: 1200px;   /* Set the maximum width */
+    margin-left: auto;  /* Center horizontally */
+    margin-right: auto;
+    /* Optional: Adjust padding if needed */
+    /* The original padding was 5rem 2rem */
+     padding-left: 1rem;  /* Example: Keep some padding */
+     padding-right: 1rem; /* Example: Keep some padding */
+}
+
+/* Ensure elements within the limited sections don't try to break out */
+/* Added hero section children here too */
+.hero-section .hero-content,
+.hero-section .hero-image,
+body > section .section-header,
+body > section .series-cards,
+body > section .strategy-table,
+body > section .benefits-grid,
+body > section .goals-container,
+body > section .cadence-summary {
+    max-width: 100%; /* Ensure they don't exceed their parent's 800px */
+}

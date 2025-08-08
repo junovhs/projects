@@ -1,0 +1,621 @@
+<html>
+<head>
+    <base href="https://hotdeal.chatbot.com">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotDeal Image Fetcher</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        .masonry-container {
+            column-count: 1;
+            column-gap: 1rem;
+        }
+        @media (min-width: 640px) {
+            .masonry-container {
+                column-count: 2;
+            }
+        }
+        @media (min-width: 768px) {
+            .masonry-container {
+                column-count: 3;
+            }
+        }
+        @media (min-width: 1024px) {
+            .masonry-container {
+                column-count: 4;
+            }
+        }
+        .masonry-item {
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        .resolution-tag {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #333;
+            padding: 2px 6px;
+            font-weight: bold;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        #loadingIndicator {
+            display: none;
+        }
+        .hidden {
+            display: none;
+        }
+        #cropCanvas {
+            display: none;
+        }
+        #cropInfo {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            z-index: 1000;
+            display: none;
+        }
+        #cropModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        #cropContainer {
+            position: relative;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            width: 968px;
+            height: 600px;
+        }
+        #cropImage {
+            position: absolute;
+            cursor: move;
+        }
+        .crop-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .crop-buttons {
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-r from-blue-100 to-indigo-200">
+    <div class="min-h-full flex flex-col items-center p-5 space-y-5">
+        <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-5xl">
+            <!-- Title -->
+            <h1 class="text-3xl font-bold mb-6 text-center text-indigo-600">HotDeal Image Fetcher</h1>
+            
+            <!-- Selection Section -->
+            <div class="space-y-6">
+                <!-- Brand Selection -->
+                <div>
+                    <label for="brand" class="block text-gray-700 font-medium mb-2">Select Brand</label>
+                    <select id="brand" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="" disabled selected>Select a brand</option>
+                    </select>
+                </div>
+                
+                <!-- Keyword Input -->
+                <div>
+                    <label for="keywords" class="block text-gray-700 font-medium mb-2">Enter Keywords</label>
+                    <input type="text" id="keywords" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter keywords separated by spaces">
+                </div>
+
+                <!-- Dimension Filters -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="minWidth" class="block text-gray-700 font-medium mb-2">Minimum Width (px)</label>
+                        <input type="number" id="minWidth" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. 500">
+                    </div>
+                    <div>
+                        <label for="maxWidth" class="block text-gray-700 font-medium mb-2">Maximum Width (px)</label>
+                        <input type="number" id="maxWidth" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. 1000">
+                    </div>
+                    <div>
+                        <label for="minHeight" class="block text-gray-700 font-medium mb-2">Minimum Height (px)</label>
+                        <input type="number" id="minHeight" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. 300">
+                    </div>
+                    <div>
+                        <label for="maxHeight" class="block text-gray-700 font-medium mb-2">Maximum Height (px)</label>
+                        <input type="number" id="maxHeight" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. 800">
+                    </div>
+                </div>
+                
+                <!-- Fetch Images Button -->
+                <div class="flex justify-center">
+                    <button id="fetchButton" class="bg-indigo-500 text-white px-6 py-3 rounded hover:bg-indigo-600 transition duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                        Fetch Images
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden flex justify-center mt-8">
+                <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+            </div>
+            
+            <!-- No Results Message -->
+            <div id="noResultsMessage" class="hidden mt-8 text-center text-gray-500">
+                No images found for the selected brand and keywords with the specified dimensions.
+            </div>
+        </div>
+
+        <!-- Images Gallery -->
+        <div id="imageGallery" class="masonry-container w-full max-w-5xl mt-8"></div>
+    </div>
+
+    <!-- Hidden Canvas for Image Cropping -->
+    <canvas id="cropCanvas"></canvas>
+    
+    <!-- Info message for image cropping -->
+    <div id="cropInfo">Click to crop and download (968x600px)</div>
+    
+    <!-- Crop Modal -->
+    <div id="cropModal">
+        <div id="cropContainer">
+            <img id="cropImage" draggable="false">
+        </div>
+        <div class="crop-controls">
+            <div>
+                <label for="zoomControl" class="text-white mr-2">Zoom:</label>
+                <input type="range" id="zoomControl" min="100" max="200" value="100" class="w-32">
+            </div>
+        </div>
+        <div class="crop-buttons">
+            <button id="saveCropBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Save & Download</button>
+            <button id="cancelCropBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Cancel</button>
+        </div>
+    </div>
+    
+    <script>
+        const brands = [
+            { name: "Norwegian Cruise Line", domain: "ncl.com" },
+            { name: "Royal Caribbean International", domain: "royalcaribbean.com" },
+            { name: "Celebrity Cruises", domain: "celebritycruises.com" },
+            { name: "Disney Cruise Line", domain: "disneycruise.disney.go.com" },
+            { name: "Virgin Voyages", domain: "virginvoyages.com" },
+            { name: "Holland America Line", domain: "hollandamerica.com" },
+            { name: "Princess Cruises", domain: "princess.com" },
+            { name: "Carnival Cruise Line", domain: "carnival.com" },
+            { name: "MSC Cruises", domain: "msccruises.com" },
+            { name: "Costa Cruises", domain: "costacruises.com" },
+            { name: "Viking Ocean Cruises", domain: "vikingcruises.com" },
+            { name: "Seabourn Cruise Line", domain: "seabourn.com" },
+            { name: "Regent Seven Seas Cruises", domain: "rssc.com" },
+            { name: "Oceania Cruises", domain: "oceaniacruises.com" },
+            { name: "Silversea Cruises", domain: "silversea.com" },
+            { name: "Explora Journeys", domain: "explorajourneys.com" },
+            { name: "Azamara", domain: "azamara.com" },
+            { name: "Scenic Luxury Cruises & Tours", domain: "scenicusa.com" },
+            { name: "Atlas Ocean Voyages", domain: "atlasoceanvoyages.com" },
+            { name: "Crystal Cruises", domain: "crystalcruises.com" },
+            { name: "Emerald Cruises", domain: "emeraldcruises.com" },
+            { name: "Cunard Line", domain: "cunard.com" },
+            { name: "Windstar Cruises", domain: "windstarcruises.com" },
+            { name: "Paul Gauguin Cruises", domain: "pgcruises.com" },
+            { name: "Ponant", domain: "ponant.com" },
+            { name: "American Cruise Lines", domain: "americancruiselines.com" },
+            { name: "Tauck River Cruises", domain: "tauck.com" },
+            { name: "Star Clippers", domain: "starclippers.com" },
+            { name: "Viking River Cruises", domain: "vikingrivercruises.com" },
+            { name: "Avalon Waterways", domain: "avalonwaterways.com" },
+            { name: "AmaWaterways", domain: "amawaterways.com" },
+            { name: "CroisiEurope", domain: "croisieurope.com" },
+            { name: "Riverside Luxury Cruises", domain: "riverside-cruises.com" },
+            { name: "Riviera River Cruises", domain: "rivierarivercruises.com" },
+            { name: "Uniworld Boutique River Cruise Collection", domain: "uniworld.com" },
+            { name: "Lindblad Expeditions", domain: "expeditions.com" },
+            { name: "Hurtigruten", domain: "hurtigruten.com" },
+            { name: "UnCruise Adventures", domain: "uncruise.com" },
+            { name: "Disney Parks", domain: "disneyparks.disney.go.com" },
+            { name: "Adventures by Disney", domain: "adventuresbydisney.com" },
+            { name: "Sandals Resorts", domain: "sandals.com" },
+            { name: "Beaches Resorts", domain: "beaches.com" },
+            { name: "Breathless Resorts & Spas", domain: "breathlessresorts.com" },
+            { name: "Club Med", domain: "clubmed.us" },
+            { name: "El Dorado Spa Resorts", domain: "eldoradosparesorts.com" },
+            { name: "Excellence Resorts", domain: "excellenceresorts.com" },
+            { name: "Hard Rock Hotels", domain: "hardrockhotels.com" },
+            { name: "Iberostar Hotels & Resorts", domain: "iberostar.com" },
+            { name: "Dreams Resorts & Spas", domain: "dreamsresorts.com" },
+            { name: "Karisma Hotels & Resorts", domain: "karismahotels.com" },
+            { name: "Villas of Distinction", domain: "villasofdistinction.com" },
+            { name: "Palace Resorts", domain: "palaceresorts.com" },
+            { name: "Atlantis Paradise Island", domain: "atlantisbahamas.com" },
+            { name: "Melia Hotels International", domain: "melia.com" },
+            { name: "RIU Hotels & Resorts", domain: "riu.com" },
+            { name: "Outrigger Hotels & Resorts", domain: "outrigger.com" },
+            { name: "Zoëtry Wellness & Spa Resorts", domain: "zoetryresorts.com" },
+            { name: "Secrets Resorts & Spas", domain: "secretsresorts.com" },
+            { name: "American Airlines Vacations", domain: "aavacations.com" },
+            { name: "Delta Vacations", domain: "deltavacations.com" },
+            { name: "Southwest Vacations", domain: "southwestvacations.com" },
+            { name: "United Vacations", domain: "unitedvacations.com" },
+            { name: "Great Safaris", domain: "greatsafaris.com" },
+            { name: "African Travel, Inc.", domain: "africantravelinc.com" },
+            { name: "Abercrombie & Kent", domain: "abercrombiekent.com" },
+            { name: "G Adventures", domain: "gadventures.com" },
+            { name: "Globus Journeys", domain: "globusjourneys.com" },
+            { name: "Rocky Mountaineer", domain: "rockymountaineer.com" },
+            { name: "Trafalgar Tours", domain: "trafalgar.com" },
+            { name: "Shore Excursions Group", domain: "shoreexcursionsgroup.com" },
+            { name: "TourSales.com", domain: "toursales.com" },
+            { name: "Viator", domain: "viator.com" },
+            { name: "Project Expedition", domain: "projectexpedition.com" }
+        ];
+
+
+        const brandSelect = document.getElementById('brand');
+        const fetchButton = document.getElementById('fetchButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const imageGallery = document.getElementById('imageGallery');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+        const minWidthInput = document.getElementById('minWidth');
+        const maxWidthInput = document.getElementById('maxWidth');
+        const minHeightInput = document.getElementById('minHeight');
+        const maxHeightInput = document.getElementById('maxHeight');
+        const cropCanvas = document.getElementById('cropCanvas');
+        const cropInfo = document.getElementById('cropInfo');
+        const cropModal = document.getElementById('cropModal');
+        const cropImage = document.getElementById('cropImage');
+        const cropContainer = document.getElementById('cropContainer');
+        const zoomControl = document.getElementById('zoomControl');
+        const saveCropBtn = document.getElementById('saveCropBtn');
+        const cancelCropBtn = document.getElementById('cancelCropBtn');
+        const ctx = cropCanvas.getContext('2d');
+        
+        // Set fixed crop dimensions
+        const TARGET_WIDTH = 968;
+        const TARGET_HEIGHT = 600;
+
+        // CORS proxy URL
+        const CORS_PROXY = 'https://corsproxy.io/?';
+
+        // Populate brand selection dropdown
+        brands.forEach(brand => {
+            const option = document.createElement('option');
+            option.value = brand.name;
+            option.textContent = brand.name;
+            brandSelect.appendChild(option);
+        });
+
+        fetchButton.addEventListener('click', fetchImages);
+
+        async function fetchImages() {
+            const selectedBrand = brandSelect.value;
+            const keywordsInput = document.getElementById('keywords');
+            const keywords = keywordsInput.value.trim();
+            const minWidth = parseInt(minWidthInput.value) || 0;
+            const maxWidth = parseInt(maxWidthInput.value) || Infinity;
+            const minHeight = parseInt(minHeightInput.value) || 0;
+            const maxHeight = parseInt(maxHeightInput.value) || Infinity;
+
+            if (!selectedBrand || !keywords) {
+                alert("Please select a brand and enter at least one keyword.");
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            imageGallery.innerHTML = '';
+            noResultsMessage.classList.add('hidden');
+
+            const brand = brands.find(b => b.name === selectedBrand);
+            const query = `site:${brand.domain} ${keywords}`;
+            const apiKey = 'AIzaSyAerlE_XL6TZ1omGuCrInCsrdVhY7OFGUM'; // DO NOT REMOVE
+            const cseId = '17e10a5c56723497e'; // DO NOT REMOVE
+            const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&searchType=image&num=10&q=${encodeURIComponent(query)}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.items && data.items.length > 0) {
+                    let filteredImages = data.items.filter(item => {
+                        // Check if item.image object has width and height
+                        if (item.image && item.image.width && item.image.height) {
+                            if (item.image.width >= minWidth && item.image.width <= maxWidth && item.image.height >= minHeight && item.image.height <= maxHeight) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+
+                    if (filteredImages.length > 0) {
+                        filteredImages.forEach(item => {
+                            const imgContainer = document.createElement('div');
+                            imgContainer.className = 'masonry-item';
+                            
+                            const resolutionTag = document.createElement('div');
+                            resolutionTag.className = 'resolution-tag';
+                            resolutionTag.textContent = `${item.image.width}x${item.image.height}`;
+                            
+                            const img = document.createElement('img');
+                            img.src = item.link;
+                            img.alt = item.title;
+                            img.className = 'w-full h-auto rounded shadow-lg animate__animated animate__fadeIn cursor-pointer transition-transform duration-300 transform hover:scale-105';
+                            img.addEventListener('click', () => cropAndDownloadImage(item));
+                            img.addEventListener('mouseenter', () => {
+                                cropInfo.style.display = 'block';
+                            });
+                            img.addEventListener('mouseleave', () => {
+                                cropInfo.style.display = 'none';
+                            });
+                            
+                            imgContainer.appendChild(img);
+                            imgContainer.appendChild(resolutionTag);
+                            imageGallery.appendChild(imgContainer);
+                        });
+                    } else {
+                        noResultsMessage.classList.remove('hidden');
+                    }
+                } else {
+                    noResultsMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Error fetching images:", error);
+                alert("Error fetching images. Check the console for details.");
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        let isDragging = false;
+        let startX, startY, initialOffsetX, initialOffsetY;
+        let currentImageData = null;
+
+        cropImage.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialOffsetX = parseInt(cropImage.style.left) || 0;
+            initialOffsetY = parseInt(cropImage.style.top) || 0;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            let dx = e.clientX - startX;
+            let dy = e.clientY - startY;
+            
+            let newLeft = initialOffsetX + dx;
+            let newTop = initialOffsetY + dy;
+            
+            // Calculate boundaries
+            const containerRect = cropContainer.getBoundingClientRect();
+            const imageRect = cropImage.getBoundingClientRect();
+            
+            // Constrain horizontal movement
+            if (imageRect.width > containerRect.width) {
+                const minLeft = containerRect.width - imageRect.width;
+                const maxLeft = 0;
+                newLeft = Math.min(Math.max(newLeft, minLeft), maxLeft);
+            } else {
+                // Center smaller images
+                newLeft = (containerRect.width - imageRect.width) / 2;
+            }
+            
+            // Constrain vertical movement
+            if (imageRect.height > containerRect.height) {
+                const minTop = containerRect.height - imageRect.height;
+                const maxTop = 0;
+                newTop = Math.min(Math.max(newTop, minTop), maxTop);
+            } else {
+                // Center smaller images
+                newTop = (containerRect.height - imageRect.height) / 2;
+            }
+            
+            cropImage.style.left = `${newLeft}px`;
+            cropImage.style.top = `${newTop}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        zoomControl.addEventListener('input', () => {
+            const zoomValue = zoomControl.value;
+            const scale = zoomValue / 100;
+            
+            // Get original image dimensions
+            const originalWidth = currentImageData.width;
+            const originalHeight = currentImageData.height;
+            
+            // Apply zoom
+            const newWidth = originalWidth * scale;
+            const newHeight = originalHeight * scale;
+            
+            cropImage.style.width = `${newWidth}px`;
+            cropImage.style.height = `${newHeight}px`;
+            
+            // Center the image
+            centerCropImage();
+        });
+
+        function centerCropImage() {
+            const containerRect = cropContainer.getBoundingClientRect();
+            const imageRect = cropImage.getBoundingClientRect();
+            
+            let left = (containerRect.width - imageRect.width) / 2;
+            let top = (containerRect.height - imageRect.height) / 2;
+            
+            // If image is smaller than container, center it
+            // If larger, ensure it's positioned correctly
+            if (imageRect.width < containerRect.width) {
+                left = (containerRect.width - imageRect.width) / 2;
+            } else {
+                left = Math.min(0, Math.max(containerRect.width - imageRect.width, left));
+            }
+            
+            if (imageRect.height < containerRect.height) {
+                top = (containerRect.height - imageRect.height) / 2;
+            } else {
+                top = Math.min(0, Math.max(containerRect.height - imageRect.height, top));
+            }
+            
+            cropImage.style.left = `${left}px`;
+            cropImage.style.top = `${top}px`;
+        }
+
+        saveCropBtn.addEventListener('click', () => {
+            finalizeAndDownloadCrop();
+        });
+
+        cancelCropBtn.addEventListener('click', () => {
+            cropModal.style.display = 'none';
+            currentImageData = null;
+        });
+
+        async function cropAndDownloadImage(item) {
+            try {
+                const selectedBrand = brandSelect.value;
+                const keywords = document.getElementById('keywords').value.trim().replace(/\s+/g, '_');
+                const imageUrl = item.link;
+                
+                // Create proxied URL to avoid CORS issues
+                const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
+                
+                // Store current image data for the crop tool
+                currentImageData = {
+                    url: proxiedUrl,
+                    width: item.image.width,
+                    height: item.image.height,
+                    filename: `${selectedBrand.replace(/\s+/g, '_')}_${keywords}_${TARGET_WIDTH}x${TARGET_HEIGHT}.jpg`
+                };
+                
+                // Load image for cropping UI
+                cropImage.onload = function() {
+                    // Calculate initial positioning
+                    const imgAspect = this.naturalWidth / this.naturalHeight;
+                    const containerAspect = TARGET_WIDTH / TARGET_HEIGHT;
+                    
+                    let width, height;
+                    
+                    if (imgAspect > containerAspect) {
+                        // Image is wider than container aspect
+                        height = TARGET_HEIGHT;
+                        width = height * imgAspect;
+                    } else {
+                        // Image is taller than container aspect
+                        width = TARGET_WIDTH;
+                        height = width / imgAspect;
+                    }
+                    
+                    // Set initial image size
+                    cropImage.style.width = `${width}px`;
+                    cropImage.style.height = `${height}px`;
+                    
+                    // Center the image in the container
+                    centerCropImage();
+                    
+                    // Reset zoom control
+                    zoomControl.value = 100;
+                    
+                    // Show the modal
+                    cropModal.style.display = 'flex';
+                };
+                
+                // Set image source with crossOrigin attribute BEFORE setting src
+                cropImage.crossOrigin = "anonymous";
+                cropImage.src = proxiedUrl;
+                
+            } catch (error) {
+                console.error("Error preparing crop:", error);
+                alert("Error preparing image for cropping. Check console for details.");
+                // Fallback to original download method
+                downloadOriginalImage(item);
+            }
+        }
+        
+        function finalizeAndDownloadCrop() {
+            try {
+                // Set canvas dimensions
+                cropCanvas.width = TARGET_WIDTH;
+                cropCanvas.height = TARGET_HEIGHT;
+                
+                // Get image position and dimensions
+                const containerRect = cropContainer.getBoundingClientRect();
+                const imageRect = cropImage.getBoundingClientRect();
+                
+                // Calculate source and destination coordinates
+                const sourceX = containerRect.left - imageRect.left;
+                const sourceY = containerRect.top - imageRect.top;
+                const sourceWidth = TARGET_WIDTH;
+                const sourceHeight = TARGET_HEIGHT;
+                
+                // Draw the image on the canvas
+                ctx.drawImage(
+                    cropImage,
+                    sourceX, sourceY, sourceWidth, sourceHeight,
+                    0, 0, TARGET_WIDTH, TARGET_HEIGHT
+                );
+                
+                try {
+                    // Convert to JPEG and download
+                    const croppedImageData = cropCanvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.href = croppedImageData;
+                    link.download = currentImageData.filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch(e) {
+                    console.error("Error with canvas export:", e);
+                    alert("Unable to export the cropped image due to CORS restrictions. Try a different image or using the app from its final hosting location.");
+                }
+                
+                // Hide the modal
+                cropModal.style.display = 'none';
+                
+            } catch (error) {
+                console.error("Error finalizing crop:", error);
+                alert("Error cropping image. Check console for details.");
+            }
+        }
+        
+        function downloadOriginalImage(item) {
+            console.log("Falling back to original download method");
+            const selectedBrand = brandSelect.value;
+            const keywords = document.getElementById('keywords').value.trim().replace(/\s+/g, '_');
+            const imageUrl = item.link;
+            const urlParts = imageUrl.split('/');
+            const originalFilename = urlParts[urlParts.length - 1].split('?')[0];
+            const extension = originalFilename.split('.').pop();
+            const filename = `${selectedBrand.replace(/\s+/g, '_')}_${keywords}_${originalFilename}`;
+
+            // Create a temporary link element
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
