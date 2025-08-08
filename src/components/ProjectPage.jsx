@@ -1,18 +1,19 @@
-import { useParams } from 'react-router-dom';
+// src/components/ProjectPage.jsx
+import { useLocation } from 'react-router-dom';
 
-function ProjectPage() {
-    const { projectId } = useParams();
-    // The URL for the project content is relative to the deployed site's root
-    const projectUrl = `/pages/${projectId}/index.html`;
+export default function ProjectPage() {
+  const { pathname } = useLocation();
+  // Drop leading "/" and decode for spaces/& etc.
+  const projectPath = decodeURIComponent(pathname.replace(/^\/+/, ''));
 
-    return (
-        <iframe
-            key={projectId} // This is important: it forces the iframe to re-render on URL change
-            src={projectUrl}
-            className="project-iframe"
-            title={projectId}
-        />
-    );
+  const projectUrl = `/pages/${projectPath}/index.html`;
+
+  return (
+    <iframe
+      key={projectPath}
+      src={projectUrl}
+      className="project-iframe"
+      title={projectPath}
+    />
+  );
 }
-
-export default ProjectPage;
