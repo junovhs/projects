@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
@@ -16,7 +16,6 @@ const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
 export default function App() {
   const [projects, setProjects] = useState([]);
-  // Dark only for sidebar + welcome
   const [sidebarDark, setSidebarDark] = useState(true);
   const location = useLocation();
 
@@ -26,6 +25,19 @@ export default function App() {
       .then(setProjects)
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
+
+  // Build a lookup: slug -> full relative path (id)
+  const slugToPath = useMemo(() => {
+    const map = {};
+    const stack = [...projects];
+    while (stack.length) {
+      const n = stack.pop();
+      if (!n) continue;
+      if (n.type === 'project' && n.slug) map[n.slug] = n.id;
+      if (n.children) stack.push(...n.children);
+    }
+    return map;
+  }, [projects]);
 
   return (
     <div className="app-shell">
@@ -48,8 +60,8 @@ export default function App() {
           >
             <Routes location={location}>
               <Route path="/" element={<WelcomePage isDark={sidebarDark} />} />
-              {/* catch-all so nested paths (with /) work */}
-              <Route path="/*" element={<ProjectPage />} />
+              {/* single catch-all; component resolves slug OR legacy path */}
+              <Route path="/*" element={<ProjectPage slugToPath={slugToPath} />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
