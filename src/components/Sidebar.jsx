@@ -13,7 +13,7 @@ function countProjects(node) {
   return (node.children || []).reduce((acc, n) => acc + countProjects(n), 0);
 }
 
-/** Pick a simple emoji-ish fallback icon by name (no external deps) */
+/** Simple icon “emoji” mapping — zero deps */
 function iconEmojiFor(name) {
   const n = (name || '').toLowerCase();
   if (n.includes('lifestyle')) return '✨';
@@ -33,7 +33,6 @@ function useAccordionDefault(projects) {
 
   const [openByParent, setOpenByParent] = useState({ root: firstCategoryId });
   useEffect(() => {
-    // Reset when project tree changes
     setOpenByParent({ root: firstCategoryId });
   }, [firstCategoryId]);
 
@@ -69,7 +68,7 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
           className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}
           title={item.name}
         >
-          {/* dot only when active */}
+          {/* dot only when active (CSS toggles opacity) */}
           <span className="leaf-dot" aria-hidden />
           <span className="leaf-text">{item.name}</span>
         </NavLink>
@@ -109,8 +108,6 @@ function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
 
 export default function Sidebar({ projects, isDark, onToggleDark }) {
   const { isOpen, toggle } = useAccordionDefault(projects);
-
-  // toggle id must be unique per page load
   const toggleId = 'sidebar-toggle';
 
   return (
@@ -121,7 +118,7 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
           Showcase
         </Link>
 
-        {/* CodePen-style toggle, scaled down */}
+        {/* CodePen-style toggle (compact, fully closed SVGs) */}
         <input
           id={toggleId}
           type="checkbox"
@@ -130,12 +127,41 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
           onChange={onToggleDark}
         />
         <label htmlFor={toggleId} className="dm-toggle" aria-label="Toggle dark mode">
-          {/* tiny SVGs (same idea as CodePen) */}
+          {/* SUN */}
           <svg className="sun" viewBox="0 0 24 24" aria-hidden>
             <circle cx="12" cy="12" r="4" />
-            <g>
-              <line x1="12" y1="1.5" x2="12" y2="4" />
-              <line x1="12" y1="20" x2="12" y2="22.5" />
-              <line x1="1.5" y1="12" x2="4" y2="12" />
-              <line x1="20" y1="12" x2="22.5" y2="12" />
-              <line x1="4.8" y1="4.8"
+            <circle cx="12" cy="2" r="1" />
+            <circle cx="12" cy="22" r="1" />
+            <circle cx="2" cy="12" r="1" />
+            <circle cx="22" cy="12" r="1" />
+            <circle cx="4.5" cy="4.5" r="1" />
+            <circle cx="19.5" cy="4.5" r="1" />
+            <circle cx="4.5" cy="19.5" r="1" />
+            <circle cx="19.5" cy="19.5" r="1" />
+          </svg>
+          {/* MOON */}
+          <svg className="moon" viewBox="0 0 24 24" aria-hidden>
+            <path d="M21 14.5A9 9 0 0 1 9.5 3 7.5 7.5 0 1 0 21 14.5z" />
+            <circle cx="16.5" cy="6.5" r="0.8" />
+            <circle cx="18.5" cy="8.3" r="0.5" />
+          </svg>
+        </label>
+      </header>
+
+      <nav className="nav">
+        <ul className="tree-root">
+          {(projects || []).map((node) => (
+            <TreeNode
+              key={node.id}
+              item={node}
+              depth={0}
+              parentId="root"
+              isOpen={isOpen}
+              onToggle={toggle}
+            />
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  );
+}
