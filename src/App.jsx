@@ -4,16 +4,8 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
 import ProjectPage from './components/ProjectPage';
+import WelcomePage from './components/WelcomePage';
 import './index.css';
-
-function WelcomePage() {
-  return (
-    <div className="welcome">
-      <h2>Showcase</h2>
-      <p>Select a project from the sidebar to begin.</p>
-    </div>
-  );
-}
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -24,7 +16,8 @@ const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
 export default function App() {
   const [projects, setProjects] = useState([]);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  // Dark only for sidebar + welcome
+  const [sidebarDark, setSidebarDark] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
@@ -34,16 +27,14 @@ export default function App() {
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
-
   return (
     <div className="app-shell">
-      <Sidebar projects={projects} theme={theme} toggleTheme={toggleTheme} />
+      <Sidebar
+        projects={projects}
+        isDark={sidebarDark}
+        onToggleDark={() => setSidebarDark((v) => !v)}
+      />
+
       <main className="content">
         <AnimatePresence mode="wait">
           <motion.div
@@ -56,7 +47,7 @@ export default function App() {
             className="page"
           >
             <Routes location={location}>
-              <Route path="/" element={<WelcomePage />} />
+              <Route path="/" element={<WelcomePage isDark={sidebarDark} />} />
               {/* catch-all so nested paths (with /) work */}
               <Route path="/*" element={<ProjectPage />} />
             </Routes>

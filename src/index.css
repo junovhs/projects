@@ -1,17 +1,16 @@
-/* ---- Base / Theme (unchanged essentials) ---- */
+/* ---- Base / Theme ---- */
 *,
 *::before,
 *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial; }
 a { color: inherit; text-decoration: none; }
 button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Light defaults (root) */
 :root {
   --radius: 12px;
-
-  /* Light */
   --bg: #ffffff;
   --surface: #f7f8fb;
   --text: #0f172a;
@@ -19,12 +18,12 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --border: #e5e7eb;
   --sidebar-bg: #f3f4f6;
   --accent: #2563eb;
-
   --scroll-thumb: #c7cbd4;
   --scroll-track: transparent;
 }
 
-:root[data-theme='dark'] {
+/* Dark palette only when an element gets .theme-dark */
+.theme-dark {
   --bg: #0b1016;
   --surface: #0f172a;
   --text: #e5e7eb;
@@ -32,12 +31,11 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --border: #1f2937;
   --sidebar-bg: #0b1016;
   --accent: #60a5fa;
-
   --scroll-thumb: #2e3b4e;
   --scroll-track: transparent;
 }
 
-/* Scrollbar style */
+/* Global scrollbar style */
 * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb { background-color: var(--scroll-thumb); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
@@ -45,7 +43,7 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 
 html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
 
-/* ---- Layout Shell ---- */
+/* ---- Layout ---- */
 .app-shell { display: flex; min-height: 100vh; width: 100%; }
 
 .sidebar {
@@ -67,10 +65,10 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding: 14px 14px;
   border-bottom: 1px solid var(--border);
+  justify-content: space-between;
 }
 
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; font-size: 18px; }
@@ -79,25 +77,38 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent);
 }
 
-.toggle { position: relative; width: 56px; height: 32px; border-radius: 999px; isolation: isolate; }
-.toggle-track { position: absolute; inset: 0; border-radius: 999px; background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 70%, transparent), transparent); border: 1px solid var(--border); }
-.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 999px; background: var(--bg); box-shadow: 0 1px 2px rgba(0,0,0,.2), 0 0 0 1px var(--border) inset; transition: transform .2s ease; z-index: 2; }
-.toggle.is-dark .toggle-thumb { transform: translateX(24px); }
-.toggle-icon { position: absolute; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: .8; z-index: 1; pointer-events: none; }
-.toggle-icon.sun { left: 10px; }
-.toggle-icon.moon { right: 10px; }
+/* CodePen-style dark-mode toggle (scaled) */
+.dm-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.dm-toggle {
+  width: 56px; height: 32px; position: relative; display: block; border-radius: 200px;
+  background: #ebebeb; box-shadow: inset 0 3px 10px rgba(0,0,0,.25), inset 0 -3px 10px rgba(255,255,255,.4);
+  cursor: pointer; transition: .25s;
+}
+.dm-toggle::after {
+  content: ""; width: 28px; height: 28px; position: absolute; top: 2px; left: 2px;
+  background: linear-gradient(180deg, #ffcc89, #d8860b); border-radius: 999px;
+  box-shadow: 0 3px 6px rgba(0,0,0,.25); transition: transform .25s, background .25s;
+}
+.dm-toggle svg { position: absolute; width: 18px; top: 7px; z-index: 2; }
+.dm-toggle .sun { left: 8px; stroke: none; fill: #fff; }
+.dm-toggle .sun line { stroke: #fff; stroke-width: 1.5; }
+.dm-toggle .moon { right: 8px; fill: #7e7e7e; }
+
+.dm-input:checked + .dm-toggle { background: #242424; }
+.dm-input:checked + .dm-toggle::after {
+  transform: translateX(24px);
+  background: linear-gradient(180deg, #777, #3a3a3a);
+}
+.dm-input:checked + .dm-toggle .sun { fill: #7e7e7e; }
+.dm-input:checked + .dm-toggle .sun line { stroke: #7e7e7e; }
+.dm-input:checked + .dm-toggle .moon { fill: #fff; }
 
 .nav { padding: 8px 8px 14px; overflow: auto; flex: 1; }
 
-/* ---- Tree (inspired by your design) ---- */
-.tree-root {
-  list-style: none;
-  margin: 0;
-  padding: 4px;
-}
-
-/* GROUP (category) */
+/* ---- Tree ---- */
+.tree-root { list-style: none; margin: 0; padding: 4px; }
 .tree-group { margin: 6px 2px; }
+
 .tree-group-row {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px;
@@ -114,31 +125,25 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
   color: var(--muted);
   flex: 0 0 auto;
 }
-.chev { width: 14px; height: 14px; }
-
-.tree-icon { width: 16px; height: 16px; opacity: .7; flex: 0 0 auto; }
+.tree-emoji { width: 16px; text-align: center; opacity: .8; }
 .tree-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Badge count (uses --count set on the group) */
-.tree-badge::after {
-  content: var(--count, "0");
-  display: inline-flex; align-items: center; justify-content: center;
-  margin-left: auto;
-  padding: 2px 6px;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  background: color-mix(in oklab, var(--surface) 60%, transparent);
+.tree-badge {
+  margin-left: auto; padding: 2px 6px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--muted); background: color-mix(in oklab, var(--surface) 60%, transparent);
 }
 
-/* Collapsible children with dashed connectors */
 .tree-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .18s ease, opacity .18s ease; }
 .tree-collapse.open { grid-template-rows: 1fr; opacity: 1; }
-.tree-children { min-height: 0; overflow: hidden; list-style: none; margin: 0; padding: 6px 0 6px 0; }
-.tree-children { margin-left: 23px; border-left: 1px dashed color-mix(in oklab, var(--muted) 40%, transparent); padding-left: 12px; }
 
-/* LEAF (project) */
+.tree-children {
+  min-height: 0; overflow: hidden; list-style: none;
+  margin: 0; padding: 6px 0 6px 0;
+  margin-left: 23px; border-left: 1px dashed color-mix(in oklab, var(--muted) 40%, transparent);
+  padding-left: 12px;
+}
+
 .tree-leaf { position: relative; margin: 4px 2px; }
 .tree-connector {
   content: ""; position: absolute; left: -13px; top: 50%; transform: translateY(-50%);
@@ -153,17 +158,19 @@ html, body { overflow-x: hidden; background: var(--bg); color: var(--text); }
 }
 .tree-leaf-btn:hover { background: color-mix(in oklab, var(--accent) 13%, transparent); }
 .tree-leaf-btn.active { background: color-mix(in oklab, var(--accent) 18%, transparent); outline: 1px solid color-mix(in oklab, var(--accent) 35%, var(--border)); }
-
-.leaf-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); flex: 0 0 auto; }
+.leaf-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); flex: 0 0 auto; opacity: 0; }
+.tree-leaf-btn.active .leaf-dot { opacity: 1; }
 .leaf-text { overflow: hidden; text-overflow: ellipsis; }
 
-/* ---- Content / Iframe (unchanged from last pass) ---- */
+/* ---- Content / Iframe ---- */
 .content { flex: 1; min-width: 0; display: flex; height: 100vh; background: var(--bg); }
 .page { flex: 1; display: flex; overflow: hidden; padding: 0; margin: 0; }
 .iframe-wrap { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; }
 .project-iframe { border: 0; display: block; width: 100%; height: 100%; }
 
-/* Welcome page */
-.welcome { padding: 28px; max-width: 720px; color: var(--muted); }
-.welcome h2 { margin: 0 0 8px 0; color: var(--text); font-size: 28px; }
-.welcome p { margin: 0; }
+/* ---- Welcome Page ---- */
+.welcome { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+.welcome-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.welcome-overlay { position: relative; text-align: center; z-index: 1; color: var(--text); }
+.welcome-overlay h2 { margin: 0 0 8px; font-size: 28px; }
+.welcome-overlay p { margin: 0; color: var(--muted); }
