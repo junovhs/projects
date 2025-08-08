@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 
-function encodePath(p) {
+function encodePathSeg(p) {
   return p.split('/').map(encodeURIComponent).join('/');
 }
 
@@ -60,15 +60,16 @@ function GroupRow({ name, open, onToggle, badge, icon }) {
 
 function TreeNode({ item, depth, parentId, isOpen, onToggle }) {
   if (item.type === 'project') {
+    // Link uses the pretty, category-less slug
+    const to = `/${encodePathSeg(item.slug || item.id)}`;
     return (
       <li className="tree-leaf" style={{ '--depth': depth }}>
         <span className="tree-connector" aria-hidden />
         <NavLink
-          to={`/${encodePath(item.id)}`}
+          to={to}
           className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}
           title={item.name}
         >
-          {/* dot only when active (CSS toggles opacity) */}
           <span className="leaf-dot" aria-hidden />
           <span className="leaf-text">{item.name}</span>
         </NavLink>
@@ -127,7 +128,6 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
           onChange={onToggleDark}
         />
         <label htmlFor={toggleId} className="dm-toggle" aria-label="Toggle dark mode">
-          {/* SUN */}
           <svg className="sun" viewBox="0 0 24 24" aria-hidden>
             <circle cx="12" cy="12" r="4" />
             <circle cx="12" cy="2" r="1" />
@@ -139,7 +139,6 @@ export default function Sidebar({ projects, isDark, onToggleDark }) {
             <circle cx="4.5" cy="19.5" r="1" />
             <circle cx="19.5" cy="19.5" r="1" />
           </svg>
-          {/* MOON */}
           <svg className="moon" viewBox="0 0 24 24" aria-hidden>
             <path d="M21 14.5A9 9 0 0 1 9.5 3 7.5 7.5 0 1 0 21 14.5z" />
             <circle cx="16.5" cy="6.5" r="0.8" />

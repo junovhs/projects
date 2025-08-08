@@ -1,21 +1,29 @@
 // src/components/ProjectPage.jsx
 import { useLocation } from 'react-router-dom';
 
-export default function ProjectPage() {
+export default function ProjectPage({ slugToPath = {} }) {
   const { pathname } = useLocation();
   // strip leading slash, decode for spaces/& etc.
-  const projectPath = decodeURIComponent(pathname.replace(/^\/+/, ''));
-  const projectUrl = `/pages/${projectPath}/index.html`;
+  const raw = decodeURIComponent(pathname.replace(/^\/+/, ''));
+
+  // If it contains a slash, treat as legacy full path.
+  // Otherwise, resolve slug -> full path via map.
+  const relPath = raw.includes('/') ? raw : slugToPath[raw];
+
+  const projectUrl = relPath ? `/pages/${relPath}/index.html` : null;
 
   return (
     <div className="iframe-wrap">
-      <iframe
-        key={projectPath}
-        src={projectUrl}
-        className="project-iframe"
-        title={projectPath || 'project'}
-        loading="eager"
-      />
+      {projectUrl ? (
+        <iframe key={relPath} src={projectUrl} className="project-iframe" title={relPath} />
+      ) : (
+        <div className="welcome">
+          <div className="welcome-overlay">
+            <h2>Not found</h2>
+            <p>Couldn’t find a project for “{raw}”.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
