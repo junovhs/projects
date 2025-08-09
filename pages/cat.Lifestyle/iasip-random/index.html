@@ -1,517 +1,379 @@
-<html><head><base href="." /><meta charset="UTF-8"><title>It's Always Sunny in Philadelphia Episode Randomizer</title><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"><meta http-equiv="X-Frame-Options" content="SAMEORIGIN"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><style>
-body {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #1a1a1a;
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    min-height: 100dvh; /* For mobile viewports */
-    width: 100vw;
-    transition: background 1s ease;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-body::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(ellipse at bottom, rgba(255, 215, 0, 0.2), transparent);
-    pointer-events: none;
-}
-
-.container {
-    background: rgba(0, 0, 0, 0.8);
-    padding: 4vh 4vw;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,215,0,0.1);
-    width: 90vw;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-h1 {
-    color: #ffd700;
-    text-align: center;
-    font-size: min(2.8em, 8vw);
-    margin: 2vh 0;
-    text-shadow: 0 0 10px rgba(255,215,0,0.5);
-    letter-spacing: 2px;
-    position: relative;
-}
-
-h1::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 150px;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, #ffd700, transparent);
-}
-
-.button-container {
-    text-align: center;
-    margin: 30px auto;
-}
-
-.button-subtitle {
-    color: #999;
-    font-size: 0.8em;
-    margin-top: 5px;
-}
-
-button {
-    background: linear-gradient(45deg, #ffd700, #ffed4a);
-    border: none;
-    padding: min(18px, 3vh) min(35px, 5vw);
-    font-size: min(1.3em, 5vw);
-    border-radius: 50px;
-    cursor: pointer;
-    display: inline-block;
-    margin: 0;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: bold;
-    color: #2c2c2c;
-    box-shadow: 0 5px 15px rgba(255,215,0,0.3);
-}
-
-button:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 8px 25px rgba(255,215,0,0.4);
-    background: linear-gradient(45deg, #ffed4a, #ffd700);
-}
-
-button:active {
-    transform: translateY(1px);
-}
-
-button.clicked {
-    animation: shake 0.5s;
-}
-
-#result {
-    background: rgba(0, 0, 0, 0.7);
-    padding: 25px;
-    border-radius: 12px;
-    margin-top: 30px;
-    text-align: center;
-    border: 1px solid rgba(255,215,0,0.2);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    backdrop-filter: blur(5px);
-}
-
-.episode-info {
-    margin: 15px 0;
-    font-size: 1.2em;
-    line-height: 1.6;
-}
-
-.season {
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1.4em;
-    text-shadow: 0 0 10px rgba(255,215,0,0.3);
-    margin-bottom: 10px;
-}
-
-.episode {
-    color: #e6e6e6;
-    font-size: 1.1em;
-    margin-bottom: 8px;
-}
-
-.title {
-    color: #fff;
-    font-style: italic;
-    font-size: 1.3em;
-    text-shadow: 0 0 5px rgba(255,255,255,0.3);
-    padding: 10px 0;
-}
-
-.animation {
-    animation: slideUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes slideUp {
-    0% {
-        opacity: 0;
-        transform: translateY(20px);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="." />
+  <meta charset="UTF-8" />
+  <title>It's Always Sunny in Philadelphia — Episode Randomizer</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      width: 100vw;
+      transition: background 1s ease;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
+    body::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at bottom, rgba(255, 215, 0, 0.2), transparent);
+      pointer-events: none;
     }
-}
-
-@keyframes shake {
-    0% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    50% { transform: translateX(5px); }
-    75% { transform: translateX(-5px); }
-    100% { transform: translateX(0); }
-}
-
-@media (max-height: 600px) {
     .container {
-        padding: 2vh 4vw;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 4vh 4vw;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,215,0,0.1);
+      width: 90vw;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
     }
-    
     h1 {
-        font-size: min(2em, 6vw);
-        margin: 1vh 0;
+      color: #ffd700;
+      text-align: center;
+      font-size: min(2.8em, 8vw);
+      margin: 2vh 0;
+      text-shadow: 0 0 10px rgba(255,215,0,0.5);
+      letter-spacing: 2px;
+      position: relative;
     }
-    
+    h1::after {
+      content: '';
+      position: absolute;
+      bottom: -10px; left: 50%;
+      transform: translateX(-50%);
+      width: 150px; height: 3px;
+      background: linear-gradient(90deg, transparent, #ffd700, transparent);
+    }
+    .button-container { text-align: center; margin: 30px auto; }
+    .button-subtitle { color: #999; font-size: 0.8em; margin-top: 5px; }
+
     button {
-        padding: min(12px, 2vh) min(25px, 4vw);
+      background: linear-gradient(45deg, #ffd700, #ffed4a);
+      border: none;
+      padding: min(18px, 3vh) min(35px, 5vw);
+      font-size: min(1.3em, 5vw);
+      border-radius: 50px;
+      cursor: pointer;
+      display: inline-block;
+      margin: 0;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: bold;
+      color: #2c2c2c;
+      box-shadow: 0 5px 15px rgba(255,215,0,0.3);
     }
-    
-    .episode-info {
-        font-size: 1em;
+    button:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(255,215,0,0.4);
+      background: linear-gradient(45deg, #ffed4a, #ffd700);
     }
-}
-</style></head><body>
-<div class="container">
+    button:active { transform: translateY(1px); }
+    button.clicked { animation: shake 0.5s; }
+    button:focus-visible { outline: 3px solid #ffd700; outline-offset: 3px; }
+
+    #result {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 25px;
+      border-radius: 12px;
+      margin-top: 30px;
+      text-align: center;
+      border: 1px solid rgba(255,215,0,0.2);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      backdrop-filter: blur(5px);
+    }
+    .episode-info { margin: 15px 0; font-size: 1.2em; line-height: 1.6; }
+    .season { color: #ffd700; font-weight: bold; font-size: 1.4em; text-shadow: 0 0 10px rgba(255,215,0,0.3); margin-bottom: 10px; }
+    .episode { color: #e6e6e6; font-size: 1.1em; margin-bottom: 8px; }
+    .title { color: #fff; font-style: italic; font-size: 1.3em; text-shadow: 0 0 5px rgba(255,255,255,0.3); padding: 10px 0; }
+
+    .animation { animation: slideUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+    @keyframes slideUp { 0%{opacity:0; transform:translateY(20px)} 100%{opacity:1; transform:translateY(0)} }
+    @keyframes shake { 0%{transform:translateX(0)} 25%{transform:translateX(-5px)} 50%{transform:translateX(5px)} 75%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+
+    /* —— rating UI —— */
+    .rating-container{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px}
+    .star{font-size:2.2rem;line-height:1;cursor:pointer;user-select:none;touch-action:manipulation;filter:drop-shadow(0 0 6px rgba(255,215,0,.2))}
+    .star.dim{opacity:.35}
+    .rating-meta{font-size:.9rem;color:#bbb;margin-top:6px;text-align:center}
+
+    @media (max-height: 600px) {
+      .container { padding: 2vh 4vw; }
+      h1 { font-size: min(2em, 6vw); margin: 1vh 0; }
+      button { padding: min(12px, 2vh) min(25px, 4vw); }
+      .episode-info { font-size: 1em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+    @supports (padding: max(0px)) { body { padding-bottom: max(0px, env(safe-area-inset-bottom)); } }
+  </style>
+</head>
+<body>
+  <div class="container">
     <h1>The Gang Picks a Random Episode</h1>
+
     <div class="button-container">
-        <button id="randomizeButton">Wildcard, bitches!</button>
-        <div class="button-subtitle">(randomize episode)</div>
+      <button id="randomizeButton">Wildcard, bitches!</button>
+      <div class="button-subtitle">(randomize episode)</div>
     </div>
-    <div id="result"></div>
-</div>
 
-<script>
-const buttonTexts = [
-    "Wildcard, bitches!",
-    "Flip, Flip, Flipadelphia!",
-    "The Implication",
-    "Cultivating Mass", 
-    "Green Man!",
-    "Nightman Cometh",
-    "Fight Milk!",
-    "Chardee MacDennis",
-    "Pepe Silvia!",
-    "Dayman (ah-ah-ah)"
-];
+    <div id="result" aria-live="polite" aria-atomic="true"></div>
+  </div>
 
-const episodes = {
-    "Season 1": [
-        "The Gang Gets Racist",
-        "Charlie Wants an Abortion",
-        "Underage Drinking: A National Concern",
-        "Charlie Has Cancer",
-        "Gun Fever",
-        "The Gang Finds a Dead Guy",
-        "Charlie Gets Molested",
-    ],
-    "Season 2": [
-        "Charlie Gets Crippled",
-        "The Gang Goes Jihad",
-        "Dennis and Dee Go on Welfare",
-        "Mac Bangs Dennis' Mom",
-        "Hundred Dollar Baby",
-        "The Gang Gives Back",
-        "The Gang Exploits a Miracle",
-        "The Gang Runs for Office",
-        "Charlie Goes America All Over Everybody's Ass",
-        "Dennis and Dee Get a New Dad"
-    ],
-    "Season 3": [
-        "The Gang Finds a Dumpster Baby",
-        "The Gang Gets Invincible",
-        "Dennis and Dee's Mom Is Dead",
-        "The Gang Gets Held Hostage",
-        "The Aluminum Monster vs. Fatty Magoo",
-        "The Gang Solves the North Korea Situation",
-        "The Gang Sells Out",
-        "Frank Sets Sweet Dee on Fire",
-    	"Sweet Dee's Dating a Retarded Person",
-        "Mac Is a Serial Killer",
-        "Dennis Looks Like a Registered Sex Offender",
-        "The Gang Gets Whacked (Part 1)",
-        "The Gang Gets Whacked (Part 2)",
-        "Bums: Making a Mess All Over the City",
-        "The Gang Dances Their Asses Off"
-    ],
-    "Season 4": [
-        "Mac and Dennis: Manhunters",
-        "The Gang Solves the Gas Crisis",
-        "America's Next Top Paddy's Billboard Model Contest",
-        "Mac's Banging the Waitress",
-        "Mac and Charlie Die (Part 1)",
-        "Mac and Charlie Die (Part 2)",
-        "Who Pooped the Bed?",
-        "Paddy's Pub: The Worst Bar in Philadelphia",
-        "Dennis Reynolds: An Erotic Life",
-        "Sweet Dee Has a Heart Attack",
-        "The Gang Cracks the Liberty Bell AKA The Worst Episode",
-        "The Gang Gets Extreme: Home Makeover Edition",
-        "The Nightman Cometh"
-    ],
-    "Season 5": [
-        "The Gang Exploits the Mortgage Crisis",
-        "The Gang Hits the Road",
-        "The Great Recession",
-        "The Gang Gives Frank an Intervention",
-        "The Waitress Is Getting Married",
-        "The World Series Defense",
-        "The Gang Wrestles for the Troops",
-        "Paddy's Pub: Home of the Original Kitten Mittens",
-        "Mac and Dennis Break Up",
-        "The D.E.N.N.I.S. System",
-        "Mac and Charlie Write a Movie",
-        "The Gang Reignites the Rivalry"
-    ],
-    "Season 6": [
-        "Mac Fights Gay Marriage",
-        "Dennis Gets Divorced",
-        "The Gang Buys a Boat",
-        "Mac's Big Break",
-        "Mac and Charlie: White Trash",
-        "Mac's Mom Burns Her House Down",
-        "Who Got Dee Pregnant?",
-        "The Gang Gets a New Member",
-        "Dee Reynolds: Shaping America's Youth",
-        "Charlie Kelly: King of the Rats",
-        "The Gang Gets Stranded in the Woods",
-        "Dee Gives Birth",
-        "A Very Sunny Christmas"
-    ],
-    "Season 7": [
-        "Frank's Pretty Woman",
-        "The Gang Goes to the Jersey Shore",
-        "Frank Reynolds' Little Beauties",
-        "Sweet Dee Gets Audited",
-        "Frank's Brother",
-        "The Storm of the Century",
-        "Chardee MacDennis: The Game of Games",
-        "The ANTI-Social Network",
-        "The Gang Gets Trapped",
-        "How Mac Got Fat",
-        "Thunder Gun Express",
-        "The High School Reunion",
-        "The High School Reunion Part 2: The Gang's Revenge"
-    ],
-    "Season 8": [
-        "Pop-Pop: The Final Solution",
-        "The Gang Recycles Their Trash",
-        "The Maureen Ponderosa Wedding Massacre",
-        "Charlie and Dee Find Love",
-        "The Gang Gets Analyzed",
-        "Charlie's Mom Has Cancer",
-        "Frank's Back in Business",
-        "Charlie Rules the World",
-        "The Gang Dines Out",
-        "Reynolds vs. Reynolds: The Cereal Defense"
-    ],
-    "Season 9": [
-        "The Gang Broke Dee",
-        "Gun Fever Too: Still Hot",
-        "The Gang Tries Desperately to Win an Award",
-        "Mac and Dennis Buy a Timeshare",
-        "Mac Day",
-        "The Gang Saves the Day",
-        "The Gang Gets Quarantined",
-        "Flowers for Charlie",
-        "The Gang Makes Lethal Weapon 6",
-        "The Gang Squashes Their Beefs"
-    ],
-    "Season 10": [
-        "The Gang Beats Boggs",
-        "The Gang Group Dates",
-        "Psycho Pete Returns",
-        "Charlie Work",
-        "The Gang Spies Like U.S.",
-        "The Gang Misses the Boat",
-        "Mac Kills His Dad",
-        "The Gang Goes on Family Fight",
-        "Frank Retires",
-        "Ass Kickers United: Mac and Charlie Join a Cult"
-    ],
-    "Season 11": [
-        "Chardee MacDennis 2: Electric Boogaloo",
-        "Frank Falls Out the Window",
-        "The Gang Hits the Slopes",
-        "Dee Made a Smut Film",
-        "Mac & Dennis Move to the Suburbs",
-        "Being Frank",
-        "McPoyle vs. Ponderosa: The Trial of the Century",
-        "Charlie Catches a Leprechaun",
-        "The Gang Goes to Hell",
-        "The Gang Goes to Hell: Part Two"
-    ],
-    "Season 12": [
-        "The Gang Turns Black",
-        "The Gang Goes to a Water Park",
-        "Old Lady House: A Situation Comedy",
-        "Wolf Cola: A Public Relations Nightmare",
-        "Making Dennis Reynolds a Murderer",
-        "Hero or Hate Crime?",
-        "PTSDee",
-        "The Gang Tends Bar",
-        "A Cricket's Tale",
-        "Dennis' Double Life"
-    ],
-    "Season 13": [
-        "The Gang Makes Paddy's Great Again",
-        "The Gang Escapes",
-        "The Gang Beats Boggs: Ladies Reboot",
-        "Time's Up for the Gang",
-        "The Gang Gets New Wheels",
-        "The Gang Solves the Bathroom Problem",
-        "The Gang Does a Clip Show",
-        "Charlie's Home Alone",
-        "The Gang Wins the Big Game",
-        "Mac Finds His Pride"
-    ],
-    "Season 14": [
-        "The Gang Gets Romantic",
-        "Thunder Gun 4: Maximum Cool",
-        "Dee Day",
-        "The Gang Chokes",
-        "The Gang Texts",
-        "The Janitor Always Mops Twice",
-        "The Gang Solves Global Warming",
-        "Paddy's Has a Jumper",
-        "A Woman's Right to Chop",
-        "Waiting for Big Mo"
-    ],
-    "Season 15": [
-        "2020: A Year In Review",
-        "The Gang Makes Lethal Weapon 7",
-        "The Gang Buys a Roller Rink",
-        "The Gang Replaces Dee With a Monkey",
-        "The Gang Goes to Ireland",
-        "The Gang's Still in Ireland",
-        "Dee Sinks in a Bog",
-        "The Gang Carries a Corpse Up a Mountain"
-    ],
-    "Season 16": [
-        "The Gang Inflates",
-        "Frank Shoots Every Member of the Gang",
-        "The Gang Gets Cursed",
-        "Frank vs. Russia",
-        "Celebrity Booze: The Ultimate Cash Grab",
-        "Risk E. Rat's Pizza & Amusement Center",
-        "The Gang Goes Bowling",
-        "Dennis Takes a Mental Health Day"
-    ]
-};
-
-// Flatten all episodes into a single array with season and episode info
-let allEpisodes = [];
-Object.keys(episodes).forEach(season => {
-    episodes[season].forEach((title, index) => {
-        allEpisodes.push({
-            season: season,
-            episodeNumber: index + 1,
-            title: title
-        });
-    });
-});
-
-// Retrieve viewed episodes from localStorage
-function getStoredEpisodes() {
-    try {
-        return JSON.parse(localStorage.getItem('viewedEpisodes')) || [];
-    } catch (e) {
-        console.warn('Error accessing localStorage:', e);
-        return [];
-    }
-}
-
-let viewedEpisodes = getStoredEpisodes();
-
-function cycleButtonText() {
-    const button = document.querySelector('button');
-    const randomIndex = Math.floor(Math.random() * buttonTexts.length);
-    button.textContent = buttonTexts[randomIndex];
-}
-
-function changeBackground() {
-    const backgrounds = [
-        '#0d0d0d',
-        '#1a1a1a',
-        '#262626',
-        '#333333',
-        '#0f0f0f'
+  <script>
+    const buttonTexts = [
+      "Wildcard, bitches!","Flip, Flip, Flipadelphia!","The Implication","Cultivating Mass",
+      "Green Man!","Nightman Cometh","Fight Milk!","Chardee MacDennis","Pepe Silvia!","Dayman (ah-ah-ah)"
     ];
-    const randomBackground = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    document.body.style.background = randomBackground;
-}
 
-function saveViewedEpisodes() {
-    try {
-        localStorage.setItem('viewedEpisodes', JSON.stringify(viewedEpisodes));
-    } catch (e) {
-        console.warn('Error saving to localStorage:', e);
+    const episodes = {
+      "Season 1": [
+        "The Gang Gets Racist","Charlie Wants an Abortion","Underage Drinking: A National Concern",
+        "Charlie Has Cancer","Gun Fever","The Gang Finds a Dead Guy","Charlie Gets Molested"
+      ],
+      "Season 2": [
+        "Charlie Gets Crippled","The Gang Goes Jihad","Dennis and Dee Go on Welfare","Mac Bangs Dennis' Mom",
+        "Hundred Dollar Baby","The Gang Gives Back","The Gang Exploits a Miracle","The Gang Runs for Office",
+        "Charlie Goes America All Over Everybody's Ass","Dennis and Dee Get a New Dad"
+      ],
+      "Season 3": [
+        "The Gang Finds a Dumpster Baby","The Gang Gets Invincible","Dennis and Dee's Mom Is Dead",
+        "The Gang Gets Held Hostage","The Aluminum Monster vs. Fatty Magoo",
+        "The Gang Solves the North Korea Situation","The Gang Sells Out","Frank Sets Sweet Dee on Fire",
+        "Sweet Dee's Dating a Retarded Person","Mac Is a Serial Killer",
+        "Dennis Looks Like a Registered Sex Offender","The Gang Gets Whacked (Part 1)",
+        "The Gang Gets Whacked (Part 2)","Bums: Making a Mess All Over the City","The Gang Dances Their Asses Off"
+      ],
+      "Season 4": [
+        "Mac and Dennis: Manhunters","The Gang Solves the Gas Crisis",
+        "America's Next Top Paddy's Billboard Model Contest","Mac's Banging the Waitress",
+        "Mac and Charlie Die (Part 1)","Mac and Charlie Die (Part 2)","Who Pooped the Bed?",
+        "Paddy's Pub: The Worst Bar in Philadelphia","Dennis Reynolds: An Erotic Life",
+        "Sweet Dee Has a Heart Attack","The Gang Cracks the Liberty Bell AKA The Worst Episode",
+        "The Gang Gets Extreme: Home Makeover Edition","The Nightman Cometh"
+      ],
+      "Season 5": [
+        "The Gang Exploits the Mortgage Crisis","The Gang Hits the Road","The Great Recession",
+        "The Gang Gives Frank an Intervention","The Waitress Is Getting Married","The World Series Defense",
+        "The Gang Wrestles for the Troops","Paddy's Pub: Home of the Original Kitten Mittens",
+        "Mac and Dennis Break Up","The D.E.N.N.I.S. System","Mac and Charlie Write a Movie",
+        "The Gang Reignites the Rivalry"
+      ],
+      "Season 6": [
+        "Mac Fights Gay Marriage","Dennis Gets Divorced","The Gang Buys a Boat","Mac's Big Break",
+        "Mac and Charlie: White Trash","Mac's Mom Burns Her House Down","Who Got Dee Pregnant?",
+        "The Gang Gets a New Member","Dee Reynolds: Shaping America's Youth","Charlie Kelly: King of the Rats",
+        "The Gang Gets Stranded in the Woods","Dee Gives Birth","A Very Sunny Christmas"
+      ],
+      "Season 7": [
+        "Frank's Pretty Woman","The Gang Goes to the Jersey Shore","Frank Reynolds' Little Beauties",
+        "Sweet Dee Gets Audited","Frank's Brother","The Storm of the Century",
+        "Chardee MacDennis: The Game of Games","The ANTI-Social Network","The Gang Gets Trapped",
+        "How Mac Got Fat","Thunder Gun Express","The High School Reunion",
+        "The High School Reunion Part 2: The Gang's Revenge"
+      ],
+      "Season 8": [
+        "Pop-Pop: The Final Solution","The Gang Recycles Their Trash","The Maureen Ponderosa Wedding Massacre",
+        "Charlie and Dee Find Love","The Gang Gets Analyzed","Charlie's Mom Has Cancer",
+        "Frank's Back in Business","Charlie Rules the World","The Gang Dines Out",
+        "Reynolds vs. Reynolds: The Cereal Defense"
+      ],
+      "Season 9": [
+        "The Gang Broke Dee","Gun Fever Too: Still Hot","The Gang Tries Desperately to Win an Award",
+        "Mac and Dennis Buy a Timeshare","Mac Day","The Gang Saves the Day","The Gang Gets Quarantined",
+        "Flowers for Charlie","The Gang Makes Lethal Weapon 6","The Gang Squashes Their Beefs"
+      ],
+      "Season 10": [
+        "The Gang Beats Boggs","The Gang Group Dates","Psycho Pete Returns","Charlie Work",
+        "The Gang Spies Like U.S.","The Gang Misses the Boat","Mac Kills His Dad",
+        "The Gang Goes on Family Fight","Frank Retires","Ass Kickers United: Mac and Charlie Join a Cult"
+      ],
+      "Season 11": [
+        "Chardee MacDennis 2: Electric Boogaloo","Frank Falls Out the Window","The Gang Hits the Slopes",
+        "Dee Made a Smut Film","Mac & Dennis Move to the Suburbs","Being Frank",
+        "McPoyle vs. Ponderosa: The Trial of the Century","Charlie Catches a Leprechaun",
+        "The Gang Goes to Hell","The Gang Goes to Hell: Part Two"
+      ],
+      "Season 12": [
+        "The Gang Turns Black","The Gang Goes to a Water Park","Old Lady House: A Situation Comedy",
+        "Wolf Cola: A Public Relations Nightmare","Making Dennis Reynolds a Murderer",
+        "Hero or Hate Crime?","PTSDee","The Gang Tends Bar","A Cricket's Tale","Dennis' Double Life"
+      ],
+      "Season 13": [
+        "The Gang Makes Paddy's Great Again","The Gang Escapes","The Gang Beats Boggs: Ladies Reboot",
+        "Time's Up for the Gang","The Gang Gets New Wheels","The Gang Solves the Bathroom Problem",
+        "The Gang Does a Clip Show","Charlie's Home Alone","The Gang Wins the Big Game","Mac Finds His Pride"
+      ],
+      "Season 14": [
+        "The Gang Gets Romantic","Thunder Gun 4: Maximum Cool","Dee Day","The Gang Chokes",
+        "The Gang Texts","The Janitor Always Mops Twice","The Gang Solves Global Warming",
+        "Paddy's Has a Jumper","A Woman's Right to Chop","Waiting for Big Mo"
+      ],
+      "Season 15": [
+        "2020: A Year In Review","The Gang Makes Lethal Weapon 7","The Gang Buys a Roller Rink",
+        "The Gang Replaces Dee With a Monkey","The Gang Goes to Ireland","The Gang's Still in Ireland",
+        "Dee Sinks in a Bog","The Gang Carries a Corpse Up a Mountain"
+      ],
+      "Season 16": [
+        "The Gang Inflates","Frank Shoots Every Member of the Gang","The Gang Gets Cursed",
+        "Frank vs. Russia","Celebrity Booze: The Ultimate Cash Grab",
+        "Risk E. Rat's Pizza & Amusement Center","The Gang Goes Bowling","Dennis Takes a Mental Health Day"
+      ]
+    };
+
+    // ---- flatten once
+    let allEpisodes = [];
+    Object.keys(episodes).forEach(season => {
+      episodes[season].forEach((title, index) => {
+        allEpisodes.push({ season, episodeNumber: index + 1, title });
+      });
+    });
+
+    // ---- local "no repeat" memory
+    function getStoredEpisodes() {
+      try { return JSON.parse(localStorage.getItem('viewedEpisodes')) || []; }
+      catch { return []; }
     }
-}
+    let viewedEpisodes = getStoredEpisodes();
+    function saveViewedEpisodes() {
+      try { localStorage.setItem('viewedEpisodes', JSON.stringify(viewedEpisodes)); }
+      catch {}
+    }
 
-function getRandomEpisode() {
-    cycleButtonText();
-    changeBackground();
-    const button = document.getElementById('randomizeButton');
-    button.classList.add('clicked');
-    setTimeout(() => {
-        button.classList.remove('clicked');
-    }, 500);
+    function cycleButtonText() {
+      const button = document.querySelector('button');
+      const randomIndex = Math.floor(Math.random() * buttonTexts.length);
+      button.textContent = buttonTexts[randomIndex];
+    }
+    function changeBackground() {
+      const backgrounds = ['#0d0d0d','#1a1a1a','#262626','#333333','#0f0f0f'];
+      const randomBackground = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+      document.body.style.background = randomBackground;
+    }
 
-    // Get unviewed episodes
-    let unviewedEpisodes = allEpisodes.filter(ep => !viewedEpisodes.includes(ep.title));
+    // ========= Ratings =========
+    let currentEpisodeId = null;
 
-    // If all episodes have been viewed, reset the history
-    if (unviewedEpisodes.length === 0) {
+    function toEpisodeId(seasonLabel, episodeNumber) {
+      const s = String(seasonLabel).match(/\d+/)?.[0] || '0';
+      const e = String(episodeNumber).toString().padStart(2,'0');
+      return `S${String(s).padStart(2,'0')}E${e}`;
+    }
+
+    function renderStars(avg = 0, votes = 0) {
+      const resultDiv = document.getElementById('result');
+      let wrap = document.getElementById('rating');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'rating';
+        wrap.className = 'rating-container';
+        resultDiv.appendChild(wrap);
+        const meta = document.createElement('div');
+        meta.id = 'ratingMeta';
+        meta.className = 'rating-meta';
+        resultDiv.appendChild(meta);
+      }
+      wrap.innerHTML = '';
+      for (let i = 1; i <= 5; i++) {
+        const el = document.createElement('button');
+        el.className = 'star' + (i <= Math.round(avg) ? '' : ' dim');
+        el.setAttribute('aria-label', `Rate ${i} star${i>1?'s':''}`);
+        el.textContent = '★';
+        el.onclick = async () => {
+          el.disabled = true;
+          try {
+            const r = await fetch('/api/rate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ episodeId: currentEpisodeId, stars: i })
+            });
+            const data = await r.json();
+            renderStars(data.average, data.votes);
+          } catch { /* ignore */ }
+          el.disabled = false;
+        };
+        wrap.appendChild(el);
+      }
+      const meta = document.getElementById('ratingMeta');
+      meta.textContent = votes
+        ? `${(avg).toFixed(2)} avg • ${votes} vote${votes!==1?'s':''}`
+        : 'Be the first to rate';
+    }
+
+    async function loadRating() {
+      if (!currentEpisodeId) return;
+      try {
+        const r = await fetch(`/api/rating?episodeId=${encodeURIComponent(currentEpisodeId)}`);
+        const { average=0, votes=0 } = await r.json();
+        renderStars(average, votes);
+      } catch {
+        renderStars(0, 0);
+      }
+    }
+    // ===========================
+
+    function getRandomEpisode() {
+      cycleButtonText();
+      changeBackground();
+      const button = document.getElementById('randomizeButton');
+      button.classList.add('clicked');
+      setTimeout(() => button.classList.remove('clicked'), 500);
+
+      let unviewedEpisodes = allEpisodes.filter(ep => !viewedEpisodes.includes(ep.title));
+      if (unviewedEpisodes.length === 0) {
         viewedEpisodes = [];
         unviewedEpisodes = [...allEpisodes];
-    }
+      }
 
-    // Select a random episode from unviewed episodes
-    const randomIndex = Math.floor(Math.random() * unviewedEpisodes.length);
-    const selectedEpisode = unviewedEpisodes[randomIndex];
+      const randomIndex = Math.floor(Math.random() * unviewedEpisodes.length);
+      const selectedEpisode = unviewedEpisodes[randomIndex];
 
-    // Add selected episode to viewed episodes
-    viewedEpisodes.push(selectedEpisode.title);
-    saveViewedEpisodes();
+      viewedEpisodes.push(selectedEpisode.title);
+      saveViewedEpisodes();
 
-    const resultDiv = document.getElementById('result');
-    resultDiv.innerHTML = `
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = `
         <div class="episode-info animation">
-            <div class="season">${selectedEpisode.season}</div>
-            <div class="episode">Episode ${selectedEpisode.episodeNumber}</div>
-            <div class="title">"${selectedEpisode.title}"</div>
+          <div class="season">${selectedEpisode.season}</div>
+          <div class="episode">Episode ${selectedEpisode.episodeNumber}</div>
+          <div class="title">"${selectedEpisode.title}"</div>
         </div>
-    `;
-}
+      `;
 
-document.addEventListener('DOMContentLoaded', function() {
-    cycleButtonText();
-    
-    // Add click handler to button
-    const button = document.getElementById('randomizeButton');
-    if (button) {
-        button.addEventListener('click', getRandomEpisode);
+      // ratings: set id and fetch current average
+      currentEpisodeId = toEpisodeId(selectedEpisode.season, selectedEpisode.episodeNumber);
+      loadRating();
     }
-});
 
-// Add window error handler to catch and log any issues
-window.addEventListener('error', function(e) {
-    console.warn('Page Error:', e.message);
-});
-</script>
-</body></html>
+    document.addEventListener('DOMContentLoaded', function() {
+      cycleButtonText();
+      const button = document.getElementById('randomizeButton');
+      if (button) button.addEventListener('click', getRandomEpisode);
+    });
+
+    window.addEventListener('error', function(e) {
+      console.warn('Page Error:', e.message);
+    });
+  </script>
+</body>
+</html>
