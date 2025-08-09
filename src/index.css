@@ -189,3 +189,36 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
     height: calc(var(--vh-100) - var(--mobile-header-h));
   }
 }
+/* --- Mobile height + layout safety -------------------------------------- */
+.app-shell { min-height: var(--vh-100, 100vh); }
+
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--mh, 56px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--surface, #0b1016);
+  border-bottom: 1px solid var(--border, #1f2937);
+}
+.mobile-header .mh-title { flex: 1; text-align: center; font-weight: 600; }
+
+.content {
+  min-height: calc(var(--vh-100, 100vh) - var(--mh, 56px));
+}
+
+/* ensure the page area can actually be seen */
+.page { min-height: inherit; }
+
+/* sidebar drawer backdrop */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 30;
+}
+
+/* flush iframe edges; guard against rounded corners elsewhere */
+.project-iframe { border: 0 !important; border-radius: 0 !important; }
