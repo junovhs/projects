@@ -1,14 +1,22 @@
-/* BASE */
+/* ========== BASE ==========
+   keep desktop exactly as before: flush iframe, no margins
+   dark mode actually flips text/background
+   mobile uses a drawer for the sidebar
+================================ */
+
 *,
 *::before,
 *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial;
+}
 a { color: inherit; text-decoration: none; }
 button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* THEME TOKENS */
+/* ===== THEME TOKENS ===== */
 :root {
   --radius: 12px;
   --bg: #ffffff;
@@ -21,6 +29,7 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --backdrop: rgba(15,23,42,0.35);
   --mobile-header-h: 56px;
 }
+
 .theme-dark {
   --bg: #0b1016;
   --surface: #0e1420;
@@ -32,19 +41,23 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --backdrop: rgba(0,0,0,0.5);
 }
 
-/* SHELL LAYOUT */
+/* ===== APP SHELL ===== */
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px 1fr;  /* desktop: sidebar + content */
   grid-template-rows: 100%;
   height: 100%;
   background: var(--bg);
   color: var(--text);
 }
-.content { position: relative; overflow: auto; background: var(--bg); }
-.page { padding: 0; }  /* no extra padding so iframe is FLUSH */
+.content {
+  position: relative;
+  overflow: auto;
+  background: var(--bg);
+}
+.page { padding: 0; }  /* flush so iframe can be 100% */
 
-/* MOBILE HEADER */
+/* ===== MOBILE HEADER (only visible when .is-mobile on app-shell) ===== */
 .is-mobile .mobile-header {
   position: sticky; top: 0; z-index: 5;
   display: grid;
@@ -56,10 +69,14 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.icon-btn { width: 44px; height: 44px; border-radius: 10px; background: var(--surface); }
+.icon-btn {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: var(--surface);
+}
 .mh-title { text-align: center; font-weight: 700; }
 
-/* SIDEBAR (DESKTOP) */
+/* ===== SIDEBAR (desktop default) ===== */
 .sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
@@ -76,9 +93,10 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .btn-flat.small { padding: 4px 8px; }
 .close-btn { font-size: 18px; }
 
-/* TREE NAV */
+/* ===== TREE NAV ===== */
 .nav { padding: 8px 8px 24px; }
 .tree-root, .tree-children { list-style: none; margin: 0; padding: 0; }
+
 .tree-group { --indent: calc(var(--depth) * 14px); }
 .tree-group-row {
   display: flex; align-items: center; gap: 8px;
@@ -103,13 +121,25 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   border-radius: 8px;
 }
 .leaf-row:hover { background: var(--surface); }
-.tree-leaf-btn { display: inline-flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+.tree-leaf-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 8px;
+}
+.tree-leaf-btn.active .leaf-dot { opacity: 1; }
 .leaf-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); opacity: .25; }
-.tree-leaf.active .leaf-dot { opacity: 1; }
-.about-btn { padding: 6px 10px; border-radius: 8px; background: var(--surface); }
 
-/* DRAWER MODE (MOBILE) */
-.is-mobile { grid-template-columns: 1fr; }
+/* About button visibility:
+   - desktop: only on hover
+   - mobile: always visible so it's tappable */
+.about-btn {
+  padding: 6px 10px; border-radius: 8px; background: var(--surface);
+  opacity: 0; transition: opacity .15s ease;
+}
+.leaf-row:hover .about-btn { opacity: 1; }
+.is-mobile .about-btn { opacity: 1; }
+
+/* ===== DRAWER MODE (mobile) ===== */
+.is-mobile { grid-template-columns: 1fr; } /* no sidebar column, content full width */
 .is-mobile .sidebar.as-drawer {
   position: fixed; z-index: 10; top: 0; left: 0; bottom: 0;
   width: min(85vw, 360px);
@@ -120,28 +150,35 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .is-mobile .sidebar.as-drawer.open { transform: translateX(0); }
 .drawer-backdrop { position: fixed; inset: 0; z-index: 9; background: var(--backdrop); }
 
-/* PROJECT PAGE (FLUSH CANVAS) */
+/* ===== PROJECT PAGE (FLUSH CANVAS) ===== */
 .project-layout {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 0;                 /* no gap so left canvas is flush */
+  grid-template-columns: 1fr 380px; /* left: app iframe, right: about panel */
+  gap: 0; /* flush — no gutter to keep iframe edge-to-edge */
   align-items: stretch;
 }
 .project-left { min-width: 0; }
 .iframe-wrap {
-  position: relative; width: 100%;
-  height: 100vh;        /* full height; parent has no padding */
+  position: relative;
+  width: 100%;
+  height: 100vh;      /* full viewport height on desktop */
   background: transparent;
-  border-radius: 0;     /* NO rounding */
+  border-radius: 0;   /* flush corners */
   overflow: hidden;
 }
-.project-iframe { width: 100%; height: 100%; border: 0; background: #000; }
+.project-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;   /* if app is dark, hide white flash */
+}
 
+/* Right panel: a clean separator on the left edge, no rounded corners */
 .project-panel {
   background: var(--surface);
-  border-left: 1px solid var(--border); /* separator since gap is 0 */
+  border-left: 1px solid var(--border);
   border-right: 0; border-top: 0; border-bottom: 0;
-  border-radius: 0;                      /* match flush look */
+  border-radius: 0;
   overflow: auto;
 }
 .panel-inner { padding: 12px; }
@@ -151,9 +188,11 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .about :where(h1,h2,h3) { margin: 10px 0 6px; }
 .about p { line-height: 1.5; }
 
-/* MOBILE: hide right panel, size iframe under header */
+/* ===== MOBILE PROJECT VIEW ===== */
 @media (max-width: 860px) {
   .project-layout { grid-template-columns: 1fr; }
-  .project-panel { display: none; }
-  .iframe-wrap { height: calc(100dvh - var(--mobile-header-h)); }
+  .project-panel { display: none; } /* hide right panel on phones by default */
+  .iframe-wrap {
+    height: calc(100dvh - var(--mobile-header-h)); /* fill under the mobile header */
+  }
 }
