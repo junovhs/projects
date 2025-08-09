@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,7 +31,7 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [projError, setProjError] = useState('');
   const [isDark, setIsDark] = useState(true);
-  const location = useLocation();
+  const routeLocation = useLocation(); // was `location` which shadowed window.location
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -47,7 +48,7 @@ export default function App() {
 
   useEffect(() => {
     if (isMobile) { setSidebarOpen(false); setAboutOpen(false); }
-  }, [location.pathname, isMobile]);
+  }, [routeLocation.pathname, isMobile]);
 
   // iOS viewport var
   useEffect(() => {
@@ -67,7 +68,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const url = new URL((import.meta?.env?.BASE_URL || '/') + 'projects.json', location.origin);
+        const base = import.meta?.env?.BASE_URL ?? '/';
+        const url = `${base.replace(/\/+$/, '')}/projects.json`; // avoids invalid URL & honors base
         const res = await fetch(url, { credentials: 'same-origin' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -98,7 +100,7 @@ export default function App() {
 
   const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
 
-  const raw = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
+  const raw = decodeURIComponent(routeLocation.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
   const showLoader = !loaded && !projError;
@@ -140,13 +142,13 @@ export default function App() {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
-              key={location.pathname}
+              key={routeLocation.pathname}
               initial="initial" animate="in" exit="out"
               variants={pageVariants} transition={pageTransition}
               className="page"
               style={{minHeight: isMobile ? 'calc(var(--vh-100,100vh) - var(--mobile-header-h))' : 'var(--vh-100,100vh)'}}
             >
-              <Routes location={location}>
+              <Routes location={routeLocation}>
                 <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
                 <Route
                   path="/*"

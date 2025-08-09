@@ -1,3 +1,4 @@
+// src/components/ProjectPage.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
