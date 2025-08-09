@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,14 +16,13 @@ const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 function buildMaps(nodes) {
   const parentMap = {};
   const flat = [];
-  function walk(list, parentId = 'root', parentCatName = null) {
+  (function walk(list, parentId = 'root', parentCat = null) {
     (list || []).forEach((n) => {
       parentMap[n.id] = parentId;
-      if (n.type === 'project') flat.push({ ...n, category: parentCatName });
+      if (n.type === 'project') flat.push({ ...n, category: parentCat });
       else if (n.type === 'category') walk(n.children, n.id, n.name);
     });
-  }
-  walk(nodes);
+  })(nodes);
   return { parentMap, flat };
 }
 
@@ -34,38 +32,27 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
   const location = useLocation();
 
-  // Mobile breakpoint
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
   );
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 860px)');
-    const fn = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', fn);
-    return () => mq.removeEventListener('change', fn);
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Drawer open state (mobile)
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Right “About” panel (desktop only)
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  // Close panels on route change (mobile)
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-      setAboutOpen(false);
-    }
+    if (isMobile) { setSidebarOpen(false); setAboutOpen(false); }
   }, [location.pathname, isMobile]);
 
-  // iOS-safe viewport var for 100% heights
+  // iOS viewport var
   useEffect(() => {
-    const setVH = () => {
-      const h = window.innerHeight;
-      document.documentElement.style.setProperty('--vh-100', `${h}px`);
-      // mobile header height var
-      document.documentElement.style.setProperty('--mh', '56px');
-    };
+    const setVH = () =>
+      document.documentElement.style.setProperty('--vh-100', `${window.innerHeight}px`);
     setVH();
     window.addEventListener('resize', setVH);
     window.addEventListener('orientationchange', setVH);
@@ -75,16 +62,12 @@ export default function App() {
     };
   }, []);
 
-  // Robust projects.json fetch (works under any base path)
+  // Load projects.json ONCE
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    const url = new URL(
-      (import.meta?.env?.BASE_URL || '/') + 'projects.json',
-      window.location.origin
-    ).toString();
-
     (async () => {
       try {
-        setProjError('');
+        const url = new URL((import.meta?.env?.BASE_URL || '/') + 'projects.json', location.origin);
         const res = await fetch(url, { credentials: 'same-origin' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -92,12 +75,12 @@ export default function App() {
         setProjects(data);
       } catch (err) {
         console.error('Failed to load projects.json', err);
-        setProjError(
-          `Could not load projects.json (${err.message}). Make sure it exists at ${url}.`
-        );
-        setProjects([]);
+        setProjError(err.message || 'load failed');
+      } finally {
+        setLoaded(true);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // slug -> path
@@ -118,8 +101,7 @@ export default function App() {
   const raw = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
-  // visible fallback if projects.json fails
-  const loading = !projError && projects.length === 0;
+  const showLoader = !loaded && !projError;
 
   return (
     <div className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}>
@@ -146,60 +128,38 @@ export default function App() {
         open={isMobile ? sidebarOpen : true}
         onClose={() => setSidebarOpen(false)}
       />
-      {isMobile && sidebarOpen ? (
-        <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />
-      ) : null}
+      {isMobile && sidebarOpen ? <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
 
       <main className="content" role="main">
         {projError ? (
-          <div style={{
-            display: 'grid', placeItems: 'center',
-            height: 'calc(var(--vh-100, 100vh) - var(--mh, 56px))',
-            padding: 24, textAlign: 'center'
-          }}>
-            <div style={{ opacity: 0.8 }}>
-              <h2 style={{ margin: 0 }}>Can’t load project list</h2>
-              <p style={{ marginTop: 8 }}>{projError}</p>
-            </div>
+          <div style={{display:'grid',placeItems:'center',height:'calc(var(--vh-100,100vh) - var(--mobile-header-h))',padding:24,textAlign:'center'}}>
+            <div><h3 style={{margin:0}}>Couldn’t load project list</h3><div style={{opacity:.7,marginTop:8}}>{projError}</div></div>
           </div>
+        ) : showLoader ? (
+          <div style={{display:'grid',placeItems:'center',height:'calc(var(--vh-100,100vh) - var(--mobile-header-h))',opacity:.6}}>Loading…</div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
-              key={location.pathname + (loading ? '-loading' : '')}
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
+              key={location.pathname}
+              initial="initial" animate="in" exit="out"
+              variants={pageVariants} transition={pageTransition}
               className="page"
-              style={{
-                minHeight: isMobile
-                  ? 'calc(var(--vh-100, 100vh) - var(--mh, 56px))'
-                  : 'var(--vh-100, 100vh)',
-              }}
+              style={{minHeight: isMobile ? 'calc(var(--vh-100,100vh) - var(--mobile-header-h))' : 'var(--vh-100,100vh)'}}
             >
-              {loading ? (
-                <div style={{
-                  display: 'grid', placeItems: 'center',
-                  height: '100%', padding: 24, opacity: 0.6
-                }}>
-                  <div>Loading projects…</div>
-                </div>
-              ) : (
-                <Routes location={location}>
-                  <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
-                  <Route
-                    path="/*"
-                    element={
-                      <ProjectPage
-                        slugToPath={slugToPath}
-                        panelOpen={!isMobile && aboutOpen}
-                        setPanelOpen={setAboutOpen}
-                      />
-                    }
-                  />
-                </Routes>
-              )}
+              <Routes location={location}>
+                <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
+                <Route
+                  path="/*"
+                  element={
+                    <ProjectPage
+                      slugToPath={slugToPath}
+                      slugsReady={Object.keys(slugToPath).length > 0}
+                      panelOpen={!isMobile && aboutOpen}
+                      setPanelOpen={setAboutOpen}
+                    />
+                  }
+                />
+              </Routes>
             </motion.div>
           </AnimatePresence>
         )}
