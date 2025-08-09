@@ -1,4 +1,4 @@
-/* ---- Base / Theme ---- */
+/* BASE */
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -8,6 +8,7 @@ a { color: inherit; text-decoration: none; }
 button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* THEME TOKENS */
 :root {
   --radius: 12px;
   --bg: #ffffff;
@@ -18,11 +19,9 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --sidebar-bg: #f3f4f6;
   --accent: #2563eb;
   --backdrop: rgba(15,23,42,0.35);
+  --mobile-header-h: 56px;
 }
-
-.theme-dark,
-.sidebar.theme-dark,
-.welcome.theme-dark {
+.theme-dark {
   --bg: #0b1016;
   --surface: #0e1420;
   --text: #e5e7eb;
@@ -33,7 +32,7 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --backdrop: rgba(0,0,0,0.5);
 }
 
-/* ---- App Layout ---- */
+/* SHELL LAYOUT */
 .app-shell {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -42,31 +41,25 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   background: var(--bg);
   color: var(--text);
 }
+.content { position: relative; overflow: auto; background: var(--bg); }
+.page { padding: 0; }  /* no extra padding so iframe is FLUSH */
 
-.content {
-  position: relative;
-  overflow: auto;
-}
-
-.page { padding: 16px; }
-
-/* Mobile header */
+/* MOBILE HEADER */
 .is-mobile .mobile-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  position: sticky; top: 0; z-index: 5;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
+  height: var(--mobile-header-h);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 .icon-btn { width: 44px; height: 44px; border-radius: 10px; background: var(--surface); }
 .mh-title { text-align: center; font-weight: 700; }
 
-/* ---- Sidebar / Drawer ---- */
+/* SIDEBAR (DESKTOP) */
 .sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
@@ -83,7 +76,7 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .btn-flat.small { padding: 4px 8px; }
 .close-btn { font-size: 18px; }
 
-/* Tree */
+/* TREE NAV */
 .nav { padding: 8px 8px 24px; }
 .tree-root, .tree-children { list-style: none; margin: 0; padding: 0; }
 .tree-group { --indent: calc(var(--depth) * 14px); }
@@ -115,42 +108,40 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .tree-leaf.active .leaf-dot { opacity: 1; }
 .about-btn { padding: 6px 10px; border-radius: 8px; background: var(--surface); }
 
-/* Drawer mode */
-.is-mobile {
-  grid-template-columns: 1fr;
-}
+/* DRAWER MODE (MOBILE) */
+.is-mobile { grid-template-columns: 1fr; }
 .is-mobile .sidebar.as-drawer {
-  position: fixed;
-  z-index: 10;
-  top: 0; left: 0; bottom: 0;
+  position: fixed; z-index: 10; top: 0; left: 0; bottom: 0;
   width: min(85vw, 360px);
   transform: translateX(-100%);
   transition: transform .25s ease;
   box-shadow: 0 6px 30px rgba(0,0,0,0.35);
 }
-.is-mobile .sidebar.as-drawer.open {
-  transform: translateX(0);
-}
-.drawer-backdrop {
-  position: fixed; inset: 0; z-index: 9;
-  background: var(--backdrop);
-}
+.is-mobile .sidebar.as-drawer.open { transform: translateX(0); }
+.drawer-backdrop { position: fixed; inset: 0; z-index: 9; background: var(--backdrop); }
 
-/* ---- Project page layout ---- */
+/* PROJECT PAGE (FLUSH CANVAS) */
 .project-layout {
   display: grid;
   grid-template-columns: 1fr 380px;
-  gap: 12px;
+  gap: 0;                 /* no gap so left canvas is flush */
   align-items: stretch;
 }
 .project-left { min-width: 0; }
-.iframe-wrap { position: relative; width: 100%; height: calc(100vh - 80px); background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+.iframe-wrap {
+  position: relative; width: 100%;
+  height: 100vh;        /* full height; parent has no padding */
+  background: transparent;
+  border-radius: 0;     /* NO rounding */
+  overflow: hidden;
+}
 .project-iframe { width: 100%; height: 100%; border: 0; background: #000; }
 
 .project-panel {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-left: 1px solid var(--border); /* separator since gap is 0 */
+  border-right: 0; border-top: 0; border-bottom: 0;
+  border-radius: 0;                      /* match flush look */
   overflow: auto;
 }
 .panel-inner { padding: 12px; }
@@ -160,9 +151,9 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .about :where(h1,h2,h3) { margin: 10px 0 6px; }
 .about p { line-height: 1.5; }
 
-/* Hide right panel on small screens for max canvas */
+/* MOBILE: hide right panel, size iframe under header */
 @media (max-width: 860px) {
   .project-layout { grid-template-columns: 1fr; }
   .project-panel { display: none; }
-  .iframe-wrap { height: calc(100vh - 62px); } /* account for mobile header */
+  .iframe-wrap { height: calc(100dvh - var(--mobile-header-h)); }
 }
