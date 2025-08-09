@@ -34,6 +34,7 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
   const relPath = raw.includes('/') ? raw : slugToPath[raw];
   const baseUrl = relPath ? `/pages/${relPath}/index.html` : null;
 
+  // Support both controlled (from App) and uncontrolled (local) panel state
   const [localOpen, setLocalOpen] = useState(() => localStorage.getItem('panel') !== '0');
   const isControlled = typeof panelOpen === 'boolean' && typeof setPanelOpen === 'function';
   const open = isControlled ? panelOpen : localOpen;
@@ -79,17 +80,33 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
     <div className={'project-layout' + (open ? ' with-panel' : '')}>
       <div className="project-left">
         <div className="iframe-wrap">
-          <iframe key={relPath} src={projectUrl} className="project-iframe" title={relPath} />
+          {/* flush iframe; fills the viewport area */}
+          <iframe
+            key={relPath}
+            src={projectUrl}
+            className="project-iframe"
+            title={relPath}
+          />
         </div>
       </div>
 
+      {/* Right side "About" panel (hidden on mobile by CSS) */}
       <aside className="project-panel" aria-hidden={!open}>
         <div className="panel-inner">
           <div className="panel-row">
             <h3>About this project</h3>
-            <button className="btn-flat small" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+            <button
+              className="btn-flat small"
+              onClick={() => (setPanelOpen ? setPanelOpen(false) : setOpen(false))}
+              aria-label="Close"
+              title="Close"
+            >
+              ✕
+            </button>
           </div>
+
           <div className="about" dangerouslySetInnerHTML={{ __html: aboutHtml }} />
+
           <div className="note">
             <strong>Tip:</strong> add <code>writeup.html</code> or <code>writeup.md</code> next to the app’s <code>index.html</code>.
           </div>
