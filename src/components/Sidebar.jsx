@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
 import { useEffect, useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 
 function countProjects(node) {
   if (!node) return 0;
@@ -49,7 +49,6 @@ function Leaf({
   const to = `/${encodeURIComponent(item.slug || item.id)}`;
   const isActiveLeaf = item.id === activeRelPath;
 
-  // Use NavLink for reliable routing; close drawer on mobile after click
   return (
     <li className={'tree-leaf' + (isActiveLeaf ? ' active' : '')} style={{ '--depth': depth }}>
       <span className="tree-connector" aria-hidden />
@@ -57,7 +56,13 @@ function Leaf({
         <NavLink
           to={to}
           className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}
-          onClick={onNavigateDone}
+          onClick={() => {
+            // let the route change, then close drawer & clear focus
+            requestAnimationFrame(() => {
+              try { document.activeElement?.blur(); } catch {}
+              onNavigateDone?.();
+            });
+          }}
         >
           <span className="leaf-dot" aria-hidden />
           <span className="leaf-text">{item.name}</span>
@@ -71,11 +76,10 @@ function Leaf({
             e.stopPropagation();
             if (isActiveLeaf) onToggleAbout();
             else {
-              // navigate to page, then open about
-              // use a "soft" link via location change
-              // NavLink above already navigates; we just ensure about opens
-              onNavigateDone?.();
-              onOpenAbout();
+              requestAnimationFrame(() => {
+                onNavigateDone?.();
+                onOpenAbout();
+              });
             }
           }}
           title="About"
@@ -89,9 +93,7 @@ function Leaf({
 
 function Node(props) {
   const { item, depth, parentId, isOpen, onToggle } = props;
-  if (item.type === 'project') {
-    return <Leaf {...props} />;
-  }
+  if (item.type === 'project') return <Leaf {...props} />;
   const open = isOpen(parentId, item.id);
   const badge = countProjects(item);
   return (
@@ -132,12 +134,10 @@ export default function Sidebar({
   onClose = () => {},
 }) {
   const { isOpen, toggle, openChain } = useAccordionDefault(projects);
-  const navigate = useNavigate(); // kept for future, but not required now
 
   useEffect(() => {
     if (!activeRelPath) return;
     openChain(activeRelPath, parentMap);
-    // Scroll active link into view
     const el = document.querySelector('.nav .tree-leaf-btn.active');
     if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [activeRelPath, parentMap]); // eslint-disable-line
@@ -150,7 +150,8 @@ export default function Sidebar({
         (isMobile ? ' as-drawer' : '') +
         (open ? ' open' : '')
       }
-      aria-hidden={isMobile && !open}
+      // IMPORTANT: use inert instead of aria-hidden so we don't hide a focused element
+      inert={isMobile && !open ? '' : undefined}
     >
       <header className="sidebar-header">
         <Link to="/" className="brand" aria-label="Home">Showcase</Link>
