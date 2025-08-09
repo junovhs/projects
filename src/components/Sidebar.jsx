@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 
-/** Utilities */
 function countProjects(node) {
   if (!node) return 0;
   if (node.type === 'project') return 1;
@@ -37,7 +36,6 @@ function useAccordionDefault() {
   return { isOpen, toggle, openChain };
 }
 
-/** Tree node */
 function TreeNode({
   item,
   depth,
@@ -63,12 +61,12 @@ function TreeNode({
         navigate(to);
         onOpenAbout();
       }
-      if (onNavigateDone) onNavigateDone();
+      onNavigateDone?.();
     };
 
     const handleNav = () => {
       navigate(to);
-      if (onNavigateDone) onNavigateDone();
+      onNavigateDone?.();
     };
 
     return (
@@ -92,7 +90,6 @@ function TreeNode({
     );
   }
 
-  // Category
   const open = isOpen(parentId, item.id);
   const badge = countProjects(item);
   return (
@@ -132,7 +129,6 @@ function TreeNode({
   );
 }
 
-/** Sidebar root */
 export default function Sidebar({
   projects,
   isDark,
@@ -142,7 +138,6 @@ export default function Sidebar({
   onOpenAbout,
   onToggleAbout,
   isAboutOpen,
-  // mobile props
   isMobile = false,
   open = true,
   onClose = () => {},
@@ -162,22 +157,19 @@ export default function Sidebar({
       className={
         'sidebar' +
         (isDark ? ' theme-dark' : '') +
-        (isMobile ? ' as-drawer' : '') +
-        (open ? ' open' : '')
+        (isMobile ? ' as-drawer' : '')
+        + (open ? ' open' : '')
       }
       aria-hidden={isMobile && !open}
     >
       <header className="sidebar-header">
         <Link to="/" className="brand" aria-label="Home">Showcase</Link>
-
         <div className="spacer" />
         <button className="btn-flat" onClick={onToggleDark} aria-label="Toggle dark mode">
           {isDark ? '🌙' : '☀️'}
         </button>
         {isMobile && (
-          <button className="btn-flat close-btn" onClick={onClose} aria-label="Close menu">
-            ✕
-          </button>
+          <button className="btn-flat close-btn" onClick={onClose} aria-label="Close menu">✕</button>
         )}
       </header>
 

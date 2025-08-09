@@ -20,11 +20,8 @@ function buildMaps(nodes) {
   function walk(list, parentId = 'root', parentCatName = null) {
     (list || []).forEach((n) => {
       parentMap[n.id] = parentId;
-      if (n.type === 'project') {
-        flat.push({ ...n, category: parentCatName });
-      } else if (n.type === 'category') {
-        walk(n.children, n.id, n.name);
-      }
+      if (n.type === 'project') flat.push({ ...n, category: parentCatName });
+      else if (n.type === 'category') walk(n.children, n.id, n.name);
     });
   }
   walk(nodes);
@@ -33,10 +30,10 @@ function buildMaps(nodes) {
 
 export default function App() {
   const [projects, setProjects] = useState([]);
-  const [sidebarDark, setSidebarDark] = useState(true);
+  const [isDark, setIsDark] = useState(true);
   const location = useLocation();
 
-  // --- mobile detection
+  // mobile breakpoint
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
   );
@@ -47,10 +44,9 @@ export default function App() {
     return () => mq.removeEventListener('change', fn);
   }, []);
 
-  // sidebar open state (mobile drawer)
+  // mobile drawer open state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // right-side "About" panel state
+  // right “About” panel
   const [aboutOpen, setAboutOpen] = useState(false);
 
   // close panels on route change (mobile)
@@ -59,7 +55,6 @@ export default function App() {
       setSidebarOpen(false);
       setAboutOpen(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, isMobile]);
 
   useEffect(() => {
@@ -69,6 +64,7 @@ export default function App() {
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
 
+  // slug -> path
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -87,46 +83,37 @@ export default function App() {
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
   return (
-    <div className={'app-shell' + (isMobile ? ' is-mobile' : '')}>
-      {/* Top mobile header */}
+    <div className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}>
+      {/* Mobile header */}
       {isMobile && (
         <header className="mobile-header">
-          <button
-            className="icon-btn"
-            aria-label="Open projects"
-            onClick={() => setSidebarOpen(true)}
-          >
-            ☰
-          </button>
+          <button className="icon-btn" aria-label="Open projects" onClick={() => setSidebarOpen(true)}>☰</button>
           <div className="mh-title">Showcase</div>
-          <button
-            className="icon-btn"
-            aria-label="Toggle dark mode"
-            onClick={() => setSidebarDark((v) => !v)}
-          >
-            {sidebarDark ? '🌙' : '☀️'}
+          <button className="icon-btn" aria-label="Toggle dark mode" onClick={() => setIsDark((v) => !v)}>
+            {isDark ? '🌙' : '☀️'}
           </button>
         </header>
       )}
 
-      {/* Sidebar (drawer on mobile) */}
+      {/* Sidebar (drawer on mobile, static on desktop) */}
       <Sidebar
         projects={projects}
-        isDark={sidebarDark}
-        onToggleDark={() => setSidebarDark((v) => !v)}
+        isDark={isDark}
+        onToggleDark={() => setIsDark((v) => !v)}
         activeRelPath={activeRelPath}
         parentMap={parentMap}
         onOpenAbout={() => setAboutOpen(true)}
         onToggleAbout={() => setAboutOpen((v) => !v)}
         isAboutOpen={aboutOpen}
-        // mobile props
         isMobile={isMobile}
         open={isMobile ? sidebarOpen : true}
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Backdrop for drawer */}
-      {isMobile && sidebarOpen && <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />}
+      {/* Drawer backdrop */}
+      {isMobile && sidebarOpen ? (
+        <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />
+      ) : null}
 
       <main className="content" role="main">
         <AnimatePresence mode="wait">
@@ -140,13 +127,13 @@ export default function App() {
             className="page"
           >
             <Routes location={location}>
-              <Route path="/" element={<WelcomePage isDark={sidebarDark} projects={flat} />} />
+              <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
               <Route
                 path="/*"
                 element={
                   <ProjectPage
                     slugToPath={slugToPath}
-                    panelOpen={aboutOpen && !isMobile}  // hide right panel on phone by default
+                    panelOpen={!isMobile && aboutOpen}
                     setPanelOpen={setAboutOpen}
                   />
                 }
