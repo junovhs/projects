@@ -33,7 +33,7 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
   const location = useLocation();
 
-  // mobile breakpoint
+  // Mobile breakpoint
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
   );
@@ -44,18 +44,33 @@ export default function App() {
     return () => mq.removeEventListener('change', fn);
   }, []);
 
-  // mobile drawer open state
+  // Drawer open state (mobile)
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // right “About” panel
+  // Right “About” panel (desktop only)
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  // close panels on route change (mobile)
+  // Close panels on route change (mobile)
   useEffect(() => {
     if (isMobile) {
       setSidebarOpen(false);
       setAboutOpen(false);
     }
   }, [location.pathname, isMobile]);
+
+  // iOS-safe viewport var for 100% heights
+  useEffect(() => {
+    const setVH = () => {
+      const h = window.innerHeight;
+      document.documentElement.style.setProperty('--vh-100', `${h}px`);
+    };
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    return () => {
+      window.removeEventListener('resize', setVH);
+      window.removeEventListener('orientationchange', setVH);
+    };
+  }, []);
 
   useEffect(() => {
     fetch('/projects.json')
@@ -84,7 +99,6 @@ export default function App() {
 
   return (
     <div className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}>
-      {/* Mobile header */}
       {isMobile && (
         <header className="mobile-header">
           <button className="icon-btn" aria-label="Open projects" onClick={() => setSidebarOpen(true)}>☰</button>
@@ -95,7 +109,6 @@ export default function App() {
         </header>
       )}
 
-      {/* Sidebar (drawer on mobile, static on desktop) */}
       <Sidebar
         projects={projects}
         isDark={isDark}
@@ -109,8 +122,6 @@ export default function App() {
         open={isMobile ? sidebarOpen : true}
         onClose={() => setSidebarOpen(false)}
       />
-
-      {/* Drawer backdrop */}
       {isMobile && sidebarOpen ? (
         <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />
       ) : null}
