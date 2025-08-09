@@ -222,3 +222,17 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 
 /* flush iframe edges; guard against rounded corners elsewhere */
 .project-iframe { border: 0 !important; border-radius: 0 !important; }
+/* --- mobile: force the whole chain to a real height --- */
+@media (max-width: 860px) {
+  .content { height: calc(var(--vh-100, 100vh) - var(--mobile-header-h)); }
+  .page { height: 100%; }
+  .project-left { height: 100%; min-width: 0; }
+  .iframe-wrap { height: 100% !important; }
+}
+
+/* iOS Safari: prefer the new viewport units when available */
+@supports (height: 100svh) {
+  @media (max-width: 860px) {
+    .content { height: calc(100svh - var(--mobile-header-h)); }
+  }
+}
