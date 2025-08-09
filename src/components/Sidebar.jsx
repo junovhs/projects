@@ -49,6 +49,7 @@ function TreeNode({
   onToggleAbout,
   isAboutOpen,
   navigate,
+  onNavigateDone,
 }) {
   if (item.type === 'project') {
     const to = `/${encodeURIComponent(item.slug || item.id)}`;
@@ -62,16 +63,22 @@ function TreeNode({
         navigate(to);
         onOpenAbout();
       }
+      if (onNavigateDone) onNavigateDone();
+    };
+
+    const handleNav = () => {
+      navigate(to);
+      if (onNavigateDone) onNavigateDone();
     };
 
     return (
       <li className={'tree-leaf' + (isActiveLeaf ? ' active' : '')} style={{ '--depth': depth }}>
         <span className="tree-connector" aria-hidden />
         <div className="leaf-row">
-          <NavLink to={to} className={({ isActive }) => 'tree-leaf-btn' + (isActive ? ' active' : '')}>
+          <button className="tree-leaf-btn" onClick={handleNav}>
             <span className="leaf-dot" aria-hidden />
             <span className="leaf-text">{item.name}</span>
-          </NavLink>
+          </button>
           <button
             className="about-btn"
             aria-pressed={isActiveLeaf && isAboutOpen}
@@ -116,6 +123,7 @@ function TreeNode({
               onToggleAbout={onToggleAbout}
               isAboutOpen={isAboutOpen}
               navigate={navigate}
+              onNavigateDone={onNavigateDone}
             />
           ))}
         </ul>
@@ -134,9 +142,12 @@ export default function Sidebar({
   onOpenAbout,
   onToggleAbout,
   isAboutOpen,
+  // mobile props
+  isMobile = false,
+  open = true,
+  onClose = () => {},
 }) {
   const { isOpen, toggle, openChain } = useAccordionDefault(projects);
-  const toggleId = 'sidebar-toggle';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -147,24 +158,30 @@ export default function Sidebar({
   }, [activeRelPath, parentMap]); // eslint-disable-line
 
   return (
-    <aside className={'sidebar' + (isDark ? ' theme-dark' : '')}>
+    <aside
+      className={
+        'sidebar' +
+        (isDark ? ' theme-dark' : '') +
+        (isMobile ? ' as-drawer' : '') +
+        (open ? ' open' : '')
+      }
+      aria-hidden={isMobile && !open}
+    >
       <header className="sidebar-header">
         <Link to="/" className="brand" aria-label="Home">Showcase</Link>
 
-        <input
-          id={toggleId}
-          type="checkbox"
-          className="dm-input"
-          checked={isDark}
-          onChange={onToggleDark}
-        />
-        <label htmlFor={toggleId} className="dm-toggle dm-flat" aria-label="Toggle dark mode">
-          <svg className="sun" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="5" /></svg>
-          <svg className="moon" viewBox="0 0 24 24" aria-hidden><path d="M20 14.5A9 9 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z" /></svg>
-        </label>
+        <div className="spacer" />
+        <button className="btn-flat" onClick={onToggleDark} aria-label="Toggle dark mode">
+          {isDark ? '🌙' : '☀️'}
+        </button>
+        {isMobile && (
+          <button className="btn-flat close-btn" onClick={onClose} aria-label="Close menu">
+            ✕
+          </button>
+        )}
       </header>
 
-      <nav className="nav">
+      <nav className="nav" role="navigation">
         <ul className="tree-root">
           {(projects || []).map((node) => (
             <TreeNode
@@ -179,6 +196,7 @@ export default function Sidebar({
               onToggleAbout={onToggleAbout}
               isAboutOpen={isAboutOpen}
               navigate={navigate}
+              onNavigateDone={isMobile ? onClose : undefined}
             />
           ))}
         </ul>

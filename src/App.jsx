@@ -33,9 +33,34 @@ function buildMaps(nodes) {
 
 export default function App() {
   const [projects, setProjects] = useState([]);
-  const [sidebarDark, setSidebarDark] = useState(true); // Dark mode only for sidebar/welcome
-  const [aboutOpen, setAboutOpen] = useState(false);     // Controls the right “About” panel
+  const [sidebarDark, setSidebarDark] = useState(true);
   const location = useLocation();
+
+  // --- mobile detection
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)');
+    const fn = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+
+  // sidebar open state (mobile drawer)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // right-side "About" panel state
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  // close panels on route change (mobile)
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+      setAboutOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, isMobile]);
 
   useEffect(() => {
     fetch('/projects.json')
@@ -44,7 +69,6 @@ export default function App() {
       .catch((e) => console.error('Failed to load projects.json', e));
   }, []);
 
-  // slug -> full path (e.g., "tp-cruise-image-search" -> "TravelPerks/Tp Cruise Image Search")
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -59,25 +83,52 @@ export default function App() {
 
   const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
 
-  // Active project path from URL (supports legacy path or slug)
   const raw = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
   return (
-    <div className="app-shell">
+    <div className={'app-shell' + (isMobile ? ' is-mobile' : '')}>
+      {/* Top mobile header */}
+      {isMobile && (
+        <header className="mobile-header">
+          <button
+            className="icon-btn"
+            aria-label="Open projects"
+            onClick={() => setSidebarOpen(true)}
+          >
+            ☰
+          </button>
+          <div className="mh-title">Showcase</div>
+          <button
+            className="icon-btn"
+            aria-label="Toggle dark mode"
+            onClick={() => setSidebarDark((v) => !v)}
+          >
+            {sidebarDark ? '🌙' : '☀️'}
+          </button>
+        </header>
+      )}
+
+      {/* Sidebar (drawer on mobile) */}
       <Sidebar
         projects={projects}
         isDark={sidebarDark}
         onToggleDark={() => setSidebarDark((v) => !v)}
         activeRelPath={activeRelPath}
         parentMap={parentMap}
-        // Sidebar “About” button hooks
         onOpenAbout={() => setAboutOpen(true)}
         onToggleAbout={() => setAboutOpen((v) => !v)}
         isAboutOpen={aboutOpen}
+        // mobile props
+        isMobile={isMobile}
+        open={isMobile ? sidebarOpen : true}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main className="content">
+      {/* Backdrop for drawer */}
+      {isMobile && sidebarOpen && <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />}
+
+      <main className="content" role="main">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -95,7 +146,7 @@ export default function App() {
                 element={
                   <ProjectPage
                     slugToPath={slugToPath}
-                    panelOpen={aboutOpen}
+                    panelOpen={aboutOpen && !isMobile}  // hide right panel on phone by default
                     setPanelOpen={setAboutOpen}
                   />
                 }
