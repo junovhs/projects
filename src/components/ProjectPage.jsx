@@ -34,7 +34,6 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
   const relPath = raw.includes('/') ? raw : slugToPath[raw];
   const baseUrl = relPath ? `/pages/${relPath}/index.html` : null;
 
-  // If parent doesn't control panel, use local state (keeps compatibility)
   const [localOpen, setLocalOpen] = useState(() => localStorage.getItem('panel') !== '0');
   const isControlled = typeof panelOpen === 'boolean' && typeof setPanelOpen === 'function';
   const open = isControlled ? panelOpen : localOpen;
@@ -79,21 +78,20 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
   return (
     <div className={'project-layout' + (open ? ' with-panel' : '')}>
       <div className="project-left">
-        {/* Top toolbar removed completely */}
         <div className="iframe-wrap">
           <iframe key={relPath} src={projectUrl} className="project-iframe" title={relPath} />
         </div>
       </div>
 
-      <aside className="project-panel">
+      <aside className="project-panel" aria-hidden={!open}>
         <div className="panel-inner">
-          <h3>About this project</h3>
+          <div className="panel-row">
+            <h3>About this project</h3>
+            <button className="btn-flat small" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+          </div>
           <div className="about" dangerouslySetInnerHTML={{ __html: aboutHtml }} />
           <div className="note">
             <strong>Tip:</strong> add <code>writeup.html</code> or <code>writeup.md</code> next to the app’s <code>index.html</code>.
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button className="btn" onClick={() => setOpen(false)}>Close</button>
           </div>
         </div>
       </aside>
