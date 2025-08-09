@@ -34,15 +34,22 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
   const relPath = raw.includes('/') ? raw : slugToPath[raw];
   const baseUrl = relPath ? `/pages/${relPath}/index.html` : null;
 
-  // Support both controlled (from App) and uncontrolled (local) panel state
+  // Controlled/uncontrolled support for the right panel
   const [localOpen, setLocalOpen] = useState(() => localStorage.getItem('panel') !== '0');
   const isControlled = typeof panelOpen === 'boolean' && typeof setPanelOpen === 'function';
   const open = isControlled ? panelOpen : localOpen;
-  const setOpen = isControlled ? setPanelOpen : setLocalOpen;
 
+  // keep localStorage in sync if uncontrolled
   useEffect(() => {
     if (!isControlled) localStorage.setItem('panel', open ? '1' : '0');
   }, [open, isControlled]);
+
+  // robust close helper: slam both states so it can't get stuck
+  const hardClosePanel = () => {
+    try { setPanelOpen && setPanelOpen(false); } catch {}
+    try { setLocalOpen(false); } catch {}
+    try { localStorage.setItem('panel', '0'); } catch {}
+  };
 
   const [aboutHtml, setAboutHtml] = useState('<p class="muted">No write-up yet.</p>');
 
@@ -63,6 +70,15 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
 
   const projectUrl = useMemo(() => baseUrl || null, [baseUrl]);
 
+  // ESC to close panel (desktop)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') hardClosePanel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []); // eslint-disable-line
+
   if (!projectUrl) {
     return (
       <div className="iframe-wrap">
@@ -80,7 +96,6 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
     <div className={'project-layout' + (open ? ' with-panel' : '')}>
       <div className="project-left">
         <div className="iframe-wrap">
-          {/* flush iframe; fills the viewport area */}
           <iframe
             key={relPath}
             src={projectUrl}
@@ -90,15 +105,14 @@ export default function ProjectPage({ slugToPath = {}, panelOpen, setPanelOpen }
         </div>
       </div>
 
-      {/* Right side "About" panel (hidden on mobile by CSS) */}
       <aside className="project-panel" aria-hidden={!open}>
         <div className="panel-inner">
           <div className="panel-row">
             <h3>About this project</h3>
             <button
               className="btn-flat small"
-              onClick={() => (setPanelOpen ? setPanelOpen(false) : setOpen(false))}
-              aria-label="Close"
+              onClick={hardClosePanel}
+              aria-label="Close about panel"
               title="Close"
             >
               ✕

@@ -1,9 +1,4 @@
-/* ========== BASE ==========
-   keep desktop exactly as before: flush iframe, no margins
-   dark mode actually flips text/background
-   mobile uses a drawer for the sidebar
-================================ */
-
+/* ===== Base ===== */
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -16,7 +11,7 @@ a { color: inherit; text-decoration: none; }
 button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ===== THEME TOKENS ===== */
+/* ===== Theme tokens ===== */
 :root {
   --radius: 12px;
   --bg: #ffffff;
@@ -29,7 +24,6 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --backdrop: rgba(15,23,42,0.35);
   --mobile-header-h: 56px;
 }
-
 .theme-dark {
   --bg: #0b1016;
   --surface: #0e1420;
@@ -41,23 +35,19 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   --backdrop: rgba(0,0,0,0.5);
 }
 
-/* ===== APP SHELL ===== */
+/* ===== App shell ===== */
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;  /* desktop: sidebar + content */
+  grid-template-columns: 320px 1fr; /* desktop layout */
   grid-template-rows: 100%;
   height: 100%;
   background: var(--bg);
   color: var(--text);
 }
-.content {
-  position: relative;
-  overflow: auto;
-  background: var(--bg);
-}
-.page { padding: 0; }  /* flush so iframe can be 100% */
+.content { position: relative; overflow: auto; background: var(--bg); }
+.page { padding: 0; } /* keep iframe flush */
 
-/* ===== MOBILE HEADER (only visible when .is-mobile on app-shell) ===== */
+/* ===== Mobile header (visible when .is-mobile) ===== */
 .is-mobile .mobile-header {
   position: sticky; top: 0; z-index: 5;
   display: grid;
@@ -69,14 +59,10 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.icon-btn {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  background: var(--surface);
-}
+.icon-btn { width: 44px; height: 44px; border-radius: 10px; background: var(--surface); }
 .mh-title { text-align: center; font-weight: 700; }
 
-/* ===== SIDEBAR (desktop default) ===== */
+/* ===== Sidebar (desktop default) ===== */
 .sidebar {
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
@@ -93,7 +79,7 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .btn-flat.small { padding: 4px 8px; }
 .close-btn { font-size: 18px; }
 
-/* ===== TREE NAV ===== */
+/* ===== Tree nav ===== */
 .nav { padding: 8px 8px 24px; }
 .tree-root, .tree-children { list-style: none; margin: 0; padding: 0; }
 
@@ -121,16 +107,11 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
   border-radius: 8px;
 }
 .leaf-row:hover { background: var(--surface); }
-.tree-leaf-btn {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 6px 8px; border-radius: 8px;
-}
+.tree-leaf-btn { display: inline-flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
 .tree-leaf-btn.active .leaf-dot { opacity: 1; }
 .leaf-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); opacity: .25; }
 
-/* About button visibility:
-   - desktop: only on hover
-   - mobile: always visible so it's tappable */
+/* About button: desktop hover-only; mobile always visible */
 .about-btn {
   padding: 6px 10px; border-radius: 8px; background: var(--surface);
   opacity: 0; transition: opacity .15s ease;
@@ -138,8 +119,8 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .leaf-row:hover .about-btn { opacity: 1; }
 .is-mobile .about-btn { opacity: 1; }
 
-/* ===== DRAWER MODE (mobile) ===== */
-.is-mobile { grid-template-columns: 1fr; } /* no sidebar column, content full width */
+/* ===== Drawer mode (mobile) ===== */
+.is-mobile { grid-template-columns: 1fr; } /* full-width content */
 .is-mobile .sidebar.as-drawer {
   position: fixed; z-index: 10; top: 0; left: 0; bottom: 0;
   width: min(85vw, 360px);
@@ -150,30 +131,42 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .is-mobile .sidebar.as-drawer.open { transform: translateX(0); }
 .drawer-backdrop { position: fixed; inset: 0; z-index: 9; background: var(--backdrop); }
 
-/* ===== PROJECT PAGE (FLUSH CANVAS) ===== */
+/* ===== Project page (flush canvas) ===== */
 .project-layout {
   display: grid;
-  grid-template-columns: 1fr 380px; /* left: app iframe, right: about panel */
-  gap: 0; /* flush — no gutter to keep iframe edge-to-edge */
+  grid-template-columns: 1fr 380px; /* left: iframe, right: panel */
+  gap: 0; /* no gutter to keep flush */
   align-items: stretch;
 }
 .project-left { min-width: 0; }
+
+/* mobile-safe viewport heights: try dvh/svh/dvh fallbacks */
+:root {
+  --vh-100: 100vh;
+}
+@supports (height: 100dvh) {
+  :root { --vh-100: 100dvh; }
+}
+@supports (height: 100svh) {
+  :root { --vh-100: 100svh; }
+}
+
 .iframe-wrap {
   position: relative;
   width: 100%;
-  height: 100vh;      /* full viewport height on desktop */
+  height: var(--vh-100);  /* fill viewport on desktop */
   background: transparent;
-  border-radius: 0;   /* flush corners */
+  border-radius: 0;       /* flush corners */
   overflow: hidden;
 }
 .project-iframe {
   width: 100%;
   height: 100%;
   border: 0;
-  background: #000;   /* if app is dark, hide white flash */
+  background: #000;       /* hide white flash */
 }
 
-/* Right panel: a clean separator on the left edge, no rounded corners */
+/* Right panel with a clean divider; no rounding */
 .project-panel {
   background: var(--surface);
   border-left: 1px solid var(--border);
@@ -188,11 +181,11 @@ button { border: 0; background: none; color: inherit; font: inherit; cursor: poi
 .about :where(h1,h2,h3) { margin: 10px 0 6px; }
 .about p { line-height: 1.5; }
 
-/* ===== MOBILE PROJECT VIEW ===== */
+/* ===== Mobile project view ===== */
 @media (max-width: 860px) {
   .project-layout { grid-template-columns: 1fr; }
-  .project-panel { display: none; } /* hide right panel on phones by default */
+  .project-panel { display: none; } /* hidden by default on phones */
   .iframe-wrap {
-    height: calc(100dvh - var(--mobile-header-h)); /* fill under the mobile header */
+    height: calc(var(--vh-100) - var(--mobile-header-h));
   }
 }
