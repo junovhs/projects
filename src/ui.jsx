@@ -437,7 +437,7 @@ function AppShell() {
 
       {/* Routes */}
       <AnimatePresence mode="wait">
-        <motion.div key={pathname} {...pageMotion}>
+        <motion.div key={pathname} className="content-root">
           <Routes>
             <Route path="/" element={<WelcomePage projects={projects} />} />
             <Route
