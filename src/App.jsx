@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar';
 import ProjectPage from './components/ProjectPage';
 import WelcomePage from './components/WelcomePage';
 import './index.css';
-import './drawer-fix.css';
+import './ui-fixes.css';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -15,26 +15,26 @@ const pageVariants = {
 };
 const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.25 };
 
-function buildMaps(nodes) {
-  const parentMap = {};
-  const flat = [];
-  (function walk(list, parentId = 'root', parentCat = null) {
+function flattenProjects(nodes) {
+  const out = [];
+  (function walk(list) {
     (list || []).forEach((n) => {
-      parentMap[n.id] = parentId;
-      if (n.type === 'project') flat.push({ ...n, category: parentCat });
-      else if (n.type === 'category') walk(n.children, n.id, n.name);
+      if (n.type === 'project') out.push(n);
+      if (n.children) walk(n.children);
     });
   })(nodes);
-  return { parentMap, flat };
+  return out;
 }
 
 export default function App() {
   const [projects, setProjects] = useState([]);
   const [projError, setProjError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const routeLocation = useLocation();
   const navigate = useNavigate();
 
+  // Mobile detection
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
   );
@@ -45,13 +45,10 @@ export default function App() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  // Drawer state (no About anymore)
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
 
-  useEffect(() => {
-    if (isMobile) { setSidebarOpen(false); setAboutOpen(false); }
-  }, [routeLocation.pathname, isMobile]);
-
+  // Robust mobile viewport height var
   useEffect(() => {
     const setVH = () =>
       document.documentElement.style.setProperty('--vh-100', `${window.innerHeight}px`);
@@ -64,7 +61,7 @@ export default function App() {
     };
   }, []);
 
-  const [loaded, setLoaded] = useState(false);
+  // Load projects.json
   useEffect(() => {
     (async () => {
       try {
@@ -84,6 +81,7 @@ export default function App() {
     })();
   }, []);
 
+  // slug -> path map
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -96,21 +94,22 @@ export default function App() {
     return map;
   }, [projects]);
 
-  const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
+  const flat = useMemo(() => flattenProjects(projects), [projects]);
 
-  // Auto-open the first project on mobile when at "/"
+  // MOBILE: On "/" redirect to first project so the iframe is the main view
+  const locPath = routeLocation.pathname.replace(/\/+$/, '');
   useEffect(() => {
     if (!isMobile || projError || !loaded) return;
-    const path = routeLocation.pathname.replace(/\/+$/, '');
-    if (path === '' || path === '/') {
+    if (locPath === '' || locPath === '/') {
       const first = flat[0];
       if (first) {
         const target = first.slug || first.id;
         navigate(`/${encodeURIComponent(target)}`, { replace: true });
       }
     }
-  }, [isMobile, projError, loaded, flat, routeLocation.pathname, navigate]);
+  }, [isMobile, projError, loaded, flat, locPath, navigate]);
 
+  // Active file path from slug or id
   const raw = decodeURIComponent(routeLocation.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
@@ -128,7 +127,7 @@ export default function App() {
     color: 'var(--text)',
     border: '1px solid var(--border)',
     boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
-    zIndex: 70,
+    zIndex: 80,
     display: 'grid',
     placeItems: 'center',
     lineHeight: 1
@@ -137,8 +136,10 @@ export default function App() {
   return (
     <div
       className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}
+      // Kill all header spacing on mobile (we removed the mobile header entirely)
       style={isMobile ? { ['--mobile-header-h']: '0px' } : undefined}
     >
+      {/* Mobile FAB */}
       {isMobile && (
         <button
           aria-label="Open projects"
@@ -150,26 +151,22 @@ export default function App() {
         </button>
       )}
 
-      {/* Backdrop FIRST, with lower z-index, so it sits behind the drawer */}
+      {/* Backdrop below the drawer */}
       {isMobile && sidebarOpen ? (
         <div
           className="drawer-backdrop"
           onClick={() => setSidebarOpen(false)}
-          style={{ zIndex: 50 }}
+          style={{ zIndex: 60 }}
         />
       ) : null}
 
-      {/* Sidebar (drawer) — ensure it layers above the backdrop */}
-      <div className="sidebar-layer" style={isMobile ? { zIndex: 60, position: 'relative' } : undefined}>
+      {/* Sidebar layer above backdrop */}
+      <div className="sidebar-layer" style={isMobile ? { zIndex: 70, position: 'relative' } : undefined}>
         <Sidebar
           projects={projects}
           isDark={isDark}
           onToggleDark={() => setIsDark((v) => !v)}
           activeRelPath={activeRelPath}
-          parentMap={parentMap}
-          onOpenAbout={() => setAboutOpen(true)}
-          onToggleAbout={() => setAboutOpen((v) => !v)}
-          isAboutOpen={!isMobile && aboutOpen}
           isMobile={isMobile}
           open={isMobile ? sidebarOpen : true}
           onClose={() => setSidebarOpen(false)}
@@ -193,7 +190,12 @@ export default function App() {
               initial="initial" animate="in" exit="out"
               variants={pageVariants} transition={pageTransition}
               className="page"
-              style={{minHeight: 'var(--vh-100,100vh)'}}
+              style={{
+                minHeight: 'var(--vh-100,100vh)',
+                // ensure we never leave a spacer above the page on mobile
+                marginTop: 0,
+                paddingTop: 0
+              }}
             >
               <Routes location={routeLocation}>
                 <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
@@ -203,8 +205,6 @@ export default function App() {
                     <ProjectPage
                       slugToPath={slugToPath}
                       slugsReady={Object.keys(slugToPath).length > 0}
-                      panelOpen={!isMobile && aboutOpen}
-                      setPanelOpen={setAboutOpen}
                     />
                   }
                 />
