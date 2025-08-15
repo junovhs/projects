@@ -1,11 +1,13 @@
-// src/ui.jsx
+// src/ui.jsx — single-file shell (App + Sidebar + ProjectPage + WelcomePage)
 
-// Consolidated imports
+// Global imports (one time)
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import './app.css';
 
+/* ------------------------------ Sidebar ------------------------------ */
 
-// ==== Sidebar.jsx ====
 function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) {
   return (
     <ul className="side-tree">
@@ -122,7 +124,8 @@ function Sidebar({ projects, activeRelPath, isMobile, open, onClose, isDark, onT
   );
 }
 
-// ==== ProjectPage.jsx ====
+/* ---------------------------- ProjectPage ---------------------------- */
+
 function simpleMarkdown(md) {
   const esc = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const h = esc
@@ -144,7 +147,7 @@ async function fetchFirst(urls) {
     try {
       const res = await fetch(url, { credentials: 'same-origin' });
       if (res.ok) return { url, text: await res.text() };
-    } catch {}
+    } catch { /* ignore */ }
   }
   return null;
 }
@@ -178,7 +181,11 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
 
   if (!projectUrl) {
     if (!slugsReady && !raw.includes('/')) {
-      return <div style={{display:'grid',placeItems:'center',height:'var(--vh-100,100vh)',opacity:.6}}>Loading project…</div>;
+      return (
+        <div style={{display:'grid',placeItems:'center',height:'var(--vh-100,100vh)',opacity:.6}}>
+          Loading project…
+        </div>
+      );
     }
     return (
       <div style={{display:'grid',placeItems:'center',height:'var(--vh-100,100vh)',padding:24}}>
@@ -245,7 +252,8 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
   );
 }
 
-// ==== WelcomePage.jsx ====
+/* ----------------------------- WelcomePage --------------------------- */
+
 function WelcomePage({ projects = [] }) {
   const navigate = useNavigate();
 
@@ -271,7 +279,33 @@ function WelcomePage({ projects = [] }) {
   return (
     <div className="welcome-wrap">
       <section className="welcome-hero">
-        {/* background and hero content unchanged */}
+        <div className="welcome-hero__bg" aria-hidden="true">
+          <svg viewBox="0 0 800 300" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="grad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
+              </linearGradient>
+            </defs>
+            <rect width="800" height="300" fill="url(#grad)" />
+            <g opacity="0.18">
+              <circle cx="90" cy="60" r="2" />
+              <circle cx="210" cy="110" r="2" />
+              <circle cx="380" cy="80" r="2" />
+              <circle cx="520" cy="150" r="2" />
+              <circle cx="700" cy="70" r="2" />
+              <circle cx="640" cy="210" r="2" />
+              <circle cx="120" cy="220" r="2" />
+              <line x1="90" y1="60" x2="210" y2="110" />
+              <line x1="210" y1="110" x2="380" y2="80" />
+              <line x1="380" y1="80" x2="520" y2="150" />
+              <line x1="520" y1="150" x2="700" y2="70" />
+              <line x1="520" y1="150" x2="640" y2="210" />
+              <line x1="90" y1="60" x2="120" y2="220" />
+            </g>
+          </svg>
+        </div>
+
         <div className="welcome-hero__content">
           <h1 className="welcome-title">Welcome to the Project Showcase</h1>
           <p className="welcome-sub">
@@ -293,5 +327,136 @@ function WelcomePage({ projects = [] }) {
   );
 }
 
-// Named exports
-export { Sidebar, ProjectPage, WelcomePage };
+/* --------------------------------- App -------------------------------- */
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 860);
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 860);
+      // mobile 100vh fix
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      document.documentElement.style.setProperty('--vh-100', `calc(var(--vh) * 100)`);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
+
+function buildSlugMap(nodes, map = {}) {
+  for (const n of nodes || []) {
+    if (n.type === 'project') {
+      const slug = n.slug || n.id;
+      map[slug] = n.id;
+    } else if (n.children) {
+      buildSlugMap(n.children, map);
+    }
+  }
+  return map;
+}
+
+function AppShell() {
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // theme
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || saved === 'light') return saved === 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  // projects.json
+  const [projects, setProjects] = useState([]);
+  const [slugsReady, setSlugsReady] = useState(false);
+  const [slugToPath, setSlugToPath] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/projects.json', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (cancelled) return;
+        setProjects(data);
+        setSlugToPath(buildSlugMap(data));
+        setSlugsReady(true);
+      } catch (e) {
+        console.error('Failed to load projects.json', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // active path for sidebar highlight
+  const { pathname } = useLocation();
+  const raw = decodeURIComponent(pathname.replace(/^\/+/, ''));
+  const activeRelPath = raw.includes('/') ? raw : (slugToPath[raw] || null);
+
+  // animations (keep subtle to avoid visual change)
+  const pageMotion = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit:     { opacity: 0 },
+    transition: { duration: 0.15 }
+  };
+
+  return (
+    <>
+      {/* Sidebar */}
+      <Sidebar
+        projects={projects}
+        activeRelPath={activeRelPath}
+        isMobile={isMobile}
+        open={isMobile ? drawerOpen : true}
+        onClose={() => setDrawerOpen(false)}
+        isDark={isDark}
+        onToggleTheme={() => setIsDark((d) => !d)}
+      />
+
+      {/* Mobile FAB to open drawer (matches previous behavior) */}
+      {isMobile && !drawerOpen && (
+        <button
+          className="open-drawer-fab"
+          aria-label="Open navigation"
+          onClick={() => setDrawerOpen(true)}
+          style={{
+            position:'fixed', left:12, bottom:12, width:48, height:48, borderRadius:24,
+            border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)',
+            boxShadow:'0 2px 8px rgba(0,0,0,.15)', fontSize:22, lineHeight:'48px'
+          }}
+        >☰</button>
+      )}
+
+      {/* Routes */}
+      <AnimatePresence mode="wait">
+        <motion.div key={pathname} {...pageMotion}>
+          <Routes>
+            <Route path="/" element={<WelcomePage projects={projects} />} />
+            <Route
+              path="/*"
+              element={
+                <ProjectPage
+                  slugToPath={slugToPath}
+                  slugsReady={slugsReady}
+                  panelOpen={panelOpen}
+                  setPanelOpen={setPanelOpen}
+                />
+              }
+            />
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
+    </>
+  );
+}
+
+// Export the App from here so main.jsx can import it
+export { AppShell as App, Sidebar, ProjectPage, WelcomePage };
