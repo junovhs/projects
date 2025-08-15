@@ -1,8 +1,8 @@
 // --- FILE: diranalyze/js/fileEditor.js --- (ADD LOGS TO initFileEditor and saveCurrentFile)
 import { appState, elements as globalElements } from './main.js';
 import * as fileSystem from './fileSystem.js';
-import * as notificationSystem from 'notificationSystem';
-import * as errorHandler from 'errorHandler';
+import * as notificationSystem from './notificationSystem.js';
+import * as errorHandler from './errorHandler.js';
 import { getFileExtension, formatBytes } from './utils.js';
 import * as uiManager from './uiManager.js';
 

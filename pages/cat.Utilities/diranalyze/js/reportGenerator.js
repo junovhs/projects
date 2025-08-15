@@ -1,6 +1,6 @@
 // --- FILE: js/reportGenerator.js --- //
 import { formatBytes } from './utils.js';
-import * as fileEditor from 'fileEditor'; // Keep for potential future use if report includes edit status
+import * as fileEditor from './fileEditor.js'; // Keep for potential future use if report includes edit status
 import { appState } from './main.js';
 
 export function generateTextReport(currentDisplayData) {

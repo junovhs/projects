@@ -1,8 +1,8 @@
 // --- FILE: diranalyze/js/fileSystem.js --- //
 import { appState, elements } from './main.js';
-import * as notificationSystem from 'notificationSystem';
-import * as errorHandler from 'errorHandler';
-import * as fileEditor from 'fileEditor';
+import * as notificationSystem from './notificationSystem.js';
+import * as errorHandler from './errorHandler.js';
+import * as fileEditor from './fileEditor.js';
 import { getFileExtension } from './utils.js'; // For CodeMirror mode
 import * as utils from './utils.js';
 
