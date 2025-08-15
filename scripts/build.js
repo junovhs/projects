@@ -1,127 +1,107 @@
-// scripts/build.js
-// Build: generates projects.json (with slugs + optional metadata), runs Vite, and copies /pages to /dist/pages.
+#!/usr/bin/env node
+/* eslint-disable no-console */
+/**
+ * Clean, strict build:
+ * 1) Fail if 'public/pages' exists (we only source from '/pages').
+ * 2) Generate 'public/projects.json' by scanning '/pages/**/index.html'.
+ * 3) Run 'vite build'.
+ * 4) Copy '/pages' → '/dist/pages' for static serving on Vercel.
+ */
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const cp = require('child_process');
 
-import fs from 'fs/promises';
-import path from 'path';
-import { execSync } from 'child_process';
+const ROOT = process.cwd();
+const PAGES_DIR = path.join(ROOT, 'pages');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const DIST_DIR  = path.join(ROOT, 'dist');
 
-const PAGES_DIR = 'pages';
-const PUBLIC_DIR = 'public';
-const OUTPUT_DIR = 'dist';
+async function exists(p) { try { await fsp.access(p); return true; } catch { return false; } }
 
-// ---------- helpers ----------
-function titleize(s) {
-  return s.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
-}
-function slugify(str) {
-  return String(str)
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-');
-}
-
-// unique slugs across tree
-const slugTaken = new Map(); // slug -> relPath
-function uniqueSlug(base, relPath) {
-  let slug = base || 'project';
-  let i = 2;
-  while (slugTaken.has(slug) && slugTaken.get(slug) !== relPath) {
-    slug = `${base}-${i++}`;
-  }
-  slugTaken.set(slug, relPath);
-  return slug;
-}
-
-async function readMeta(fullPath) {
-  // Optional /pages/.../meta.json with {title, date, tags, summary}
-  try {
-    const raw = await fs.readFile(path.join(fullPath, 'meta.json'), 'utf8');
-    const json = JSON.parse(raw);
-    return json && typeof json === 'object' ? json : {};
-  } catch {
-    return {};
+async function* walk(dir, base = dir) {
+  const entries = await fsp.readdir(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const res = path.resolve(dir, e.name);
+    if (e.isDirectory()) yield* walk(res, base);
+    else yield path.relative(base, res);
   }
 }
 
-// ---------- discovery ----------
-async function scan(dir, rel = '') {
-  const items = [];
-  let entries = [];
-  try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
-  } catch {
-    return items;
+async function copyDir(src, dest) {
+  if (!(await exists(src))) return;
+  await fsp.mkdir(dest, { recursive: true });
+  const entries = await fsp.readdir(src, { withFileTypes: true });
+  for (const e of entries) {
+    const s = path.join(src, e.name);
+    const d = path.join(dest, e.name);
+    if (e.isDirectory()) await copyDir(s, d);
+    else await fsp.copyFile(s, d);
   }
+}
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const fullPath = path.join(dir, entry.name);
-    const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-
-    if (entry.name.startsWith('cat.')) {
-      items.push({
-        id: relPath,
-        name: titleize(entry.name.slice(4)),
-        type: 'category',
-        children: await scan(fullPath, relPath),
-      });
-    } else {
-      try {
-        await fs.access(path.join(fullPath, 'index.html'));
-        const meta = await readMeta(fullPath);
-        const stat = await fs.stat(fullPath);
-        const name = meta.title ? String(meta.title) : titleize(entry.name);
-        const slug = uniqueSlug(slugify(entry.name), relPath);
-
-        items.push({
-          id: relPath,            // full relative path used for iframe src
-          slug,                   // short URL /<slug>
-          name,                   // display name (can be overridden by meta.title)
-          type: 'project',
-          updatedAt: (meta.date ? new Date(meta.date) : stat.mtime).toISOString(),
-          tags: Array.isArray(meta.tags) ? meta.tags : undefined,
-          summary: typeof meta.summary === 'string' ? meta.summary : undefined,
-        });
-      } catch {
-        // no index.html -> ignore
+async function generateProjectsJson() {
+  await fsp.mkdir(PUBLIC_DIR, { recursive: true });
+  const projects = [];
+  if (await exists(PAGES_DIR)) {
+    for await (const rel of walk(PAGES_DIR)) {
+      if (rel.endsWith(path.sep + 'index.html') || rel.endsWith('/index.html') || rel === 'index.html') {
+        const abs = path.join(PAGES_DIR, rel);
+        const raw = await fsp.readFile(abs, 'utf8').catch(() => '');
+        const titleMatch = raw && raw.match(/<title>\s*([^<]+?)\s*<\/title>/i);
+        const title = (titleMatch && titleMatch[1]) || path.basename(path.dirname(abs)) || 'Untitled';
+        // slug is directory path of index.html (no 'index.html', no leading slash)
+        let slug = rel.slice(0, -'index.html'.length).replace(/\\/g, '/');
+        if (slug.endsWith('/')) slug = slug.slice(0, -1);
+        const href = `/pages/${slug}`;
+        const segments = slug.split('/').filter(Boolean);
+        const category = segments[0] || '';
+        projects.push({ title, path: href, category, slug });
       }
     }
   }
-
-  // Categories first, then alphabetical
-  return items.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'category' ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    count: projects.length,
+    projects
+  };
+  const out = path.join(PUBLIC_DIR, 'projects.json');
+  await fsp.writeFile(out, JSON.stringify(payload, null, 2), 'utf8');
+  console.log(`✔ Wrote ${out} with ${projects.length} entries`);
 }
 
-// ---------- main ----------
 async function main() {
-  console.log('🚀 Showcase build start');
-  const tree = await scan(PAGES_DIR);
+  // 1) Hard fail if legacy tree exists
+  const legacy = path.join(PUBLIC_DIR, 'pages');
+  if (await exists(legacy)) {
+    throw new Error(
+      "Found 'public/pages'. Move all content into '/pages' and delete 'public/pages'.\n" +
+      "This build intentionally fails to keep the repo clean."
+    );
+  }
 
-  await fs.writeFile(
-    path.join(PUBLIC_DIR, 'projects.json'),
-    JSON.stringify(tree, null, 2)
-  );
-  console.log('✅ Wrote public/projects.json');
+  // 2) Generate projects.json
+  await generateProjectsJson();
 
-  console.log('📦 Running Vite build…');
-  execSync('vite build', { stdio: 'inherit' });
-  console.log('✅ Vite build complete');
+  // 3) Build SPA with Vite
+  console.log('▶ Running Vite build...');
+  cp.execSync('npx vite build', { stdio: 'inherit' });
 
-  console.log('📁 Copying pages → dist/pages …');
-  await fs.cp(PAGES_DIR, path.join(OUTPUT_DIR, PAGES_DIR), { recursive: true });
-  console.log('✅ Done');
+  // 4) Copy /pages → /dist/pages
+  console.log('▶ Copying /pages → /dist/pages ...');
+  await copyDir(PAGES_DIR, path.join(DIST_DIR, 'pages'));
+  console.log('✔ Copied pages');
 
-  console.log('🎉 Build finished');
+  // 5) Optional: sanity — prevent heavy apps under /pages
+  // If you *do* want nested apps, comment this out.
+  const forbidden = cp.execSync('git ls-files "pages/**/package.json" || true').toString().trim();
+  if (forbidden) {
+    console.warn('\n⚠ Found package.json under /pages (looks like a full app inside pages):\n', forbidden);
+    console.warn('  Consider moving full apps to their own folder/repo. Build continuing...\n');
+  }
 }
 
 main().catch((err) => {
-  console.error('🔥 Build failed', err);
+  console.error('✖ Build failed:\n', err && err.message ? err.message : err);
   process.exit(1);
 });
