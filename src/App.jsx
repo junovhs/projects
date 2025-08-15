@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import ProjectPage from './components/ProjectPage';
 import WelcomePage from './components/WelcomePage';
 import './index.css';
+import './drawer-fix.css';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },
@@ -47,12 +48,10 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  // Close drawers on navigation when mobile
   useEffect(() => {
     if (isMobile) { setSidebarOpen(false); setAboutOpen(false); }
   }, [routeLocation.pathname, isMobile]);
 
-  // Robust viewport height custom property (iOS safe)
   useEffect(() => {
     const setVH = () =>
       document.documentElement.style.setProperty('--vh-100', `${window.innerHeight}px`);
@@ -65,7 +64,6 @@ export default function App() {
     };
   }, []);
 
-  // Load projects.json once
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     (async () => {
@@ -86,7 +84,6 @@ export default function App() {
     })();
   }, []);
 
-  // Build slug->path map and "flat" list
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -101,7 +98,7 @@ export default function App() {
 
   const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
 
-  // MOBILE: Auto-load the first project at "/" so the iframe is the main view
+  // Auto-open the first project on mobile when at "/"
   useEffect(() => {
     if (!isMobile || projError || !loaded) return;
     const path = routeLocation.pathname.replace(/\/+$/, '');
@@ -131,7 +128,7 @@ export default function App() {
     color: 'var(--text)',
     border: '1px solid var(--border)',
     boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
-    zIndex: 50,
+    zIndex: 70,
     display: 'grid',
     placeItems: 'center',
     lineHeight: 1
@@ -140,10 +137,8 @@ export default function App() {
   return (
     <div
       className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}
-      // No mobile header; make the header height effectively 0 so the iframe fills the screen
       style={isMobile ? { ['--mobile-header-h']: '0px' } : undefined}
     >
-      {/* Tiny projects button (mobile only) */}
       {isMobile && (
         <button
           aria-label="Open projects"
@@ -155,20 +150,31 @@ export default function App() {
         </button>
       )}
 
-      <Sidebar
-        projects={projects}
-        isDark={isDark}
-        onToggleDark={() => setIsDark((v) => !v)}
-        activeRelPath={activeRelPath}
-        parentMap={parentMap}
-        onOpenAbout={() => setAboutOpen(true)}
-        onToggleAbout={() => setAboutOpen((v) => !v)}
-        isAboutOpen={!isMobile && aboutOpen}
-        isMobile={isMobile}
-        open={isMobile ? sidebarOpen : true}
-        onClose={() => setSidebarOpen(false)}
-      />
-      {isMobile && sidebarOpen ? <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+      {/* Backdrop FIRST, with lower z-index, so it sits behind the drawer */}
+      {isMobile && sidebarOpen ? (
+        <div
+          className="drawer-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          style={{ zIndex: 50 }}
+        />
+      ) : null}
+
+      {/* Sidebar (drawer) — ensure it layers above the backdrop */}
+      <div className="sidebar-layer" style={isMobile ? { zIndex: 60, position: 'relative' } : undefined}>
+        <Sidebar
+          projects={projects}
+          isDark={isDark}
+          onToggleDark={() => setIsDark((v) => !v)}
+          activeRelPath={activeRelPath}
+          parentMap={parentMap}
+          onOpenAbout={() => setAboutOpen(true)}
+          onToggleAbout={() => setAboutOpen((v) => !v)}
+          isAboutOpen={!isMobile && aboutOpen}
+          isMobile={isMobile}
+          open={isMobile ? sidebarOpen : true}
+          onClose={() => setSidebarOpen(false)}
+        />
+      </div>
 
       <main className="content" role="main">
         {projError ? (
@@ -187,7 +193,6 @@ export default function App() {
               initial="initial" animate="in" exit="out"
               variants={pageVariants} transition={pageTransition}
               className="page"
-              // Fill the viewport on both desktop and mobile
               style={{minHeight: 'var(--vh-100,100vh)'}}
             >
               <Routes location={routeLocation}>
