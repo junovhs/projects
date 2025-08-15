@@ -1,50 +1,69 @@
 /* src/ui-fixes.css */
 
-/* General theme tokens (kept light but safe if index.css lacks them) */
+/* Base palette (single theme; no dark/light toggle) */
 :root {
-  --page-bg: #f6f7fb;
-  --surface: #0f172a;
-  --surface-2: #0b1228;
-  --text: #e6e8f0;
-  --text-dim: #a9b0c3;
-  --border: rgba(255,255,255,.08);
+  --app-bg: #0b1228;         /* app background */
+  --app-surface: #0f172a;    /* surfaces and controls */
+  --app-surface-2: #0c142a;  /* sidebar background */
+  --app-text: #e8ecf7;
+  --app-text-dim: #a8b1c6;
+  --app-border: rgba(255,255,255,.08);
 }
-.theme-dark { background: var(--page-bg); }
 
-/* Ensure the application always fills the viewport */
+/* Normalize */
 html, body, #root { height: 100%; }
-.app-shell { min-height: var(--vh-100, 100vh); }
+html, body { margin: 0; background: var(--app-bg); color: var(--app-text); }
 
-/* Kill any mobile header spacer that might have existed */
+/* Layout: sidebar + content */
+.app-shell {
+  display: flex;
+  min-height: var(--vh-100, 100vh);
+  background: var(--app-bg);
+}
+
+.sidebar-layer { position: relative; z-index: 70; }
+main.content {
+  flex: 1;
+  min-width: 0;
+  background: var(--app-bg);  /* remove “white seam” */
+}
+
+/* Remove any stray top spacer/header on mobile that could create the “white/black slab” */
 .is-mobile main.content,
 .is-mobile .content,
 .is-mobile .page {
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
+.is-mobile .mobile-header,
+.is-mobile .header,
+.is-mobile .header-spacer,
+.is-mobile [data-header],
+.is-mobile [data-topspacer] {
+  display: none !important;
+}
 
-/* Prevent the “black slab over app”:
-   - body or shell may be dark; make sure page area is visible
-   - and allow the page to start at the very top on mobile */
-.is-mobile .page { background: transparent; }
+/* Motion wrapper + page area */
+.page { background: transparent; }
 
-/* Drawer backdrop should sit behind the drawer */
+/* Drawer backdrop sits behind drawer */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.42);
   -webkit-tap-highlight-color: transparent;
-  z-index: 60; /* lower than the drawer */
+  z-index: 60;
 }
 
-/* SIDEBAR — desktop = sticky column; mobile = slide-in drawer */
+/* SIDEBAR */
 .sidebar-root {
-  color: var(--text);
-  background: var(--surface-2);
-  border-right: 1px solid var(--border);
+  color: var(--app-text);
+  background: var(--app-surface-2);
+  /* remove bright seam; make the edge very subtle or none */
+  border-right: 0; /* or: 1px solid var(--app-border); */
 }
 
-/* Desktop sidebar occupies full height and scrolls independently */
+/* Desktop sidebar: full height, scrolls independently */
 .sidebar-root.desktop {
   position: sticky;
   top: 0;
@@ -76,48 +95,50 @@ html, body, #root { height: 100%; }
   top: 0;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 14px 14px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  background: var(--app-surface-2);
+  border-bottom: 1px solid var(--app-border);
 }
 .side-title { font-weight: 700; letter-spacing: .2px; }
-.dark-toggle,
 .close-drawer {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
   border-radius: 10px;
   padding: 6px 8px;
   line-height: 1;
+  font-size: 14px;
 }
-.close-drawer { font-size: 14px; }
 
 .side-nav { padding: 8px 6px 14px 6px; }
 .side-tree { list-style: none; margin: 0; padding: 0 6px; }
 .side-tree > li { margin: 2px 0; }
 
-.cat details > summary {
+/* Accordion: only one top-level <details> open at once (controlled in React).
+   These styles just make it pretty. */
+.cat > details > summary {
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 10px;
   border-radius: 10px;
-  color: var(--text);
+  color: var(--app-text);
 }
-.cat details[open] > summary { background: rgba(255,255,255,.03); }
+.cat > details[open] > summary { background: rgba(255,255,255,.03); }
 .cat-name { font-weight: 600; }
 .cat-count {
   font-size: 12px;
   background: rgba(255,255,255,.08);
-  border: 1px solid var(--border);
+  border: 1px solid var(--app-border);
   padding: 2px 6px;
   border-radius: 999px;
 }
 
+/* Projects */
 .proj { margin: 2px 0 2px 6px; }
 .proj-btn {
   width: 100%;
@@ -127,15 +148,11 @@ html, body, #root { height: 100%; }
   gap: 8px;
   align-items: center;
   background: transparent;
-  color: var(--text);
+  color: var(--app-text);
   border: 1px solid transparent;
   border-radius: 10px;
   padding: 8px 10px;
 }
-.proj-btn:hover { background: rgba(255,255,255,.04); border-color: var(--border); }
-.proj.active .proj-btn { background: rgba(255,255,255,.08); border-color: var(--border); }
+.proj-btn:hover { background: rgba(255,255,255,.04); border-color: var(--app-border); }
+.proj.active .proj-btn { background: rgba(255,255,255,.08); border-color: var(--app-border); }
 .proj .dot { opacity: .7; transform: translateY(-1px); }
-
-/* Main area hygiene */
-main.content { background: transparent; }
-.page { background: transparent; }

@@ -1,34 +1,35 @@
 // src/components/Sidebar.jsx
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function flattenCounts(nodes) {
-  const counts = new Map();
-  (function walk(list, parent = null) {
-    (list || []).forEach((n) => {
-      if (n.type === 'project') {
-        counts.set(parent, (counts.get(parent) || 0) + 1);
-      } else if (n.type === 'category') {
-        walk(n.children, n.name);
-      }
-    });
-  })(nodes);
-  return counts;
-}
-
-function Tree({ nodes, onPick, activeRelPath }) {
+function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) {
   return (
     <ul className="side-tree">
       {(nodes || []).map((n) => {
         if (n.type === 'category') {
+          const isTop = level === 0;
+          const isOpen = isTop ? openTopId === n.id : true; // only top level is accordion
+          const toggle = () => {
+            if (!isTop) return;
+            setOpenTopId((prev) => (prev === n.id ? null : n.id));
+          };
           return (
             <li key={n.id} className="cat">
-              <details open>
+              <details open={isOpen} onToggle={toggle}>
                 <summary>
                   <span className="cat-name">{n.name}</span>
-                  <span className="cat-count">{(n.children || []).filter(c => c.type === 'project').length}</span>
+                  <span className="cat-count">
+                    {(n.children || []).filter((c) => c.type === 'project').length}
+                  </span>
                 </summary>
-                <Tree nodes={n.children} onPick={onPick} activeRelPath={activeRelPath} />
+                <Tree
+                  nodes={n.children}
+                  level={level + 1}
+                  onPick={onPick}
+                  activeRelPath={activeRelPath}
+                  openTopId={openTopId}
+                  setOpenTopId={setOpenTopId}
+                />
               </details>
             </li>
           );
@@ -54,15 +55,13 @@ function Tree({ nodes, onPick, activeRelPath }) {
 
 export default function Sidebar({
   projects,
-  isDark,
-  onToggleDark,
   activeRelPath,
   isMobile,
   open,
   onClose
 }) {
   const navigate = useNavigate();
-  const counts = useMemo(() => flattenCounts(projects), [projects]);
+  const [openTopId, setOpenTopId] = useState(null);
 
   const goToProject = (n) => {
     const target = n.slug || n.id;
@@ -79,9 +78,6 @@ export default function Sidebar({
       <div className="side-inner">
         <header className="side-header">
           <div className="side-title">Showcase</div>
-          <button className="dark-toggle" title="Toggle theme" aria-label="Toggle theme" onClick={onToggleDark}>
-            {isDark ? '🌙' : '☀️'}
-          </button>
           {isMobile && (
             <button className="close-drawer" onClick={onClose} aria-label="Close">
               ✕
@@ -90,7 +86,14 @@ export default function Sidebar({
         </header>
 
         <nav className="side-nav" role="navigation">
-          <Tree nodes={projects} onPick={goToProject} activeRelPath={activeRelPath} />
+          <Tree
+            nodes={projects}
+            level={0}
+            onPick={goToProject}
+            activeRelPath={activeRelPath}
+            openTopId={openTopId}
+            setOpenTopId={setOpenTopId}
+          />
         </nav>
       </div>
     </aside>

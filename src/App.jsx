@@ -30,7 +30,6 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [projError, setProjError] = useState('');
   const [loaded, setLoaded] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const routeLocation = useLocation();
   const navigate = useNavigate();
 
@@ -45,10 +44,10 @@ export default function App() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Drawer state (no About anymore)
+  // Drawer state
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Robust mobile viewport height var
+  // Robust viewport height custom property (iOS safe)
   useEffect(() => {
     const setVH = () =>
       document.documentElement.style.setProperty('--vh-100', `${window.innerHeight}px`);
@@ -123,9 +122,9 @@ export default function App() {
     width: 38,
     height: 38,
     borderRadius: 10,
-    background: 'var(--surface)',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
+    background: 'var(--app-surface)',
+    color: 'var(--app-text)',
+    border: '1px solid var(--app-border)',
     boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
     zIndex: 80,
     display: 'grid',
@@ -135,11 +134,10 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}
-      // Kill all header spacing on mobile (we removed the mobile header entirely)
+      className={`app-shell${isMobile ? ' is-mobile' : ''}`}
+      // Ensure there is absolutely no header spacer on mobile
       style={isMobile ? { ['--mobile-header-h']: '0px' } : undefined}
     >
-      {/* Mobile FAB */}
       {isMobile && (
         <button
           aria-label="Open projects"
@@ -160,12 +158,10 @@ export default function App() {
         />
       ) : null}
 
-      {/* Sidebar layer above backdrop */}
+      {/* Sidebar above the backdrop */}
       <div className="sidebar-layer" style={isMobile ? { zIndex: 70, position: 'relative' } : undefined}>
         <Sidebar
           projects={projects}
-          isDark={isDark}
-          onToggleDark={() => setIsDark((v) => !v)}
           activeRelPath={activeRelPath}
           isMobile={isMobile}
           open={isMobile ? sidebarOpen : true}
@@ -190,15 +186,10 @@ export default function App() {
               initial="initial" animate="in" exit="out"
               variants={pageVariants} transition={pageTransition}
               className="page"
-              style={{
-                minHeight: 'var(--vh-100,100vh)',
-                // ensure we never leave a spacer above the page on mobile
-                marginTop: 0,
-                paddingTop: 0
-              }}
+              style={{minHeight: 'var(--vh-100,100vh)'}}
             >
               <Routes location={routeLocation}>
-                <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
+                <Route path="/" element={<WelcomePage projects={flat} />} />
                 <Route
                   path="/*"
                   element={
