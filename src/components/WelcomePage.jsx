@@ -1,122 +1,175 @@
 // src/components/WelcomePage.jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import "./welcome.css";
 
-function relativeDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const days = Math.round(diff / (1000 * 60 * 60 * 24));
-  if (days < 1) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.round(days / 7);
-  if (weeks < 5) return `${weeks}w ago`;
-  const months = Math.round(days / 30);
-  return `${months}mo ago`;
-}
+/**
+ * A clean, minimal landing page for your project showcase.
+ * - No external assets
+ * - Works at 320px width and up
+ * - Offers a single "Open first project" CTA
+ * - Shows a tidy summary of categories and project counts
+ */
+export default function WelcomePage({ projects = [] }) {
+  const navigate = useNavigate();
 
-export default function WelcomePage({ isDark, projects = [] }) {
-  const canvasRef = useRef(null);
-  const [sort, setSort] = useState('recent'); // 'az' | 'recent'
-
-  const sorted = useMemo(() => {
-    const copy = [...projects];
-    if (sort === 'az') {
-      copy.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      copy.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-    }
-    return copy;
-  }, [projects, sort]);
-
-  // subtle shader bg
-  useEffect(() => {
-    const c = canvasRef.current;
-    const ctx = c.getContext('2d', { alpha: false });
-    let rafId, w, h, dpr;
-
-    const N = 80;
-    const nodes = Array.from({ length: N }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      vx: (Math.random() - 0.5) * 0.0008,
-      vy: (Math.random() - 0.5) * 0.0008,
-    }));
-
-    const bg = isDark ? '#0b1016' : '#ffffff';
-    const dot = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(15,23,42,0.35)';
-    const line = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.12)';
-
-    function resize() {
-      dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      w = c.clientWidth;
-      h = c.clientHeight;
-      c.width = Math.floor(w * dpr);
-      c.height = Math.floor(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    function step() {
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
-      for (const n of nodes) {
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > 1) n.vx *= -1;
-        if (n.y < 0 || n.y > 1) n.vy *= -1;
-      }
-      ctx.strokeStyle = line; ctx.lineWidth = 1;
-      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
-        const a = nodes[i], b = nodes[j];
-        const dx = (a.x - b.x) * w, dy = (a.y - b.y) * h;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < 120*120) {
-          ctx.globalAlpha = 1 - d2/(120*120);
-          ctx.beginPath(); ctx.moveTo(a.x*w, a.y*h); ctx.lineTo(b.x*w, b.y*h); ctx.stroke();
+  // First real project for the CTA
+  const firstProject = useMemo(() => {
+    let found = null;
+    const walk = (list) => {
+      for (const n of list || []) {
+        if (n.type === "project") {
+          found = n;
+          return;
         }
+        if (n.children) walk(n.children);
+        if (found) return;
       }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = dot;
-      for (const n of nodes) { ctx.beginPath(); ctx.arc(n.x*w, n.y*h, 2.2, 0, Math.PI*2); ctx.fill(); }
-      rafId = requestAnimationFrame(step);
-    }
-    rafId = requestAnimationFrame(step);
-    return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', resize); };
-  }, [isDark]);
+    };
+    walk(projects);
+    return found;
+  }, [projects]);
+
+  // Top-level categories summary
+  const categories = useMemo(() => {
+    return (projects || [])
+      .filter((n) => n.type === "category")
+      .map((cat) => {
+        const all = [];
+        const walk = (list) => {
+          for (const n of list || []) {
+            if (n.type === "project") all.push(n);
+            if (n.children) walk(n.children);
+          }
+        };
+        walk(cat.children || []);
+        return {
+          id: cat.id,
+          name: cat.name,
+          count: all.length,
+          sample: all.slice(0, 4).map((p) => p.title || p.name || p.id),
+        };
+      });
+  }, [projects]);
+
+  const openFirstProject = () => {
+    if (!firstProject) return;
+    const slug = firstProject.slug || firstProject.id;
+    navigate(`/${encodeURIComponent(slug)}`);
+  };
 
   return (
-    <div className={'welcome' + (isDark ? ' theme-dark' : '')}>
-      <canvas ref={canvasRef} className="welcome-canvas" />
-      <div className="welcome-overlay">
-        <h1 className="hero">Showcase</h1>
-        <p className="sub">A curated portfolio of hands-on marketing tech projects.</p>
-
-        <div className="controls">
-          <label>
-            <span>Sort</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="recent">Recently updated</option>
-              <option value="az">A–Z</option>
-            </select>
-          </label>
+    <div className="welcome-wrap">
+      <section className="welcome-hero">
+        <div className="welcome-hero__bg" aria-hidden="true">
+          <svg viewBox="0 0 800 300" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="grad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
+              </linearGradient>
+            </defs>
+            <rect width="800" height="300" fill="url(#grad)" />
+            <g opacity="0.18">
+              <circle cx="90" cy="60" r="2" />
+              <circle cx="210" cy="110" r="2" />
+              <circle cx="380" cy="80" r="2" />
+              <circle cx="520" cy="150" r="2" />
+              <circle cx="700" cy="70" r="2" />
+              <circle cx="640" cy="210" r="2" />
+              <circle cx="120" cy="220" r="2" />
+              <line x1="90" y1="60" x2="210" y2="110" />
+              <line x1="210" y1="110" x2="380" y2="80" />
+              <line x1="380" y1="80" x2="520" y2="150" />
+              <line x1="520" y1="150" x2="700" y2="70" />
+              <line x1="520" y1="150" x2="640" y2="210" />
+              <line x1="90" y1="60" x2="120" y2="220" />
+            </g>
+          </svg>
         </div>
 
-        <div className="grid">
-          {sorted.map((p) => (
-            <Link key={p.slug || p.id} to={`/${encodeURIComponent(p.slug || p.id)}`} className="card">
-              <div className="card-title">{p.name}</div>
-              <div className="card-meta">
-                {p.category ? <span className="chip">{p.category}</span> : null}
-                {p.updatedAt ? <span className="muted">• {relativeDate(p.updatedAt)}</span> : null}
+        <div className="welcome-hero__content">
+          <h1 className="welcome-title">Welcome to the Project Showcase</h1>
+          <p className="welcome-sub">
+            A tidy, mobile-friendly template for presenting hands-on tools and experiments.
+            Open anything from the sidebar, or jump straight into a project below.
+          </p>
+
+          <div className="welcome-actions">
+            <button
+              className="btn btn-primary"
+              onClick={openFirstProject}
+              disabled={!firstProject}
+              title={firstProject ? "Open first project" : "No projects found"}
+            >
+              {firstProject ? "Open first project" : "No projects available"}
+            </button>
+            <a className="btn btn-ghost" href="#browse">
+              Browse categories
+            </a>
+          </div>
+
+          <div className="welcome-tips">
+            <div className="tip">
+              <span className="tip-emoji" aria-hidden>📁</span>
+              <div>
+                <div className="tip-title">Projects live in the sidebar</div>
+                <div className="tip-desc">
+                  Click a project name to load it instantly in the main view.
+                </div>
               </div>
-              {p.summary ? <div className="card-summary">{p.summary}</div> : null}
-            </Link>
-          ))}
+            </div>
+            <div className="tip">
+              <span className="tip-emoji" aria-hidden>📱</span>
+              <div>
+                <div className="tip-title">Mobile-first layout</div>
+                <div className="tip-desc">
+                  On phones, tap the ☰ button to open navigation.
+                </div>
+              </div>
+            </div>
+            <div className="tip">
+              <span className="tip-emoji" aria-hidden>✨</span>
+              <div>
+                <div className="tip-title">Drop-in friendly</div>
+                <div className="tip-desc">
+                  Add or remove projects without changing the layout.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section id="browse" className="welcome-cats">
+        <h2 className="sec-title">Browse categories</h2>
+        {categories.length === 0 ? (
+          <div className="empty-note">
+            No categories yet. Add a few projects and they’ll show up here.
+          </div>
+        ) : (
+          <div className="cat-grid">
+            {categories.map((c) => (
+              <div key={c.id} className="cat-card">
+                <div className="cat-head">
+                  <div className="cat-name">{c.name}</div>
+                  <div className="cat-badge">{c.count}</div>
+                </div>
+                {c.sample.length > 0 && (
+                  <ul className="sample-list">
+                    {c.sample.map((name, i) => (
+                      <li key={i}>{name}</li>
+                    ))}
+                    {c.count > c.sample.length && (
+                      <li className="more">+{c.count - c.sample.length} more…</li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
