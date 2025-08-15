@@ -1,7 +1,8 @@
 /* src/ui-fixes.css */
 
-/* Single-theme palette */
-:root {
+/* Default to dark; explicit classes allow switching */
+:root,
+.theme-dark {
   --app-bg: #0b1228;
   --app-surface: #0f172a;
   --app-surface-2: #0c142a;
@@ -10,6 +11,17 @@
   --app-border: rgba(255,255,255,.08);
 }
 
+/* Light theme overrides */
+.theme-light {
+  --app-bg: #f6f8fc;
+  --app-surface: #ffffff;
+  --app-surface-2: #f1f4fb;
+  --app-text: #0b1228;
+  --app-text-dim: #334155;
+  --app-border: rgba(0,0,0,.08);
+}
+
+/* Base layout */
 html, body, #root { height: 100%; }
 html, body { margin: 0; background: var(--app-bg); color: var(--app-text); }
 
@@ -23,9 +35,10 @@ html, body { margin: 0; background: var(--app-bg); color: var(--app-text); }
 main.content {
   flex: 1;
   min-width: 0;
-  background: var(--app-bg);  /* eliminates white seam */
+  background: var(--app-bg); /* ensures no seam */
 }
 
+/* Remove any stray top spacer/header on mobile */
 .is-mobile main.content,
 .is-mobile .content,
 .is-mobile .page { margin-top: 0 !important; padding-top: 0 !important; }
@@ -42,17 +55,16 @@ main.content {
   inset: 0;
   background: rgba(0,0,0,.42);
   -webkit-tap-highlight-color: transparent;
-  z-index: 60; /* behind drawer */
+  z-index: 60;
 }
 
 /* SIDEBAR */
 .sidebar-root {
   color: var(--app-text);
   background: var(--app-surface-2);
-  border-right: 0; /* set to 1px solid var(--app-border) if you want a divider */
+  border-right: 0;
 }
 
-/* Desktop sidebar */
 .sidebar-root.desktop {
   position: sticky;
   top: 0;
@@ -63,7 +75,6 @@ main.content {
   z-index: 40;
 }
 
-/* Mobile drawer */
 .sidebar-root.mobile {
   position: fixed;
   top: 0;
@@ -91,7 +102,12 @@ main.content {
   background: var(--app-surface-2);
   border-bottom: 1px solid var(--app-border);
 }
+
 .side-title { font-weight: 700; letter-spacing: .2px; }
+
+.side-actions { display: inline-flex; gap: 8px; align-items: center; }
+
+.theme-toggle,
 .close-drawer {
   border: 1px solid var(--app-border);
   background: var(--app-surface);
@@ -101,12 +117,14 @@ main.content {
   line-height: 1;
   font-size: 14px;
 }
+.theme-toggle:hover,
+.close-drawer:hover { filter: brightness(1.02); }
 
 .side-nav { padding: 8px 6px 14px 6px; }
 .side-tree { list-style: none; margin: 0; padding: 0 6px; }
 .side-tree > li { margin: 2px 0; }
 
-/* Controlled accordion (no <details>): */
+/* Controlled accordion styles */
 .cat-head { margin: 2px 0; }
 .cat-toggle {
   width: 100%;
@@ -126,10 +144,14 @@ main.content {
   background: rgba(255,255,255,.03);
   border-color: var(--app-border);
 }
+.theme-light .cat.open .cat-toggle,
+.theme-light .cat-toggle:hover {
+  background: rgba(0,0,0,.03);
+}
 .cat-name { font-weight: 600; }
 .cat-count {
   font-size: 12px;
-  background: rgba(255,255,255,.08);
+  background: rgba(127,127,127,.12);
   border: 1px solid var(--app-border);
   padding: 2px 6px;
   border-radius: 999px;
@@ -155,5 +177,7 @@ main.content {
   padding: 8px 10px;
 }
 .proj-btn:hover { background: rgba(255,255,255,.04); border-color: var(--app-border); }
+.theme-light .proj-btn:hover { background: rgba(0,0,0,.03); }
 .proj.active .proj-btn { background: rgba(255,255,255,.08); border-color: var(--app-border); }
+.theme-light .proj.active .proj-btn { background: rgba(0,0,0,.06); }
 .proj .dot { opacity: .7; transform: translateY(-1px); }

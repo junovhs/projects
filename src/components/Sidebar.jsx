@@ -8,7 +8,7 @@ function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) 
       {(nodes || []).map((n) => {
         if (n.type === 'category') {
           const isTop = level === 0;
-          const isOpen = isTop ? openTopId === n.id : true; // only top-level is accordion
+          const isOpen = isTop ? openTopId === n.id : true;
           const count = (n.children || []).filter((c) => c.type === 'project').length;
 
           const handleToggle = () => {
@@ -66,11 +66,12 @@ export default function Sidebar({
   activeRelPath,
   isMobile,
   open,
-  onClose
+  onClose,
+  isDark,
+  onToggleTheme
 }) {
   const navigate = useNavigate();
 
-  // Open the first top-level category by default when projects load
   const [openTopId, setOpenTopId] = useState(null);
   useEffect(() => {
     if (!openTopId && Array.isArray(projects)) {
@@ -94,11 +95,21 @@ export default function Sidebar({
       <div className="side-inner">
         <header className="side-header">
           <div className="side-title">Showcase</div>
-          {isMobile && (
-            <button className="close-drawer" onClick={onClose} aria-label="Close">
-              ✕
+          <div className="side-actions">
+            <button
+              className="theme-toggle"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+              onClick={onToggleTheme}
+            >
+              {isDark ? '🌙' : '☀️'}
             </button>
-          )}
+            {isMobile && (
+              <button className="close-drawer" onClick={onClose} aria-label="Close">
+                ✕
+              </button>
+            )}
+          </div>
         </header>
 
         <nav className="side-nav" role="navigation">

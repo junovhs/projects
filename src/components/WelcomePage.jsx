@@ -4,52 +4,25 @@ import { useNavigate } from "react-router-dom";
 import "./welcome.css";
 
 /**
- * A clean, minimal landing page for your project showcase.
- * - No external assets
- * - Works at 320px width and up
- * - Offers a single "Open first project" CTA
- * - Shows a tidy summary of categories and project counts
+ * Minimal, polished landing page.
+ * - No category grid
+ * - One CTA: Open first project
+ * - Responsive and theme-aware (uses CSS variables)
  */
 export default function WelcomePage({ projects = [] }) {
   const navigate = useNavigate();
 
-  // First real project for the CTA
   const firstProject = useMemo(() => {
     let found = null;
     const walk = (list) => {
       for (const n of list || []) {
-        if (n.type === "project") {
-          found = n;
-          return;
-        }
+        if (n.type === "project") { found = n; return; }
         if (n.children) walk(n.children);
         if (found) return;
       }
     };
     walk(projects);
     return found;
-  }, [projects]);
-
-  // Top-level categories summary
-  const categories = useMemo(() => {
-    return (projects || [])
-      .filter((n) => n.type === "category")
-      .map((cat) => {
-        const all = [];
-        const walk = (list) => {
-          for (const n of list || []) {
-            if (n.type === "project") all.push(n);
-            if (n.children) walk(n.children);
-          }
-        };
-        walk(cat.children || []);
-        return {
-          id: cat.id,
-          name: cat.name,
-          count: all.length,
-          sample: all.slice(0, 4).map((p) => p.title || p.name || p.id),
-        };
-      });
   }, [projects]);
 
   const openFirstProject = () => {
@@ -92,7 +65,7 @@ export default function WelcomePage({ projects = [] }) {
           <h1 className="welcome-title">Welcome to the Project Showcase</h1>
           <p className="welcome-sub">
             A tidy, mobile-friendly template for presenting hands-on tools and experiments.
-            Open anything from the sidebar, or jump straight into a project below.
+            Pick a project from the sidebar, or jump right in below.
           </p>
 
           <div className="welcome-actions">
@@ -104,9 +77,6 @@ export default function WelcomePage({ projects = [] }) {
             >
               {firstProject ? "Open first project" : "No projects available"}
             </button>
-            <a className="btn btn-ghost" href="#browse">
-              Browse categories
-            </a>
           </div>
 
           <div className="welcome-tips">
@@ -139,36 +109,6 @@ export default function WelcomePage({ projects = [] }) {
             </div>
           </div>
         </div>
-      </section>
-
-      <section id="browse" className="welcome-cats">
-        <h2 className="sec-title">Browse categories</h2>
-        {categories.length === 0 ? (
-          <div className="empty-note">
-            No categories yet. Add a few projects and they’ll show up here.
-          </div>
-        ) : (
-          <div className="cat-grid">
-            {categories.map((c) => (
-              <div key={c.id} className="cat-card">
-                <div className="cat-head">
-                  <div className="cat-name">{c.name}</div>
-                  <div className="cat-badge">{c.count}</div>
-                </div>
-                {c.sample.length > 0 && (
-                  <ul className="sample-list">
-                    {c.sample.map((name, i) => (
-                      <li key={i}>{name}</li>
-                    ))}
-                    {c.count > c.sample.length && (
-                      <li className="more">+{c.count - c.sample.length} more…</li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );
