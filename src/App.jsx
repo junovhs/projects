@@ -1,6 +1,6 @@
 // src/App.jsx
 import { useMemo, useState, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Sidebar';
 import ProjectPage from './components/ProjectPage';
@@ -31,7 +31,8 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [projError, setProjError] = useState('');
   const [isDark, setIsDark] = useState(true);
-  const routeLocation = useLocation(); // was `location` which shadowed window.location
+  const routeLocation = useLocation();
+  const navigate = useNavigate();
 
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -46,11 +47,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
+  // Close drawers on navigation when mobile
   useEffect(() => {
     if (isMobile) { setSidebarOpen(false); setAboutOpen(false); }
   }, [routeLocation.pathname, isMobile]);
 
-  // iOS viewport var
+  // Robust viewport height custom property (iOS safe)
   useEffect(() => {
     const setVH = () =>
       document.documentElement.style.setProperty('--vh-100', `${window.innerHeight}px`);
@@ -63,13 +65,13 @@ export default function App() {
     };
   }, []);
 
-  // Load projects.json ONCE
+  // Load projects.json once
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const base = import.meta?.env?.BASE_URL ?? '/';
-        const url = `${base.replace(/\/+$/, '')}/projects.json`; // avoids invalid URL & honors base
+        const url = `${base.replace(/\/+$/, '')}/projects.json`;
         const res = await fetch(url, { credentials: 'same-origin' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -82,10 +84,9 @@ export default function App() {
         setLoaded(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // slug -> path
+  // Build slug->path map and "flat" list
   const slugToPath = useMemo(() => {
     const map = {};
     const stack = [...projects];
@@ -100,21 +101,58 @@ export default function App() {
 
   const { parentMap, flat } = useMemo(() => buildMaps(projects), [projects]);
 
+  // MOBILE: Auto-load the first project at "/" so the iframe is the main view
+  useEffect(() => {
+    if (!isMobile || projError || !loaded) return;
+    const path = routeLocation.pathname.replace(/\/+$/, '');
+    if (path === '' || path === '/') {
+      const first = flat[0];
+      if (first) {
+        const target = first.slug || first.id;
+        navigate(`/${encodeURIComponent(target)}`, { replace: true });
+      }
+    }
+  }, [isMobile, projError, loaded, flat, routeLocation.pathname, navigate]);
+
   const raw = decodeURIComponent(routeLocation.pathname.replace(/^\/+/, ''));
   const activeRelPath = raw.includes('/') ? raw : slugToPath[raw] || null;
 
   const showLoader = !loaded && !projError;
 
+  // Tiny floating Projects button (mobile only)
+  const fabStyle = {
+    position: 'fixed',
+    right: 12,
+    bottom: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+    zIndex: 50,
+    display: 'grid',
+    placeItems: 'center',
+    lineHeight: 1
+  };
+
   return (
-    <div className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}>
+    <div
+      className={`app-shell${isMobile ? ' is-mobile' : ''}${isDark ? ' theme-dark' : ''}`}
+      // No mobile header; make the header height effectively 0 so the iframe fills the screen
+      style={isMobile ? { ['--mobile-header-h']: '0px' } : undefined}
+    >
+      {/* Tiny projects button (mobile only) */}
       {isMobile && (
-        <header className="mobile-header">
-          <button className="icon-btn" aria-label="Open projects" onClick={() => setSidebarOpen(true)}>☰</button>
-          <div className="mh-title">Showcase</div>
-          <button className="icon-btn" aria-label="Toggle dark mode" onClick={() => setIsDark((v) => !v)}>
-            {isDark ? '🌙' : '☀️'}
-          </button>
-        </header>
+        <button
+          aria-label="Open projects"
+          title="Projects"
+          onClick={() => setSidebarOpen(true)}
+          style={fabStyle}
+        >
+          ☰
+        </button>
       )}
 
       <Sidebar
@@ -134,11 +172,14 @@ export default function App() {
 
       <main className="content" role="main">
         {projError ? (
-          <div style={{display:'grid',placeItems:'center',height:'calc(var(--vh-100,100vh) - var(--mobile-header-h))',padding:24,textAlign:'center'}}>
-            <div><h3 style={{margin:0}}>Couldn’t load project list</h3><div style={{opacity:.7,marginTop:8}}>{projError}</div></div>
+          <div style={{display:'grid',placeItems:'center',height:'var(--vh-100,100vh)',padding:24,textAlign:'center'}}>
+            <div>
+              <h3 style={{margin:0}}>Couldn’t load project list</h3>
+              <div style={{opacity:.7,marginTop:8}}>{projError}</div>
+            </div>
           </div>
         ) : showLoader ? (
-          <div style={{display:'grid',placeItems:'center',height:'calc(var(--vh-100,100vh) - var(--mobile-header-h))',opacity:.6}}>Loading…</div>
+          <div style={{display:'grid',placeItems:'center',height:'var(--vh-100,100vh)',opacity:.6}}>Loading…</div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
@@ -146,7 +187,8 @@ export default function App() {
               initial="initial" animate="in" exit="out"
               variants={pageVariants} transition={pageTransition}
               className="page"
-              style={{minHeight: isMobile ? 'calc(var(--vh-100,100vh) - var(--mobile-header-h))' : 'var(--vh-100,100vh)'}}
+              // Fill the viewport on both desktop and mobile
+              style={{minHeight: 'var(--vh-100,100vh)'}}
             >
               <Routes location={routeLocation}>
                 <Route path="/" element={<WelcomePage isDark={isDark} projects={flat} />} />
