@@ -3,8 +3,8 @@ import { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar, ProjectPage, WelcomePage } from "./ui";
-import './index.css';
-import './ui-fixes.css';
+import './app.css';
+import './app.css';
 
 const pageVariants = {
   initial: { opacity: 0, y: 12 },

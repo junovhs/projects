@@ -3,7 +3,7 @@
 // Consolidated imports
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import './welcome.css';
+
 
 // ==== Sidebar.jsx ====
 function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) {
