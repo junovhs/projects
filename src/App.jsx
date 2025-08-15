@@ -2,9 +2,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import Sidebar from './components/Sidebar';
-import ProjectPage from './components/ProjectPage';
-import WelcomePage from './components/WelcomePage';
+import { Sidebar, ProjectPage, WelcomePage } from "./ui";
 import './index.css';
 import './ui-fixes.css';
 
