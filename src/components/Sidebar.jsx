@@ -1,5 +1,5 @@
 // src/components/Sidebar.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) {
@@ -8,32 +8,39 @@ function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) 
       {(nodes || []).map((n) => {
         if (n.type === 'category') {
           const isTop = level === 0;
-          const isOpen = isTop ? openTopId === n.id : true; // only top level is accordion
-          const toggle = () => {
+          const isOpen = isTop ? openTopId === n.id : true; // only top-level is accordion
+          const count = (n.children || []).filter((c) => c.type === 'project').length;
+
+          const handleToggle = () => {
             if (!isTop) return;
             setOpenTopId((prev) => (prev === n.id ? null : n.id));
           };
+
           return (
-            <li key={n.id} className="cat">
-              <details open={isOpen} onToggle={toggle}>
-                <summary>
+            <li key={n.id} className={`cat${isOpen ? ' open' : ''}`}>
+              <div className="cat-head">
+                <button type="button" className="cat-toggle" onClick={handleToggle}>
                   <span className="cat-name">{n.name}</span>
-                  <span className="cat-count">
-                    {(n.children || []).filter((c) => c.type === 'project').length}
-                  </span>
-                </summary>
-                <Tree
-                  nodes={n.children}
-                  level={level + 1}
-                  onPick={onPick}
-                  activeRelPath={activeRelPath}
-                  openTopId={openTopId}
-                  setOpenTopId={setOpenTopId}
-                />
-              </details>
+                  <span className="cat-count">{count}</span>
+                  <span className={`chev${isOpen ? ' open' : ''}`} aria-hidden>▾</span>
+                </button>
+              </div>
+              {(!isTop || isOpen) && (
+                <div className="cat-panel">
+                  <Tree
+                    nodes={n.children}
+                    level={level + 1}
+                    onPick={onPick}
+                    activeRelPath={activeRelPath}
+                    openTopId={openTopId}
+                    setOpenTopId={setOpenTopId}
+                  />
+                </div>
+              )}
             </li>
           );
         }
+
         if (n.type === 'project') {
           const rel = n.id;
           const isActive = activeRelPath === rel;
@@ -47,6 +54,7 @@ function Tree({ nodes, level, onPick, activeRelPath, openTopId, setOpenTopId }) 
             </li>
           );
         }
+
         return null;
       })}
     </ul>
@@ -61,7 +69,15 @@ export default function Sidebar({
   onClose
 }) {
   const navigate = useNavigate();
+
+  // Open the first top-level category by default when projects load
   const [openTopId, setOpenTopId] = useState(null);
+  useEffect(() => {
+    if (!openTopId && Array.isArray(projects)) {
+      const firstCat = projects.find((n) => n.type === 'category');
+      if (firstCat) setOpenTopId(firstCat.id);
+    }
+  }, [projects, openTopId]);
 
   const goToProject = (n) => {
     const target = n.slug || n.id;

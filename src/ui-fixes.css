@@ -1,20 +1,18 @@
 /* src/ui-fixes.css */
 
-/* Base palette (single theme; no dark/light toggle) */
+/* Single-theme palette */
 :root {
-  --app-bg: #0b1228;         /* app background */
-  --app-surface: #0f172a;    /* surfaces and controls */
-  --app-surface-2: #0c142a;  /* sidebar background */
+  --app-bg: #0b1228;
+  --app-surface: #0f172a;
+  --app-surface-2: #0c142a;
   --app-text: #e8ecf7;
   --app-text-dim: #a8b1c6;
   --app-border: rgba(255,255,255,.08);
 }
 
-/* Normalize */
 html, body, #root { height: 100%; }
 html, body { margin: 0; background: var(--app-bg); color: var(--app-text); }
 
-/* Layout: sidebar + content */
 .app-shell {
   display: flex;
   min-height: var(--vh-100, 100vh);
@@ -25,45 +23,36 @@ html, body { margin: 0; background: var(--app-bg); color: var(--app-text); }
 main.content {
   flex: 1;
   min-width: 0;
-  background: var(--app-bg);  /* remove “white seam” */
+  background: var(--app-bg);  /* eliminates white seam */
 }
 
-/* Remove any stray top spacer/header on mobile that could create the “white/black slab” */
 .is-mobile main.content,
 .is-mobile .content,
-.is-mobile .page {
-  margin-top: 0 !important;
-  padding-top: 0 !important;
-}
+.is-mobile .page { margin-top: 0 !important; padding-top: 0 !important; }
 .is-mobile .mobile-header,
 .is-mobile .header,
 .is-mobile .header-spacer,
 .is-mobile [data-header],
-.is-mobile [data-topspacer] {
-  display: none !important;
-}
+.is-mobile [data-topspacer] { display: none !important; }
 
-/* Motion wrapper + page area */
 .page { background: transparent; }
 
-/* Drawer backdrop sits behind drawer */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.42);
   -webkit-tap-highlight-color: transparent;
-  z-index: 60;
+  z-index: 60; /* behind drawer */
 }
 
 /* SIDEBAR */
 .sidebar-root {
   color: var(--app-text);
   background: var(--app-surface-2);
-  /* remove bright seam; make the edge very subtle or none */
-  border-right: 0; /* or: 1px solid var(--app-border); */
+  border-right: 0; /* set to 1px solid var(--app-border) if you want a divider */
 }
 
-/* Desktop sidebar: full height, scrolls independently */
+/* Desktop sidebar */
 .sidebar-root.desktop {
   position: sticky;
   top: 0;
@@ -81,7 +70,7 @@ main.content {
   bottom: 0;
   left: -100%;
   width: min(88vw, 320px);
-  z-index: 70; /* above backdrop */
+  z-index: 70;
   transition: left .22s ease;
   height: var(--vh-100, 100vh);
   overflow: auto;
@@ -117,18 +106,26 @@ main.content {
 .side-tree { list-style: none; margin: 0; padding: 0 6px; }
 .side-tree > li { margin: 2px 0; }
 
-/* Accordion: only one top-level <details> open at once (controlled in React).
-   These styles just make it pretty. */
-.cat > details > summary {
-  cursor: pointer;
-  display: flex;
+/* Controlled accordion (no <details>): */
+.cat-head { margin: 2px 0; }
+.cat-toggle {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
   padding: 10px 10px;
-  border-radius: 10px;
   color: var(--app-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
 }
-.cat > details[open] > summary { background: rgba(255,255,255,.03); }
+.cat.open .cat-toggle,
+.cat-toggle:hover {
+  background: rgba(255,255,255,.03);
+  border-color: var(--app-border);
+}
 .cat-name { font-weight: 600; }
 .cat-count {
   font-size: 12px;
@@ -137,6 +134,10 @@ main.content {
   padding: 2px 6px;
   border-radius: 999px;
 }
+.chev { transform: rotate(-90deg); transition: transform .18s ease; opacity: .7; }
+.cat.open .chev { transform: rotate(0deg); }
+
+.cat-panel { padding-left: 6px; }
 
 /* Projects */
 .proj { margin: 2px 0 2px 6px; }
