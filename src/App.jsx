@@ -33,6 +33,25 @@ export default function App() {
   const routeLocation = useLocation();
   const navigate = useNavigate();
 
+  // THEME (persist + system default)
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+    } catch {}
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return true;
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove(isDark ? 'theme-light' : 'theme-dark');
+    root.classList.add(isDark ? 'theme-dark' : 'theme-light');
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch {}
+  }, [isDark]);
+
   // Mobile detection
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 860px)').matches : false
@@ -135,7 +154,6 @@ export default function App() {
   return (
     <div
       className={`app-shell${isMobile ? ' is-mobile' : ''}`}
-      // Ensure there is absolutely no header spacer on mobile
       style={isMobile ? { ['--mobile-header-h']: '0px' } : undefined}
     >
       {isMobile && (
@@ -166,6 +184,8 @@ export default function App() {
           isMobile={isMobile}
           open={isMobile ? sidebarOpen : true}
           onClose={() => setSidebarOpen(false)}
+          isDark={isDark}
+          onToggleTheme={() => setIsDark((v) => !v)}
         />
       </div>
 
@@ -189,7 +209,7 @@ export default function App() {
               style={{minHeight: 'var(--vh-100,100vh)'}}
             >
               <Routes location={routeLocation}>
-                <Route path="/" element={<WelcomePage projects={flat} />} />
+                <Route path="/" element={<WelcomePage projects={projects} />} />
                 <Route
                   path="/*"
                   element={

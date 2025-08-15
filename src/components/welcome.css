@@ -1,5 +1,5 @@
 /* src/components/welcome.css */
-/* Uses your single-theme vars from ui-fixes.css */
+/* Theme variables come from ui-fixes.css (dark/light). */
 
 .welcome-wrap {
   width: 100%;
@@ -31,6 +31,7 @@
   stroke: rgba(255,255,255,.25);
   fill: none;
 }
+.theme-light .welcome-hero__bg svg { stroke: rgba(0,0,0,.15); }
 
 .welcome-hero__content {
   position: relative;
@@ -76,6 +77,7 @@
 .btn:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); }
 .btn:active { transform: translateY(1px); }
 .btn[disabled] { opacity: .55; cursor: not-allowed; }
+.theme-light .btn:hover { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.12); }
 
 .btn-primary {
   background: linear-gradient(180deg, #3b82f6, #2563eb);
@@ -83,11 +85,6 @@
   color: white;
 }
 .btn-primary:hover { filter: brightness(1.05); }
-
-.btn-ghost {
-  background: transparent;
-  border-color: var(--app-border);
-}
 
 /* Tips row */
 .welcome-tips {
@@ -106,62 +103,15 @@
   border: 1px solid var(--app-border);
   background: rgba(255,255,255,.02);
 }
+.theme-light .tip { background: rgba(0,0,0,.02); }
 .tip-emoji { font-size: 18px; line-height: 1; }
 .tip-title { font-weight: 700; margin-bottom: 3px; }
 .tip-desc { opacity: .85; }
 
-/* Categories */
-.welcome-cats { margin-top: 22px; }
-.sec-title { margin: 0 0 10px 0; font-size: 18px; opacity: .9; }
-
-.empty-note {
-  opacity: .8;
-  border: 1px dashed var(--app-border);
-  padding: 16px;
-  border-radius: 12px;
-}
-
-.cat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 12px;
-}
-
-.cat-card {
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.cat-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.cat-name { font-weight: 700; }
-.cat-badge {
-  font-size: 12px;
-  background: rgba(255,255,255,.08);
-  border: 1px solid var(--app-border);
-  padding: 2px 6px;
-  border-radius: 999px;
-}
-
-.sample-list {
-  margin: 10px 0 0 0;
-  padding: 0 0 0 14px;
-  opacity: .9;
-}
-.sample-list .more { opacity: .75; list-style: none; margin-left: -14px; }
-
 /* Responsive */
 @media (max-width: 900px) {
   .welcome-tips { grid-template-columns: 1fr; }
-  .cat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 520px) {
-  .cat-grid { grid-template-columns: 1fr; }
   .welcome-hero__bg svg { height: 220px; }
 }
