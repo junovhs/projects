@@ -1,10 +1,10 @@
 // --- FILE: diranalyze/js/aiPatcher.js --- //
-import * as fileSystem from 'fileSystem';
-import * as fileEditor from 'fileEditor';
-import * as notificationSystem from 'notificationSystem';
-import * as errorHandler from 'errorHandler';
-import * as utils from 'utils';
-import * as treeView from 'treeView';
+import * as fileSystem from './fileSystem.js';
+import * as fileEditor from './fileEditor.js';
+import * as notificationSystem from './notificationSystem.js';
+import * as errorHandler from './errorHandler.js';
+import * as utils from './utils.js';
+import * as treeView from './treeView.js';
 import { DMP } from './lib-wrappers/dmp-wrapper.js'; // CORRECTLY IMPORT DMP
 
 // Module-level variables to hold dependencies injected by main.js
