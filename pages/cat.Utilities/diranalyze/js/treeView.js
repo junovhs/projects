@@ -1,7 +1,7 @@
 // --- FILE: diranalyze/js/treeView.js --- //
 import { elements, appState } from './main.js';
-import * as fileSystem from 'fileSystem';
-import * as fileEditor from 'fileEditor';
+import * as fileSystem from './fileSystem.js';
+import * as fileEditor from './fileEditor.js';
 import { isLikelyTextFile, formatBytes, getFileExtension } from './utils.js';
 
 // SVG icons for file types
