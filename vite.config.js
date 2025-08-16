@@ -34,7 +34,7 @@ function staticPagesPlugin () {
     '.txt':  'text/plain; charset=utf-8',
   }[ext] || 'application/octet-stream')
 
-  const importMap = `
+  const importMapHTML = `
     <script type="importmap">
     {
       "imports": {
@@ -72,13 +72,19 @@ function staticPagesPlugin () {
           let data = await fs.readFile(abs)
           const ext = path.extname(abs).toLowerCase()
           let body = data
+
           if (ext === '.html') {
             let html = data.toString('utf8')
-            html = html.includes('</head>')
-              ? html.replace('</head>', `${importMap}\n</head>`)
-              : importMap + '\n' + html
+            // NEW: only inject our import map if the page doesn’t already define one
+            const hasImportMap = /<script\s+type=["']importmap["']/.test(html)
+            if (!hasImportMap) {
+              html = html.includes('</head>')
+                ? html.replace('</head>', `${importMapHTML}\n</head>`)
+                : importMapHTML + '\n' + html
+            }
             body = Buffer.from(html, 'utf8')
           }
+
           res.statusCode = 200
           res.setHeader('Content-Type', mime(ext))
           res.end(body)
@@ -98,7 +104,6 @@ export default defineConfig({
     react({
       // broaden the include so .js with JSX is handled
       include: [/\.jsx?$/, /\.tsx?$/],
-      // slight perf win: ignore node_modules by default (vite already does)
       babel: { }
     })
   ],
@@ -122,11 +127,17 @@ export default defineConfig({
     ],
   },
   // help esbuild understand JSX in .js when it runs (belt+braces)
-  esbuild: {
-    jsx: 'automatic'
-  },
+  esbuild: { jsx: 'automatic' },
   server: {
-    hmr: { overlay: false }
+    hmr: { overlay: false },
+    // NEW: in dev, send /api/* to your deployed Vercel domain (no CLI needed)
+    proxy: {
+      '/api': {
+        target: 'https://lilapps.vercel.app',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
   },
   build: { rollupOptions: { input: 'index.html' } },
 })
