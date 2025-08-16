@@ -1,5 +1,5 @@
-// Simple shared client for calling your AI APIs with a password.
-// Usage: <script src="/ai.js"></script> then window.AI.call('/api/generate', payload)
+// ===== START OF FILE: public/ai.js =====
+// Shared client. Prompts for password, attaches Authorization, retries once on 401.
 (function () {
   const KEY = 'ai-pass';
 
@@ -33,6 +33,7 @@
     let r = await doFetch();
 
     if (r.status === 401) {
+      // Wrong/expired password: clear and prompt again once
       sessionStorage.removeItem(KEY);
       pass = await ensurePassword();
       r = await doFetch();
@@ -46,5 +47,10 @@
     return await r.json();
   }
 
-  window.AI = { call, setPassword: (p) => sessionStorage.setItem(KEY, p) };
+  window.AI = {
+    call,
+    setPassword: (p) => sessionStorage.setItem(KEY, p),
+    ensurePassword, // exposed so app code can force prompt
+  };
 })();
+ // ===== END OF FILE: public/ai.js =====
