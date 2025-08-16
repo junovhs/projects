@@ -1,8 +1,7 @@
-import { requireBearerAuth } from './_lib/auth.js';
-
-export default async function handler(req, res) {
+// CORS + password + Gemini proxy (CommonJS)
+module.exports = async function (req, res) {
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*'); // restrict in prod if you want
+  res.setHeader('Access-Control-Allow-Origin', '*'); // tighten if you want
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -12,7 +11,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  if (!requireBearerAuth(req, res)) return;
+  // Simple bearer password
+  const PASSWORD = process.env.AI_API_PASSWORD;
+  if (!PASSWORD) {
+    console.error('AI_API_PASSWORD is not set');
+    return res.status(500).json({ error: 'Server misconfigured: AI_API_PASSWORD missing' });
+  }
+  const auth = req.headers.authorization || '';
+  const [scheme, token] = auth.split(' ');
+  if (scheme !== 'Bearer' || token !== PASSWORD) {
+    res.setHeader('WWW-Authenticate', 'Bearer realm="AI API", error="invalid_token"');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) {
@@ -21,12 +31,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = req.body;
+    // Body: allow either parsed object or raw string
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (_) { /* fall through */ }
+    }
     if (!body || !Array.isArray(body.messages)) {
       return res.status(400).json({ error: "Invalid request: 'messages' array required" });
     }
     const { messages = [], json = false } = body;
 
+    // Build Gemini request
     const geminiApiUrl =
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -59,4 +74,4 @@ export default async function handler(req, res) {
     console.error('Error in /api/generate:', e);
     return res.status(500).json({ error: 'server', details: e?.message || String(e) });
   }
-}
+};
