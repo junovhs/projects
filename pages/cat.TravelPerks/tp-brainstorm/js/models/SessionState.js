@@ -7,22 +7,30 @@ export class SessionState {
         this.questionsPerRound = 4; 
         this.totalTime = 0;
         this.timePerQuestion = 0;
+
         this.questions = [];
         this.currentQuestionIndex = 0;
+
         this.isPaused = false;
         this.timeRemaining = 0;
         this.timerInterval = null;
-        this.ideas = {};
+
+        // Brainstorm data
+        this.ideas = {};               // { [questionKey]: string[] }
+        this.pinnedIdeas = [];         // string[]
+        this.challenges = {};          // { [questionKey]: string[] }
+
+        // AI + session
         this.conversationHistory = [];
         this.isGeneratingAiContent = false;
+
+        // Rounds
         this.round = 1;
         this.previousRounds = [];
-        this.pinnedIdeas = [];
-        this.challenges = {};
     }
     
     resetForNewRound() {
-        // Store current round data in previous rounds
+        // Store current round data in previous rounds (correct spread syntax)
         this.previousRounds.push({
             round: this.round,
             focus: this.focus,
@@ -37,16 +45,12 @@ export class SessionState {
         // Increment round
         this.round++;
         
-        // Clear current ideas but keep pinned ideas
+        // Clear current (keep pinned ideas across rounds)
         this.ideas = {};
-        
-        // Clear challenges for next round
         this.challenges = {};
-        
-        // Reset questions
+
+        // Reset questions and index
         this.questions = [];
-        
-        // Reset current question index
         this.currentQuestionIndex = 0;
     }
     
@@ -54,7 +58,7 @@ export class SessionState {
         const lastRound = this.previousRounds[this.previousRounds.length - 1];
         if (!lastRound) return [];
         
-        // Extract all ideas from the last round
+        // Flatten all ideas from last round (correct spread syntax)
         const allIdeas = [];
         for (const questionKey in lastRound.ideas) {
             if (lastRound.ideas[questionKey] && lastRound.ideas[questionKey].length) {
