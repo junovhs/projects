@@ -1,43 +1,54 @@
-// CORS + password + Gemini proxy (CommonJS)
-module.exports = async function (req, res) {
+// Helpers
+function send(res, status, obj) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(obj));
+}
+
+function readBody(req) {
+  if (req.body != null) return Promise.resolve(req.body);
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (c) => (data += c));
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*'); // tighten if you want
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'OPTIONS') return res.end();
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return send(res, 405, { error: 'Method Not Allowed' });
   }
 
-  // Simple bearer password
+  // Password check (Bearer)
   const PASSWORD = process.env.AI_API_PASSWORD;
-  if (!PASSWORD) {
-    console.error('AI_API_PASSWORD is not set');
-    return res.status(500).json({ error: 'Server misconfigured: AI_API_PASSWORD missing' });
-  }
+  if (!PASSWORD) return send(res, 500, { error: 'Server misconfigured: AI_API_PASSWORD missing' });
   const auth = req.headers.authorization || '';
   const [scheme, token] = auth.split(' ');
   if (scheme !== 'Bearer' || token !== PASSWORD) {
     res.setHeader('WWW-Authenticate', 'Bearer realm="AI API", error="invalid_token"');
-    return res.status(401).json({ error: 'Unauthorized' });
+    return send(res, 401, { error: 'Unauthorized' });
   }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY missing');
-    return res.status(500).json({ error: 'GEMINI_API_KEY not configured on the server' });
-  }
+  if (!GEMINI_API_KEY) return send(res, 500, { error: 'GEMINI_API_KEY not configured on the server' });
 
   try {
-    // Body: allow either parsed object or raw string
-    let body = req.body;
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (_) { /* fall through */ }
+    // Parse JSON body
+    let raw = await readBody(req);
+    let body = raw;
+    if (typeof raw === 'string') {
+      try { body = JSON.parse(raw); } catch { body = {}; }
     }
     if (!body || !Array.isArray(body.messages)) {
-      return res.status(400).json({ error: "Invalid request: 'messages' array required" });
+      return send(res, 400, { error: "Invalid request: 'messages' array required" });
     }
     const { messages = [], json = false } = body;
 
@@ -63,15 +74,13 @@ module.exports = async function (req, res) {
 
     if (!r.ok) {
       const errText = await r.text();
-      console.error(`Gemini API Error (${r.status}):`, errText);
-      return res.status(r.status).json({ error: 'Gemini error', details: errText });
+      return send(res, r.status, { error: 'Gemini error', details: errText });
     }
 
     const data = await r.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return res.status(200).json({ content: text });
+    return send(res, 200, { content: text });
   } catch (e) {
-    console.error('Error in /api/generate:', e);
-    return res.status(500).json({ error: 'server', details: e?.message || String(e) });
+    return send(res, 500, { error: 'server', details: e?.message || String(e) });
   }
-};
+}
