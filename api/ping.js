@@ -1,0 +1,15 @@
+// CORS + quick health check to verify that functions are actually deployed
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  return res.status(200).json({
+    ok: true,
+    env: {
+      GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
+      AI_API_PASSWORD: Boolean(process.env.AI_API_PASSWORD)
+    }
+  });
+}
