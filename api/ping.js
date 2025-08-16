@@ -1,5 +1,4 @@
-// CORS + quick health check to verify that functions are actually deployed
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -12,4 +11,4 @@ export default async function handler(req, res) {
       AI_API_PASSWORD: Boolean(process.env.AI_API_PASSWORD)
     }
   });
-}
+};
