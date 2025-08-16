@@ -1,24 +1,69 @@
-// Call /api/generate; in dev, vite proxies to https://lilapps.vercel.app
+// ===== START OF FILE: pages/cat.TravelPerks/tp-brainstorm/js/services/AIService.js =====
 export class AIService {
   constructor(sessionState) {
     this.sessionState = sessionState;
-    this.apiEndpoint = '/api/generate';
+
+    // In local dev, hit your deployed API directly (bypasses any proxy weirdness).
+    const isLocal =
+      typeof window !== 'undefined' &&
+      /^localhost(:\d+)?$/.test(window.location.hostname);
+    this.apiEndpoint = isLocal
+      ? 'https://lilapps.vercel.app/api/generate'
+      : '/api/generate';
   }
 
-  // Prefer shared client that injects Authorization (public/ai.js)
+  // --- Internal password helper (works even if /ai.js wasn't loaded) ---
+  async _ensurePassword() {
+    if (typeof window === 'undefined') return null;
+
+    // Prefer shared client storage if ai.js is present
+    if (window.AI && typeof window.AI.ensurePassword === 'function') {
+      return await window.AI.ensurePassword();
+    }
+
+    const KEY = 'ai-pass';
+    let pass = sessionStorage.getItem(KEY);
+    if (!pass) {
+      pass = window.prompt('Enter AI API password'); // shown once per tab
+      if (!pass) throw new Error('No password provided');
+      sessionStorage.setItem(KEY, pass);
+    }
+    return pass;
+  }
+
+  // --- Core fetch with Authorization header (always set) ---
   async _callApi(payload) {
+    // If the shared client exists, use it (it also handles 401->re-prompt)
     if (typeof window !== 'undefined' && window.AI?.call) {
       return await window.AI.call(this.apiEndpoint, payload);
     }
 
-    const res = await fetch(this.apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    // Fallback: add Authorization here
+    let pass = await this._ensurePassword();
+
+    const doFetch = async () => {
+      const res = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pass}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      return res;
+    };
+
+    let res = await doFetch();
+
+    // If unauthorized, clear and prompt once more
+    if (res.status === 401 && typeof window !== 'undefined') {
+      sessionStorage.removeItem('ai-pass');
+      pass = await this._ensurePassword();
+      res = await doFetch();
+    }
 
     if (!res.ok) {
-      const raw = await res.text();             // read ONCE
+      const raw = await res.text(); // read ONCE
       let parsed; try { parsed = JSON.parse(raw); } catch { parsed = {}; }
       const msg = parsed?.details || parsed?.error || raw || `API request failed (${res.status})`;
       throw new Error(msg);
@@ -118,3 +163,4 @@ Pinned: ${JSON.stringify(pinned)}` }
     return (res?.content || '').trim();
   }
 }
+// ===== END OF FILE: pages/cat.TravelPerks/tp-brainstorm/js/services/AIService.js =====
