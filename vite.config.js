@@ -3,14 +3,17 @@ import react from '@vitejs/plugin-react'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+/**
+ * Only these pages are served as static in dev (we inject CDN import maps for their bare imports).
+ * Everything else—including JSX in .js files—goes through Vite + React plugin.
+ */
 const staticOnlyPages = [
-  // list of pages that broke from bare imports — serve these as static
   'cat.Optics & Design/video-play-button',
   'cat.TravelPerks/tp-brainstorm',
   'cat.Utilities/diranalyze'
 ]
 
-function staticPagesPlugin() {
+function staticPagesPlugin () {
   const root = process.cwd()
   const baseDir = path.resolve(root, 'pages')
 
@@ -53,10 +56,10 @@ function staticPagesPlugin() {
 
         const relPath = decodeURIComponent(req.url.split('?')[0].replace(/^\/pages\//, '')).replace(/\/+$/, '')
         if (!staticOnlyPages.some(p => relPath.startsWith(p))) {
-          return next() // let Vite process it normally
+          return next() // let Vite transform it (so JSX in .js works)
         }
 
-        // serve static for problem pages
+        // Serve static for the known-bare-import pages
         let abs = path.join(baseDir, relPath)
         try {
           const st = await fs.stat(abs)
@@ -91,9 +94,16 @@ function staticPagesPlugin() {
 export default defineConfig({
   plugins: [
     staticPagesPlugin(),
-    react(),
+    // IMPORTANT: also transform JSX inside .js files
+    react({
+      // broaden the include so .js with JSX is handled
+      include: [/\.jsx?$/, /\.tsx?$/],
+      // slight perf win: ignore node_modules by default (vite already does)
+      babel: { }
+    })
   ],
   publicDir: 'public',
+  // keep the app shell dep scan tight
   optimizeDeps: {
     entries: ['index.html', 'src/main.jsx'],
     exclude: [
@@ -111,9 +121,12 @@ export default defineConfig({
       'fileSystem'
     ],
   },
+  // help esbuild understand JSX in .js when it runs (belt+braces)
+  esbuild: {
+    jsx: 'automatic'
+  },
   server: {
-    hmr: { overlay: false },
-    watch: { ignored: [] },
+    hmr: { overlay: false }
   },
   build: { rollupOptions: { input: 'index.html' } },
 })
