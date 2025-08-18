@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -95,130 +96,117 @@
     button.secondary {
       background-color: var(--light-color);
       color: var(--dark-color);
-    }
-    
-    button.secondary:hover {
-      background-color: #d5dbdb;
+      border: 1px solid #ddd;
     }
     
     .vendor {
-      margin-top: 25px;
-      padding: 15px;
+      background-color: #fff;
       border-radius: var(--border-radius);
-      background-color: white;
+      padding: 16px;
       box-shadow: var(--shadow);
-      border-left: 5px solid var(--primary-color);
-      transition: transform 0.2s;
-    }
-    
-    .vendor:hover {
-      transform: translateY(-3px);
-    }
-    
-    .vendor h2 {
-      border-bottom: 2px solid #eee;
-      padding-bottom: 10px;
-      margin: 0 0 15px 0;
-      color: var(--secondary-color);
-      display: flex;
-      align-items: center;
-    }
-    
-    .unknown-supplier {
-      border-left: 5px solid var(--accent-color);
-    }
-    
-    .unknown-supplier h2,
-    .unknown-supplier .deal {
-      color: var(--accent-color);
+      margin-bottom: 16px;
     }
     
     .deal {
-      position: relative;
-      margin-left: 20px;
-      margin-bottom: 15px;
-      padding: 10px;
-      background-color: #f8f9fa;
+      background-color: #f8fbff;
+      border: 1px solid #e6f0fa;
       border-radius: var(--border-radius);
-      border-left: 3px solid var(--light-color);
-      transition: opacity 0.3s, background-color 0.3s;
-    }
-    
-    .deal:hover .remove-btn {
-      opacity: 1;
+      padding: 12px;
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
     }
     
     .deal.removed {
-      opacity: 0.5;
-      text-decoration: line-through;
+      opacity: 0.4;
+      filter: grayscale(0.9);
     }
     
-    .remove-btn {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background-color: #e74c3c;
-      color: white;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
+    .deal .left {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .deal .right {
       display: flex;
       align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     
-    .exclusive {
-      color: white;
-      background-color: var(--accent-color);
-      font-weight: bold;
-      padding: 3px 8px;
-      border-radius: 4px;
-      margin-right: 8px;
-      font-size: 12px;
-      display: inline-block;
-    }
-    
-    .deal-text {
-      display: inline-block;
-      vertical-align: middle;
-    }
-    
-    .deal-text strong {
-      color: var(--accent-color);
-    }
-    
-    .expiry {
-      color: #555;
-      margin-left: 8px;
+    .deal .deal-text {
+      font-weight: 500;
     }
     
     .date-pill {
       display: inline-block;
-      border-radius: 20px;
-      padding: 5px 10px;
-      font-weight: bold;
-      margin: 2px;
-      font-size: 13px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: #eef6ff;
+      white-space: nowrap;
     }
     
     .expiry-pill {
-      background-color: var(--accent-color);
-      color: white;
+      background-color: #ffecec;
+      color: #b23a3a;
+      border-color: #f7d6d6;
+      font-weight: 600;
     }
     
     .start-pill {
-      background-color: var(--success-color);
-      color: white;
+      background-color: #e6ffef;
+      color: #227a3b;
+      border-color: #c6f6d5;
     }
     
-    #controls {
-      margin: 20px 0;
+    .exclusive {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background-color: #fff2cc;
+      color: #8a6d3b;
+      border: 1px solid #f1e2a1;
+      font-size: 12px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    
+    .unknown-supplier h2 {
+      color: #8a6d3b;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 6px 0 2px;
+    }
+    
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #ddd;
+      background: #f7f7f7;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .pill.active {
+      background: #dff0ff;
+      border-color: #bfe0ff;
+      color: #0b5cab;
+      font-weight: 600;
+    }
+    
+    .controls-group {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -332,7 +320,7 @@
       <p>Paste your deals text in the box below and click "Parse Deals". Format: v[Vendor], d[Deal], ed[Exclusive Deal].</p>
     </header>
     
-    <textarea id="inputText" rows="20" placeholder="Paste your deals text here..."></textarea>
+    <textarea id="inputText" rows="20" placeholder="Paste your deals text here."></textarea>
     
     <div class="button-group">
       <button onclick="parseDeals()">Parse Deals</button>
@@ -369,13 +357,7 @@
     <div id="result"></div>
   </div>
   
-  <script src="script.js"></script>
-  <script src="filter-utils.js"></script>
-  <script src="deal-actions.js"></script>
-</body>
-</html>
-
-<script>
+  <script>
   // The complete list of known suppliers (from your provided list)
 const knownSuppliers = [
   "Abercrombie & Kent",
@@ -418,420 +400,82 @@ const knownSuppliers = [
   "Iberostar Hotels & Resorts",
   "Karisma Hotels & Resorts",
   "Lindblad Expeditions & National Geographic",
+  "Marriott International",
+  "Melia Hotels & Resorts",
   "MSC Cruises",
-  "Norwegian",
+  "Norwegian Cruise Line",
   "Oceania Cruises",
-  "Outrigger Hotels & Resorts",
   "Palace Resorts",
-  "Paul Gauguin Cruises",
-  "Ponant",
-  "Princess",
-  "Project Expedition",
+  "Princess Cruises",
   "Regent Seven Seas Cruises",
-  "Ritz-Carlton Yacht Collection",
-  "RIU Hotels & Resorts",
-  "Riverside Cruises",
-  "Riviera River Cruises",
-  "Rocky Mountaineer",
   "Royal Caribbean",
   "Sandals",
-  "Scenic Eclipse Ocean Voyages",
-  "Scenic River",
   "Seabourn",
-  "Secrets",
-  "Shore Excursions Group",
   "Silversea",
-  "Southwest Vacations",
-  "Star Clippers",
-  "Tauck Cruises",
-  "Tauck Tours",
-  "TourSales.com",
-  "Trafalgar",
-  "UnCruise Adventures",
-  "Uniworld",
+  "Sunscape Resorts & Spas",
+  "The Fives Hotels & Residences",
   "United Vacations",
-  "Viking Ocean",
-  "Viking River",
-  "Viator",
+  "Viking Cruises",
   "Virgin Voyages",
-  "Villas of Distinction",
-  "Windstar",
-  "Zoëtry Wellness & Spa Resorts"
+  "WestJet Vacations",
+  "Windstar Cruises",
+  "Wyndham Hotels & Resorts"
 ];
 
-const aliasMapping = {
-  // American Airline Vacations
-  "american airlines vacations": "American Airline Vacations",
-  "american airline vacations": "American Airline Vacations",
-  "american airlnes vacations": "American Airline Vacations", // common typo
-
-  // Royal Caribbean
-  "royal": "Royal Caribbean",
-  "rccL": "Royal Caribbean",
-  "rcc": "Royal Caribbean",
-  "royal caribbean": "Royal Caribbean",
-
-  // Norwegian
-  "norwegian": "Norwegian",
-  "norwegian cruise": "Norwegian",
-  "norwegian cruise line": "Norwegian",
-  "ncl": "Norwegian",
-
-  // Disney Cruise Line
-  "disney cruise": "Disney Cruise Line",
-  "disney cruises": "Disney Cruise Line",
-  "disney cruise line": "Disney Cruise Line",
-
-  // Celebrity Cruises
-  "celebrity": "Celebrity Cruises",
-  "celebrity cruises": "Celebrity Cruises",
-
-  // Virgin Voyages
-  "virgin": "Virgin Voyages",
-  "virgin voyages": "Virgin Voyages",
-  "virgin cruise": "Virgin Voyages",
-
-  // Holland America Line
-  "holland": "Holland America Line",
-  "holland america": "Holland America Line",
-  "holland america line": "Holland America Line",
-
-  // Princess
-  "princess": "Princess",
-  "princess cruises": "Princess",
-
-  // Carnival
-  "carnival": "Carnival",
-  "carnival cruise": "Carnival",
-  "carnival cruises": "Carnival",
-
-  // MSC Cruises
-  "msc": "MSC Cruises",
-  "msc cruises": "MSC Cruises",
-
-  // Viking Ocean
-  "viking": "Viking Ocean",
-  "viking ocean": "Viking Ocean",
-
-  // American Cruise Line
-  "american cruise": "American Cruise Line",
-  "american cruise line": "American Cruise Line",
-
-  // Atlas Ocean Voyages
-  "atlas": "Atlas Ocean Voyages",
-  "atlas ocean": "Atlas Ocean Voyages",
-  "atlas ocean voyages": "Atlas Ocean Voyages",
-
-  // Azamara
-  "azamara": "Azamara",
-
-  // Crystal Cruises
-  "crystal": "Crystal Cruises",
-  "crystal cruises": "Crystal Cruises",
-
-  // Cunard
-  "cunard": "Cunard",
-  "cunard cruises": "Cunard",
-
-  // Emerald Cruises
-  "emerald": "Emerald Cruises",
-  "emerald cruises": "Emerald Cruises",
-
-  // Explora Journeys
-  "explora": "Explora Journeys",
-  "explora journeys": "Explora Journeys",
-
-  // Four Seasons Yachts
-  "four seasons": "Four Seasons Yachts",
-  "four seasons yachts": "Four Seasons Yachts",
-  "four seasons yacht": "Four Seasons Yachts",
-
-  // Funjet
-  "funjet": "Funjet",
-  "fun jet": "Funjet",
-
-  // Oceania Cruises
-  "oceania": "Oceania Cruises",
-  "oceania cruises": "Oceania Cruises",
-
-  // Paul Gauguin Cruises
-  "paul gauguin": "Paul Gauguin Cruises",
-  "paul gauguin cruises": "Paul Gauguin Cruises",
-
-  // Ponant
-  "ponant": "Ponant",
-  "ponant cruises": "Ponant",
-
-  // Regent Seven Seas Cruises
-  "regent": "Regent Seven Seas Cruises",
-  "regent seven seas": "Regent Seven Seas Cruises",
-  "seven seas": "Regent Seven Seas Cruises",
-
-  // Ritz-Carlton Yacht Collection
-  "ritz-carlton": "Ritz-Carlton Yacht Collection",
-  "ritz carlton": "Ritz-Carlton Yacht Collection",
-  "ritz-carlton yacht": "Ritz-Carlton Yacht Collection",
-
-  // Seabourn
-  "seabourn": "Seabourn",
-  "seabourn cruises": "Seabourn",
-
-  // Silversea
-  "silversea": "Silversea",
-  "silversea cruises": "Silversea",
-
-  // Star Clippers
-  "star clippers": "Star Clippers",
-  "star clipper": "Star Clippers",
-
-  // Tauck Cruises
-  "tauck": "Tauck Cruises",
-  "tauck cruises": "Tauck Cruises",
-
-  // Windstar
-  "windstar": "Windstar",
-
-  // Viking River
-  "viking river": "Viking River",
-  "viking river cruises": "Viking River",
-
-  // Avalon Waterways
-  "avalon": "Avalon Waterways",
-  "avalon waterways": "Avalon Waterways",
-
-  // Ama Waterways
-  "ama": "Ama Waterways",
-  "ama waterways": "Ama Waterways",
-
-  // CroisiEurope
-  "croisieurope": "CroisiEurope",
-  "croisi europe": "CroisiEurope",
-  "croisi-europe": "CroisiEurope",
-
-  // Riverside Cruises
-  "riverside": "Riverside Cruises",
-  "riverside cruises": "Riverside Cruises",
-
-  // Riviera River Cruises
-  "riviera": "Riviera River Cruises",
-  "riviera river": "Riviera River Cruises",
-  "riviera river cruises": "Riviera River Cruises",
-
-  // Tauck Tours
-  "tauck tours": "Tauck Tours",
-  "tauck tour": "Tauck Tours",
-
-  // Uniworld
-  "uniworld": "Uniworld",
-  "uniworld cruises": "Uniworld",
-
-  // Scenic River
-  "scenic river": "Scenic River",
-
-  // Lindblad Expeditions & National Geographic
-  "lindblad": "Lindblad Expeditions & National Geographic",
-  "lindblad expeditions": "Lindblad Expeditions & National Geographic",
-  "national geographic": "Lindblad Expeditions & National Geographic",
-
-  // Hurtigruten
-  "hurtigruten": "Hurtigruten",
-  "hurtigruten cruises": "Hurtigruten",
-
-  // Adventures by Disney
-  "adventures by disney": "Adventures by Disney",
-
-  // Disneyland
-  "disneyland": "Disneyland",
-  "disney land": "Disneyland",
-
-  // DisneyWorld
-  "disneyworld": "DisneyWorld",
-  "disney world": "DisneyWorld",
-
-  // Aulani, A Disney Resort & Spa
-  "aulani": "Aulani, A Disney Resort & Spa",
-  "a disney resort": "Aulani, A Disney Resort & Spa",
-  "aulani, a disney resort & spa": "Aulani, A Disney Resort & Spa",
-
-  // Sandals
-  "sandals": "Sandals",
-
-  // Beaches
-  "beaches": "Beaches",
-
-  // Breathless
-  "breathless": "Breathless",
-
-  // Club Med
-  "club med": "Club Med",
-  "clubmed": "Club Med",
-
-  // El Dorado Spa Resorts & Hotels
-  "el dorado": "El Dorado Spa Resorts & Hotels",
-  "el dorado spa": "El Dorado Spa Resorts & Hotels",
-
-  // Dreams
-  "dreams": "Dreams",
-  "dreams resorts": "Dreams",
-
-  // Excellence Resorts
-  "excellence": "Excellence Resorts",
-  "excellence resorts": "Excellence Resorts",
-
-  // Hard Rock Hotels
-  "hard rock": "Hard Rock Hotels",
-  "hard rock hotels": "Hard Rock Hotels",
-
-  // Iberostar Hotels & Resorts
-  "iberostar": "Iberostar Hotels & Resorts",
-  "iberostar hotels": "Iberostar Hotels & Resorts",
-
-  // Karisma Hotels & Resorts
-  "karisma": "Karisma Hotels & Resorts",
-
-  // Outrigger Hotels & Resorts
-  "outrigger": "Outrigger Hotels & Resorts",
-  "outrigger hotels": "Outrigger Hotels & Resorts",
-
-  // Palace Resorts
-  "palace": "Palace Resorts",
-  "palace resorts": "Palace Resorts",
-
-  // RIU Hotels & Resorts
-  "riu": "RIU Hotels & Resorts",
-  "riu hotels": "RIU Hotels & Resorts",
-
-  // Secrets
-  "secrets": "Secrets",
-
-  // Delta Vacations
-  "delta": "Delta Vacations",
-  "delta vacations": "Delta Vacations",
-
-  // Southwest Vacations
-  "southwest": "Southwest Vacations",
-  "southwest vacations": "Southwest Vacations",
-
-  // United Vacations
-  "united": "United Vacations",
-  "united vacations": "United Vacations",
-
-  // Villas of Distinction
-  "villas": "Villas of Distinction",
-  "villas of distinction": "Villas of Distinction",
-
-  // Zoëtry Wellness & Spa Resorts
-  "zoëtry": "Zoëtry Wellness & Spa Resorts",
-  "zoeetry": "Zoëtry Wellness & Spa Resorts",
-
-  // BlueSky Tours
-  "bluesky": "BlueSky Tours",
-  "blue sky tours": "BlueSky Tours",
-
-  // CIE Tours
-  "cie": "CIE Tours",
-  "cie tours": "CIE Tours",
-
-  // Collette
-  "collette": "Collette",
-
-  // Great Safaris
-  "great safaris": "Great Safaris",
-
-  // Project Expedition
-  "project expedition": "Project Expedition",
-  "project expeditions": "Project Expedition",
-
-  // Shore Excursions Group
-  "shore excursions": "Shore Excursions Group",
-  "shore excursions group": "Shore Excursions Group",
-
-  // TourSales.com
-  "toursales": "TourSales.com",
-  "tour sales": "TourSales.com",
-
-  // Trafalgar
-  "trafalgar": "Trafalgar"
-};
-
-// Normalize a string to lower-case and trim whitespace.
-function normalizeString(str) {
-  return str.toLowerCase().trim();
+// Utility to slugify supplier names for ids/classes
+function slugify(name) {
+  return name.toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
-// Levenshtein distance algorithm to compute edit distance.
-function levenshtein(a, b) {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-  let matrix = [];
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
-        );
-      }
-    }
-  }
-  return matrix[b.length][a.length];
+// Fuzzy matching between input vendor and known suppliers
+function normalize(str) {
+  return String(str || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
 }
 
-// Compute a similarity ratio (0 to 1) between two strings.
-function similarity(a, b) {
-  let distance = levenshtein(a, b);
-  let maxLen = Math.max(a.length, b.length);
-  return maxLen === 0 ? 1 : (maxLen - distance) / maxLen;
+// Very simple fuzzy score: longer common subsequence-ish, plus startswith bonus
+function fuzzyScore(a, b) {
+  a = normalize(a); b = normalize(b);
+  let score = 0;
+  let bi = 0;
+  for (let ai = 0; ai < a.length; ai++) {
+    const ch = a[ai];
+    const found = b.indexOf(ch, bi);
+    if (found >= 0) {
+      score += 1;
+      bi = found + 1;
+    }
+  }
+  if (b.startsWith(a.slice(0, 3))) score += 3;
+  if (a.startsWith(b.slice(0, 3))) score += 3;
+  return score;
 }
 
-// Fuzzy matching for supplier names.
-// Returns the canonical supplier name if a match is found, or null otherwise.
-function findSupplierMatch(vendorName) {
-  let normVendor = normalizeString(vendorName);
-  // Check custom alias mapping first.
-  for (let alias in aliasMapping) {
-    if (normVendor === alias || normVendor.includes(alias)) {
-      return aliasMapping[alias];
+function findSupplierMatch(inputName) {
+  let best = null;
+  let bestScore = -1;
+  for (const s of knownSuppliers) {
+    const score = fuzzyScore(inputName, s);
+    if (score > bestScore) {
+      bestScore = score;
+      best = s;
     }
   }
-  let bestMatch = "";
-  let bestRatio = 0;
-  for (let supplier of knownSuppliers) {
-    let normSupplier = normalizeString(supplier);
-    // Direct substring match.
-    if (normVendor.includes(normSupplier) || normSupplier.includes(normVendor)) {
-      return supplier;
-    }
-    // Fuzzy matching using similarity ratio.
-    let ratio = similarity(normVendor, normSupplier);
-    if (ratio > bestRatio) {
-      bestRatio = ratio;
-      bestMatch = supplier;
-    }
-  }
-  // If the best similarity exceeds our threshold, return it.
-  if (bestRatio > 0.6) {
-    return bestMatch;
-  }
-  return null;
+  // Require a minimal score so totally unrelated strings don't match
+  return bestScore >= 3 ? best : null;
 }
 
-// Helper: pad numbers and return date in MM/DD/YYYY format.
+// Format mm/dd/yyyy with zero-padding; if yy given, assume 20yy
 function formatDate(mm, dd, yyyy) {
-  mm = mm.toString().padStart(2, '0');
-  dd = dd.toString().padStart(2, '0');
+  mm = String(mm).padStart(2, '0');
+  dd = String(dd).padStart(2, '0');
+  if (String(yyyy).length === 2) yyyy = '20' + yyyy;
   return `${mm}/${dd}/${yyyy}`;
 }
 
-// Bold monetary amounts and percentages in a text string.
+// Bold $ amounts and percentages
 function boldAmounts(text) {
   return text.replace(/(\$\d+(?:\.\d+)?)/g, '<strong>$1</strong>')
              .replace(/(\d+%)/g, '<strong>$1</strong>');
@@ -889,9 +533,7 @@ function parseExpiry(expiryText) {
 // Global array to store parsed deals for filtering later.
 let allDeals = [];
 
-// Global array to store parsed deals for filtering later.
-let allDeals = [];
-
+// Parse textarea into formatted HTML with vendor sections and deal rows
 function parseDeals() {
   const input = document.getElementById("inputText").value;
   const lines = input.split('\n');
@@ -960,312 +602,192 @@ function parseDeals() {
       const parsedExpiry = parseExpiry(expiryPortion);
       
       // Build the formatted deal entry with a data attribute for expiry (for filtering).
-      resultHTML += `<div class="deal" data-expiry="${parsedExpiry.expiry}">`;
-      if (isExclusive) {
-        resultHTML += `<span class="exclusive">EXCLUSIVE</span>`;
-      }
-      resultHTML += `<span class="deal-text">${dealText}</span>`;
-      if (parsedExpiry.html) {
-        resultHTML += ` <span class="expiry">${parsedExpiry.html}</span>`;
-      }
-      resultHTML += `</div>`;
+      const dealHtml = `
+        <div class="deal" data-expiry="${parsedExpiry.expiry}" data-exclusive="${isExclusive ? 'Exclusive' : 'Regular'}" data-vendor="${slugify(currentVendor)}">
+          <div class="left">
+            <div class="deal-text">${dealText}${isExclusive ? ' <span class="exclusive">Exclusive</span>' : ''}</div>
+            <div class="expiry">${parsedExpiry.html}</div>
+          </div>
+          <div class="right">
+            <button class="pill" onclick="removeDeal(this)">Remove</button>
+          </div>
+        </div>
+      `;
       
-      // Store deal info for filtering.
-      allDeals.push({ vendor: currentVendor, expiry: parsedExpiry.expiry, exclusive: isExclusive, element: null }); // Added exclusive and element placeholder
+      resultHTML += dealHtml;
+      
+      // Store the deal for filtering + copying later
+      allDeals.push({
+        vendor: currentVendor,
+        vendorSlug: slugify(currentVendor),
+        exclusive: isExclusive ? 'Exclusive' : 'Regular',
+        dealText: dealText,
+        expiry: parsedExpiry.expiry
+      });
     }
   });
   
-  // Close any open vendor container.
+  // Close last vendor container if needed
   if (currentVendor) {
     resultHTML += "</div>";
   }
   
-  document.getElementById("result").innerHTML = resultHTML;
-
-  // Assign DOM elements to allDeals for easier access later if needed for complex filtering
-  const dealElements = document.querySelectorAll("#result .deal");
-  dealElements.forEach((dealEl, index) => {
-    if (allDeals[index]) { // Make sure the deal exists in the array
-        allDeals[index].element = dealEl;
-    }
-  });
-
-  generateControls();
+  // Inject the result
+  const resultEl = document.getElementById("result");
+  resultEl.innerHTML = resultHTML;
   
-  // Add animation to the generated content
-  const vendors = document.querySelectorAll('.vendor');
-  vendors.forEach((vendor, index) => {
-    vendor.style.animationDelay = `${index * 0.05}s`;
-  });
+  // Build/refresh filter controls
+  buildControls();
+  buildSupplierControls();
   
-  // Add remove buttons to all deals
-  addRemoveButtonsToDeals();
+  // Scroll to the results
+  resultEl.scrollIntoView({ behavior: "smooth" });
 }
-// Generate filter controls (tag cloud of expiry dates) based on the parsed deals.
-function generateControls() {
-  const controlsDiv = document.getElementById("controls");
-  const supplierControlsDiv = document.getElementById("supplier-controls");
+
+// Remove a deal row with soft delete (toggle)
+function removeDeal(btn) {
+  const deal = btn.closest('.deal');
+  if (!deal) return;
+  deal.classList.toggle('removed');
+  btn.textContent = deal.classList.contains('removed') ? 'Restore' : 'Remove';
+}
+
+// Build expiry filter controls based on unique expiry values present
+function buildControls() {
+  const controls = document.getElementById('controls');
+  controls.innerHTML = '<span class="controls-label">Filter by expiry:</span>';
   
-  controlsDiv.innerHTML = "<span class='controls-label'>Filter by expiry:</span>";
-  supplierControlsDiv.innerHTML = "<span class='controls-label'>Filter by supplier:</span>";
-  
-  // Use a Set to collect unique expiry dates (non-empty only).
-  const expirySet = new Set();
-  document.querySelectorAll(".deal").forEach(dealEl => {
-    const exp = dealEl.getAttribute("data-expiry");
-    if (exp) expirySet.add(exp);
-  });
-  
-  // Create an "All" filter pill for expiry dates
-  const allPill = document.createElement("span");
-  allPill.className = "filter-pill active";
-  allPill.textContent = "All";
-  allPill.onclick = () => filterDeals("All", allPill);
-  controlsDiv.appendChild(allPill);
-  
-  // Create pills for each expiry date, sorted chronologically
-  const sortedDates = Array.from(expirySet).sort((a, b) => {
-    // Convert MM/DD/YYYY to Date objects for sorting
-    const [aMonth, aDay, aYear] = a.split('/').map(Number);
-    const [bMonth, bDay, bYear] = b.split('/').map(Number);
-    return new Date(aYear, aMonth-1, aDay) - new Date(bYear, bMonth-1, bDay);
-  });
-  
-  sortedDates.forEach(expiryDate => {
-    const pill = document.createElement("span");
-    pill.className = "filter-pill";
-    pill.textContent = expiryDate;
-    pill.onclick = () => filterDeals(expiryDate, pill);
-    controlsDiv.appendChild(pill);
-  });
-  
-  // Create supplier filter pills
-  const supplierSet = new Set();
-  document.querySelectorAll(".vendor h2").forEach(vendorHeading => {
-    supplierSet.add(vendorHeading.textContent);
-  });
-  
-  // Create an "All" filter pill for suppliers
-  const allSuppliersPill = document.createElement("span");
-  allSuppliersPill.className = "filter-pill active";
-  allSuppliersPill.textContent = "All";
-  allSuppliersPill.onclick = () => {
-    // Remove active state from all supplier filter pills
-    document.querySelectorAll("#supplier-controls .filter-pill").forEach(
-      pill => pill.classList.remove("active")
-    );
-    allSuppliersPill.classList.add("active");
-    filterBySupplier("All");
-  };
-  supplierControlsDiv.appendChild(allSuppliersPill);
-  
-  // Create pills for each supplier, sorted alphabetically
-  const sortedSuppliers = Array.from(supplierSet).sort();
-  sortedSuppliers.forEach(supplier => {
-    const pill = document.createElement("span");
-    pill.className = "filter-pill";
-    pill.textContent = supplier;
-    pill.onclick = () => {
-      // Remove active state from all supplier filter pills
-      document.querySelectorAll("#supplier-controls .filter-pill").forEach(
-        pill => pill.classList.remove("active")
-      );
-      pill.classList.add("active");
-      filterBySupplier(supplier);
+  const pills = new Map();
+  const deals = Array.from(document.querySelectorAll('.deal'));
+  const unique = new Set();
+  unique.add('All');
+
+  for (const d of deals) {
+    const exp = d.getAttribute('data-expiry') || '';
+    if (exp) unique.add(exp);
+  }
+
+  for (const val of unique) {
+    const span = document.createElement('span');
+    span.className = 'pill' + (val === 'All' ? ' active' : '');
+    span.textContent = val === 'All' ? 'All' : val;
+    span.onclick = () => {
+      // Toggle active
+      controls.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      span.classList.add('active');
+      // Filter
+      filterByExpiry(val);
     };
-    supplierControlsDiv.appendChild(pill);
-  });
-}
-
-// Filter deals based on expiry date. If filterVal is "All", show everything.
-function filterDeals(filterVal, activePill) {
-  // Remove active state from all filter pills.
-  document.querySelectorAll(".filter-pill").forEach(pill => pill.classList.remove("active"));
-  // Set active state on clicked pill.
-  if (activePill) activePill.classList.add("active");
-  
-  // First hide/show all deals based on filter
-  const allDeals = document.querySelectorAll(".deal");
-  let visibleVendors = new Set();
-  
-  allDeals.forEach(dealEl => {
-    if (filterVal === "All") {
-      dealEl.style.display = "";
-      // Add this deal's vendor to visible vendors
-      let vendorEl = dealEl.closest('.vendor');
-      if (vendorEl) visibleVendors.add(vendorEl);
-    } else {
-      if (dealEl.getAttribute("data-expiry") === filterVal) {
-        dealEl.style.display = "";
-        // Add this deal's vendor to visible vendors
-        let vendorEl = dealEl.closest('.vendor');
-        if (vendorEl) visibleVendors.add(vendorEl);
-      } else {
-        dealEl.style.display = "none";
-      }
-    }
-  });
-  
-  // Now hide any vendors with no visible deals (unless showing all)
-  if (filterVal !== "All") {
-    document.querySelectorAll('.vendor').forEach(vendorEl => {
-      if (!visibleVendors.has(vendorEl)) {
-        vendorEl.style.display = "none";
-      } else {
-        vendorEl.style.display = "";
-      }
-    });
-  } else {
-    // Show all vendors when filter is "All"
-    document.querySelectorAll('.vendor').forEach(vendorEl => {
-      vendorEl.style.display = "";
-    });
+    controls.appendChild(span);
+    pills.set(val, span);
   }
 }
 
-// Filter deals based on supplier
-function filterBySupplier(filterVal) {
-  const allDeals = document.querySelectorAll(".deal");
-  const allVendors = document.querySelectorAll(".vendor");
+// Build supplier filter controls based on vendors parsed
+function buildSupplierControls() {
+  const supplierControls = document.getElementById('supplier-controls');
+  supplierControls.innerHTML = '<span class="controls-label">Filter by supplier:</span>';
   
-  allDeals.forEach(dealEl => {
-    dealEl.style.display = "";
-  });
-  
-  allVendors.forEach(vendorEl => {
-    if (filterVal === "All") {
-      vendorEl.style.display = "";
-    } else {
-      const vendorName = vendorEl.querySelector("h2").textContent;
-      if (vendorName === filterVal) {
-        vendorEl.style.display = "";
-      } else {
-        vendorEl.style.display = "none";
-      }
-    }
-  });
-}
-
-// Filter deals based on exclusive status
-function filterByExclusive(showExclusive) {
-  if (showExclusive === 'All') {
-    document.querySelectorAll('.deal').forEach(deal => {
-      deal.style.display = '';
-    });
-    return;
+  const uniqueVendors = new Set(['All']);
+  for (const d of allDeals) {
+    uniqueVendors.add(d.vendor);
   }
-  
-  document.querySelectorAll('.deal').forEach(deal => {
-    const hasExclusiveTag = deal.querySelector('.exclusive') !== null;
-    if ((showExclusive === 'Exclusive' && hasExclusiveTag) || 
-        (showExclusive === 'Regular' && !hasExclusiveTag)) {
-      deal.style.display = '';
-    } else {
-      deal.style.display = 'none';
-    }
-  });
-  
-  // Hide vendors with no visible deals
-  document.querySelectorAll('.vendor').forEach(vendor => {
-    const hasVisibleDeals = Array.from(vendor.querySelectorAll('.deal'))
-      .some(deal => deal.style.display !== 'none');
-    vendor.style.display = hasVisibleDeals ? '' : 'none';
-  });
-}
-
-// Add remove buttons to all deals
-function addRemoveButtonsToDeals() {
-  document.querySelectorAll('.deal').forEach(deal => {
-    // Check if this deal already has a remove button
-    if (!deal.querySelector('.remove-btn')) {
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'remove-btn';
-      removeBtn.innerHTML = '&times;';
-      removeBtn.title = 'Remove this deal';
-      removeBtn.onclick = function(e) {
-        e.stopPropagation();
-        removeDeal(deal);
-      };
-      deal.appendChild(removeBtn);
-    }
-  });
-}
-
-// Remove a deal when X button is clicked
-function removeDeal(dealElement) {
-  dealElement.classList.add('removed');
-  dealElement.style.opacity = '0.5';
-  dealElement.style.textDecoration = 'line-through';
-  
-  // Check if this vendor has any visible deals left
-  const vendorEl = dealElement.closest('.vendor');
-  const hasVisibleDeals = Array.from(vendorEl.querySelectorAll('.deal'))
-    .some(deal => !deal.classList.contains('removed'));
-  
-  if (!hasVisibleDeals) {
-    vendorEl.style.opacity = '0.5';
+  for (const vendor of uniqueVendors) {
+    const span = document.createElement('span');
+    span.className = 'pill' + (vendor === 'All' ? ' active' : '');
+    span.textContent = vendor;
+    span.onclick = () => {
+      supplierControls.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      span.classList.add('active');
+      filterBySupplier(vendor);
+    };
+    supplierControls.appendChild(span);
   }
 }
 
-// Reset all removed deals (helper for "Show All" functionality)
-function resetRemovedDeals() {
-  document.querySelectorAll('.deal.removed').forEach(deal => {
-    deal.classList.remove('removed');
-    deal.style.opacity = '';
-    deal.style.textDecoration = '';
-  });
-  
-  // Reset any dimmed vendors
-  document.querySelectorAll('.vendor').forEach(vendor => {
-    vendor.style.opacity = '';
+// Filter by expiry pill value
+function filterByExpiry(value) {
+  const deals = document.querySelectorAll('.deal');
+  deals.forEach(d => {
+    const exp = d.getAttribute('data-expiry') || '';
+    const show = (value === 'All') || (exp === value);
+    d.style.display = show ? '' : 'none';
   });
 }
 
-// Format deals for clipboard in the requested format
+// Filter by supplier
+function filterBySupplier(vendor) {
+  const deals = document.querySelectorAll('.deal');
+  deals.forEach(d => {
+    const slug = d.getAttribute('data-vendor') || '';
+    const vendorName = allDeals.find(x => slugify(x.vendor) === slug)?.vendor || '';
+    const show = (vendor === 'All') || (vendorName === vendor);
+    d.style.display = show ? '' : 'none';
+  });
+}
+
+// Filter by exclusive status
+function filterByExclusive(mode) {
+  const pills = document.querySelectorAll('#exclusive-controls .filter-pill');
+  pills.forEach(p => p.classList.remove('active'));
+  pills.forEach(p => {
+    if (p.textContent.startsWith(mode) || (mode === 'All' && p.textContent === 'All Deals')) {
+      p.classList.add('active');
+    }
+  });
+  
+  const deals = document.querySelectorAll('.deal');
+  deals.forEach(d => {
+    const status = d.getAttribute('data-exclusive');
+    const show =
+      mode === 'All' ||
+      (mode === 'Exclusive' && status === 'Exclusive') ||
+      (mode === 'Regular' && status === 'Regular');
+    d.style.display = show ? '' : 'none';
+  });
+}
+
+// Create a clipboard-friendly text format from the current (visible) deals
 function formatDealsForClipboard() {
   let formattedText = '';
-  document.querySelectorAll('.vendor').forEach(vendor => {
-    if (vendor.style.display !== 'none') {
-      const vendorName = vendor.querySelector('h2').textContent;
-      
-      // Check if the vendor has any visible deals that aren't marked for removal
-      const hasVisibleDeals = Array.from(vendor.querySelectorAll('.deal'))
-        .some(deal => deal.style.display !== 'none' && !deal.classList.contains('removed'));
-      
-      if (hasVisibleDeals) {
-        formattedText += `v\t${vendorName}:\n`;
-        
-        vendor.querySelectorAll('.deal').forEach(deal => {
-          if (deal.style.display !== 'none' && !deal.classList.contains('removed')) {
-            let dealText = '';
-            
-            // Check if deal is exclusive
-            const isExclusive = deal.querySelector('.exclusive') !== null;
-            dealText += isExclusive ? 'ed\t' : 'd\t';
-            
-            // Get the deal text
-            const dealTextEl = deal.querySelector('.deal-text');
-            dealText += dealTextEl.textContent;
-            
-            // Get the expiry text
-            const expiryEl = deal.querySelector('.expiry');
-            if (expiryEl) {
-              dealText += ': ';
-              // Get text from all date pills
-              const datePills = expiryEl.querySelectorAll('.date-pill');
-              if (datePills.length > 0) {
-                const dates = Array.from(datePills).map(pill => pill.textContent);
-                dealText += dates.join('-');
-              } else {
-                dealText += expiryEl.textContent;
-              }
+  const vendors = document.querySelectorAll('.vendor');
+  
+  vendors.forEach(vendor => {
+    const vendorName = vendor.querySelector('h2')?.textContent || '';
+    formattedText += `v\t${vendorName}\n`;
+    
+    const deals = vendor.querySelectorAll('.deal');
+    deals.forEach(deal => {
+      if (deal.style.display !== 'none') {
+        if (!deal.classList.contains('removed')) {
+          let dealText = '';
+          
+          // Check if deal is exclusive
+          const isExclusive = deal.querySelector('.exclusive') !== null;
+          dealText += isExclusive ? 'ed\t' : 'd\t';
+          
+          // Get the deal text
+          const dealTextEl = deal.querySelector('.deal-text');
+          dealText += dealTextEl.textContent;
+          
+          // Get the expiry text
+          const expiryEl = deal.querySelector('.expiry');
+          if (expiryEl) {
+            dealText += ': ';
+            // Get text from all date pills
+            const datePills = expiryEl.querySelectorAll('.date-pill');
+            if (datePills.length > 0) {
+              const dates = Array.from(datePills).map(pill => pill.textContent);
+              dealText += dates.join('-');
+            } else {
+              dealText += expiryEl.textContent;
             }
-            
-            formattedText += `${dealText}\n`;
           }
-        });
+          
+          formattedText += `${dealText}\n`;
+        }
       }
-    }
+    });
   });
   
   return formattedText;
@@ -1314,4 +836,6 @@ dFree room upgrades on select sailings: 11/30/2023
 `;
   }
 });
-</script>
+  </script>
+</body>
+</html>
