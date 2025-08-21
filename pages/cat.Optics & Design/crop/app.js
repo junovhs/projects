@@ -29,8 +29,7 @@
     const [filename, setFilename] = useState("");
     const [isBatchMode, setIsBatchMode] = useState(false);
     const [croppedResults, setCroppedResults] = useState([]);
-    const [batchRemaining, setBatchRemaining] = useState(0);
-    const [fileType, setFileType] = useState("image/jpeg");
+    const [imgSrc, setImgSrc] = useState(null);
 
     // Measured container/crop rect
     const [displayTargetWidth, setDTW] = useState(0);
@@ -96,6 +95,8 @@
       coverScaleRef.current = s;
       if (!hasManualZoomRef.current) userZoomRef.current = s;
       else userZoomRef.current = Math.max(userZoomRef.current, s);
+      // keep UI slider in sync with the effective zoom lower bound
+      setUiZoom(Math.max(userZoomRef.current, coverScaleRef.current));
     };
 
     const constrainOffsets = () => {
@@ -112,8 +113,8 @@
       const minY = (displayTargetHeight - bbH) / 2;
       const maxY = (bbH - displayTargetHeight) / 2;
       const o = offsetRef.current;
-      o.x = clamp(o.x, minX, maxX);
-      o.y = clamp(o.y, minY, maxY);
+      o.x = Math.min(Math.max(o.x, minX), maxX);
+      o.y = Math.min(Math.max(o.y, minY), maxY);
     };
 
     const updateLayout = () => {
@@ -168,7 +169,7 @@
       e.preventDefault();
       const step = 0.05;
       const next = e.deltaY < 0 ? (userZoomRef.current + step) : (userZoomRef.current - step);
-      userZoomRef.current = clamp(next, coverScaleRef.current, 2);
+      userZoomRef.current = Math.min(Math.max(next, coverScaleRef.current), 2);
       hasManualZoomRef.current = true;
       setUiZoom(userZoomRef.current);
       updateLayout();
@@ -190,14 +191,12 @@
 
     const startBatch = (files) => {
       batchQueueRef.current = files.slice(1);
-      setBatchRemaining(batchQueueRef.current.length);
       setCroppedResults([]);
       setIsBatchMode(files.length > 1);
       loadFile(files[0]);
     };
 
     const loadFile = (file) => {
-      setFileType(file.type || "image/jpeg");
       const reader = new FileReader();
       reader.onload = (evt) => {
         const img = new Image();
@@ -205,14 +204,13 @@
           imageRef.current = img;
           imgNatural.current = { w: img.naturalWidth, h: img.naturalHeight };
           setShowControls(true);
+          setImgSrc(img.src);
           offsetRef.current = { x: 0, y: 0 };
           rotationRef.current = 0;
           hasManualZoomRef.current = false;
           userZoomRef.current = 1;
-          // set src
-          if (previewRef.current) previewRef.current.src = img.src;
-          // recalc scaling
-          updateLayout();
+          // recalc scaling (after layout paints)
+          setTimeout(updateLayout, 0);
         };
         img.src = evt.target.result;
       };
@@ -226,7 +224,6 @@
     const onFileChange = useCallback((e) => {
       const files = Array.from(e.target.files || []).filter(f => f.type.startsWith("image/"));
       if (files.length) startBatch(files);
-      // reset so selecting the same file again still triggers change
       e.target.value = "";
     }, []);
 
@@ -288,7 +285,6 @@
     useEffect(() => { updateLayout(); }, [displayTargetWidth, displayTargetHeight]);
 
     useEffect(() => {
-      // whenever aspect ratio changes, recompute cover & layout
       computeCoverScale();
       constrainOffsets();
       applyTransform();
@@ -317,8 +313,8 @@
       const canvas = composeCanvas();
       const userWord = (filename || "cropped_image").trim();
       const rnd = Math.floor(1000 + Math.random() * 9000);
-      const mime = fileType === "image/webp" ? "image/webp" : "image/jpeg";
-      const ext = mime.split("/")[1];
+      const mime = "image/jpeg";
+      const ext = "jpg";
       const link = document.createElement("a");
       link.download = `${userWord}_${rnd}.${ext}`;
       link.href = canvas.toDataURL(mime, 0.9);
@@ -329,12 +325,11 @@
       const canvas = composeCanvas();
       const userWord = (filename || "cropped_image").trim();
       const rnd = Math.floor(1000 + Math.random() * 9000);
-      const mime = fileType === "image/webp" ? "image/webp" : "image/jpeg";
-      const ext = mime.split("/")[1];
+      const mime = "image/jpeg";
+      const ext = "jpg";
       const dataURL = canvas.toDataURL(mime, 0.9);
       setCroppedResults(prev => [...prev, { filename: `${userWord}_${rnd}.${ext}`, dataURL }]);
       const next = batchQueueRef.current.shift();
-      setBatchRemaining(batchQueueRef.current.length);
       if (next) loadFile(next);
     };
 
@@ -356,7 +351,7 @@
     const HelpText = ({ children }) => h("div", { className: "help-text" }, children);
 
     const Slider = ({ min, max, step, value, onChange, onDoubleClick }) =>
-      h("input", { type: "range", className: "slider", min, max, step, value, onChange, onDoubleClick });
+      h("input", { type: "range", className: "slider", min, max, step, value, onChange, onInput: onChange, onDoubleClick });
 
     // --- Render --------------------------------------------------------------
     const dropZone = !showControls && h("div",
@@ -392,6 +387,7 @@
         h("img", {
           ref: previewRef,
           alt: "Preview",
+          src: imgSrc || "",
           style: { cursor: isDraggingRef.current ? "grabbing" : "grab", width: `${imgNatural.current.w}px`, height: `${imgNatural.current.h}px`, left: "50%", top: "50%" }
         })
       )
@@ -417,29 +413,11 @@
       }, "Custom")
     );
 
-    const batchUI = isBatchMode && h("div", { className: "batch-indicator" },
-      h("div", { className: "batch-text" },
-        h("span", { className: "batch-count" }, `Image ${croppedResults.length + 1}`),
-        h("span", { className: "batch-total" }, `of ${croppedResults.length + batchRemaining + 1}`)
-      ),
-      h("div", { className: "progress-bar" },
-        h("div", { className: "progress-fill", style: { width: `${(croppedResults.length / (croppedResults.length + batchRemaining + 1)) * 100}%` } })
-      )
-    );
-
     const exportActions = isBatchMode
-      ? (batchRemaining > 0
-        ? h("button", { className: "export-btn primary", onClick: processBatchNext },
-            h("span", { className: "btn-icon" }, "→"),
-            h("span", { className: "btn-text" }, "Process Next"),
-            h("span", { className: "btn-badge" }, `${batchRemaining} left`)
-          )
-        : h("button", { className: "export-btn success", onClick: downloadZip },
-            h("span", { className: "btn-icon" }, "📦"),
-            h("span", { className: "btn-text" }, "Download ZIP"),
-            h("span", { className: "btn-badge" }, `${croppedResults.length} images`)
-          )
-      )
+      ? h("button", { className: "export-btn success", onClick: downloadZip },
+          h("span", { className: "btn-icon" }, "📦"),
+          h("span", { className: "btn-text" }, "Download ZIP")
+        )
       : h("button", { className: "export-btn primary", onClick: downloadCurrent },
           h("span", { className: "btn-icon" }, "⬇"),
           h("span", { className: "btn-text" }, "Download Image")
@@ -457,7 +435,6 @@
       h("div", { className: "main-content" },
         h("div", { className: "left-panel" }, dropZone || previewPane),
         showControls && h("div", { className: "right-panel" },
-          batchUI,
           h("div", { className: "controls" },
             h("div", { className: "control-section" },
               h("div", { className: "section-header" },
@@ -511,7 +488,7 @@
                 h("div", { className: "control-label" }, "Zoom Level"),
                 h("div", { className: "slider-container" },
                   h(Slider, {
-                    min: coverScaleRef.current, max: 2, step: 0.01, value: uiZoom,
+                    min: 0.3333, max: 2, step: 0.01, value: uiZoom,
                     onChange: (e) => {
                       userZoomRef.current = parseFloat(e.target.value);
                       hasManualZoomRef.current = true;
