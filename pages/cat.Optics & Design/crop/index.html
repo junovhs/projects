@@ -1,17 +1,420 @@
+<!-- projects/pages/cat.Optics & Design/crop/index.html -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Ultimate Crop Tool</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* --- Base Styles --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #ffffff;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .app-container { height: 100%; display: flex; flex-direction: column; }
+    .header { text-align: center; padding: 12px 20px; background: #1a1a1a; border-bottom: 1px solid #333; flex-shrink: 0; }
+    .title { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #ffffff, #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.5px; }
+    .main-content { flex: 1; display: flex; gap: 20px; padding: 20px; overflow: hidden; }
+    .left-panel { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+    .preview-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+    /* --- Drop Zone --- */
+    .drop-zone {
+      width: 100%; height: 200px; max-width: 600px; border: 2px dashed #444; border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0, 255, 136, 0.05); transition: all 0.2s ease; cursor: pointer;
+    }
+    .drop-zone:hover { border-color: #00ff88; background: rgba(0, 255, 136, 0.1); transform: scale(1.02); }
+    .drop-icon { width: 40px; height: 40px; margin-bottom: 10px; fill: #00ff88; }
+    .drop-text { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+    .drop-subtext { font-size: 11px; color: #888; }
+
+    /* --- Crop Area --- */
+    .crop-area { position: relative; overflow: hidden; border: 2px solid #00ff88; border-radius: 8px; box-shadow: 0 0 40px rgba(0, 255, 136, 0.2); }
+    .crop-area img { position: absolute; left: 50%; top: 50%; transform-origin: center center; user-select: none; -webkit-user-drag: none; }
+
+    /* --- Right Panel --- */
+    .right-panel { width: 320px; min-width: 320px; display: flex; flex-direction: column; gap: 16px; height: 100%; }
+    .controls { flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+    .control-section:not(:first-child) { border-top: 1px solid #333; padding-top: 24px; }
+    .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .section-icon { font-size: 16px; }
+    .section-title { font-size: 14px; font-weight: 700; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    .control-label { font-size: 11px; font-weight: 600; color: #00ff88; text-transform: uppercase; }
+    .dimension-inputs { display: flex; align-items: center; gap: 12px; }
+    .input-wrapper { position: relative; flex: 1; }
+    .dimension-input { width: 100%; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 12px 14px; color: #fff; font-size: 13px; }
+    .dimension-input:focus { outline: none; border-color: #00ff88; }
+    .input-label { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #666; }
+    .slider-container { display: flex; align-items: center; gap: 10px; }
+    .slider { flex: 1; }
+    .value-display { font-family: monospace; font-size: 10px; color: #00ff88; }
+    .zoom-orange { color: #ff8800; }
+    .zoom-red { color: #ff4444; }
+    .ratio-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .ratio-btn { padding: 8px 4px; background: #2a2a2a; border: 1px solid #444; border-radius: 6px; color: #ccc; font-size: 10px; cursor: pointer; transition: all 0.2s ease; }
+    .ratio-btn:hover { background: #3a3a3a; }
+    .ratio-btn.active { background: #00ff88; border-color: #00ff88; color: #000; font-weight: 700; }
+    .batch-indicator { background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88; border-radius: 12px; padding: 16px; }
+    .batch-text { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .batch-count { font-weight: 700; color: #00ff88; }
+    .batch-total { color: #888; }
+    .progress-bar { width: 100%; height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #00ff88; transition: width 0.3s ease; border-radius: 3px; }
+    .filename-input-wrapper { position: relative; }
+    .filename-input { width: 100%; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 12px 50px 12px 14px; color: #fff; }
+    .filename-extension { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #666; }
+    .export-section { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 20px; }
+    .export-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .export-icon { font-size: 16px; }
+    .export-title { font-size: 14px; font-weight: 700; color: #00ff88; }
+    .export-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; }
+    .export-btn.primary { background: #00ff88; color: #000; }
+    .export-btn.success { background: #009955; color: #fff; }
+    .export-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2); }
+    .btn-badge { background: rgba(0, 0, 0, 0.2); padding: 4px 8px; border-radius: 12px; font-size: 10px; }
+    .export-shortcut { margin-top: 12px; text-align: center; font-size: 11px; color: #666; }
+    .export-shortcut kbd { background: #333; border-radius: 4px; padding: 2px 6px; }
+    .help-text { font-size: 10px; color: #888; line-height: 1.4; margin-top: 4px; }
+  </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" src="components.js"></script>
-  <script type="text/babel" src="utils.js"></script>
-  <script type="text/babel" src="app.js"></script>
+
+  <script>
+    // --- App Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const App = () => {
+        // State management
+        let state = {
+          currentImage: null, currentFileType: 'image/jpeg', aspectRatio: 968 / 600,
+          displayTargetWidth: 0, displayTargetHeight: 0, offsetX: 0, offsetY: 0,
+          currentRotation: 0, userZoom: 1, coverScale: 1, hasManuallyAdjustedZoom: false,
+          isDragging: false, batchQueue: [], croppedResults: [], isBatchMode: false,
+          exportWidth: 968, exportHeight: 600, filename: '', showControls: false,
+          containerWidth: 0, containerHeight: 0,
+        };
+        const dragStart = { x: 0, y: 0 };
+        const keystoneRatios = [
+          { label: "9:16", value: 0.5625 }, { label: "2:3", value: 0.6667 },
+          { label: "3:4", value: 0.75 }, { label: "4:5", value: 0.8 },
+          { label: "1:1", value: 1 }, { label: "5:4", value: 1.25 },
+          { label: "4:3", value: 1.3333 }, { label: "3:2", value: 1.5 },
+          { label: "16:9", value: 1.7778 }, { label: "968:600", value: 968 / 600 },
+        ];
+
+        // --- DOM Elements ---
+        const root = document.getElementById('root');
+        let previewRef, previewContainerRef, fileInputRef;
+
+        // --- State Setter ---
+        const setState = (newState) => {
+          const oldState = { ...state };
+          state = { ...state, ...newState };
+          render(oldState);
+        };
+
+        // --- Logic ---
+        const resetStateForNewImage = () => setState({ offsetX: 0, offsetY: 0, currentRotation: 0, userZoom: 1, hasManuallyAdjustedZoom: false, showControls: true });
+        
+        const loadNextImage = (files) => {
+          const queue = files || state.batchQueue;
+          if (queue.length === 0) {
+            if (!files) setState({ isBatchMode: false });
+            return;
+          }
+          const file = queue[0];
+          const nextQueue = queue.slice(1);
+          setState(files ? { batchQueue: nextQueue } : { batchQueue: state.batchQueue.slice(1) });
+          setState({ currentFileType: file.type });
+          
+          const reader = new FileReader();
+          reader.onload = e => {
+            const img = new Image();
+            img.onload = () => {
+              setState({ currentImage: img });
+              resetStateForNewImage();
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        };
+        
+        const processFiles = (files) => {
+          if (!files || files.length === 0) return;
+          const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+          if (imageFiles.length === 0) return;
+          setState({ batchQueue: imageFiles, croppedResults: [], isBatchMode: imageFiles.length > 1 });
+          loadNextImage(imageFiles);
+        };
+        
+        const updateCropAreaDimensions = () => {
+          if (!state.containerWidth || !state.containerHeight) return;
+          let newW, newH;
+          const containerRatio = state.containerWidth / state.containerHeight;
+          if (containerRatio > state.aspectRatio) {
+            newH = state.containerHeight;
+            newW = newH * state.aspectRatio;
+          } else {
+            newW = state.containerWidth;
+            newH = newW / state.aspectRatio;
+          }
+          setState({ displayTargetWidth: Math.round(newW), displayTargetHeight: Math.round(newH) });
+        };
+        
+        const updatePreview = () => {
+          if (!state.currentImage || !previewRef || !state.displayTargetWidth) return;
+          const { currentRotation, currentImage, displayTargetWidth, displayTargetHeight, hasManuallyAdjustedZoom } = state;
+          const rad = Math.abs(currentRotation * Math.PI / 180);
+          const rotatedImgWidth = currentImage.naturalWidth * Math.cos(rad) + currentImage.naturalHeight * Math.sin(rad);
+          const rotatedImgHeight = currentImage.naturalWidth * Math.sin(rad) + currentImage.naturalHeight * Math.cos(rad);
+          const newCoverScale = Math.max(displayTargetWidth / rotatedImgWidth, displayTargetHeight / rotatedImgHeight);
+          
+          if (state.coverScale !== newCoverScale) setState({ coverScale: newCoverScale });
+          if (!hasManuallyAdjustedZoom) setState({ userZoom: newCoverScale });
+        };
+        
+        const constrainOffsets = () => {
+          if (!state.currentImage || !state.displayTargetWidth) return;
+          const { currentImage, userZoom, coverScale, currentRotation, displayTargetWidth, displayTargetHeight, hasManuallyAdjustedZoom } = state;
+          const finalScale = hasManuallyAdjustedZoom ? Math.max(userZoom, coverScale) : userZoom;
+          const w = currentImage.naturalWidth * finalScale;
+          const h = currentImage.naturalHeight * finalScale;
+          const rad = currentRotation * Math.PI / 180;
+          const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+          const bbWidth = w * cos + h * sin;
+          const bbHeight = w * sin + h * cos;
+          const maxOffsetX = Math.max(0, (bbWidth - displayTargetWidth) / 2);
+          const maxOffsetY = Math.max(0, (bbHeight - displayTargetHeight) / 2);
+          setState({
+            offsetX: Math.min(Math.max(state.offsetX, -maxOffsetX), maxOffsetX),
+            offsetY: Math.min(Math.max(state.offsetY, -maxOffsetY), maxOffsetY),
+          });
+        };
+
+        const createCroppedCanvas = () => {
+          const { exportWidth, exportHeight, currentImage } = state;
+          const canvas = document.createElement('canvas');
+          canvas.width = exportWidth;
+          canvas.height = exportHeight;
+          const ctx = canvas.getContext('2d');
+          
+          ctx.save();
+          ctx.translate(exportWidth / 2, exportHeight / 2);
+          const exportRatio = exportWidth / state.displayTargetWidth;
+          const finalScale = state.hasManuallyAdjustedZoom ? Math.max(state.userZoom, state.coverScale) : state.userZoom;
+
+          ctx.translate(state.offsetX * exportRatio, state.offsetY * exportRatio);
+          ctx.rotate((state.currentRotation * Math.PI) / 180);
+          ctx.scale(finalScale * exportRatio, finalScale * exportRatio);
+          ctx.drawImage(currentImage, -currentImage.naturalWidth / 2, -currentImage.naturalHeight / 2);
+          ctx.restore();
+          return canvas;
+        };
+
+        const downloadImage = () => {
+          if (!state.currentImage) return;
+          const canvas = createCroppedCanvas();
+          const userWord = state.filename.trim() || 'cropped_image';
+          const randomString = Math.floor(1000 + Math.random() * 9000);
+          const link = document.createElement('a');
+          const mimeType = state.currentFileType === 'image/webp' ? 'image/webp' : 'image/jpeg';
+          link.download = `${userWord}_${randomString}.${mimeType.split('/')[1]}`;
+          link.href = canvas.toDataURL(mimeType, 0.9);
+          link.click();
+        };
+
+        const processBatchNext = () => {
+          if (!state.currentImage) return;
+          const canvas = createCroppedCanvas();
+          const userWord = state.filename.trim() || 'cropped_image';
+          const randomString = Math.floor(1000 + Math.random() * 9000);
+          const mimeType = state.currentFileType === 'image/webp' ? 'image/webp' : 'image/jpeg';
+          const dataURL = canvas.toDataURL(mimeType, 0.9);
+          setState({ croppedResults: [...state.croppedResults, { filename: `${userWord}_${randomString}.${mimeType.split('/')[1]}`, dataURL }] });
+          loadNextImage();
+        };
+
+        const downloadZip = () => {
+          const zip = new JSZip();
+          state.croppedResults.forEach(item => zip.file(item.filename, item.dataURL.split(',')[1], { base64: true }));
+          zip.generateAsync({ type: "blob" }).then(content => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(content);
+            a.download = "cropped_images.zip";
+            a.click();
+          });
+        };
+
+        // --- Event Handlers ---
+        const handleEvent = (e) => {
+          const { type, target, key, clientX, clientY, deltaY, preventDefault } = e;
+          if (preventDefault) e.preventDefault();
+          
+          if (type === 'drop') processFiles(e.dataTransfer.files);
+          if (type === 'change' && target === fileInputRef) processFiles(target.files);
+          if (type === 'click' && target.closest('.drop-zone')) fileInputRef.click();
+          if (type === 'mousedown' && target.closest('.crop-area')) { setState({ isDragging: true }); dragStart.x = clientX - state.offsetX; dragStart.y = clientY - state.offsetY; }
+          if (type === 'mousemove' && state.isDragging) setState({ offsetX: clientX - dragStart.x, offsetY: clientY - dragStart.y });
+          if (type === 'mouseup' && state.isDragging) { setState({ isDragging: false }); constrainOffsets(); }
+          if (type === 'wheel' && target.closest('.crop-area')) { const step = 0.05; setState({ userZoom: deltaY < 0 ? Math.min(state.userZoom + step, 2) : Math.max(state.userZoom - step, state.coverScale), hasManuallyAdjustedZoom: true }); }
+          if (type === 'keydown' && key === 'Enter' && state.currentImage) { state.isBatchMode ? (state.batchQueue.length > 0 ? processBatchNext() : downloadZip()) : downloadImage(); }
+        };
+
+        // --- Render function ---
+        const render = (oldState) => {
+          if (state.aspectRatio !== oldState?.aspectRatio || state.containerWidth !== oldState?.containerWidth) updateCropAreaDimensions();
+          if (state.displayTargetWidth !== oldState?.displayTargetWidth || state.currentImage !== oldState?.currentImage) updatePreview();
+          if (state.userZoom !== oldState?.userZoom || state.currentRotation !== oldState?.currentRotation) constrainOffsets();
+          if (previewRef && state.currentImage) {
+            const finalScale = state.hasManuallyAdjustedZoom ? Math.max(state.userZoom, state.coverScale) : state.userZoom;
+            previewRef.style.transform = `translate(-50%, -50%) translate(${state.offsetX}px, ${state.offsetY}px) scale(${finalScale}) rotate(${state.currentRotation}deg)`;
+            previewRef.style.cursor = state.isDragging ? 'grabbing' : 'grab';
+          }
+          
+          const isCustomRatio = !keystoneRatios.some(r => Math.abs(r.value - state.aspectRatio) < 0.001);
+          
+          root.innerHTML = `
+            <div class="app-container">
+              <div class="header"><h1 class="title">ULTIMATE CROP TOOL</h1></div>
+              <div class="main-content">
+                <div class="left-panel">
+                  <div class="preview-wrapper" id="preview-container-ref">
+                    ${!state.showControls ? `
+                      <div class="drop-zone">
+                        <svg class="drop-icon" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4C9.11 4 6.6 5.64 5.35 8.04C2.34 8.36 0 10.91 0 14C0 17.31 2.69 20 6 20H19C21.76 20 24 17.76 24 15C24 12.36 21.95 10.22 19.35 10.04ZM14 13V17H10V13H7L12 8L17 13H14Z"/></svg>
+                        <div class="drop-text">Drop Images Here</div>
+                        <div class="drop-subtext">or click to browse</div>
+                      </div>
+                    ` : `
+                      <div class="crop-area" style="width: ${state.displayTargetWidth}px; height: ${state.displayTargetHeight}px;">
+                        ${state.currentImage ? `<img id="preview-ref" src="${state.currentImage.src}" />` : ''}
+                      </div>
+                    `}
+                  </div>
+                </div>
+                <input type="file" id="file-input-ref" multiple hidden accept="image/*" />
+                ${state.showControls ? `
+                  <div class="right-panel">
+                    ${state.isBatchMode ? `
+                      <div class="batch-indicator">
+                        <div class="batch-text">
+                          <span class="batch-count">Image ${state.croppedResults.length + 1}</span>
+                          <span class="batch-total">of ${state.croppedResults.length + state.batchQueue.length + 1}</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: ${state.croppedResults.length / (state.croppedResults.length + state.batchQueue.length + 1) * 100}%"></div></div>
+                      </div>
+                    ` : ''}
+                    <div class="controls">
+                      <div class="control-section">
+                        <div class="section-header"><div class="section-icon">📐</div><div class="section-title">Dimensions</div></div>
+                        <div class="control-group">
+                          <div class="control-label">Export Size</div>
+                          <div class="dimension-inputs">
+                            <div class="input-wrapper"><input type="number" class="dimension-input" value="${state.exportWidth}" id="export-width-input" /><span class="input-label">W</span></div>
+                            <div class="dimension-separator">×</div>
+                            <div class="input-wrapper"><input type="number" class="dimension-input" value="${state.exportHeight}" id="export-height-input" /><span class="input-label">H</span></div>
+                          </div>
+                        </div>
+                        <div class="control-group">
+                          <div class="control-label">Aspect Ratio</div>
+                          <div class="slider-container">
+                            <input type="range" class="slider" min="0.333" max="3" step="0.001" value="${state.aspectRatio}" id="aspect-ratio-slider" />
+                            <div class="value-display ${isCustomRatio ? 'custom' : ''}">${state.aspectRatio >= 1 ? `${state.aspectRatio.toFixed(2)}:1` : `1:${(1/state.aspectRatio).toFixed(2)}`}</div>
+                          </div>
+                          <div class="ratio-grid" id="ratio-grid">
+                            ${keystoneRatios.map(r => `<button class="ratio-btn ${Math.abs(state.aspectRatio - r.value) < 0.001 ? 'active' : ''}" data-ratio="${r.value}">${r.label}</button>`).join('')}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="control-section">
+                        <div class="section-header"><div class="section-icon">🔍</div><div class="section-title">View</div></div>
+                        <div class="control-group">
+                          <div class="control-label">Zoom</div>
+                          <div class="slider-container">
+                             <input type="range" class="slider" min="${state.coverScale}" max="2" step="0.01" value="${state.userZoom}" id="zoom-slider" />
+                             <div class="value-display ${state.userZoom > 1.3 ? 'zoom-red' : state.userZoom > 1.01 ? 'zoom-orange' : ''}">${state.userZoom.toFixed(2)}×</div>
+                          </div>
+                          <div class="help-text">Scroll wheel to zoom. Orange/Red means upscaling.</div>
+                        </div>
+                      </div>
+                      <div class="control-section">
+                        <div class="section-header"><div class="section-icon">📁</div><div class="section-title">Output</div></div>
+                        <div class="control-group">
+                          <div class="control-label">Filename</div>
+                          <div class="filename-input-wrapper"><input type="text" class="filename-input" placeholder="Enter filename..." value="${state.filename}" id="filename-input" /><div class="filename-extension">.jpg</div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="export-section">
+                      <div class="export-header"><div class="export-icon">⚡</div><div class="export-title">Export</div></div>
+                      ${state.isBatchMode ? (
+                        state.batchQueue.length > 0
+                          ? `<button class="export-btn primary" id="process-next-btn"><span class="btn-text">Process Next</span><span class="btn-badge">${state.batchQueue.length} left</span></button>`
+                          : `<button class="export-btn success" id="download-zip-btn"><span class="btn-text">Download ZIP</span><span class="btn-badge">${state.croppedResults.length} images</span></button>`
+                      ) : `<button class="export-btn primary" id="download-btn"><span class="btn-text">Download Image</span></button>`}
+                      <div class="export-shortcut">Press <kbd>Enter</kbd> to export</div>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+
+          // Re-assign refs after re-render
+          previewRef = document.getElementById('preview-ref');
+          previewContainerRef = document.getElementById('preview-container-ref');
+          fileInputRef = document.getElementById('file-input-ref');
+          
+          // Re-attach listeners after re-render
+          const dropZone = root.querySelector('.drop-zone');
+          if (dropZone) dropZone.addEventListener('click', handleEvent);
+          const cropArea = root.querySelector('.crop-area');
+          if (cropArea) {
+            cropArea.addEventListener('mousedown', handleEvent);
+            cropArea.addEventListener('wheel', handleEvent);
+          }
+          if (fileInputRef) fileInputRef.addEventListener('change', handleEvent);
+          document.getElementById('export-width-input')?.addEventListener('input', e => setState({ exportWidth: parseInt(e.target.value) || 0 }));
+          document.getElementById('export-height-input')?.addEventListener('input', e => setState({ exportHeight: parseInt(e.target.value) || 0 }));
+          document.getElementById('aspect-ratio-slider')?.addEventListener('input', e => setState({ aspectRatio: parseFloat(e.target.value) }));
+          document.getElementById('zoom-slider')?.addEventListener('input', e => setState({ userZoom: parseFloat(e.target.value), hasManuallyAdjustedZoom: true }));
+          document.getElementById('filename-input')?.addEventListener('input', e => setState({ filename: e.target.value }));
+          document.getElementById('download-btn')?.addEventListener('click', downloadImage);
+          document.getElementById('process-next-btn')?.addEventListener('click', processBatchNext);
+          document.getElementById('download-zip-btn')?.addEventListener('click', downloadZip);
+          document.getElementById('ratio-grid')?.addEventListener('click', e => {
+            if (e.target.matches('.ratio-btn')) setState({ aspectRatio: parseFloat(e.target.dataset.ratio) });
+          });
+        };
+
+        // --- Initial Setup ---
+        render(); // Initial render
+        const previewContainer = document.getElementById('preview-container-ref');
+        const observer = new ResizeObserver(entries => {
+          for (let entry of entries) {
+            setState({ containerWidth: entry.contentRect.width, containerHeight: entry.contentRect.height });
+          }
+        });
+        if (previewContainer) observer.observe(previewContainer);
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, e => e.preventDefault());
+        });
+        document.body.addEventListener('drop', handleEvent);
+        document.addEventListener('keydown', handleEvent);
+        document.addEventListener('mouseup', handleEvent);
+        document.addEventListener('mousemove', handleEvent);
+      };
+      
+      App();
+    });
+  </script>
 </body>
 </html>
