@@ -2,37 +2,168 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ULTIMATE CROP TOOL</title>
 
-  <!-- React 18 UMD (prod) — no Babel at runtime -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- React 18 UMD (prod) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <!-- JSZip: use global if your shell provides it; otherwise load CDN fallback -->
-  <script>
-    if (!window.JSZip) {
-      document.write(
-        '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>'
-      );
-    }
-  </script>
-
-  <link rel="stylesheet" href="styles.css" />
   <style>
-    /* subtle first-load affordance for the drop zone */
-    .drop-zone.pulse::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 12px;
-      box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5);
-      animation: dzPulse 1.6s ease-out 2;
-      pointer-events: none;
+    /* --- Base layout --------------------------------------------------------- */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      overflow: hidden;
     }
+
+    .app-container { height: 100%; display: flex; flex-direction: column; }
+    .header { text-align: center; padding: 12px 20px; background: #151515; border-bottom: 1px solid #2a2a2a; }
+    .title {
+      font-size: 20px; font-weight: 800; letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #ffffff, #00ff88);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .main-content { flex: 1; display: flex; gap: 20px; padding: 40px 20px 20px; overflow: hidden; }
+    .left-panel { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+    .right-panel { width: 340px; display: flex; flex-direction: column; gap: 16px; height: 100%; }
+
+    /* --- Drop zone ----------------------------------------------------------- */
+    .drop-zone {
+      position: relative;
+      width: min(100%, 50vw); height: 220px;
+      border: 2px dashed #3a3a3a; border-radius: 12px;
+      background: rgba(0, 255, 136, 0.06);
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      cursor: pointer; transition: all .18s ease; padding: 16px; text-align: center; outline: none;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #00ff88; background: rgba(0,255,136,.1); }
+    .drop-icon { width: 40px; height: 40px; margin-bottom: 8px; fill: #00ff88; opacity: .85; }
+    .drop-text { font-size: 14px; font-weight: 700; }
+    .drop-subtext { font-size: 11px; color: #8a8a8a; max-width: 420px; }
+    .drop-zone:focus-visible { box-shadow: 0 0 0 3px rgba(0,255,136,.25); }
+
+    /* --- Preview / crop area ------------------------------------------------- */
+    .preview-container {
+      width: min(100%, 50vw); height: 100%; max-height: 520px;
+      position: relative; border-radius: 12px; overflow: hidden;
+    }
+    .crop-area {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      border: 2px dashed #00ff88; border-radius: 8px; overflow: hidden;
+    }
+    .crop-area img {
+      position: absolute; left: 50%; top: 50%;
+      transform-origin: center center;
+      user-select: none; -webkit-user-drag: none; pointer-events: none;
+    }
+
+    /* --- Controls ------------------------------------------------------------ */
+    .controls {
+      flex: 1; display: flex; flex-direction: column; gap: 22px; overflow: auto;
+      background: linear-gradient(145deg, rgba(26, 26, 26, 0.9), rgba(17, 17, 17, 0.9));
+      border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 18px;
+      backdrop-filter: blur(18px);
+    }
+    .control-section { display: flex; flex-direction: column; gap: 14px; }
+    .section-header { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .section-title { font-size: 13px; font-weight: 800; }
+    .control-label { font-size: 11px; font-weight: 700; color: #00ff88; letter-spacing: .4px; text-transform: uppercase; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+
+    .dimension-inputs { display: flex; align-items: center; gap: 10px; }
+    .input-wrapper { position: relative; flex: 1; }
+    .dimension-input {
+      width: 100%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px; padding: 12px 14px; color: #fff; font-size: 13px; font-weight: 600; transition: all .18s;
+    }
+    .dimension-input:focus { outline: none; border-color: #00ff88; background: rgba(0,255,136,.06); }
+    .input-label { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #7a7a7a; font-weight: 700; }
+    .dimension-separator { color: #777; font-weight: 800; font-size: 16px; }
+
+    .ratio-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .ratio-btn {
+      padding: 8px 4px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 6px; color: #cfcfcf; font-size: 10px; font-weight: 800; cursor: pointer; transition: all .15s;
+      text-align: center;
+    }
+    .ratio-btn:hover { background: rgba(0,255,136,.12); border-color: rgba(0,255,136,.35); color: #00ff88; }
+    .ratio-btn.active { background: linear-gradient(135deg, #00ff88, #00cc70); border-color: #00ff88; color: #000; }
+    .custom-ratio-btn { background: rgba(0,255,136,.12); border-color: rgba(0,255,136,.5); color: #00ff88; }
+
+    /* --- Sliders  ------------------------------------------------------- */
+    .slider-container { display: flex; align-items: center; gap: 10px; }
+    
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(0,255,136,.45), rgba(0,255,136,.15));
+      outline: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00ff88;
+      cursor: pointer;
+      border: 2px solid #0a0a0a;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00ff88;
+      cursor: pointer;
+      border: 2px solid #0a0a0a;
+    }
+
+    .value-display {
+      background: #1b1b1b; padding: 4px 8px; border-radius: 4px;
+      border: 1px solid #333; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px; color: #00ff88; min-width: 54px; text-align: center;
+    }
+    .value-display.zoom-orange { color: #ff9a3c; }
+    .value-display.zoom-red { color: #ff5252; }
+
+    /* --- Export -------------------------------------------------------------- */
+    .filename-input-wrapper { position: relative; display: flex; align-items: center; }
+    .filename-input {
+      flex: 1; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px; padding: 12px 48px 12px 14px; color: #fff; font-size: 13px; transition: all .18s;
+    }
+    .filename-input:focus { outline: none; border-color: #00ff88; background: rgba(0,255,136,.06); }
+    .filename-extension { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #777; font-weight: 800; }
+
+    .export-section {
+      background: linear-gradient(145deg, rgba(0,255,136,.1), rgba(0,200,112,.05));
+      border: 1px solid rgba(0,255,136,.2); border-radius: 16px; padding: 18px; backdrop-filter: blur(18px);
+    }
+    .export-actions { display: flex; flex-direction: column; gap: 8px; }
+    .export-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 18px; border: none; border-radius: 12px; font-size: 13px; font-weight: 900;
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .export-btn.primary { background: linear-gradient(135deg, #00ff88, #00cc70); color: #000; }
+    .export-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(0,255,136,.25); }
+
+    .help-text { font-size: 10px; color: #9a9a9a; }
+
+    /* Focus */
+    button:focus-visible, input:focus-visible { outline: 2px solid rgba(0,255,136,.55); outline-offset: 2px; border-radius: 8px; }
+
+    /* pulse animation */
     @keyframes dzPulse {
       0% { box-shadow: 0 0 0 0 rgba(0,255,136,.5); }
       70% { box-shadow: 0 0 0 14px rgba(0,255,136,0); }
@@ -42,6 +173,379 @@
 </head>
 <body>
   <div id="root"></div>
-  <script src="app.js"></script>
+  
+  <script>
+  // Create app without React to avoid re-render issues with sliders
+  (function() {
+    let imgEl = null;
+    let natural = { w: 0, h: 0 };
+    let coverScale = 1;
+    let userScale = 1;
+    let rotation = 0;
+    let offset = { x: 0, y: 0 };
+    let aspectRatio = 968/600;
+    let exportW = 968;
+    let exportH = 600;
+    let tW = 0;
+    let tH = 0;
+    let isDragging = false;
+    let lastPt = { x: 0, y: 0 };
+    let filename = "";
+    
+    const root = document.getElementById('root');
+    
+    // Build UI
+    root.innerHTML = `
+      <div class="app-container">
+        <input type="file" accept="image/*" style="display: none" id="fileInput">
+        <div class="header">
+          <h1 class="title">ULTIMATE CROP TOOL</h1>
+        </div>
+        <div class="main-content">
+          <div class="left-panel">
+            <div class="drop-zone" id="dropZone">
+              <svg class="drop-icon" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4C9.11 4 6.6 5.64 5.35 8.04C2.34 8.36 0 10.91 0 14C0 17.31 2.69 20 6 20H19C21.76 20 24 17.76 24 15C24 12.36 21.95 10.22 19.35 10.04ZM14 13V17H10V13H7L12 8L17 13H14Z"/>
+              </svg>
+              <div class="drop-text">Drop images here or click</div>
+              <div class="drop-subtext">Drag from downloads or your file explorer</div>
+            </div>
+            <div class="preview-container" id="previewContainer" style="display: none">
+              <div class="crop-area" id="cropArea">
+                <img id="previewImg" alt="Preview">
+              </div>
+            </div>
+          </div>
+          <div class="right-panel" id="rightPanel" style="display: none">
+            <div class="controls">
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title">Dimensions</div>
+                </div>
+                <div class="control-group">
+                  <div class="control-label">Export Size</div>
+                  <div class="dimension-inputs">
+                    <div class="input-wrapper">
+                      <input type="number" class="dimension-input" id="widthInput" value="968">
+                      <span class="input-label">W</span>
+                    </div>
+                    <div class="dimension-separator">×</div>
+                    <div class="input-wrapper">
+                      <input type="number" class="dimension-input" id="heightInput" value="600">
+                      <span class="input-label">H</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="control-group">
+                  <div class="control-label">Aspect Ratio</div>
+                  <div class="slider-container">
+                    <input type="range" id="aspectSlider" min="0.333" max="3" step="0.001" value="1.613">
+                    <div class="value-display" id="aspectValue">1.61:1</div>
+                  </div>
+                  <div class="ratio-grid" id="ratioGrid"></div>
+                  <div class="help-text">Use presets or drag the slider for a custom ratio.</div>
+                </div>
+              </div>
+              
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title">View</div>
+                </div>
+                <div class="control-group">
+                  <div class="control-label">Zoom Level</div>
+                  <div class="slider-container">
+                    <input type="range" id="zoomSlider" min="0.1" max="2" step="0.01" value="1">
+                    <div class="value-display" id="zoomValue">1.00×</div>
+                  </div>
+                  <div class="help-text">Scroll over the image to zoom. You can't zoom below 'cover'.</div>
+                </div>
+              </div>
+              
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title">Output</div>
+                </div>
+                <div class="control-group">
+                  <div class="control-label">Filename</div>
+                  <div class="filename-input-wrapper">
+                    <input type="text" class="filename-input" id="filenameInput" placeholder="Enter filename...">
+                    <div class="filename-extension">.jpg</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="export-section">
+              <div class="export-actions">
+                <button class="export-btn primary" id="downloadBtn">
+                  <span>⬇</span>
+                  <span>Download Image</span>
+                </button>
+              </div>
+              <div class="help-text">Press Enter to export.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Get elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const cropArea = document.getElementById('cropArea');
+    const previewImg = document.getElementById('previewImg');
+    const rightPanel = document.getElementById('rightPanel');
+    const widthInput = document.getElementById('widthInput');
+    const heightInput = document.getElementById('heightInput');
+    const aspectSlider = document.getElementById('aspectSlider');
+    const aspectValue = document.getElementById('aspectValue');
+    const zoomSlider = document.getElementById('zoomSlider');
+    const zoomValue = document.getElementById('zoomValue');
+    const ratioGrid = document.getElementById('ratioGrid');
+    const filenameInput = document.getElementById('filenameInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    // Ratio presets
+    const ratios = [
+      { label: "1:3", value: 1/3 }, { label: "1:2", value: 1/2 },
+      { label: "9:16", value: 9/16 }, { label: "10:16", value: 10/16 },
+      { label: "2:3", value: 2/3 }, { label: "3:4", value: 3/4 },
+      { label: "4:5", value: 4/5 }, { label: "1:1", value: 1 },
+      { label: "5:4", value: 5/4 }, { label: "4:3", value: 4/3 },
+      { label: "3:2", value: 3/2 }, { label: "16:10", value: 16/10 },
+      { label: "16:9", value: 16/9 }, { label: "968:600", value: 968/600 },
+      { label: "2:1", value: 2 }, { label: "3:1", value: 3 }
+    ];
+    
+    // Build ratio buttons
+    ratios.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'ratio-btn';
+      btn.textContent = r.label;
+      btn.onclick = () => {
+        aspectRatio = r.value;
+        aspectSlider.value = r.value;
+        exportW = Math.round(exportH * r.value);
+        widthInput.value = exportW;
+        updateAspectDisplay();
+        updateLayout();
+      };
+      ratioGrid.appendChild(btn);
+    });
+    
+    function updateAspectDisplay() {
+      if (aspectRatio >= 1) {
+        aspectValue.textContent = `${aspectRatio.toFixed(2)}:1`;
+      } else {
+        aspectValue.textContent = `1:${(1/aspectRatio).toFixed(2)}`;
+      }
+    }
+    
+    function clamp(v, min, max) {
+      return Math.min(Math.max(v, min), max);
+    }
+    
+    function computeCoverScale() {
+      if (!natural.w || !natural.h || !tW || !tH) return 1;
+      const s = Math.max(tW / natural.w, tH / natural.h);
+      coverScale = s;
+      if (userScale < s) userScale = s;
+      return s;
+    }
+    
+    function constrainOffsets() {
+      if (!natural.w || !natural.h || !tW || !tH) return;
+      const s = Math.max(userScale, coverScale);
+      const W = natural.w * s;
+      const H = natural.h * s;
+      const minX = (tW - W) / 2;
+      const maxX = (W - tW) / 2;
+      const minY = (tH - H) / 2;
+      const maxY = (H - tH) / 2;
+      offset.x = clamp(offset.x, minX, maxX);
+      offset.y = clamp(offset.y, minY, maxY);
+    }
+    
+    function applyTransform() {
+      if (!previewImg) return;
+      const s = Math.max(userScale, coverScale);
+      previewImg.style.transform = `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${s})`;
+    }
+    
+    function updateLayout() {
+      const container = previewContainer;
+      if (!container) return;
+      
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      const maxH = 520;
+      
+      const candidateH = Math.min(ch, maxH);
+      const candidateW = candidateH * aspectRatio;
+      
+      if (candidateW <= cw) {
+        tW = Math.round(candidateW);
+        tH = Math.round(candidateH);
+      } else {
+        tW = Math.round(cw);
+        tH = Math.round(cw / aspectRatio);
+      }
+      
+      cropArea.style.width = `${tW}px`;
+      cropArea.style.height = `${tH}px`;
+      
+      computeCoverScale();
+      constrainOffsets();
+      applyTransform();
+      
+      // Update zoom slider min
+      zoomSlider.min = coverScale;
+      if (userScale < coverScale) {
+        userScale = coverScale;
+        zoomSlider.value = userScale;
+        zoomValue.textContent = `${userScale.toFixed(2)}×`;
+      }
+    }
+    
+    function loadFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          imgEl = img;
+          natural = { w: img.naturalWidth, h: img.naturalHeight };
+          previewImg.src = img.src;
+          previewImg.style.width = `${natural.w}px`;
+          previewImg.style.height = `${natural.h}px`;
+          
+          dropZone.style.display = 'none';
+          previewContainer.style.display = 'block';
+          rightPanel.style.display = 'flex';
+          
+          offset = { x: 0, y: 0 };
+          userScale = 1;
+          
+          updateLayout();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    // File handling
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        loadFile(file);
+      }
+    };
+    
+    dropZone.ondragover = (e) => e.preventDefault();
+    dropZone.ondrop = (e) => {
+      e.preventDefault();
+      const files = e.dataTransfer.files;
+      if (files[0] && files[0].type.startsWith('image/')) {
+        loadFile(files[0]);
+      }
+    };
+    
+    // Aspect ratio slider - FIXED with direct event listener
+    aspectSlider.addEventListener('input', function(e) {
+      aspectRatio = parseFloat(e.target.value);
+      exportW = Math.round(exportH * aspectRatio);
+      widthInput.value = exportW;
+      updateAspectDisplay();
+      updateLayout();
+    });
+    
+    // Zoom slider - FIXED with direct event listener  
+    zoomSlider.addEventListener('input', function(e) {
+      userScale = parseFloat(e.target.value);
+      zoomValue.textContent = `${userScale.toFixed(2)}×`;
+      updateLayout();
+    });
+    
+    // Width/height inputs
+    widthInput.onchange = () => {
+      exportW = Math.max(1, parseInt(widthInput.value) || 1);
+      aspectRatio = exportW / exportH;
+      aspectSlider.value = aspectRatio;
+      updateAspectDisplay();
+      updateLayout();
+    };
+    
+    heightInput.onchange = () => {
+      exportH = Math.max(1, parseInt(heightInput.value) || 1);
+      aspectRatio = exportW / exportH;
+      aspectSlider.value = aspectRatio;
+      updateAspectDisplay();
+      updateLayout();
+    };
+    
+    // Pan handling
+    cropArea.onmousedown = (e) => {
+      isDragging = true;
+      lastPt = { x: e.clientX, y: e.clientY };
+    };
+    
+    document.onmousemove = (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastPt.x;
+      const dy = e.clientY - lastPt.y;
+      lastPt = { x: e.clientX, y: e.clientY };
+      offset.x += dx;
+      offset.y += dy;
+      constrainOffsets();
+      applyTransform();
+    };
+    
+    document.onmouseup = () => {
+      isDragging = false;
+    };
+    
+    // Wheel zoom
+    cropArea.onwheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      userScale = clamp(userScale + delta, coverScale, 2);
+      zoomSlider.value = userScale;
+      zoomValue.textContent = `${userScale.toFixed(2)}×`;
+      updateLayout();
+    };
+    
+    // Export
+    downloadBtn.onclick = () => {
+      if (!imgEl) return;
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = exportW;
+      canvas.height = exportH;
+      const ctx = canvas.getContext('2d');
+      
+      ctx.save();
+      ctx.translate(exportW/2, exportH/2);
+      
+      const rx = exportW / tW;
+      const ry = exportH / tH;
+      
+      ctx.translate(offset.x * rx, offset.y * ry);
+      const s = Math.max(userScale, coverScale);
+      ctx.scale(s * rx, s * ry);
+      ctx.drawImage(imgEl, -natural.w/2, -natural.h/2);
+      ctx.restore();
+      
+      const name = (filenameInput.value || 'cropped_image').trim();
+      const a = document.createElement('a');
+      a.download = `${name}_${Math.floor(1000 + Math.random()*9000)}.jpg`;
+      a.href = canvas.toDataURL('image/jpeg', 0.92);
+      a.click();
+    };
+    
+    // Initial setup
+    updateAspectDisplay();
+  })();
+  </script>
 </body>
 </html>
