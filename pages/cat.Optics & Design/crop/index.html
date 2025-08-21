@@ -2,15 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ultimate Crop Tool — Fast</title>
-  <!-- React 18 production UMD (no Babel) -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>ULTIMATE CROP TOOL</title>
+
+  <!-- React 18 UMD (prod) — no Babel at runtime -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- JSZip: use global if your shell provides it; otherwise load CDN fallback -->
+  <script>
+    if (!window.JSZip) {
+      document.write(
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>'
+      );
+    }
+  </script>
+
   <link rel="stylesheet" href="styles.css" />
   <style>
-    /* Small splash to show the hover affordance on load */
+    /* subtle first-load affordance for the drop zone */
     .drop-zone.pulse::after {
       content: "";
       position: absolute;
@@ -21,9 +34,9 @@
       pointer-events: none;
     }
     @keyframes dzPulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5); }
-      70% { box-shadow: 0 0 0 14px rgba(0, 255, 136, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(0,255,136,.5); }
+      70% { box-shadow: 0 0 0 14px rgba(0,255,136,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
     }
   </style>
 </head>
