@@ -161,20 +161,17 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
   const { pathname } = useLocation();
   const raw = decodeURIComponent(pathname.replace(/^\/+/, ""));
   const relPath = raw.includes("/") ? raw : slugToPath[raw] || null;
-  const initialProjectUrl = useMemo(() => (relPath ? `/pages/${relPath}/index.html` : null), [relPath]);
-  
-  // FIX: Manage the iframe src separately to control its loading and prevent flashes.
-  const [iframeSrc, setIframeSrc] = useState(null);
+  const projectUrl = useMemo(() => (relPath ? `/pages/${relPath}/index.html` : null), [relPath]);
 
+  // --- START OF FIX ---
+  // State to track if the iframe content has loaded.
+  const [isIframeLoaded, setIframeLoaded] = useState(false);
+
+  // Reset the loaded state every time we navigate to a new project.
   useEffect(() => {
-    // This effect ensures the iframe only loads *after* the fade-in animation has had time to start.
-    const timer = setTimeout(() => {
-      setIframeSrc(initialProjectUrl);
-    }, 150); // A small delay to smooth out the transition.
-
-    // Clean up the timer if the component unmounts before the timer fires.
-    return () => clearTimeout(timer);
-  }, [initialProjectUrl]);
+    setIframeLoaded(false);
+  }, [relPath]);
+  // --- END OF FIX ---
 
   const [aboutHtml, setAboutHtml] = useState('<p class="muted">No write-up yet.</p>');
   useEffect(() => {
@@ -195,23 +192,15 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
       cancelled = true;
     };
   }, [panelOpen, relPath]);
-  
-  // Handle various loading/not found states
-  if (!slugsReady && !raw.includes("/")) {
-    return (
-      <div style={{ display: "grid", placeItems: "center", height: "var(--vh-100,100vh)", opacity: 0.6 }}>
-        Loading project…
-      </div>
-    );
-  }
 
-  // During the animation delay, show a stable black box to prevent flashes.
-  if (iframeSrc === null) {
-    return <div style={{width: '100%', height: 'var(--vh-100, 100vh)', background: '#000'}}></div>;
-  }
-
-  // After animation delay, if the URL is still invalid, show not found.
-  if (!iframeSrc) {
+  if (!projectUrl) {
+    if (!slugsReady && !raw.includes("/")) {
+      return (
+        <div style={{ display: "grid", placeItems: "center", height: "var(--vh-100,100vh)", opacity: 0.6 }}>
+          Loading project…
+        </div>
+      );
+    }
     return (
       <div style={{ display: "grid", placeItems: "center", height: "var(--vh-100,100vh)", padding: 24 }}>
         <div style={{ opacity: 0.7, textAlign: "center" }}>
@@ -230,18 +219,23 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
     margin: 0,
     padding: 0,
     background: "#000",
+    // Control visibility based on load state for a smooth transition.
+    opacity: isIframeLoaded ? 1 : 0,
+    transition: "opacity 300ms ease-in-out",
   };
 
   return (
     <div className={"project-layout" + (panelOpen ? " with-panel" : "")} style={{ display: "flex", width: "100%" }}>
       <div className="project-left" style={{ flex: 1, minWidth: 0, height: "var(--vh-100, 100vh)" }}>
-        <div className="iframe-wrap" style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+        <div className="iframe-wrap" style={{ width: "100%", height: "100%", overflow: "hidden", background: "#000" }}>
           <iframe
             key={relPath}
-            src={iframeSrc}
+            src={projectUrl}
             className="project-iframe"
             title={relPath}
             style={iframeStyle}
+            // This event tells us when the content is ready to be shown.
+            onLoad={() => setIframeLoaded(true)}
             loading="eager"
             referrerPolicy="no-referrer-when-downgrade"
           />
