@@ -105,6 +105,7 @@
   let activeTab = 'all';
   let filterQuery = '';
   let lightboxIndex = null;
+  let errorMessage = '';
   
   // --- DOM Elements ---
   const $ = (s) => document.querySelector(s);
@@ -165,7 +166,12 @@
       </button>
     `).join('');
     
-    // Render Grid
+    // Render Grid or Error
+    if (errorMessage) {
+      gridContainer.innerHTML = `<div class="empty" style="color: #ff9a9a;"><b>Error:</b> ${errorMessage}</div>`;
+      return;
+    }
+
     const filtered = getFilteredAssets();
     if (filtered.length > 0) {
       gridContainer.innerHTML = `<div class="grid" role="list">${filtered.map((a, i) => {
@@ -232,6 +238,7 @@
     loading = true;
     allAssets = [];
     counts = null;
+    errorMessage = '';
     render();
 
     try {
@@ -247,7 +254,8 @@
       filterInput.value = '';
       filterQuery = '';
     } catch (e) {
-      alert(e?.message || 'Something went wrong');
+      console.error(e);
+      errorMessage = e?.message || 'Something went wrong. Check the console for details.';
     } finally {
       loading = false;
       render();
@@ -275,7 +283,7 @@
       a.remove();
       URL.revokeObjectURL(a.href);
     } catch (e) {
-      alert(e?.message || 'Download failed');
+      errorMessage = e.message; // Show download errors too
     } finally {
       loading = false; render();
     }
@@ -316,8 +324,8 @@
   window.addEventListener('keydown', (e) => {
     if (lightboxIndex === null) return;
     if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowRight') openLightbox(lightboxIndex + 1);
-    if (e.key === 'ArrowLeft') openLightbox(lightboxIndex - 1);
+    if (e.key === 'ArrowRight' && lightboxIndex < getFilteredAssets().length - 1) openLightbox(lightboxIndex + 1);
+    if (e.key === 'ArrowLeft' && lightboxIndex > 0) openLightbox(lightboxIndex - 1);
   });
 
   // --- Initial Render ---
