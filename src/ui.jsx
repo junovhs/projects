@@ -162,16 +162,12 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
   const raw = decodeURIComponent(pathname.replace(/^\/+/, ""));
   const relPath = raw.includes("/") ? raw : slugToPath[raw] || null;
   const projectUrl = useMemo(() => (relPath ? `/pages/${relPath}/index.html` : null), [relPath]);
-
-  // --- START OF FIX ---
-  // State to track if the iframe content has loaded.
+  
   const [isIframeLoaded, setIframeLoaded] = useState(false);
 
-  // Reset the loaded state every time we navigate to a new project.
   useEffect(() => {
     setIframeLoaded(false);
-  }, [relPath]);
-  // --- END OF FIX ---
+  }, [projectUrl]);
 
   const [aboutHtml, setAboutHtml] = useState('<p class="muted">No write-up yet.</p>');
   useEffect(() => {
@@ -218,8 +214,7 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
     border: 0,
     margin: 0,
     padding: 0,
-    background: "#000",
-    // Control visibility based on load state for a smooth transition.
+    background: "transparent", // Background is now on the wrapper
     opacity: isIframeLoaded ? 1 : 0,
     transition: "opacity 300ms ease-in-out",
   };
@@ -227,14 +222,20 @@ function ProjectPage({ slugToPath = {}, slugsReady = false, panelOpen, setPanelO
   return (
     <div className={"project-layout" + (panelOpen ? " with-panel" : "")} style={{ display: "flex", width: "100%" }}>
       <div className="project-left" style={{ flex: 1, minWidth: 0, height: "var(--vh-100, 100vh)" }}>
-        <div className="iframe-wrap" style={{ width: "100%", height: "100%", overflow: "hidden", background: "#000" }}>
+        {/* The wrapper now holds the background and the loader */}
+        <div className="iframe-wrap" style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+          
+          {/* --- NEW: Loading Indicator --- */}
+          <div className="loader-overlay" style={{ opacity: isIframeLoaded ? 0 : 1 }}>
+            <div className="loader-spinner"></div>
+          </div>
+
           <iframe
             key={relPath}
             src={projectUrl}
             className="project-iframe"
             title={relPath}
             style={iframeStyle}
-            // This event tells us when the content is ready to be shown.
             onLoad={() => setIframeLoaded(true)}
             loading="eager"
             referrerPolicy="no-referrer-when-downgrade"
