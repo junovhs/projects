@@ -144,28 +144,89 @@ function findExpiryDate(text){
   return {fullMatch:last[0],index:last.index,isRange:false,formattedShortDate:s};
 }
 
-// ---------- fake adapter ----------
-async function callAI({rules,overused,deal,notes}){
-  // expects window.websim.chat.completions.create; falls back to a simple formatter in dev.
-  if(window.websim?.chat?.completions?.create){
-    const completion = await window.websim.chat.completions.create({
-      json:true,
-      messages:[
-        {role:"system",content:`You are a travel marketing expert. Transform travel promotions into engaging headlines and descriptions.
+// ---------- ai via your vercel proxy ----------
+async function callAI({rules,overused,deal,notes}) {
+  // get password (store once per tab)
+  const getPass = () => {
+    let p = sessionStorage.getItem("ai_password");
+    if (!p) {
+      p = window.prompt("Enter AI API password");
+      if (p) sessionStorage.setItem("ai_password", p);
+    }
+    return p;
+  };
+
+  // one request using your /api/generate
+  const ask = async (password) => {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (password || "")
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: `You are a travel marketing expert. Transform travel promotions into engaging headlines and descriptions.
 ${rules}
 Important: For BOTH headline and description, replace PPG with "Free Gratuities", OBC with "Onboard Credit", and PP with "Per Person".
 Avoid these overused words: ${overused.join(", ")}.
 Do NOT include expiry dates in your response, they will be added later.
-Respond with JSON only: { "headline": string, "description": string }`},
-        {role:"user",content:notes?`Transform this travel promotion: "${deal}". Notes: "${notes}"`:`Transform this travel promotion: "${deal}"`}
-      ]
+Respond with JSON only: { "headline": string, "description": string }`
+          },
+          {
+            role: "user",
+            content: notes
+              ? `Transform this travel promotion: "${deal}". Notes: "${notes}"`
+              : `Transform this travel promotion: "${deal}"`
+          }
+        ],
+        json: true
+      })
     });
-    return JSON.parse(completion.content);
+
+    // handle auth retry path
+    if (res.status === 401) {
+      sessionStorage.removeItem("ai_password");
+      const np = getPass();
+      if (!np) throw new Error("No password provided");
+      // retry once with fresh password
+      return ask(np);
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>String(res.status));
+      throw new Error("AI API error: " + txt);
+    }
+
+    const data = await res.json();
+    // Gemini returns { content: "<json string>" }
+    try {
+      if (typeof data.content === "string") return JSON.parse(data.content);
+      return data.content; // if backend ever returns object directly
+    } catch {
+      throw new Error("AI returned non-JSON content");
+    }
+  };
+
+  try {
+    const pw = getPass();
+    if (!pw) throw new Error("No password provided");
+    return await ask(pw);
+  } catch (e) {
+    console.error("callAI failed", e);
+    // graceful fallback (same as before)
+    const base = deal
+      .replace(/\bPPG\b/g,"Free Gratuities")
+      .replace(/\bOBC\b/g,"Onboard Credit")
+      .replace(/\bPP\b/g,"Per Person");
+    const headline = (notes?notes.split(/[.!?]/)[0]:base).split(" ").slice(0,10).join(" ");
+    return {
+      headline: headline.replace(/^[a-z]/, c => c.toUpperCase()),
+      description: `${base}.`
+    };
   }
-  // local fallback
-  const base=deal.replace(/\bPPG\b/g,"Free Gratuities").replace(/\bOBC\b/g,"Onboard Credit").replace(/\bPP\b/g,"Per Person");
-  const headline=(notes?notes.split(/[.!?]/)[0]:base).split(" ").slice(0,10).join(" ");
-  return {headline:headline.replace(/^[a-z]/,c=>c.toUpperCase()),description:`${base}.`};
 }
 
 // ---------- ui ----------
