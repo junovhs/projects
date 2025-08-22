@@ -15,36 +15,11 @@ export class BrainstormPhaseManager {
     
     /**
      * Helper to call the backend API for generating more suggestions.
-     * This leverages the same pattern as AIService._callApi
+     * Reuses aiService._callApi so Authorization header is included.
      */
     async _callApiForMoreSuggestions(payload) {
-        try {
-            console.log(`BrainstormPhaseManager: Calling ${this.apiEndpoint} for more suggestions with payload:`, JSON.stringify(payload));
-            const response = await fetch(this.apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch(e) {
-                    errorData = { details: await response.text() || `API request failed with status ${response.status}` };
-                }
-                console.error('BrainstormPhaseManager: API request failed for suggestions:', errorData);
-                throw new Error(errorData.details || `API request for suggestions failed with status ${response.status}`);
-            }
-            const result = await response.json(); // Expects { content: "JSON_STRING_OF_IDEAS" }
-            console.log('BrainstormPhaseManager: Received from API for more suggestions:', result);
-            return result; 
-        } catch (error) {
-            console.error('BrainstormPhaseManager: Error calling backend API for suggestions:', error);
-            throw error;
-        }
+        console.log('BrainstormPhaseManager: Using aiService._callApi for more suggestions with payload:', JSON.stringify(payload));
+        return await this.aiService._callApi(payload);
     }
     
     startQuestionTimer() {
