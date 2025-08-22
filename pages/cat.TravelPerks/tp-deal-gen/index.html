@@ -71,37 +71,18 @@
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#ffffff;border:1px solid #e2e8f0;color:#0f172a;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:1001}
 
 /* Custom scrollbar styling */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--card);
-    border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--line);
-    border-radius: 6px;
-    border: 1px solid var(--card);
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--muted2);
-}
-
-::-webkit-scrollbar-corner {
-    background: var(--card);
-}
-
-/* Firefox scrollbar styling */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--line) var(--card);
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--card); border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 1px solid var(--card); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+::-webkit-scrollbar-corner { background: var(--card); }
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: var(--line) var(--card); }
 
 @media (max-width:900px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
+
+/* Model picker */
+.model-pick{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:8px 10px;font:13px Inter}
 </style>
 </head>
 <body>
@@ -114,7 +95,7 @@
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script type="text/babel">
-const {useState,useMemo,useEffect,useRef} = React;
+const {useState,useMemo,useEffect} = React;
 
 // ---------- utils ----------
 const conf = window.confetti;
@@ -144,9 +125,8 @@ function findExpiryDate(text){
   return {fullMatch:last[0],index:last.index,isRange:false,formattedShortDate:s};
 }
 
-// ---------- ai via your vercel proxy ----------
-async function callAI({rules,overused,deal,notes}) {
-  // get password (store once per tab)
+// ---------- ai via your vercel proxy (with model) ----------
+async function callAI({rules,overused,deal,notes,model}) {
   const getPass = () => {
     let p = sessionStorage.getItem("ai_password");
     if (!p) {
@@ -156,7 +136,6 @@ async function callAI({rules,overused,deal,notes}) {
     return p;
   };
 
-  // one request using your /api/generate
   const ask = async (password) => {
     const res = await fetch("/api/generate", {
       method: "POST",
@@ -165,6 +144,7 @@ async function callAI({rules,overused,deal,notes}) {
         "Authorization": "Bearer " + (password || "")
       },
       body: JSON.stringify({
+        model, // per-request model
         messages: [
           {
             role: "system",
@@ -186,13 +166,11 @@ Respond with JSON only: { "headline": string, "description": string }`
       })
     });
 
-    // handle auth retry path
     if (res.status === 401) {
       sessionStorage.removeItem("ai_password");
       const np = getPass();
       if (!np) throw new Error("No password provided");
-      // retry once with fresh password
-      return ask(np);
+      return ask(np); // retry once with fresh password
     }
 
     if (!res.ok) {
@@ -201,10 +179,9 @@ Respond with JSON only: { "headline": string, "description": string }`
     }
 
     const data = await res.json();
-    // Gemini returns { content: "<json string>" }
     try {
       if (typeof data.content === "string") return JSON.parse(data.content);
-      return data.content; // if backend ever returns object directly
+      return data.content; // if server ever returns object directly
     } catch {
       throw new Error("AI returned non-JSON content");
     }
@@ -216,7 +193,7 @@ Respond with JSON only: { "headline": string, "description": string }`
     return await ask(pw);
   } catch (e) {
     console.error("callAI failed", e);
-    // graceful fallback (same as before)
+    // graceful fallback
     const base = deal
       .replace(/\bPPG\b/g,"Free Gratuities")
       .replace(/\bOBC\b/g,"Onboard Credit")
@@ -265,7 +242,10 @@ NEVER use rate codes. if there is a rate code, we dont need to share that, the s
 If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE:"`
   );
 
-  useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(""),1600);return()=>clearTimeout(t)}},[toast]);
+  // NEW: model picker state
+  const [model,setModel] = useState("gemini-2.5-flash");
+
+  useEffect(()=>{ if(toast){const t=setTimeout(()=>setToast(""),1600);return()=>clearTimeout(t)} },[toast]);
 
   const filteredDeals = useMemo(()=>{
     if(!vendors.length) return [];
@@ -314,7 +294,6 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
     }
     if(!parsed.length) return setToast("Nothing parsed");
     setVendors(prev=>{
-      // merge by vendor name
       const map=new Map(prev.map(v=>[v.name,v]));
       for(const v of parsed){ if(!map.has(v.name)) map.set(v.name,v); else map.get(v.name).deals.push(...v.deals); }
       return [...map.values()];
@@ -334,7 +313,7 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
     const key=`${vi}-${di}`; setBusy(s=>({...s,[key]:true}));
     const d=vendors[vi].deals[di];
     const n=notes[key]||"";
-    const res=await callAI({rules,overused,deal:d.text,notes:n}).catch(e=>({headline:"",description:`${d.text}.`})); 
+    const res=await callAI({rules,overused,deal:d.text,notes:n,model}).catch(e=>({headline:"",description:`${d.text}.`}));
     const kws=extractKeywords(res.headline+" "+res.description); setOver(prev=>[...new Set([...prev,...kws])].slice(-20));
     let desc=res.description.trim(); if(!desc.endsWith(".")) desc+=".";
     const end = d.expiry?.isRange ? d.expiry.endDate : d.expiry;
@@ -397,7 +376,7 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
               <button className="btn brand" onClick={addQuick}>+ Add</button>
             </div>
             <button className="btn" onClick={()=>setSlide(true)}>Bulk Paste</button>
-            <button className="btn" onClick={generateAll} disabled={!vendors.length || genAll}>{genAll?<span className="inline"><span className="spinner"/> Generating…</span>:"Generate All"}</button>
+            <button className="btn brand" onClick={generateAll} disabled={!vendors.length || genAll}>{genAll?<span className="inline"><span className="spinner"/> Generating…</span>:"Generate All"}</button>
           </div>
         </div>
         <div className="side-sec">
@@ -419,7 +398,19 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
           <div className="search"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21 21l-4.3-4.3m1.3-5.2a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/></svg>
             <input placeholder="Search in active vendor…" value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
-          {activeVendor && <button className="btn brand" onClick={()=>generateVendorAll(active)}><span>AI Generate All in "{activeVendor.name}"</span></button>}
+
+          {/* Model picker */}
+          <select className="model-pick" value={model} onChange={e=>setModel(e.target.value)} title="AI model">
+            <option value="gemini-2.5-flash">2.5 Flash (thinks more)</option>
+            <option value="gemini-2.0-flash">2.0 Flash (fast)</option>
+            <option value="gemini-2.5-flash-lite">2.5 Flash-Lite (cheapest)</option>
+          </select>
+
+          {activeVendor && (
+            <button className="btn brand" onClick={()=>generateVendorAll(active)}>
+              <span>AI Generate All in "{activeVendor.name}"</span>
+            </button>
+          )}
         </div>
 
         {activeVendor ? (
@@ -445,7 +436,7 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
                         <button className="btn" onClick={()=>d.ai?setNotes(n=>({...n,[key]:n[key]??""})):generateOne(vi,di)} disabled={busy[key]}>{busy[key]?<span className="inline"><span className="spinner"/> AI</span>: d.ai?"AI+":"AI"}</button>
                       </div>
                       {notes[key]!==undefined &&
-                        <input className="note" placeholder="Add notes and press Enter…" value={notes[key]} onChange={e=>setNote(key,e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();generateOne(vi,di)}}}/>}
+                        <input className="note" placeholder="Add notes and press Enter…" value={notes[key]} onChange={e=>setNote(key,e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();generateOne(vi,di)}}}/> }
                     </div>
                     <div/>
                     {d.ai &&

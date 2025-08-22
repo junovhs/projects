@@ -17,9 +17,15 @@ function readBody(req) {
   });
 }
 
+const ALLOWED_MODELS = new Set([
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+]);
+
 export default async function handler(req, res) {
   // CORS
-  res.setHeader("Access-Control-Allow-Origin", "*"); // tighten if you want
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.end();
@@ -58,8 +64,11 @@ export default async function handler(req, res) {
 
     const { messages = [], json = false } = body;
 
-    // Model selection (defaults to 2.5 Flash)
-    const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    // Model selection: allow override via body.model (whitelisted), else env, else default
+    const requestedModel = typeof body.model === "string" ? body.model.trim() : "";
+    const MODEL = ALLOWED_MODELS.has(requestedModel)
+      ? requestedModel
+      : (process.env.GEMINI_MODEL || "gemini-2.5-flash");
 
     // REST endpoint
     const geminiApiUrl =
@@ -71,10 +80,9 @@ export default async function handler(req, res) {
       parts: [{ text: String(m.content ?? "") }],
     }));
 
-    // Build payload (no thinkingConfig here)
+    // Build payload (no thinkingConfig in REST)
     const payload = { contents };
     if (json) {
-      // JSON mode via generationConfig (REST)
       payload.generationConfig = { response_mime_type: "application/json" };
     }
 
@@ -97,8 +105,7 @@ export default async function handler(req, res) {
       data?.candidates?.[0]?.content?.parts?.[0]?.text ??
       (Array.isArray(data?.candidates?.[0]?.content?.parts)
         ? data.candidates[0].content.parts.map((p) => p?.text).filter(Boolean).join("\n")
-        : "") ??
-      "";
+        : "") ?? "";
 
     return send(res, 200, { model: MODEL, content: text });
   } catch (e) {
