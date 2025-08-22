@@ -1,86 +1,123 @@
-// Helpers
+// api/generate.js
+
+// --- helpers ---
 function send(res, status, obj) {
   res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(obj));
 }
 
 function readBody(req) {
   if (req.body != null) return Promise.resolve(req.body);
   return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (c) => (data += c));
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
+    let data = "";
+    req.on("data", (c) => (data += c));
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
   });
 }
 
 export default async function handler(req, res) {
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*'); // tighten if you want
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.end();
+  res.setHeader("Access-Control-Allow-Origin", "*"); // tighten if needed
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.end();
 
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return send(res, 405, { error: 'Method Not Allowed' });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST, OPTIONS");
+    return send(res, 405, { error: "Method Not Allowed" });
   }
 
   // Password check (Bearer)
   const PASSWORD = process.env.AI_API_PASSWORD;
-  if (!PASSWORD) return send(res, 500, { error: 'Server misconfigured: AI_API_PASSWORD missing' });
-  const auth = req.headers.authorization || '';
-  const [scheme, token] = auth.split(' ');
-  if (scheme !== 'Bearer' || token !== PASSWORD) {
+  if (!PASSWORD)
+    return send(res, 500, { error: "Server misconfigured: AI_API_PASSWORD missing" });
+
+  const auth = req.headers.authorization || "";
+  const [scheme, token] = auth.split(" ");
+  if (scheme !== "Bearer" || token !== PASSWORD) {
     res.setHeader('WWW-Authenticate', 'Bearer realm="AI API", error="invalid_token"');
-    return send(res, 401, { error: 'Unauthorized' });
+    return send(res, 401, { error: "Unauthorized" });
   }
 
+  // API key
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) return send(res, 500, { error: 'GEMINI_API_KEY not configured on the server' });
+  if (!GEMINI_API_KEY)
+    return send(res, 500, { error: "GEMINI_API_KEY not configured on the server" });
 
   try {
     // Parse JSON body
     let raw = await readBody(req);
     let body = raw;
-    if (typeof raw === 'string') {
-      try { body = JSON.parse(raw); } catch { body = {}; }
+    if (typeof raw === "string") {
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        body = {};
+      }
     }
     if (!body || !Array.isArray(body.messages)) {
       return send(res, 400, { error: "Invalid request: 'messages' array required" });
     }
+
     const { messages = [], json = false } = body;
 
-    // Build Gemini request
-    const geminiApiUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+    // Model selection (default to 2.5 Flash)
+    const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-    const contents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content ?? '') }]
+    // Build REST endpoint
+    const geminiApiUrl =
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+    // Convert chat messages to Gemini "contents"
+    const contents = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: String(m.content ?? "") }],
     }));
 
+    // Base payload
     const payload = {
       contents,
-      ...(json ? { generationConfig: { response_mime_type: 'application/json' } } : {})
     };
 
+    // JSON mode (works in v1beta via generationConfig)
+    if (json) {
+      payload.generationConfig = {
+        // keep both keys for compatibility across versions
+        response_mime_type: "application/json",
+        responseMimeType: "application/json",
+      };
+    }
+
+    // Disable "thinking" on 2.5 models (your request)
+    // Only attach when using any 2.5 variant to avoid errors on 2.0 / others.
+    if (/^gemini-2\.5-/.test(MODEL)) {
+      payload.thinkingConfig = { thinkingBudget: 0 };
+    }
+
+    // Make the call
     const r = await fetch(geminiApiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     if (!r.ok) {
       const errText = await r.text();
-      return send(res, r.status, { error: 'Gemini error', details: errText });
+      return send(res, r.status, { error: "Gemini error", details: errText });
     }
 
     const data = await r.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return send(res, 200, { content: text });
+
+    // Extract text defensively
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      data?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("\n") ??
+      "";
+
+    return send(res, 200, { model: MODEL, content: text });
   } catch (e) {
-    return send(res, 500, { error: 'server', details: e?.message || String(e) });
+    return send(res, 500, { error: "server", details: e?.message || String(e) });
   }
 }
