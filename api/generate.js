@@ -19,7 +19,7 @@ function readBody(req) {
 
 export default async function handler(req, res) {
   // CORS
-  res.setHeader("Access-Control-Allow-Origin", "*"); // tighten if needed
+  res.setHeader("Access-Control-Allow-Origin", "*"); // tighten if you want
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.end();
@@ -31,8 +31,7 @@ export default async function handler(req, res) {
 
   // Password check (Bearer)
   const PASSWORD = process.env.AI_API_PASSWORD;
-  if (!PASSWORD)
-    return send(res, 500, { error: "Server misconfigured: AI_API_PASSWORD missing" });
+  if (!PASSWORD) return send(res, 500, { error: "Server misconfigured: AI_API_PASSWORD missing" });
 
   const auth = req.headers.authorization || "";
   const [scheme, token] = auth.split(" ");
@@ -43,30 +42,26 @@ export default async function handler(req, res) {
 
   // API key
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY)
-    return send(res, 500, { error: "GEMINI_API_KEY not configured on the server" });
+  if (!GEMINI_API_KEY) return send(res, 500, { error: "GEMINI_API_KEY not configured on the server" });
 
   try {
     // Parse JSON body
     let raw = await readBody(req);
     let body = raw;
     if (typeof raw === "string") {
-      try {
-        body = JSON.parse(raw);
-      } catch {
-        body = {};
-      }
+      try { body = JSON.parse(raw); } catch { body = {}; }
     }
+
     if (!body || !Array.isArray(body.messages)) {
       return send(res, 400, { error: "Invalid request: 'messages' array required" });
     }
 
     const { messages = [], json = false } = body;
 
-    // Model selection (default to 2.5 Flash)
+    // Model selection (defaults to 2.5 Flash)
     const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-    // Build REST endpoint
+    // REST endpoint
     const geminiApiUrl =
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -76,27 +71,14 @@ export default async function handler(req, res) {
       parts: [{ text: String(m.content ?? "") }],
     }));
 
-    // Base payload
-    const payload = {
-      contents,
-    };
-
-    // JSON mode (works in v1beta via generationConfig)
+    // Build payload (no thinkingConfig here)
+    const payload = { contents };
     if (json) {
-      payload.generationConfig = {
-        // keep both keys for compatibility across versions
-        response_mime_type: "application/json",
-        responseMimeType: "application/json",
-      };
+      // JSON mode via generationConfig (REST)
+      payload.generationConfig = { response_mime_type: "application/json" };
     }
 
-    // Disable "thinking" on 2.5 models (your request)
-    // Only attach when using any 2.5 variant to avoid errors on 2.0 / others.
-    if (/^gemini-2\.5-/.test(MODEL)) {
-      payload.thinkingConfig = { thinkingBudget: 0 };
-    }
-
-    // Make the call
+    // Call Gemini
     const r = await fetch(geminiApiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,7 +95,9 @@ export default async function handler(req, res) {
     // Extract text defensively
     const text =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-      data?.candidates?.[0]?.content?.parts?.map((p) => p?.text).filter(Boolean).join("\n") ??
+      (Array.isArray(data?.candidates?.[0]?.content?.parts)
+        ? data.candidates[0].content.parts.map((p) => p?.text).filter(Boolean).join("\n")
+        : "") ??
       "";
 
     return send(res, 200, { model: MODEL, content: text });
