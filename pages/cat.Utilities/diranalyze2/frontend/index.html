@@ -1,0 +1,50 @@
+<!-- DirAnalyze2/frontend/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DirAnalyze 2.0</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>DirAnalyze 2.0</h1>
+    <div class="actions">
+      <button id="btnOpenFolder">Open Folder</button>
+      <button id="btnRefresh">Refresh</button>
+      <button id="btnSaveFile" title="Save current file">Save</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <h2>Files</h2>
+      <ul id="fileList" class="file-list"></ul>
+    </aside>
+
+    <section class="content">
+      <div class="viewer-bar">
+        <span id="currentPath" class="muted">No file loaded</span>
+      </div>
+
+      <pre id="fileViewer" class="code-viewer"><code>Select a file…</code></pre>
+
+      <div id="aiPatchPanel" class="panel">
+        <h2>AI Patch (LNRP)</h2>
+        <textarea id="aiPatchInput" placeholder="Paste LNRP JSON here…"></textarea>
+        <div class="panel-actions">
+          <button id="btnApplyPatch">Apply Patch</button>
+          <button id="btnLoadSample">Load Sample</button>
+        </div>
+        <div id="aiPatchOutputLog" class="log"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initApp } from './src/main.js';
+    initApp();
+  </script>
+</body>
+</html>

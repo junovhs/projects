@@ -1,0 +1,22 @@
+{
+  "version": "lnrp-0.1",
+  "description": "Sample patch demonstrating format",
+  "files": [
+    {
+      "path": "src/example.txt",
+      "patches": [
+        {
+          "range": [2, 3],
+          "replace": [
+            "This line was inserted by LNRP.",
+            "It replaces lines 2-3."
+          ],
+          "guards": {
+            "context_prefix": "Hello",
+            "context_suffix": "EOF"
+          }
+        }
+      ]
+    }
+  ]
+}
