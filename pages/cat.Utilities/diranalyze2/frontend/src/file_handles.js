@@ -1,5 +1,5 @@
 // DirAnalyze2/frontend/src/file_handles.js
-// dav2 progression: keep dav1's FS helpers, but pure ES modules; no backend needed.
+// FS helpers kept simple and compatible with dav1 mental model.
 
 export async function chooseDirectory() {
   if (!window.showDirectoryPicker) {
@@ -19,6 +19,7 @@ export async function listFilesRecursively(dirHandle, basePath = "") {
       out.push(...inner);
     }
   }
+  // hide dot-git contents by default but still list .git/index and HEAD for context? keep all; filtering is on UI
   return out;
 }
 

@@ -9,7 +9,10 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>DirAnalyze 2.0</h1>
+    <div class="brand">
+      <h1>DirAnalyze 2.0</h1>
+      <span class="sub">dav1 → dav2 progression</span>
+    </div>
     <div class="actions">
       <button id="btnOpenFolder">Open Folder</button>
       <button id="btnRefresh">Refresh</button>
@@ -17,29 +20,80 @@
     </div>
   </header>
 
-  <main class="layout">
-    <aside class="sidebar">
-      <h2>Files</h2>
-      <ul id="fileList" class="file-list"></ul>
+  <main id="layout" class="layout" style="--col-left: 300px; --col-mid: 1fr; --col-right: 400px;">
+    <!-- LEFT: Tree / Active Set controls -->
+    <aside id="treePane" class="pane left">
+      <div class="pane-header">
+        <div class="title">Files</div>
+        <div class="toolbar">
+          <button id="btnExpandAll" title="Expand all">Expand</button>
+          <button id="btnCollapseAll" title="Collapse all">Collapse</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="row">
+          <button id="btnSelectAll">Select All</button>
+          <button id="btnDeselectAll">Deselect</button>
+          <label class="chk">
+            <input type="checkbox" id="chkShowSelectedOnly" />
+            <span>Selected Only</span>
+          </label>
+        </div>
+        <div class="row">
+          <input id="fileSearch" type="search" placeholder="Filter files…" />
+        </div>
+        <div class="row stats">
+          <span id="statTotal">0 files</span>
+          <span id="statSelected">0 selected</span>
+        </div>
+      </div>
+
+      <nav id="fileTree" class="tree"></nav>
     </aside>
 
-    <section class="content">
-      <div class="viewer-bar">
-        <span id="currentPath" class="muted">No file loaded</span>
+    <div id="gutterLeft" class="gutter" data-dir="left"></div>
+
+    <!-- CENTER: Viewer -->
+    <section id="editorPane" class="pane center">
+      <div class="pane-header">
+        <div class="title">
+          <span id="currentPath" class="muted">No file loaded</span>
+        </div>
+        <div class="toolbar">
+          <button id="btnCopyVisible" title="Copy visible with line numbers">Copy Visible</button>
+        </div>
       </div>
 
       <pre id="fileViewer" class="code-viewer"><code>Select a file…</code></pre>
+    </section>
 
-      <div id="aiPatchPanel" class="panel">
-        <h2>AI Patch (LNRP)</h2>
-        <textarea id="aiPatchInput" placeholder="Paste LNRP JSON here…"></textarea>
-        <div class="panel-actions">
+    <div id="gutterRight" class="gutter" data-dir="right"></div>
+
+    <!-- RIGHT: AI Patch + Log -->
+    <aside id="patchPane" class="pane right">
+      <div class="pane-header">
+        <div class="title">AI Patch (LNRP)</div>
+        <div class="toolbar">
+          <label class="chk">
+            <input type="checkbox" id="chkApplyToSelected" checked />
+            <span>Apply to Selected</span>
+          </label>
+        </div>
+      </div>
+
+      <textarea id="aiPatchInput" class="patch-input" placeholder="Paste LNRP JSON here…"></textarea>
+      <div class="controls">
+        <div class="row">
           <button id="btnApplyPatch">Apply Patch</button>
           <button id="btnLoadSample">Load Sample</button>
+          <button id="btnClearPatch">Clear</button>
         </div>
-        <div id="aiPatchOutputLog" class="log"></div>
       </div>
-    </section>
+
+      <div class="pane-subheader">Log</div>
+      <div id="aiPatchOutputLog" class="log"></div>
+    </aside>
   </main>
 
   <script type="module">

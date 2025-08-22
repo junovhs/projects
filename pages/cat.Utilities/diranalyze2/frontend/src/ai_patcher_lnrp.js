@@ -1,15 +1,9 @@
 // DirAnalyze2/frontend/src/ai_patcher_lnrp.js
-// dav2 patcher (refactor of dav1 patch logic):
+// dav2 patcher (progression from dav1):
 // - Canonical LNRP format (line ranges, multi-file).
 // - Preserve whitespace as-is.
 // - Strip accidental "123: " prefixes in replacement lines (AI echo).
-// - Optional naive guards for context drift.
-//
-// Expected JSON:
-// { version: "lnrp-0.1",
-//   files: [
-//     { path, patches: [ { range:[start,end], replace:[...], guards? } ], markers? }
-//   ] }
+// - Optional naive guards for context drift (prefix/suffix contains checks).
 
 export async function applyLNRP(jsonText, getHandleByPath, readFileText, writeFileText, logFn) {
   let spec;
