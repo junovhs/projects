@@ -1,9 +1,0 @@
-# DirAnalyze2/frontend/src/example.txt
-Hello
-line 2
-line 3
-EOF
-{
-  "filePath": "DirAnalyze2/frontend/patches/example.lnrp.json",
-  "content": "{\n  \"version\": \"lnrp-0.1\",\n  \"description\": \"Sample patch demonstrating format\",\n  \"files\": [\n    {\n      \"path\": \"src/example.txt\",\n      \"patches\": [\n        {\n          \"range\": [2, 3],\n          \"replace\": [\n            \"This line was inserted by LNRP.\",\n            \"It replaces lines 2-3.\"\n          ],\n          \"guards\": {\n            \"context_prefix\": \"Hello\",\n            \"context_suffix\": \"EOF\"\n          }\n        }\n      ]\n    }\n  ]\n}\n"
-}
