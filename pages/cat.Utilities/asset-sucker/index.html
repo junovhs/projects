@@ -1,10 +1,8 @@
-<!-- Single-file, client-only PDF image extractor. No server. Based on your original UI :contentReference[oaicite:0]{index=0} -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PDF Image Extractor — Asset Sucker</title>
-<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <style>
   :root{--bg:#0b0f17;--panel:#0e1525;--card:#121a2b;--muted:#99a4b8;--text:#e6edf7;--brand:#7c9cff;--accent:#28d7e5;--border:#1c2740;--ring:rgba(124,156,255,.35);--tile:220px}
   *{box-sizing:border-box} html,body{height:100%} body{margin:0;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -90,68 +88,54 @@
 </div>
 <div class="lightbox" id="lightbox"></div>
 
-<!-- pdf.js + worker (CDN) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js" integrity="sha512-aq4ixqlh5gKj/M7GTC18m0+H73ujQ4nYbV4c0oUJjygs83qphR8K7QpQa2nr5+iS0aUba4dI9oJwdQkFt6XyHw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";</script>
-<!-- JSZip (CDN) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-/s63+8qTV6R9tUyA6Y8fJx2N1y9B3VMyVnQJzsxw9DgHfHnqU9mM3a8mD6I7K1b6m9b9v+0G4sY0I0C4Fj4z8g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- JSZip (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
+<!-- Main app (ESM) + pdf.js (ESM) -->
 <script type="module">
-  // --- State ---
+  import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs";
+
   let loading=false, allAssets=[], counts=null, activeTab='all', lightboxIndex=null, errorMessage='', lastFileName='';
-  // --- DOM ---
   const $=s=>document.querySelector(s);
   const fileInput=$('#file-input'), extractBtn=$('#extract-btn'), zipBtn=$('#zip-btn'), scaleSlider=$('#scale-slider'), modeSelect=$('#mode-select'), densitySlider=$('#density-slider'), statsBar=$('#stats-bar'), tabsBar=$('#tabs-bar'), gridContainer=$('#grid-container'), lightbox=$('#lightbox'), statusHint=$('#status-hint');
 
-  // --- Utils ---
   const setStatus=t=>statusHint.textContent=t;
-  const extFromDataUrl=u=>{if(/^data:image\/jpeg/i.test(u))return'jpg'; if(/^data:image\/png/i.test(u))return'png'; if(/^data:image\/gif/i.test(u))return'gif'; if(/^data:image\/webp/i.test(u))return'webp'; return'img'};
+  const extFromDataUrl=u=>/^data:image\/png/i.test(u)?'png':/^data:image\/jpe?g/i.test(u)?'jpg':/^data:image\/webp/i.test(u)?'webp':/^data:image\/gif/i.test(u)?'gif':'img';
   const dataURLtoUint8Array=u=>{const b64=u.split(',')[1]; const bin=atob(b64); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return arr};
-  const uniq=(arr)=>Array.from(new Map(arr.map(a=>[a.url,a])).values());
-  const byCategory=(c)=>allAssets.filter(a=>c==='all'||a.category===c);
+  const uniq=arr=>Array.from(new Map(arr.map(a=>[a.url,a])).values());
+  const byCategory=c=>allAssets.filter(a=>c==='all'||a.category===c);
   const formatName=(base,i,ext)=>`${base}_${String(i).padStart(3,'0')}.${ext}`;
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 
-  // --- Rendering ---
   function render(){
     [fileInput,extractBtn,zipBtn,scaleSlider,modeSelect,densitySlider,...tabsBar.children].forEach(el=>el.disabled=loading);
     extractBtn.textContent=loading?'Working...':'Extract';
     zipBtn.textContent=loading?'…':'Download ZIP';
     zipBtn.disabled=loading||allAssets.length===0;
-
     if(counts){ statsBar.style.display='flex'; statsBar.innerHTML=`<span class="badge-count">${allAssets.length} total</span>${Object.entries(counts).map(([k,v])=>v>0?`<span class="badge-count">${k} ${v}</span>`:'').join('')}` } else { statsBar.style.display='none' }
-
     const tabs=['all','pages','images'];
     tabsBar.innerHTML=tabs.map(key=>`<button class="tab ${activeTab===key?'active':''}" data-tab="${key}" ${allAssets.length===0?'disabled':''}>${key.charAt(0).toUpperCase()+key.slice(1)}</button>`).join('');
-
     if(errorMessage){ gridContainer.innerHTML=`<div class="empty" style="color:#ff9a9a"><b>Error:</b> ${errorMessage}</div>`; return }
     const filtered=byCategory(activeTab);
     if(filtered.length===0){ gridContainer.innerHTML=`<div class="empty">${allAssets.length===0?'Nothing yet. Choose a PDF and click Extract.':'No assets for this tab.'}</div>`; return }
-
     gridContainer.innerHTML=`<div class="grid" role="list">${filtered.map((a,i)=>`
       <div class="tile" role="listitem" data-index="${i}">
         <div class="thumb"><img src="${a.url}" alt="" loading="lazy"><div class="chip">${a.ext||a.category}</div></div>
         <div class="footer"><div class="row">
           <div class="meta"><div class="name" title="${a.name}">${a.name}</div><div class="sub">${a.category} • ${a.w}×${a.h}</div></div>
-          <div class="lb-actions">
-            <a class="btn" href="${a.url}" download="${a.name}">Save</a>
-            <button class="btn" data-copy-url="${a.url}">Copy Data URL</button>
-          </div>
+          <div class="lb-actions"><a class="btn" href="${a.url}" download="${a.name}">Save</a><button class="btn" data-copy-url="${a.url}">Copy Data URL</button></div>
         </div></div>
       </div>`).join('')}</div>`;
   }
 
-  // --- Lightbox ---
   function openLightbox(index){
     lightboxIndex=index; const filtered=byCategory(activeTab); const asset=filtered[lightboxIndex]; if(!asset){ closeLightbox(); return }
     lightbox.innerHTML=`
       <div class="lb-card">
         <div class="lb-head">
           <div class="lb-title">${asset.name}</div>
-          <div class="lb-actions">
-            <a class="btn" href="${asset.url}" download="${asset.name}">Download</a>
-            <button class="lb-close">Close</button>
-          </div>
+          <div class="lb-actions"><a class="btn" href="${asset.url}" download="${asset.name}">Download</a><button class="lb-close">Close</button></div>
         </div>
         <div class="lb-body">
           <img src="${asset.url}" alt="" loading="eager">
@@ -163,7 +147,6 @@
   }
   function closeLightbox(){ lightboxIndex=null; lightbox.style.display='none' }
 
-  // --- Extraction (pdf.js) ---
   async function extract(){
     if(!fileInput.files.length){ errorMessage='Pick a PDF first.'; render(); return }
     loading=true; setStatus('Loading PDF…'); allAssets=[]; counts=null; errorMessage=''; render();
@@ -173,25 +156,21 @@
       const pdf=await pdfjsLib.getDocument({data:ab}).promise;
       const mode=modeSelect.value, scale=clamp(parseFloat(scaleSlider.value)||2,1,3);
       const assets=[];
-
       for(let p=1;p<=pdf.numPages;p++){
         setStatus(`Processing page ${p}/${pdf.numPages}…`);
         const page=await pdf.getPage(p);
         const viewport=page.getViewport({scale});
-
         if(mode!=='images'){
           const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
           c.width=viewport.width; c.height=viewport.height;
           await page.render({canvasContext:ctx,viewport}).promise;
           const url=c.toDataURL('image/png'); assets.push({url,category:'pages',name:`${lastFileName}_page_${String(p).padStart(3,'0')}.png`,ext:'png',w:c.width,h:c.height});
         }
-
         if(mode!=='pages'){
           const grabbed=await grabEmbeddedImages(page,viewport);
           grabbed.forEach((g,i)=>assets.push({url:g.url,category:'images',name:`${lastFileName}_p${String(p).padStart(3,'0')}_img_${String(i+1).padStart(2,'0')}.${g.ext}`,ext:g.ext,w:g.w,h:g.h}));
         }
       }
-
       allAssets=uniq(assets);
       counts={pages:allAssets.filter(a=>a.category==='pages').length, images:allAssets.filter(a=>a.category==='images').length};
       activeTab=counts.images? 'images' : 'pages';
@@ -200,7 +179,6 @@
     finally{ loading=false; render() }
   }
 
-  // Capture embedded images by monkey-patching drawImage during a render
   async function grabEmbeddedImages(page,viewport){
     const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
     c.width=viewport.width; c.height=viewport.height;
@@ -215,7 +193,6 @@
     return out;
   }
 
-  // --- ZIP ---
   async function downloadZip(){
     if(allAssets.length===0) return;
     loading=true; setStatus('Zipping…'); render();
@@ -223,21 +200,21 @@
       const zip=new JSZip();
       const base=lastFileName||'assets';
       allAssets.forEach((a,i)=>{ const data=dataURLtoUint8Array(a.url); zip.file(a.name||formatName(base,i+1,a.ext||extFromDataUrl(a.url)),data) });
-      const blob=await zip.generateAsync({type:'blob'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets_${base}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); setStatus('ZIP ready');
+      const blob=await zip.generateAsync({type:'blob'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets_${base}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); setStatus('ZIP ready');
     }catch(e){ errorMessage=e?.message||'ZIP failed.'; setStatus('Error') }
     finally{ loading=false; render() }
   }
 
-  // --- Events ---
-  extractBtn.addEventListener('click',extract);
-  zipBtn.addEventListener('click',downloadZip);
-  densitySlider.addEventListener('input',e=>document.documentElement.style.setProperty('--tile',`${e.target.value}px`));
+  const tabsBar=document.querySelector('#tabs-bar'), gridContainer=document.querySelector('#grid-container'), lightbox=document.querySelector('#lightbox');
+  document.querySelector('#extract-btn').addEventListener('click',extract);
+  document.querySelector('#zip-btn').addEventListener('click',downloadZip);
+  document.querySelector('#density-slider').addEventListener('input',e=>document.documentElement.style.setProperty('--tile',`${e.target.value}px`));
   tabsBar.addEventListener('click',e=>{ if(e.target.classList.contains('tab')){ activeTab=e.target.dataset.tab; render() } });
   gridContainer.addEventListener('click',e=>{ const tile=e.target.closest('.tile'); const copyBtn=e.target.closest('[data-copy-url]'); if(copyBtn){ navigator.clipboard.writeText(copyBtn.dataset.copyUrl); return } if(e.target.closest('a,button')) return; if(tile) openLightbox(parseInt(tile.dataset.index,10)) });
   lightbox.addEventListener('click',e=>{ if(e.target.closest('.lb-close')) closeLightbox(); else if(e.target.closest('.navprev')) openLightbox(lightboxIndex-1); else if(e.target.closest('.navnext')) openLightbox(lightboxIndex+1); else if(!e.target.closest('.lb-card')) closeLightbox() });
   window.addEventListener('keydown',e=>{ if(lightboxIndex===null) return; if(e.key==='Escape') closeLightbox(); if(e.key==='ArrowRight'&&lightboxIndex<byCategory(activeTab).length-1) openLightbox(lightboxIndex+1); if(e.key==='ArrowLeft'&&lightboxIndex>0) openLightbox(lightboxIndex-1) });
 
-  // --- Initial ---
   setStatus('Idle'); render();
 </script>
 </body>
