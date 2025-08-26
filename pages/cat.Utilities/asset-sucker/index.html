@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Image Extractor — Asset Sucker</title>
+<title>Asset Sucker — Visual Asset Downloader</title>
 <style>
   :root{--bg:#0b0f17;--panel:#0e1525;--card:#121a2b;--muted:#99a4b8;--text:#e6edf7;--brand:#7c9cff;--accent:#28d7e5;--border:#1c2740;--ring:rgba(124,156,255,.35);--tile:220px}
   *{box-sizing:border-box} html,body{height:100%} body{margin:0;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
   .container{max-width:1200px;margin:36px auto;padding:0 16px}
   .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid var(--border);border-radius:18px;box-shadow:0 16px 60px rgba(0,0,0,.35);overflow:hidden}
-  .header{padding:22px;border-bottom:1px solid var(--border)}
+  .header{padding:22px 22px 12px;border-bottom:1px solid var(--border)}
   .title{margin:0;font-weight:700;font-size:22px;display:flex;gap:10px;align-items:center}
   .badge{font-size:12px;color:#031126;background:linear-gradient(135deg,var(--brand),var(--accent));padding:4px 8px;border-radius:999px;font-weight:600}
   .kicker{margin:8px 0 0;color:var(--muted);font-size:13px}
@@ -58,167 +58,196 @@
 <div class="container">
   <div class="card">
     <div class="header">
-      <h1 class="title">Asset Sucker <span class="badge">PDF → images (client-only)</span></h1>
-      <p class="kicker">Upload a PDF. We’ll extract page snapshots or embedded images (experimental) and let you save or ZIP them — all in your browser.</p>
+      <h1 class="title">Asset Sucker <span class="badge">visual assets ↔ ZIP</span></h1>
+      <p class="kicker">Paste a URL (scrapes site images, SVGs, GIFs, icons, CSS backgrounds) or upload a PDF (client-only extraction). Then preview and bundle.</p>
     </div>
     <div class="content">
       <div class="form">
-        <input class="input" id="file-input" type="file" accept="application/pdf">
-        <button class="button" id="extract-btn">Extract</button>
-        <button class="button secondary" id="zip-btn" disabled>Download ZIP</button>
+        <input class="input" id="url-input" type="url" placeholder="https://example.com">
+        <input class="input" id="file-input" type="file" accept="application/pdf" style="max-width:320px">
+        <button class="button" id="scan-btn">Scan</button>
+        <button class="button secondary" id="download-btn" disabled>Download ZIP</button>
       </div>
       <div class="toolbar">
-        <label class="toolbar-field" title="How sharp exported page images are"><span>Page scale</span><input type="range" id="scale-slider" min="1" max="3" step="0.25" value="2"></label>
-        <label class="toolbar-field"><span>Mode</span>
-          <select id="mode-select" class="input" style="width:220px">
-            <option value="pages">Page snapshots (reliable)</option>
-            <option value="images">Embedded images (experimental)</option>
-            <option value="both">Both</option>
-          </select>
-        </label>
+        <label class="toolbar-field"><span>Max assets</span><input type="number" class="input" id="limit-input" min="10" max="300" value="120" style="width:120px"></label>
+        <label class="toolbar-field"><span>Filter</span><input type="text" class="input" id="filter-input" placeholder="filename or domain…" disabled style="width:220px"></label>
         <label class="toolbar-field" title="Tile size"><span>Density</span><input type="range" id="density-slider" min="160" max="320" value="220"></label>
-        <span class="hint" id="status-hint">Idle</span>
+        <span class="hint" id="source-hint">Source: URL</span><span class="hint" id="status-hint">Idle</span>
       </div>
       <div class="stats" id="stats-bar" style="display:none"></div>
       <div class="tabs" id="tabs-bar"></div>
       <hr class="sep">
-      <div id="grid-container"><div class="empty">Nothing yet. Choose a PDF and click Extract.</div></div>
+      <div id="grid-container"><div class="empty">Nothing yet. Paste a URL or choose a PDF, then click Scan.</div></div>
     </div>
   </div>
 </div>
 <div class="lightbox" id="lightbox"></div>
 
+<!-- JSZip (UMD) -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<!-- App (ESM) + pdf.js (ESM) -->
 <script type="module">
   import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs";
   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
 
-  let loading=false, allAssets=[], counts=null, activeTab='all', lightboxIndex=null, errorMessage='', lastFileName='';
+  /* --- State & DOM --- */
+  let loading=false, allAssets=[], counts=null, activeTab='all', lightboxIndex=null, errorMessage='', sourceType='url', filterQuery='', lastFileName='';
   const $=s=>document.querySelector(s);
-  const fileInput=$('#file-input'), extractBtn=$('#extract-btn'), zipBtn=$('#zip-btn'), scaleSlider=$('#scale-slider'), modeSelect=$('#mode-select'), densitySlider=$('#density-slider'), statsBar=$('#stats-bar'), tabsBar=$('#tabs-bar'), gridContainer=$('#grid-container'), lightbox=$('#lightbox'), statusHint=$('#status-hint');
+  const urlInput=$('#url-input'), fileInput=$('#file-input'), scanBtn=$('#scan-btn'), downloadBtn=$('#download-btn'), limitInput=$('#limit-input'), filterInput=$('#filter-input'), densitySlider=$('#density-slider'), statsBar=$('#stats-bar'), tabsBar=$('#tabs-bar'), gridContainer=$('#grid-container'), lightbox=$('#lightbox'), sourceHint=$('#source-hint'), statusHint=$('#status-hint');
 
-  const setStatus=t=>statusHint.textContent=t;
-  const extFromDataUrl=u=>/^data:image\/png/i.test(u)?'png':/^data:image\/jpe?g/i.test(u)?'jpg':/^data:image\/webp/i.test(u)?'webp':/^data:image\/gif/i.test(u)?'gif':'img';
-  const dataURLtoUint8Array=u=>{const b64=u.split(',')[1]; const bin=atob(b64); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return arr};
+  /* --- Helpers --- */
+  const setStatus=t=>statusHint.textContent=t||'';
+  const setSourceType=()=>{ sourceType=fileInput.files.length?'pdf':(urlInput.value?'url':'none'); sourceHint.textContent=`Source: ${sourceType.toUpperCase()}` };
+  const fileNameFromUrl=raw=>{ try{ const u=new URL(raw); return (u.pathname.split('/').pop()||u.hostname) }catch{ return raw } };
+  const hostFromUrl=raw=>{ try{ return new URL(raw).hostname }catch{ return '' } };
+  const extFromUrl=raw=>{ try{ const m=/\.([a-z0-9]+)$/i.exec(new URL(raw).pathname); return m?m[1].toLowerCase():'' }catch{ return '' } };
+  const isDataUrl=u=>/^data:/i.test(u||'');
+  const proxify=u=>isDataUrl(u)?u:`/api/asset-sucker/proxy?url=${encodeURIComponent(u)}`;
+  const byTab=a=>{ const q=filterQuery.trim().toLowerCase(); return a.filter(x=>{ if(activeTab!=='all'&&x.category!==activeTab) return false; if(!q) return true; if(isDataUrl(x.url)) return (x.name||'').toLowerCase().includes(q); try{ const u=new URL(x.url); const name=(u.pathname.split('/').pop()||'').toLowerCase(); return u.hostname.toLowerCase().includes(q)||name.includes(q) }catch{ return (x.url||'').toLowerCase().includes(q) } }) };
   const uniq=arr=>Array.from(new Map(arr.map(a=>[a.url,a])).values());
-  const byCategory=c=>allAssets.filter(a=>c==='all'||a.category===c);
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const dataURLtoUint8=u=>{ const b64=u.split(',')[1]; const bin=atob(b64); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return arr };
 
+  /* --- Rendering --- */
   function render(){
-    [fileInput,extractBtn,zipBtn,scaleSlider,modeSelect,densitySlider,...tabsBar.children].forEach(el=>el.disabled=loading);
-    extractBtn.textContent=loading?'Working...':'Extract';
-    zipBtn.textContent=loading?'…':'Download ZIP';
-    zipBtn.disabled=loading||allAssets.length===0;
+    setSourceType();
+    [urlInput,fileInput,limitInput,scanBtn,downloadBtn,filterInput,densitySlider,...tabsBar.children].forEach(el=>el.disabled=loading);
+    scanBtn.textContent=loading?'Working...':'Scan';
+    downloadBtn.textContent=loading?'…':'Download ZIP';
+    filterInput.disabled=allAssets.length===0;
+    downloadBtn.disabled=loading||(!allAssets.length);
     if(counts){ statsBar.style.display='flex'; statsBar.innerHTML=`<span class="badge-count">${allAssets.length} total</span>${Object.entries(counts).map(([k,v])=>v>0?`<span class="badge-count">${k} ${v}</span>`:'').join('')}` } else { statsBar.style.display='none' }
-    const tabs=['all','pages','images'];
-    tabsBar.innerHTML=tabs.map(key=>`<button class="tab ${activeTab===key?'active':''}" data-tab="${key}" ${allAssets.length===0?'disabled':''}>${key.charAt(0).toUpperCase()+key.slice(1)}</button>`).join('');
+    const tabKeys=['all','pages','images','svgs','gifs','icons','others'];
+    tabsBar.innerHTML=tabKeys.map(k=>`<button class="tab ${activeTab===k?'active':''}" data-tab="${k}" ${allAssets.length===0?'disabled':''}>${k[0].toUpperCase()+k.slice(1)}</button>`).join('');
     if(errorMessage){ gridContainer.innerHTML=`<div class="empty" style="color:#ff9a9a"><b>Error:</b> ${errorMessage}</div>`; return }
-    const filtered=byCategory(activeTab);
-    if(filtered.length===0){ gridContainer.innerHTML=`<div class="empty">${allAssets.length===0?'Nothing yet. Choose a PDF and click Extract.':'No assets for this tab.'}</div>`; return }
-    gridContainer.innerHTML=`<div class="grid" role="list">${filtered.map((a,i)=>`
+    const filtered=byTab(allAssets);
+    if(!filtered.length){ gridContainer.innerHTML=`<div class="empty">${allAssets.length? 'No matches for this filter.' : 'Nothing yet. Paste a URL or choose a PDF, then click Scan.'}</div>`; return }
+    gridContainer.innerHTML=`<div class="grid" role="list">${filtered.map((a,i)=>{ const src=proxify(a.url); const name=a.name||fileNameFromUrl(a.url); const host=isDataUrl(a.url)?(a.source||'embedded'):hostFromUrl(a.url); const ext=a.ext||extFromUrl(a.url)||a.category; const openHref=isDataUrl(a.url)?a.url:a.url; const saveHref=isDataUrl(a.url)?a.url:`${src}&download=1`; return `
       <div class="tile" role="listitem" data-index="${i}">
-        <div class="thumb"><img src="${a.url}" alt="" loading="lazy"><div class="chip">${a.ext||a.category}</div></div>
+        <div class="thumb"><img src="${src}" alt="" loading="lazy"><div class="chip">${ext}</div></div>
         <div class="footer"><div class="row">
-          <div class="meta"><div class="name" title="${a.name}">${a.name}</div><div class="sub">${a.category} • ${a.w}×${a.h}</div></div>
-          <div class="lb-actions"><a class="btn" href="${a.url}" download="${a.name}">Save</a><button class="btn" data-copy-url="${a.url}">Copy Data URL</button></div>
+          <div class="meta"><div class="name" title="${name}">${name}</div><div class="sub">${a.category} • ${a.w||'?'}×${a.h||'?'}</div></div>
+          <div class="lb-actions">
+            <a class="btn" href="${openHref}" target="_blank" rel="noreferrer" ${isDataUrl(a.url)?'download':''}>Open</a>
+            <a class="btn" href="${saveHref}" ${isDataUrl(a.url)?'download':''}>Save</a>
+            ${isDataUrl(a.url)?'':`<button class="btn" data-copy-url="${a.url}" title="Copy original URL">Copy URL</button>`}
+          </div>
         </div></div>
-      </div>`).join('')}</div>`;
+      </div>`}).join('')}</div>`;
   }
 
+  /* --- Lightbox --- */
   function openLightbox(index){
-    lightboxIndex=index; const filtered=byCategory(activeTab); const asset=filtered[lightboxIndex]; if(!asset){ closeLightbox(); return }
+    const filtered=byTab(allAssets); const asset=filtered[index]; if(!asset){ closeLightbox(); return }
+    lightboxIndex=index;
+    const src=proxify(asset.url);
     lightbox.innerHTML=`
       <div class="lb-card">
         <div class="lb-head">
-          <div class="lb-title">${asset.name}</div>
-          <div class="lb-actions"><a class="btn" href="${asset.url}" download="${asset.name}">Download</a><button class="lb-close">Close</button></div>
+          <div class="lb-title">${asset.name||fileNameFromUrl(asset.url)}</div>
+          <div class="lb-actions">
+            <a class="btn" href="${isDataUrl(asset.url)?asset.url:asset.url}" target="_blank" rel="noreferrer" ${isDataUrl(asset.url)?'download':''}>Open</a>
+            <a class="btn" href="${isDataUrl(asset.url)?asset.url:`${src}&download=1`}" ${isDataUrl(asset.url)?'download':''}>Download</a>
+            <button class="lb-close">Close</button>
+          </div>
         </div>
         <div class="lb-body">
-          <img src="${asset.url}" alt="" loading="eager">
-          ${lightboxIndex>0?`<button class="navbtn navprev">←</button>`:''}
-          ${lightboxIndex<filtered.length-1?`<button class="navbtn navnext">→</button>`:''}
+          <img src="${src}" alt="" loading="eager">
+          ${index>0?`<button class="navbtn navprev">←</button>`:''}
+          ${index<filtered.length-1?`<button class="navbtn navnext">→</button>`:''}
         </div>
       </div>`;
     lightbox.style.display='flex';
   }
-  function closeLightbox(){ lightboxIndex=null; lightbox.style.display='none' }
+  const closeLightbox=()=>{ lightboxIndex=null; lightbox.style.display='none' };
 
-  async function extract(){
-    if(!fileInput.files.length){ errorMessage='Pick a PDF first.'; render(); return }
-    loading=true; setStatus('Loading PDF…'); allAssets=[]; counts=null; errorMessage=''; render();
-    try{
-      const file=fileInput.files[0]; const base=(file.name||'document').replace(/\.[^.]+$/,'')||'document';
-      const ab=await file.arrayBuffer();
-      const pdf=await pdfjsLib.getDocument({data:ab}).promise;
-      const mode=modeSelect.value, scale=clamp(parseFloat(scaleSlider.value)||2,1,3);
-      const assets=[];
-      for(let p=1;p<=pdf.numPages;p++){
-        setStatus(`Processing page ${p}/${pdf.numPages}…`);
-        const page=await pdf.getPage(p);
-        const viewport=page.getViewport({scale});
-        if(mode!=='images'){
-          const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
-          c.width=viewport.width; c.height=viewport.height;
-          await page.render({canvasContext:ctx,viewport}).promise;
-          const url=c.toDataURL('image/png'); assets.push({url,category:'pages',name:`${base}_page_${String(p).padStart(3,'0')}.png`,ext:'png',w:c.width,h:c.height});
-        }
-        if(mode!=='pages'){
-          const grabbed=await grabEmbeddedImages(page,viewport);
-          grabbed.forEach((g,i)=>assets.push({url:g.url,category:'images',name:`${base}_p${String(p).padStart(3,'0')}_img_${String(i+1).padStart(2,'0')}.${g.ext}`,ext:g.ext,w:g.w,h:g.h}));
-        }
-      }
-      allAssets=uniq(assets);
-      counts={pages:allAssets.filter(a=>a.category==='pages').length, images:allAssets.filter(a=>a.category==='images').length};
-      activeTab=counts.images? 'images' : 'pages';
-      setStatus('Done'); render();
-    }catch(e){ errorMessage=e?.message||'Failed to process PDF.'; setStatus('Error'); render() }
-    finally{ loading=false; render() }
+  /* --- Web scrape (server endpoints) --- */
+  async function scanWeb(url,limit){
+    const res=await fetch('/api/asset-sucker/scrape',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Failed to scrape (${res.status})`);
+    return {assets:data.assets||[],counts:data.counts||null};
   }
 
+  /* --- PDF extract (client-only) --- */
+  async function scanPdf(file,scale,mode){
+    const ab=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    const base=(file.name||'document').replace(/\.[^.]+$/,'')||'document'; const assets=[];
+    for(let p=1;p<=pdf.numPages;p++){
+      setStatus(`Processing page ${p}/${pdf.numPages}…`);
+      const page=await pdf.getPage(p); const viewport=page.getViewport({scale});
+      if(mode!=='images'){
+        const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
+        c.width=viewport.width; c.height=viewport.height; await page.render({canvasContext:ctx,viewport}).promise;
+        assets.push({url:c.toDataURL('image/png'),category:'pages',name:`${base}_page_${String(p).padStart(3,'0')}.png`,ext:'png',w:c.width,h:c.height,source:'pdf'});
+      }
+      if(mode!=='pages'){
+        const grabbed=await grabEmbeddedImages(page,viewport);
+        grabbed.forEach((g,i)=>assets.push({url:g.url,category:'images',name:`${base}_p${String(p).padStart(3,'0')}_img_${String(i+1).padStart(2,'0')}.png`,ext:'png',w:g.w,h:g.h,source:'pdf'}));
+      }
+    }
+    const uniqd=uniq(assets);
+    return {assets:uniqd,counts:{pages:uniqd.filter(a=>a.category==='pages').length,images:uniqd.filter(a=>a.category==='images').length}};
+  }
   async function grabEmbeddedImages(page,viewport){
     const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
-    c.width=viewport.width; c.height=viewport.height;
-    const seen=new WeakSet(), out=[];
+    c.width=viewport.width; c.height=viewport.height; const seen=new WeakSet(), out=[];
     const orig=ctx.drawImage.bind(ctx);
-    ctx.drawImage=function(img,...rest){
-      try{
-        if(!seen.has(img)){
-          seen.add(img);
-          const w=img.width||img.videoWidth||rest[2]||rest[4]||0;
-          const h=img.height||img.videoHeight||rest[3]||rest[5]||0;
-          if(w>4&&h>4){
-            const t=document.createElement('canvas'); const tctx=t.getContext('2d');
-            t.width=w; t.height=h; tctx.drawImage(img,0,0,w,h);
-            const url=t.toDataURL('image/png'); out.push({url,ext:'png',w,h});
-          }
-        }
-      }catch{}
-      return orig(img,...rest);
-    };
-    await page.render({canvasContext:ctx,viewport}).promise;
-    return out;
+    ctx.drawImage=function(img,...rest){ try{ if(!seen.has(img)){ seen.add(img); const w=img.width||img.videoWidth||rest[2]||rest[4]||0; const h=img.height||img.videoHeight||rest[3]||rest[5]||0; if(w>4&&h>4){ const t=document.createElement('canvas'); const tctx=t.getContext('2d'); t.width=w; t.height=h; tctx.drawImage(img,0,0,w,h); out.push({url:t.toDataURL('image/png'),w,h}) } } }catch{} return orig(img,...rest) };
+    await page.render({canvasContext:ctx,viewport}).promise; return out;
+  }
+
+  /* --- Actions --- */
+  async function scan(){
+    loading=true; errorMessage=''; allAssets=[]; counts=null; setStatus(sourceType==='pdf'?'Reading PDF…':'Contacting server…'); render();
+    try{
+      let result;
+      if(sourceType==='pdf'){
+        const scale=clamp(parseFloat(document.querySelector('#density-slider').value)?2:2,1,3); // density slider controls tiles; PDF scale set below
+        const pdfScale=2; const mode='both';
+        result=await scanPdf(fileInput.files[0],pdfScale,mode);
+      }else if(sourceType==='url'){
+        const limit=Number(limitInput.value||120); result=await scanWeb(urlInput.value,limit);
+      }else{
+        throw new Error('Provide a URL or choose a PDF first.');
+      }
+      allAssets=result.assets; counts=result.counts; activeTab='all'; filterInput.value=''; filterQuery='';
+      setStatus('Done'); render();
+    }catch(e){ errorMessage=e?.message||'Something went wrong.'; setStatus('Error'); render() }
+    finally{ loading=false; render() }
   }
 
   async function downloadZip(){
-    if(allAssets.length===0) return;
-    loading=true; setStatus('Zipping…'); render();
+    loading=true; setStatus('Preparing ZIP…'); render();
     try{
-      const zip=new JSZip();
-      allAssets.forEach(a=>zip.file(a.name,(function(u){const b64=u.split(',')[1]; const bin=atob(b64); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return arr})(a.url)));
-      const blob=await zip.generateAsync({type:'blob'});
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); setStatus('ZIP ready');
-    }catch(e){ errorMessage=e?.message||'ZIP failed.'; setStatus('Error') }
+      if(sourceType==='pdf'){
+        const zip=new JSZip(); (allAssets||[]).forEach(a=>zip.file(a.name||'asset.png',dataURLtoUint8(a.url)));
+        const blob=await zip.generateAsync({type:'blob'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets_pdf.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      }else{
+        const limit=Number(limitInput.value||120);
+        const res=await fetch('/api/asset-sucker/download',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:urlInput.value,limit})});
+        if(!res.ok){ const j=await res.json().catch(()=>({})); throw new Error(j.error||`Download failed: ${res.statusText}`) }
+        const blob=await res.blob(); const a=document.createElement('a'); const host=hostFromUrl(urlInput.value)||'site'; a.href=URL.createObjectURL(blob); a.download=`assets_${host}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      }
+      setStatus('ZIP ready');
+    }catch(e){ errorMessage=e.message; setStatus('Error') }
     finally{ loading=false; render() }
   }
 
-  extractBtn.addEventListener('click',extract);
-  zipBtn.addEventListener('click',downloadZip);
+  /* --- Events --- */
+  scanBtn.addEventListener('click',scan);
+  downloadBtn.addEventListener('click',downloadZip);
   densitySlider.addEventListener('input',e=>document.documentElement.style.setProperty('--tile',`${e.target.value}px`));
+  filterInput.addEventListener('input',e=>{ filterQuery=e.target.value; render() });
   tabsBar.addEventListener('click',e=>{ if(e.target.classList.contains('tab')){ activeTab=e.target.dataset.tab; render() } });
   gridContainer.addEventListener('click',e=>{ const tile=e.target.closest('.tile'); const copyBtn=e.target.closest('[data-copy-url]'); if(copyBtn){ navigator.clipboard.writeText(copyBtn.dataset.copyUrl); return } if(e.target.closest('a,button')) return; if(tile) openLightbox(parseInt(tile.dataset.index,10)) });
   lightbox.addEventListener('click',e=>{ if(e.target.closest('.lb-close')) closeLightbox(); else if(e.target.closest('.navprev')) openLightbox(lightboxIndex-1); else if(e.target.closest('.navnext')) openLightbox(lightboxIndex+1); else if(!e.target.closest('.lb-card')) closeLightbox() });
-  window.addEventListener('keydown',e=>{ if(lightboxIndex===null) return; if(e.key==='Escape') closeLightbox(); if(e.key==='ArrowRight'&&lightboxIndex<byCategory(activeTab).length-1) openLightbox(lightboxIndex+1); if(e.key==='ArrowLeft'&&lightboxIndex>0) openLightbox(lightboxIndex-1) });
+  window.addEventListener('keydown',e=>{ if(lightboxIndex===null) return; if(e.key==='Escape') closeLightbox(); if(e.key==='ArrowRight') openLightbox(lightboxIndex+1); if(e.key==='ArrowLeft') openLightbox(lightboxIndex-1) });
+  urlInput.addEventListener('input',()=>{ if(urlInput.value) fileInput.value=''; render() });
+  fileInput.addEventListener('change',()=>{ if(fileInput.files.length) urlInput.value=''; render() });
 
+  /* --- Init --- */
   setStatus('Idle'); render();
 </script>
 </body>
