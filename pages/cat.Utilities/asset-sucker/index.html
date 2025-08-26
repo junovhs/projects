@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Asset Sucker — Web & PDF (Aggressive)</title>
+<title>Asset Sucker — Web & PDF</title>
 <style>
   :root{--bg:#0b0f17;--panel:#0e1525;--card:#121a2b;--muted:#99a4b8;--text:#e6edf7;--brand:#7c9cff;--accent:#28d7e5;--border:#1c2740;--ring:rgba(124,156,255,.35);--tile:220px}
   *{box-sizing:border-box} html,body{height:100%} body{margin:0;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -51,7 +51,6 @@
   .navbtn{position:absolute;top:50%;transform:translateY(-50%);border:1px solid var(--border);background:#0e162a;color:#fff;border-radius:10px;padding:10px 12px;cursor:pointer}
   .navprev{left:12px} .navnext{right:12px} .lb-close{background:#0e162a;color:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
   .hint{font-size:12px;color:var(--muted)}
-  .switch{display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -59,7 +58,7 @@
   <div class="card">
     <div class="header">
       <h1 class="title">Asset Sucker <span class="badge">web & pdf</span></h1>
-      <p class="kicker">Paste a URL to scrape (incl. <code>&lt;use&gt;</code>-based SVGs) or upload a PDF. Aggressive mode digs raw PDF streams for extra images.</p>
+      <p class="kicker">Paste a URL to scrape assets (incl. <code>&lt;use&gt;</code>-based SVGs) or upload a PDF for client-side extraction.</p>
     </div>
     <div class="content">
       <div class="form">
@@ -72,8 +71,6 @@
         <label class="toolbar-field"><span>Max assets</span><input type="number" class="input" id="limit-input" min="10" max="300" value="120" style="width:120px"></label>
         <label class="toolbar-field"><span>Filter</span><input type="text" class="input" id="filter-input" placeholder="filename or domain…" disabled style="width:220px"></label>
         <label class="toolbar-field" title="Tile size"><span>Density</span><input type="range" id="density-slider" min="160" max="320" value="220"></label>
-        <label class="toolbar-field switch"><input type="checkbox" id="pages-toggle" checked><span>Page snapshots</span></label>
-        <label class="toolbar-field switch"><input type="checkbox" id="aggr-toggle" checked><span>Aggressive PDF scan</span></label>
         <span class="hint" id="source-hint">Source: URL</span><span class="hint" id="status-hint">Idle</span>
       </div>
       <div class="stats" id="stats-bar" style="display:none"></div>
@@ -90,25 +87,22 @@
   import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs";
   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
 
-  // --- State & DOM ---
-  let loading=false, allAssets=[], counts=null, activeTab='all', lightboxIndex=null, errorMessage='', sourceType='url', filterQuery='';
+  let loading=false, allAssets=[], counts=null, activeTab='all', lightboxIndex=null, errorMessage='', sourceType='url', filterQuery='', lastFileName='';
   const $=s=>document.querySelector(s);
-  const urlInput=$('#url-input'), fileInput=$('#file-input'), scanBtn=$('#scan-btn'), downloadBtn=$('#download-btn'), limitInput=$('#limit-input'), filterInput=$('#filter-input'), densitySlider=$('#density-slider'), statsBar=$('#stats-bar'), tabsBar=$('#tabs-bar'), gridContainer=$('#grid-container'), lightbox=$('#lightbox'), sourceHint=$('#source-hint'), statusHint=$('#status-hint'), pagesToggle=$('#pages-toggle'), aggrToggle=$('#aggr-toggle');
+  const urlInput=$('#url-input'), fileInput=$('#file-input'), scanBtn=$('#scan-btn'), downloadBtn=$('#download-btn'), limitInput=$('#limit-input'), filterInput=$('#filter-input'), densitySlider=$('#density-slider'), statsBar=$('#stats-bar'), tabsBar=$('#tabs-bar'), gridContainer=$('#grid-container'), lightbox=$('#lightbox'), sourceHint=$('#source-hint'), statusHint=$('#status-hint');
 
-  // --- Helpers ---
-  const setStatus=t=>statusHint.textContent=t||''; const isDataUrl=u=>/^data:|^blob:/i.test(u||''); const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const setStatus=t=>statusHint.textContent=t||''; const isDataUrl=u=>/^data:/i.test(u||''); const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
   const fileNameFromUrl=raw=>{try{const u=new URL(raw);return(u.pathname.split('/').pop()||u.hostname)}catch{return raw}};
   const hostFromUrl=raw=>{try{return new URL(raw).hostname}catch{return''}};
   const extFromUrl=raw=>{try{const m=/\.([a-z0-9]+)$/i.exec(new URL(raw).pathname);return m?m[1].toLowerCase():''}catch{return''}};
   const proxify=u=>isDataUrl(u)?u:`/api/asset-sucker/proxy?url=${encodeURIComponent(u)}`;
   const dataURLtoUint8=u=>{const b64=u.split(',')[1];const bin=atob(b64);const len=bin.length;const arr=new Uint8Array(len);for(let i=0;i<len;i++)arr[i]=bin.charCodeAt(i);return arr};
-  const uniqByUrl=arr=>Array.from(new Map(arr.map(a=>[a.url,a])).values());
-  const byTab=a=>{const q=filterQuery.trim().toLowerCase();return a.filter(x=>{if(activeTab!=='all'&&x.category!==activeTab)return false;if(!q)return true; if(isDataUrl(x.url))return (x.name||'').toLowerCase().includes(q); try{const u=new URL(x.url);const name=(u.pathname.split('/').pop()||'').toLowerCase();return u.hostname.toLowerCase().includes(q)||name.includes(q)}catch{return (x.url||'').toLowerCase().includes(q)}})};
+  const uniq=arr=>Array.from(new Map(arr.map(a=>[a.url,a])).values());
+  const byTab=a=>{const q=filterQuery.trim().toLowerCase();return a.filter(x=>{if(activeTab!=='all'&&x.category!==activeTab)return false;if(!q)return true;if(isDataUrl(x.url))return (x.name||'').toLowerCase().includes(q);try{const u=new URL(x.url);const name=(u.pathname.split('/').pop()||'').toLowerCase();return u.hostname.toLowerCase().includes(q)||name.includes(q)}catch{return (x.url||'').toLowerCase().includes(q)}})};
 
-  // --- Render ---
   function render(){
     sourceType=fileInput.files.length?'pdf':(urlInput.value?'url':'none'); sourceHint.textContent=`Source: ${sourceType.toUpperCase()}`;
-    [urlInput,fileInput,limitInput,scanBtn,downloadBtn,filterInput,densitySlider,pagesToggle,aggrToggle,...tabsBar.children].forEach(el=>el.disabled=loading);
+    [urlInput,fileInput,limitInput,scanBtn,downloadBtn,filterInput,densitySlider,...tabsBar.children].forEach(el=>el.disabled=loading);
     scanBtn.textContent=loading?'Working...':'Scan'; downloadBtn.textContent=loading?'…':'Download ZIP';
     filterInput.disabled=allAssets.length===0; downloadBtn.disabled=loading||(!allAssets.length);
     if(counts){statsBar.style.display='flex';statsBar.innerHTML=`<span class="badge-count">${allAssets.length} total</span>${Object.entries(counts).map(([k,v])=>v>0?`<span class="badge-count">${k} ${v}</span>`:'').join('')}`}else{statsBar.style.display='none'}
@@ -131,7 +125,6 @@
       </div>`}).join('')}</div>`;
   }
 
-  // --- Lightbox ---
   function openLightbox(index){
     const filtered=byTab(allAssets); const a=filtered[index]; if(!a){closeLightbox();return}
     const src=proxify(a.url);
@@ -154,193 +147,125 @@
   }
   const closeLightbox=()=>{lightboxIndex=null;lightbox.style.display='none'};
 
-  // --- Web: scrape + <use> SVG resolver ---
   async function scan(){
-    loading=true; errorMessage=''; allAssets=[]; counts=null; render();
+    loading=true; errorMessage=''; allAssets=[]; counts=null; setStatus(sourceType==='pdf'?'Reading PDF…':'Contacting server…'); render();
     try{
       let result;
-      if(sourceType==='pdf'){ result=await scanPdfEnhanced(fileInput.files[0]) }
+      if(sourceType==='pdf'){ result=await scanPdf(fileInput.files[0],2,'both') }
       else if(sourceType==='url'){
-        setStatus('Scraping…');
         const url=urlInput.value, limit=Number(limitInput.value||120);
         const res=await fetch('/api/asset-sucker/scrape',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
         const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||`Failed to scrape (${res.status})`);
-        const html=await (await fetch(proxify(url))).text().catch(()=>null);
-        const extras=html? await extractUseSvgsFromHtml(html,url) : [];
-        result={assets:[...(data.assets||[]),...extras],counts:data.counts||null};
-        setStatus('Done');
+        const baseHtml=await (await fetch(proxify(url))).text().catch(()=>null);
+        const extraSvgs=baseHtml? await extractUseSvgsFromHtml(baseHtml,url) : [];
+        result={assets:[...(data.assets||[]), ...extraSvgs], counts:data.counts||null};
       } else throw new Error('Provide a URL or choose a PDF first.');
-      allAssets=dedupeByDigest(await attachDigests(result.assets)); counts=countByCat(allAssets); activeTab='all'; filterInput.value=''; filterQuery=''; render();
+      allAssets=uniq(result.assets); counts=countByCat(allAssets); activeTab='all'; filterInput.value=''; filterQuery=''; setStatus('Done'); render();
     }catch(e){ errorMessage=e?.message||'Something went wrong.'; setStatus('Error'); render() }
     finally{ loading=false; render() }
   }
+
   function countByCat(arr){ const c={images:0,svgs:0,gifs:0,icons:0,others:0,pages:0}; arr.forEach(a=>{c[a.category]=(c[a.category]||0)+1}); return c }
 
-  // --- PDF: enhanced (pages + pdf.js drawImage + aggressive byte scan) ---
-  async function scanPdfEnhanced(file){
-    const base=(file.name||'document').replace(/\.[^.]+$/,'')||'document'; const assets=[]; setStatus('Reading PDF…');
-    const ab=await file.arrayBuffer(); const bytes=new Uint8Array(ab);
-    const pdf=await pdfjsLib.getDocument({data:ab}).promise; const scale=2;
-    for(let p=1;p<=pdf.numPages;p++){
-      setStatus(`Rendering page ${p}/${pdf.numPages}…`);
-      const page=await pdf.getPage(p); const viewport=page.getViewport({scale});
-      if(pagesToggle.checked){
-        const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
-        c.width=viewport.width; c.height=viewport.height; await page.render({canvasContext:ctx,viewport}).promise;
-        assets.push({url:c.toDataURL('image/png'),category:'pages',name:`${base}_page_${String(p).padStart(3,'0')}.png`,ext:'png',w:c.width,h:c.height,source:'pdf'});
+  async function downloadZip(){
+    loading=true; setStatus('Preparing ZIP…'); render();
+    try{
+      if(sourceType==='pdf'){
+        const zip=new JSZip(); (allAssets||[]).forEach(a=>zip.file(a.name||'asset',dataURLtoUint8(a.url))); const blob=await zip.generateAsync({type:'blob'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets_pdf.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      }else{
+        const limit=Number(limitInput.value||120);
+        const res=await fetch('/api/asset-sucker/download',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:urlInput.value,limit})});
+        if(!res.ok){const j=await res.json().catch(()=>({})); throw new Error(j.error||`Download failed: ${res.statusText}`)}
+        const blob=await res.blob(); const a=document.createElement('a'); const host=hostFromUrl(urlInput.value)||'site'; a.href=URL.createObjectURL(blob); a.download=`assets_${host}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
       }
-      setStatus(`Sniffing page ${p} images…`);
-      const grabbed=await hijackDrawImage(page,viewport);
-      grabbed.forEach((g,i)=>assets.push({url:g.url,category:'images',name:`${base}_p${String(p).padStart(3,'0')}_img_${String(i+1).padStart(2,'0')}.png`,ext:'png',w:g.w,h:g.h,source:'pdf'}));
-    }
-    if(aggrToggle.checked){
-      setStatus('Aggressive scan: JPEGs…'); const a1=await findJPEGs(bytes,base);
-      setStatus('Aggressive scan: PNGs…'); const a2=await findPNGs(bytes,base);
-      setStatus('Aggressive scan: XObjects…'); const a3=await findPDFStreams(bytes,base,true);
-      setStatus('Aggressive scan: Inline/Streams…'); const a4=await findPDFStreams(bytes,base,false);
-      assets.push(...a1,...a2,...a3,...a4);
-    }
-    setStatus('Done');
-    return {assets:assets};
+      setStatus('ZIP ready');
+    }catch(e){ errorMessage=e.message; setStatus('Error') }
+    finally{ loading=false; render() }
   }
-  async function hijackDrawImage(page,viewport){
-    const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true});
-    c.width=viewport.width; c.height=viewport.height; const seen=new WeakSet(), out=[];
+
+  async function scanPdf(file,scale,mode){
+    const ab=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({data:ab}).promise; const base=(file.name||'document').replace(/\.[^.]+$/,'')||'document'; const assets=[];
+    for(let p=1;p<=pdf.numPages;p++){
+      setStatus(`Processing page ${p}/${pdf.numPages}…`);
+      const page=await pdf.getPage(p); const viewport=page.getViewport({scale});
+      if(mode!=='images'){ const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true}); c.width=viewport.width; c.height=viewport.height; await page.render({canvasContext:ctx,viewport}).promise; assets.push({url:c.toDataURL('image/png'),category:'pages',name:`${base}_page_${String(p).padStart(3,'0')}.png`,ext:'png',w:c.width,h:c.height,source:'pdf'}) }
+      if(mode!=='pages'){ const grabbed=await grabEmbeddedImages(page,viewport); grabbed.forEach((g,i)=>assets.push({url:g.url,category:'images',name:`${base}_p${String(p).padStart(3,'0')}_img_${String(i+1).padStart(2,'0')}.png`,ext:'png',w:g.w,h:g.h,source:'pdf'})) }
+    }
+    return {assets:uniq(assets),counts:null};
+  }
+
+  async function grabEmbeddedImages(page,viewport){
+    const c=document.createElement('canvas'); const ctx=c.getContext('2d',{willReadFrequently:true}); c.width=viewport.width; c.height=viewport.height; const seen=new WeakSet(), out=[];
     const orig=ctx.drawImage.bind(ctx);
     ctx.drawImage=function(img,...rest){ try{ if(!seen.has(img)){ seen.add(img); const w=img.width||img.videoWidth||rest[2]||rest[4]||0; const h=img.height||img.videoHeight||rest[3]||rest[5]||0; if(w>4&&h>4){ const t=document.createElement('canvas'); const tctx=t.getContext('2d'); t.width=w; t.height=h; tctx.drawImage(img,0,0,w,h); out.push({url:t.toDataURL('image/png'),w,h}) } } }catch{} return orig(img,...rest) };
     await page.render({canvasContext:ctx,viewport}).promise; return out;
   }
 
-  // --- Aggressive PDF byte-level scan (JPEG/PNG markers + streams) ---
-  async function findJPEGs(bytes, base){
-    const out=[]; let n=0;
-    for(let i=0;i<bytes.length-1;i++){
-      if(bytes[i]===0xFF && bytes[i+1]===0xD8){
-        let end=-1; for(let j=i+2;j<bytes.length-1;j++){ if(bytes[j]===0xFF && bytes[j+1]===0xD9){ end=j+2; break } }
-        if(end>i && end-i>800){ const blob=new Blob([bytes.slice(i,end)],{type:'image/jpeg'}); const meta=await blobMeta(blob); if(meta){ n++; out.push({url:meta.url,category:'images',name:`${base}_jpeg_${n}.jpg`,ext:'jpg',w:meta.w,h:meta.h,source:'bytes-jpeg'}) } i=end-1; }
-      }
-    }
-    return out;
-  }
-  async function findPNGs(bytes, base){
-    const out=[]; let n=0; const HDR=[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A];
-    for(let i=0;i<bytes.length-8;i++){
-      let ok=true; for(let k=0;k<8;k++){ if(bytes[i+k]!==HDR[k]){ ok=false; break } }
-      if(!ok) continue;
-      let end=-1; for(let j=i+8;j<bytes.length-8;j++){ if(bytes[j]===0x49&&bytes[j+1]===0x45&&bytes[j+2]===0x4E&&bytes[j+3]===0x44){ end=j+8; break } }
-      if(end>i){ const blob=new Blob([bytes.slice(i,end)],{type:'image/png'}); const meta=await blobMeta(blob); if(meta){ n++; out.push({url:meta.url,category:'images',name:`${base}_png_${n}.png`,ext:'png',w:meta.w,h:meta.h,source:'bytes-png'}) } i=end-1; }
-    }
-    return out;
-  }
-  async function findPDFStreams(bytes, base, onlyImageObjects){
-    const out=[]; const text=new TextDecoder('latin1').decode(bytes);
-    const reObj=/(\d+)\s+\d+\s+obj([\s\S]*?)endobj/g; let m, idx=0;
-    while((m=reObj.exec(text))!==null){
-      const obj=m[0]; if(onlyImageObjects && !( /\/Subtype\s*\/Image/.test(obj) || /\/Filter\s*\/DCTDecode/.test(obj) || /\/Filter\s*\/FlateDecode/.test(obj))) continue;
-      const s=obj.indexOf('stream'); const e=obj.indexOf('endstream'); if(s<0||e<0) continue;
-      let start=m.index+s+6, end=m.index+e;
-      while(bytes[start]===0x0A||bytes[start]===0x0D||bytes[start]===0x20) start++;
-      const stream=bytes.slice(start,end); if(stream.length<80) continue;
-      const blk=await interpretStream(stream); if(!blk) continue;
-      idx++; out.push({url:blk.url,category:'images',name:`${base}_${onlyImageObjects?'xobj':'stream'}_${idx}.${blk.ext}`,ext:blk.ext,w:blk.w,h:blk.h,source:onlyImageObjects?'xobject':'stream'});
-    }
-    if(!onlyImageObjects){ // quick BI…ID…EI inline scan
-      let p=0, c=0;
-      while(p<text.length){
-        const bi=text.indexOf('BI',p); if(bi===-1) break;
-        const id=text.indexOf('ID',bi); if(id===-1||id-bi>1000){ p=bi+2; continue }
-        const ei=text.indexOf('EI',id); if(ei===-1||ei-id>200000){ p=bi+2; continue }
-        let start=mappedIndex(id+2), end=mappedIndex(ei); const seg=bytes.slice(start,end); const blk=await interpretStream(seg); if(blk){ c++; out.push({url:blk.url,category:'images',name:`${base}_inline_${c}.${blk.ext}`,ext:blk.ext,w:blk.w,h:blk.h,source:'inline'}) }
-        p=ei+2;
-      }
-    }
-    return out;
-
-    function mappedIndex(ti){ return ti } // latin1 decode keeps byte offsets aligned
-  }
-  async function interpretStream(data){
-    if(data[0]===0xFF && data[1]===0xD8){ const blob=new Blob([data],{type:'image/jpeg'}); const m=await blobMeta(blob); if(m) return {url:m.url,ext:'jpg',w:m.w,h:m.h} }
-    if(data[0]===0x89 && data[1]===0x50){ const blob=new Blob([data],{type:'image/png'}); const m=await blobMeta(blob); if(m) return {url:m.url,ext:'png',w:m.w,h:m.h} }
-    return null;
-  }
-  function blobMeta(blob){
-    return new Promise(res=>{
-      const url=URL.createObjectURL(blob); const img=new Image();
-      img.onload=()=>res({url,w:img.naturalWidth,h:img.naturalHeight}); img.onerror=()=>{URL.revokeObjectURL(url); res(null)}; img.src=url;
-    });
-  }
-
-  // --- Digest / dedupe (so multiple methods don’t double-add) ---
-  async function attachDigests(arr){
-    const out=[]; for(const a of arr){ try{
-      if(a.url.startsWith('blob:')){ const b=await fetch(a.url).then(r=>r.blob()); const buf=await b.arrayBuffer(); const h=await crypto.subtle.digest('SHA-256',buf); a._digest=hex(new Uint8Array(h)); }
-      else if(a.url.startsWith('data:')){ const u8=dataURLtoUint8(a.url); const h=await crypto.subtle.digest('SHA-256',u8); a._digest=hex(new Uint8Array(h)); }
-      else a._digest=a.url; out.push(a);
-    }catch{ out.push(a) } }
-    return out;
-  }
-  function dedupeByDigest(arr){
-    const seen=new Set(); const out=[]; for(const a of arr){ const k=a._digest||a.url; if(seen.has(k)) continue; seen.add(k); out.push(a) } return out;
-  }
-  const hex=u8=>Array.from(u8).map(b=>b.toString(16).padStart(2,'0')).join('');
-
-  // --- <use> SVG extraction for web pages ---
   async function extractUseSvgsFromHtml(html, baseUrl){
-    const doc=new DOMParser().parseFromString(html,'text/html'); const vars=await collectCssVars(doc,baseUrl); const svgs=[];
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    const cssVars=await collectCssVars(doc,baseUrl); const svgs=[];
     for(const use of doc.querySelectorAll('svg use')){ const href=use.getAttribute('href')||use.getAttribute('xlink:href')||''; if(!href) continue;
       const [spriteUrl, frag]=href.includes('#')?href.split('#'):[ '', href.replace(/^#/,'') ]; if(!frag) continue;
       try{
         const srcDoc = spriteUrl ? await fetchSvgDoc(new URL(spriteUrl,baseUrl).href) : parseInlineSprite(doc);
         const node = srcDoc.getElementById(frag); if(!node) continue;
         const vb = node.getAttribute('viewBox') || srcDoc.documentElement.getAttribute('viewBox') || '';
-        const out = buildStandaloneSvg(node, vb, srcDoc, vars);
+        const out = buildStandaloneSvg(node, vb, srcDoc, cssVars);
         const data='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(out.xml);
         svgs.push({url:data,name:`${frag}.svg`,category:'svgs',ext:'svg',w:null,h:null,source:'sprite'});
       }catch{}
     }
     return svgs;
   }
-  async function fetchSvgDoc(url){ const txt=await (await fetch(proxify(url))).text(); return new DOMParser().parseFromString(txt,'image/svg+xml') }
-  function parseInlineSprite(doc){ const svg=doc.querySelector('svg[style*="display:none"], svg[hidden]')||doc.querySelector('svg'); if(!svg) return new DOMParser().parseFromString('<svg/>','image/svg+xml'); return new DOMParser().parseFromString(new XMLSerializer().serializeToString(svg),'image/svg+xml') }
+
+  async function fetchSvgDoc(url){
+    const txt=await (await fetch(proxify(url))).text(); return new DOMParser().parseFromString(txt,'image/svg+xml');
+  }
+  function parseInlineSprite(doc){
+    const svg=doc.querySelector('svg[style*="display:none"], svg[hidden]')||doc.querySelector('svg'); if(!svg) return new DOMParser().parseFromString('<svg/>','image/svg+xml');
+    return new DOMParser().parseFromString(new XMLSerializer().serializeToString(svg),'image/svg+xml');
+  }
+
   function buildStandaloneSvg(node, viewBox, srcDoc, cssVars){
     const ns='http://www.w3.org/2000/svg'; const outDoc=document.implementation.createDocument(ns,'svg',null); const root=outDoc.documentElement; root.setAttribute('xmlns',ns); if(viewBox) root.setAttribute('viewBox',viewBox);
-    const content=node.tagName.toLowerCase()==='symbol'?(()=>{const g=outDoc.createElementNS(ns,'g'); g.innerHTML=node.innerHTML; return g})():node.cloneNode(true);
-    root.appendChild(outDoc.importNode(content,true)); inlineVarAttrs(root,cssVars); copyNeededDefs(root,srcDoc,outDoc);
+    const content = node.tagName.toLowerCase()==='symbol' ? (()=>{const g=outDoc.createElementNS(ns,'g'); g.innerHTML=node.innerHTML; return g})() : node.cloneNode(true);
+    root.appendChild(outDoc.importNode(content,true));
+    inlineVarAttrs(root, cssVars); copyNeededDefs(root, srcDoc, outDoc);
     const xml=new XMLSerializer().serializeToString(outDoc); return {xml};
   }
-  function inlineVarAttrs(root,vars){
-    const it=document.createNodeIterator(root,NodeFilter.SHOW_ELEMENT);
-    for(let el=it.nextNode();el;el=it.nextNode()){ ['fill','stroke'].forEach(p=>{ const v=el.getAttribute(p); if(v&&/var\(/.test(v)){ const m=/var\((--[^,\s)]+)(?:,\s*([^)]+))?\)/.exec(v); if(m){ const rep=(vars[m[1]]||m[2]||'currentColor').trim(); el.setAttribute(p,rep) } } }) }
-  }
-  function copyNeededDefs(root,srcDoc,outDoc){
-    const ids=new Set(); const it=document.createNodeIterator(root,NodeFilter.SHOW_ELEMENT);
-    for(let el=it.nextNode();el;el=it.nextNode()){ ['fill','stroke','filter','clip-path','mask'].forEach(p=>{ const v=el.getAttribute(p)||''; const m=/url\(#([^)]+)\)/.exec(v); if(m) ids.add(m[1]) }) }
-    if(!ids.size) return; const defs=outDoc.createElementNS('http://www.w3.org/2000/svg','defs');
-    ids.forEach(id=>{ const n=srcDoc.getElementById(id); if(n) defs.appendChild(outDoc.importNode(n,true)) }); if(defs.childNodes.length) root.insertBefore(defs,root.firstChild);
-  }
-  async function collectCssVars(doc,baseUrl){
-    const vars={}; const pull=t=>{const r=/--([A-Za-z0-9\-_]+)\s*:\s*([^;]+);/g; let m; while((m=r.exec(t))) vars['--'+m[1]]=m[2].trim() };
-    doc.querySelectorAll('style').forEach(s=>pull(s.textContent||'')); const links=[...doc.querySelectorAll('link[rel="stylesheet"]')].slice(0,3);
-    for(const l of links){ try{ const href=new URL(l.getAttribute('href'),baseUrl).href; const css=await (await fetch(proxify(href))).text(); pull(css) }catch{} } return vars;
+
+  function inlineVarAttrs(root, vars){
+    const it=document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
+    for(let el=it.nextNode(); el; el=it.nextNode()){
+      ['fill','stroke'].forEach(p=>{
+        const v=el.getAttribute(p); if(v&&/var\(/.test(v)){ const m=/var\((--[^,\s)]+)(?:,\s*([^)]+))?\)/.exec(v); if(m){ const rep=(vars[m[1]]||m[2]||'currentColor').trim(); el.setAttribute(p,rep) } }
+      });
+    }
   }
 
-  // --- ZIP ---
-  async function downloadZip(){
-    loading=true; setStatus('Preparing ZIP…'); render();
-    try{
-      if(sourceType==='pdf'){ const zip=new JSZip(); (allAssets||[]).forEach(a=>zip.file(a.name||'asset', dataForZip(a))); const blob=await zip.generateAsync({type:'blob'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`assets_pdf.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href) }
-      else { const limit=Number(limitInput.value||120); const res=await fetch('/api/asset-sucker/download',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:urlInput.value,limit})}); if(!res.ok){const j=await res.json().catch(()=>({})); throw new Error(j.error||`Download failed: ${res.statusText}`)} const blob=await res.blob(); const a=document.createElement('a'); const host=hostFromUrl(urlInput.value)||'site'; a.href=URL.createObjectURL(blob); a.download=`assets_${host}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href) }
-      setStatus('ZIP ready');
-    }catch(e){ errorMessage=e.message; setStatus('Error') }
-    finally{ loading=false; render() }
-  }
-  function dataForZip(a){
-    if(a.url.startsWith('data:')) return dataURLtoUint8(a.url);
-    // blob: URL -> fetch to bytes
-    return {async: true, data: (async()=>new Uint8Array(await (await fetch(a.url)).arrayBuffer()))()};
+  function copyNeededDefs(root, srcDoc, outDoc){
+    const ids=new Set(); const it=document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
+    for(let el=it.nextNode(); el; el=it.nextNode()){
+      ['fill','stroke','filter','clip-path','mask'].forEach(p=>{
+        const v=el.getAttribute(p)||''; const m=/url\(#([^)]+)\)/.exec(v); if(m) ids.add(m[1]);
+      });
+    }
+    if(!ids.size) return;
+    const defs=outDoc.createElementNS('http://www.w3.org/2000/svg','defs');
+    ids.forEach(id=>{ const n=srcDoc.getElementById(id); if(n) defs.appendChild(outDoc.importNode(n,true)) });
+    if(defs.childNodes.length) root.insertBefore(defs, root.firstChild);
   }
 
-  // --- Events ---
+  async function collectCssVars(doc, baseUrl){
+    const vars={};
+    const pull=(text)=>{ const r=/--([A-Za-z0-9\-_]+)\s*:\s*([^;]+);/g; let m; while((m=r.exec(text))) vars['--'+m[1]]=m[2].trim() };
+    doc.querySelectorAll('style').forEach(s=>pull(s.textContent||''));
+    const links=[...doc.querySelectorAll('link[rel="stylesheet"]')].slice(0,3);
+    for(const l of links){ try{ const href=new URL(l.getAttribute('href'),baseUrl).href; const css=await (await fetch(proxify(href))).text(); pull(css) }catch{} }
+    return vars;
+  }
+
   scanBtn.addEventListener('click',scan);
   downloadBtn.addEventListener('click',downloadZip);
   densitySlider.addEventListener('input',e=>document.documentElement.style.setProperty('--tile',`${e.target.value}px`));
