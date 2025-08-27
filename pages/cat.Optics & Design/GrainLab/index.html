@@ -2,1043 +2,615 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>GrainLab — 100% Crop (physics‑anchored sweet spot)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ultra-Responsive Film Grain Emulator — WebGL</title>
 <style>
-  :root { color-scheme: dark; --bg:#0f1115; --panel:#171a21; --muted:#8c95a6; --text:#e8ecf5; --acc:#5dd1ff; --acc2:#b486ff; }
-  html,body { height:100%; margin:0; background:var(--bg); color:var(--text); font:14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  #app { display:grid; grid-template-columns: 360px 1fr; height:100%; }
-  #left { background:var(--panel); border-right:1px solid #222733; padding:14px; overflow:auto; }
-  #right { display:flex; flex-direction:column; min-width:0; }
-  .head { display:flex; align-items:center; gap:10px; }
-  .logo { font-weight:700; letter-spacing:0.3px; background:linear-gradient(90deg,var(--acc),var(--acc2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .badge { font-size:11px; color:#a7b0c2; padding:2px 6px; border:1px solid #2a3040; border-radius:999px; }
-  .group { background:#12151c; border:1px solid #1f2430; border-radius:10px; margin-top:14px; overflow:hidden; }
-  .group h2 { margin:0; padding:10px 12px; background:#151a22; border-bottom:1px solid #202636; color:#cbd2e3; font-size:13px; letter-spacing:0.2px; }
-  .row { display:flex; align-items:center; gap:10px; padding:10px 12px; }
-  .row label { flex:0 0 140px; color:#aab3c4; font-size:12px; }
-  .row input[type="range"] { flex:1; }
-  .row select { width:150px; background:#0e1219; color:var(--text); border:1px solid #283042; padding:6px 8px; border-radius:6px; }
-  .btn { background:#171c27; color:var(--text); border:1px solid #2b3243; padding:8px 10px; border-radius:8px; cursor:pointer; transition:.2s; }
-  .btn:hover { background:#1f2533; }
-  .btn.primary { background:linear-gradient(180deg,#20293e,#171d2b); border-color:#2d3751; }
-  .subtle { color:var(--muted); font-size:12px; }
-  .val { width:48px; text-align:right; color:#9aa4b5; font-variant-numeric: tabular-nums; }
-  #topbar { display:flex; gap:8px; align-items:center; padding:10px; border-bottom:1px solid #1a2030; background:#0d1016; }
-  #status { margin-left:auto; color:#96a0b4; font-size:12px; }
-  #stage { position:relative; flex:1; display:flex; align-items:center; justify-content:center; background:
-    radial-gradient(1200px 400px at 120% -20%, #1d2340 0%, transparent 60%),
-    radial-gradient(800px 300px at -20% 110%, #1c2b38 0%, transparent 55%),
-    #0a0d12; overflow:hidden; }
-  #wrap { position:relative; box-shadow: 0 10px 80px rgba(0,0,0,0.6); border-radius:12px; overflow:hidden; }
-  canvas { display:block; background:#0d1118; }
-  #fxbar { position:absolute; left:12px; bottom:12px; display:flex; gap:8px; background:#0b0e14aa; backdrop-filter: blur(6px); padding:8px 10px; border:1px solid #1c2232; border-radius:999px; }
-  #fxbar .pill { font-size:12px; color:#c7d0e3; padding:6px 10px; border-radius:999px; border:1px solid #263047; background:linear-gradient(180deg,#0f1522,#0b101a); white-space:nowrap; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+  }
+  h1 {
+    font-size: 2em; font-weight: 200; letter-spacing: -0.02em;
+    margin: 0; background: linear-gradient(90deg, #fff, #888);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .main { display: flex; gap: 20px; width: 100%; flex: 1 1 auto; }
 
-  #mini { width:100%; height:120px; background:#0e1218; border:1px solid #1e2534; border-radius:8px; position:relative; overflow:hidden; }
-  #mini .box { position:absolute; border:1px solid #5dd1ff; box-shadow:0 0 0 9999px #5dd1ff22 inset; pointer-events:none; }
+  #controls {
+    width: 400px; min-width: 320px; max-width: 420px; overflow: auto;
+    background: rgba(40,40,40,.95); backdrop-filter: blur(14px);
+    border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  #controls .section { font-size: .95em; color: #7c8ef0; margin: 8px 0 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .group { display: grid; gap: 8px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  label { font-size: .82em; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }
+  input[type="range"] { flex: 1; appearance: none; height: 5px; border-radius: 3px; background: rgba(255,255,255,.1); outline: none; }
+  input[type="range"]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: linear-gradient(135deg,#667eea,#764ba2); box-shadow: 0 2px 10px rgba(102,126,234,.5); }
+  input[type="number"], select { width: 80px; padding: 6px 8px; font-size: .85em; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 6px; }
+  button { padding: 10px 14px; font-weight: 600; font-size: .85em; color: #fff; background: linear-gradient(135deg,#667eea,#764ba2); border: 0; border-radius: 8px; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+  button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102,126,234,.4); }
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .preset-grid .btn { background: rgba(255,255,255,.1); }
+  .toggle { display: flex; align-items: center; gap: 10px; }
+  .switch { position: relative; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: rgba(255,255,255,.1); border-radius: 34px; transition: .3s; }
+  .slider:before { content: ""; position: absolute; width: 16px; height: 16px; left: 4px; bottom: 4px; border-radius: 50%; background: #fff; transition: .3s; }
+  .switch input:checked + .slider { background: linear-gradient(135deg,#667eea,#764ba2); }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
 
-  #guide { position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; color:#cde9ff; font-size:13px; letter-spacing:0.2px; }
-  #guide .hint { background:#0b0e14cc; border:1px solid #1c2232; padding:8px 10px; border-radius:10px; }
+  .stage-wrap {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    position: relative;
+  }
+
+  #stage {
+    position: relative; border-radius: 16px; overflow: hidden; background: #000;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); cursor: move; user-select: none;
+  }
+  #glcanvas { display: block; }
+
+  .hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.75); border-radius: 8px; padding: 8px 12px; font: 12px/1.2 monospace; z-index: 10; }
+  .perf { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.75); border-radius: 8px; padding: 8px 12px; font: 12px/1.2 monospace; z-index: 10; color: #0f0; }
+  .zoom-controls { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; z-index: 10; }
+  .zoom-controls button { background: rgba(0,0,0,.8); padding: 8px; border-radius: 8px; }
+  .file-label { display: block; padding: 12px; text-align: center; border-radius: 8px; border: 2px dashed rgba(255,255,255,.25); background: rgba(255,255,255,.06); cursor: pointer; }
+  .file-label.drag-over { background: rgba(102,126,234,.2); border-color: #667eea; }
+  #file { display: none; }
+
+  .size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .size-grid button { background: rgba(255,255,255,.12); }
+  .size-grid button.active { background: linear-gradient(135deg,#667eea,#764ba2); }
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="left">
-    <div class="head">
-      <div class="logo">GrainLab</div>
-      <div class="badge">100% Crop</div>
-    </div>
-
-    <div class="group">
-      <h2>Source</h2>
-      <div class="row">
-        <label for="file">Load Image</label>
-        <input id="file" type="file" accept="image/*" aria-label="Load image" />
-      </div>
-      <div class="row">
-        <label for="previewSize">Canvas Size</label>
-        <select id="previewSize">
-          <option value="720">720 × 405</option>
-          <option value="960" selected>960 × 540</option>
-          <option value="1280">1280 × 720</option>
-        </select>
-      </div>
-      <div class="row" style="flex-direction:column; gap:6px;">
-        <div class="subtle">Mini‑map (drag to pan 100% crop)</div>
-        <div id="mini" role="img" aria-label="Mini-map for panning 100% crop"><div class="box" id="miniBox"></div></div>
-      </div>
-      <div class="row" style="gap:8px;flex-wrap:wrap;">
-        <button id="exportFull" class="btn primary">Export Full‑res</button>
-        <span class="subtle">Canvas shows a 1:1 crop. Drag canvas or mini‑map.</span>
-      </div>
-    </div>
-
-    <div class="group">
-      <h2>Grain</h2>
-      <div class="row"><label for="intensity">Intensity</label>
-        <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.6" aria-labelledby="intensity" /><span class="val" id="vIntensity">0.60</span>
-      </div>
-      <div class="row"><label for="grainSize">Size (px @ 100%)</label>
-        <input id="grainSize" type="range" min="0.5" max="8" step="0.1" value="2.2" aria-labelledby="grainSize" /><span class="val" id="vGrainSize">2.2</span>
-      </div>
-      <div class="row"><label for="distribution">Distribution</label>
-        <select id="distribution"><option value="uniform">Uniform</option><option value="dynamic" selected>Dynamic</option></select>
-      </div>
-      <div class="row"><label for="shape">Shape</label>
-        <select id="shape"><option value="square">Square</option><option value="circle" selected>Circular</option><option value="irregular">Irregular</option></select>
-      </div>
-      <div class="row"><label for="periodicity">Periodicity</label>
-        <select id="periodicity"><option value="random" selected>Random</option><option value="regular">Regular</option></select>
-      </div>
-      <div class="row"><label for="subpixel">Subpixel</label>
-        <select id="subpixel"><option value="off">Off</option><option value="on" selected>On</option></select>
-      </div>
-      <div class="row"><label for="lumBias">Luminance Bias</label>
-        <input id="lumBias" type="range" min="0" max="1" step="0.01" value="0.6" aria-labelledby="lumBias" /><span class="val" id="vLumBias">0.60</span>
-      </div>
-      <div class="row"><label for="contrast">Contrast</label>
-        <input id="contrast" type="range" min="0" max="2" step="0.01" value="1.2" aria-labelledby="contrast" /><span class="val" id="vContrast">1.20</span>
-      </div>
-      <div class="row"><label for="opacityDecay">Opacity Decay</label>
-        <input id="opacityDecay" type="range" min="0" max="1" step="0.01" value="0.35" aria-labelledby="opacityDecay" /><span class="val" id="vOpacityDecay">0.35</span>
-      </div>
-    </div>
-
-    <div class="group">
-      <h2>Blend</h2>
-      <div class="row"><label for="blendMode">Mode</label>
-        <select id="blendMode">
-          <option value="overlay" selected>Overlay</option>
-          <option value="softlight">Soft Light</option>
-          <option value="screen">Screen</option>
-          <option value="multiply">Multiply</option>
-        </select>
-      </div>
-      <div class="row"><label for="blendOpacity">Opacity</label>
-        <input id="blendOpacity" type="range" min="0" max="1" step="0.01" value="0.55" aria-labelledby="blendOpacity" /><span class="val" id="vBlendOpacity">0.55</span>
-      </div>
-      <div class="row"><label for="sharpPreserve">Sharpness Preserve</label>
-        <input id="sharpPreserve" type="range" min="0" max="1" step="0.01" value="0.65" aria-labelledby="sharpPreserve" /><span class="val" id="vSharpPreserve">0.65</span>
-      </div>
-    </div>
-
-    <div class="group">
-      <h2>Presets</h2>
-      <div class="row" style="flex-wrap:wrap; gap:8px 8px;">
-        <button class="btn" id="presetVintage">Vintage Glow</button>
-        <button class="btn" id="presetMinimal">Minimal Grain</button>
-        <button class="btn" id="presetGrit">Grit & Soft</button>
-      </div>
-      <div class="row" style="flex-wrap:wrap; gap:8px 8px;">
-        <label for="stock">Stock Preset</label>
-        <select id="stock">
-          <option value="custom" selected>Custom</option>
-          <option value="trix">Kodak Tri‑X 400</option>
-          <option value="tmax">Kodak T‑MAX 100</option>
-          <option value="v3_500t">Vision3 500T</option>
-        </select>
-        <label for="push">Push/Pull</label>
-        <select id="push">
-          <option value="0" selected>Normal (0)</option>
-          <option value="1">Push +1</option>
-          <option value="2">Push +2</option>
-          <option value="-1">Pull −1</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="group">
-      <h2>Debug</h2>
-      <div class="row"><label>Status</label><div id="dbgStatus" class="subtle" style="flex:1">Idle</div></div>
-      <div class="row"><label>Env</label><div id="dbgEnv" class="subtle" style="flex:1">-</div></div>
-    </div>
-  </div>
-
-  <div id="right">
-    <div id="topbar">
-      <div class="badge">Worker + OffscreenCanvas</div>
-      <div class="badge">WebGL2</div>
-      <div id="status">Idle</div>
-    </div>
-    <div id="stage">
-      <div id="wrap">
-        <canvas id="view" width="960" height="540"></canvas>
-        <div id="guide"><div class="hint">Drag to pan • 100% crop preview • Export = full image</div></div>
-        <div id="fxbar">
-          <div class="pill">100% crop (accurate grain)</div>
-          <div class="pill">Use mini‑map to navigate</div>
+  <h1>Film Grain Emulator — WebGL</h1>
+  <div class="main">
+    <aside id="controls">
+      <div class="section">Preview Size</div>
+      <div class="group">
+        <div class="size-grid">
+          <button id="sizeS">Small<br><small>720×405</small></button>
+          <button id="sizeM" class="active">Medium<br><small>960×450</small></button>
+          <button id="sizeL">Large<br><small>1280×720</small></button>
         </div>
       </div>
+
+      <div class="section">Core Grain Settings</div>
+      <div class="group">
+        <label>Intensity: <span id="v-intensity">0.50</span></label>
+        <div class="row">
+          <input type="range" id="intensity" min="0" max="1" step="0.01" value="0.5" />
+          <input type="number" id="intensityN" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
+      <div class="group">
+        <label>Size: <span id="v-size">2.00</span></label>
+        <div class="row">
+          <input type="range" id="size" min="0.5" max="10" step="0.1" value="2.0" />
+          <input type="number" id="sizeN" min="0.5" max="10" step="0.1" value="2.0" />
+        </div>
+      </div>
+      <div class="group">
+        <label>Pattern</label>
+        <select id="pattern">
+          <option value="0">Organic Film</option>
+          <option value="1">Silver Halide</option>
+          <option value="2">Digital Noise</option>
+          <option value="3">Vintage 35mm</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Blend Mode</label>
+        <select id="blend">
+          <option value="0">Overlay</option>
+          <option value="1">Soft Light</option>
+          <option value="2">Screen</option>
+          <option value="3">Multiply</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Opacity: <span id="v-opacity">0.50</span></label>
+        <div class="row">
+          <input type="range" id="opacity" min="0" max="1" step="0.01" value="0.5" />
+          <input type="number" id="opacityN" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
+
+      <div class="section">Film Response</div>
+      <div class="group">
+        <label>Luminance Response: <span id="v-response">0.50</span></label>
+        <div class="row">
+          <input type="range" id="response" min="0" max="1" step="0.01" value="0.5" />
+          <input type="number" id="responseN" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
+      <div class="group">
+        <label>Edge Preserve: <span id="v-sharp">0.70</span></label>
+        <div class="row">
+          <input type="range" id="sharp" min="0" max="1" step="0.01" value="0.7" />
+          <input type="number" id="sharpN" min="0" max="1" step="0.01" value="0.7" />
+        </div>
+      </div>
+      <div class="group">
+        <label>Contrast: <span id="v-contrast">1.00</span></label>
+        <div class="row">
+          <input type="range" id="contrast" min="0.5" max="2" step="0.01" value="1.0" />
+          <input type="number" id="contrastN" min="0.5" max="2" step="0.01" value="1.0" />
+        </div>
+      </div>
+
+      <div class="section">Color Variation</div>
+      <div class="group">
+        <label>Color Mode</label>
+        <select id="color">
+          <option value="0">Monochrome</option>
+          <option value="1">Subtle RGB</option>
+          <option value="2">Chromatic</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Saturation: <span id="v-sat">1.00</span></label>
+        <div class="row">
+          <input type="range" id="sat" min="0" max="2" step="0.01" value="1.0" />
+          <input type="number" id="satN" min="0" max="2" step="0.01" value="1.0" />
+        </div>
+      </div>
+
+      <div class="section">Presets</div>
+      <div class="preset-grid">
+        <button class="btn" id="p35">35mm Film</button>
+        <button class="btn" id="p120">Medium Format</button>
+        <button class="btn" id="pPush">Pushed ISO</button>
+        <button class="btn" id="pMin">Minimal</button>
+      </div>
+
+      <div class="section">Options</div>
+      <div class="group">
+        <div class="toggle">
+          <label class="switch"><input type="checkbox" id="toggleOriginal" /><span class="slider"></span></label>
+          <span>Show Original</span>
+        </div>
+      </div>
+      <div class="group">
+        <div class="toggle">
+          <label class="switch"><input type="checkbox" id="toggleAnim" checked /><span class="slider"></span></label>
+          <span>Animate Grain</span>
+        </div>
+      </div>
+
+      <div class="section">Image</div>
+      <div class="group">
+        <label class="file-label" for="file" id="fileLabel">📷 Load Image (Click or Drag)</label>
+        <input type="file" id="file" accept="image/*" />
+      </div>
+      <div class="group"><button id="dlWith" style="width:100%">Download Full Image</button></div>
+      <div class="group"><button id="dlGrain" style="width:100%">Download Grain Layer</button></div>
+    </aside>
+
+    <div class="stage-wrap">
+      <section id="stage">
+        <canvas id="glcanvas"></canvas>
+        <div class="hud">
+          <div>Image: <span id="infoImage">-</span></div>
+          <div>View: <span id="infoView">-</span></div>
+          <div>Zoom: <span id="infoZoom">100%</span></div>
+        </div>
+        <div class="perf">FPS: <span id="fps">60</span></div>
+        <div class="zoom-controls">
+          <button id="zoomFit">⬚</button>
+          <button id="zoom100">1:1</button>
+        </div>
+      </section>
     </div>
   </div>
-</div>
 
 <script>
-// -------------------- App state --------------------
-const $$ = (id)=>document.getElementById(id);
-const view = $$('view');
-const vctx = view.getContext('2d');
+(function(){
+  const d = (sel) => document.querySelector(sel);
+  const glCanvas = d('#glcanvas');
+  /** @type {WebGL2RenderingContext} */
+  let gl = glCanvas.getContext('webgl2', { premultipliedAlpha: false, alpha: false, antialias: false });
+  if (!gl) { alert('WebGL2 not available.'); return; }
 
-const params = {
-  intensity: 0.6,
-  grainSize: 2.2,
-  distribution: 'dynamic',
-  shape: 'circle',
-  periodicity: 'random',
-  subpixel: 'on',
-  lumBias: 0.6,
-  contrast: 1.2,
-  opacityDecay: 0.35,
-  blendMode: 'overlay',
-  blendOpacity: 0.55,
-  sharpPreserve: 0.65,
+  // --- Shaders ---
+  const VERT = `#version 300 es
+  precision highp float;
+  layout(location=0) in vec2 a_pos;
+  out vec2 v_uv;
+  void main(){ v_uv = a_pos*0.5+0.5; gl_Position = vec4(a_pos,0.0,1.0); }`;
 
-  // Physics-anchored sweet-spot additions:
-  // RGB correlation matrix (row-major: r1..r9)
-  rgbCorr: [1.0,0.7,0.3, 0.7,1.0,0.8, 0.3,0.8,1.0],
-  // Mid-tone visibility curve (peak and width in [0..1], gain)
-  midPeak: 0.5,
-  midWidth: 0.25,
-  midGain: 0.8,
-  // Temporal seed (for sequences; here manual)
-  frameSeed: 0.0,
-  // Scanner PSF and flare
-  psfSigma: 0.6,
-  flare: 0.007,
+  // FRAGMENT with orientation fix + anti-aliasing improvements
+  const FRAG = `#version 300 es
+  precision highp float;
+  in vec2 v_uv;
+  uniform sampler2D u_image;
+  uniform vec2  u_imageSize;
+  uniform vec2  u_viewSize;
+  uniform vec2  u_offset;        // in image pixels (top-left origin)
+  uniform float u_scale;         // screen px per image px (1.0 = 1:1)
+  uniform float u_time;
 
-  // Stock μ/σ for log-normal radius, plus push control (in stops)
-  mu: Math.log(2.2), // base link to grainSize as a default starting point (px)
-  sigma: 0.45,
-  pushStops: 0
-};
+  uniform float u_intensity;
+  uniform float u_grainSize;
+  uniform int   u_pattern;       // 0 organic,1 halide,2 digital,3 vintage
+  uniform int   u_blend;         // 0 overlay,1 softlight,2 screen,3 multiply
+  uniform float u_opacity;
+  uniform float u_response;
+  uniform float u_contrast;
+  uniform float u_saturation;
+  uniform float u_sharpness;
+  uniform int   u_colorMode;     // 0 mono,1 subtle,2 chromatic
+  uniform bool  u_showOriginal;
+  uniform bool  u_grainOnly;
+  out vec4 fragColor;
 
-const STOCKS = {
-  trix:   { name:'Kodak Tri‑X 400',   mu: Math.log(3.2), sigma:0.50, rgbCorr:[1,0.72,0.35, 0.72,1,0.82, 0.35,0.82,1], midPeak:0.55, midWidth:0.28, midGain:0.9 },
-  tmax:   { name:'Kodak T‑MAX 100',   mu: Math.log(1.8), sigma:0.35, rgbCorr:[1,0.65,0.25, 0.65,1,0.75, 0.25,0.75,1], midPeak:0.52, midWidth:0.22, midGain:0.75 },
-  v3_500t:{ name:'Vision3 500T',      mu: Math.log(2.6), sigma:0.42, rgbCorr:[1,0.78,0.40, 0.78,1,0.85, 0.40,0.85,1], midPeak:0.50, midWidth:0.30, midGain:0.85 }
-};
+  float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+  float hash31(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453); }
+  vec3 fade3(vec3 t){ return t*t*t*(t*(t*6.0-15.0)+10.0); }
+  float valueNoise(vec3 p){
+    vec3 i=floor(p), f=fract(p), u=fade3(f);
+    float n000=hash31(i+vec3(0,0,0)), n100=hash31(i+vec3(1,0,0));
+    float n010=hash31(i+vec3(0,1,0)), n110=hash31(i+vec3(1,1,0));
+    float n001=hash31(i+vec3(0,0,1)), n101=hash31(i+vec3(1,0,1));
+    float n011=hash31(i+vec3(0,1,1)), n111=hash31(i+vec3(1,1,1));
+    float nx00=mix(n000,n100,u.x), nx10=mix(n010,n110,u.x);
+    float nx01=mix(n001,n101,u.x), nx11=mix(n011,n111,u.x);
+    float nxy0=mix(nx00,nx10,u.y), nxy1=mix(nx01,nx11,u.y);
+    return mix(nxy0,nxy1,u.z);
+  }
+  float fbm(vec3 p){ float s=0.0,a=0.5; for(int i=0;i<4;i++){ s+=a*valueNoise(p); p*=2.0; a*=0.5; } return s; }
 
-let imgFull = null;
-let worker = null;
-let hasWorkerGL = false;
-let lastTask = 0;
-let rafPending = false;
-let fullW = 0, fullH = 0;
-let cropW = 960, cropH = 540;
-let cropX = 0, cropY = 0;
+  float blendOverlay(float b,float o){ return b<0.5? 2.0*b*o: 1.0-2.0*(1.0-b)*(1.0-o); }
+  float blendSoftLight(float b,float o){ return (o<0.5)? (2.0*b*o + b*b*(1.0-2.0*o)) : (sqrt(max(b,0.0))*(2.0*o-1.0) + 2.0*b*(1.0-o)); }
+  float blendScreen(float b,float o){ return 1.0-(1.0-b)*(1.0-o); }
+  float blendMultiply(float b,float o){ return b*o; }
+  vec3  applyBlend(vec3 B, vec3 O, int m){
+    if(m==0) return vec3(blendOverlay(B.r,O.r), blendOverlay(B.g,O.g), blendOverlay(B.b,O.b));
+    if(m==1) return vec3(blendSoftLight(B.r,O.r), blendSoftLight(B.g,O.g), blendSoftLight(B.b,O.b));
+    if(m==2) return vec3(blendScreen(B.r,O.r), blendScreen(B.g,O.g), blendScreen(B.b,O.b));
+    return vec3(blendMultiply(B.r,O.r), blendMultiply(B.g,O.g), blendMultiply(B.b,O.b));
+  }
+  vec3 satAdjust(vec3 c,float s){ float L=luma(c); return mix(vec3(L),c,s); }
 
-function setStatus(s){ $$('status').textContent = s; $$('dbgStatus').textContent=s; }
-function setEnv(s){ $$('dbgEnv').textContent = s; }
-function fmt(n,p=2){ return Number(n).toFixed(p); }
-
-// -------------------- Worker (WebGL2) --------------------
-const workerCode = `
-let gl, cvs, vao, progMain, progBlurH, progBlurV, progCopy, fboA, fboB, texA, texB, texIn, w=0,h=0;
-
-const VS=\`#version 300 es
-layout(location=0) in vec2 p;
-out vec2 uv;
-void main(){ uv=(p+1.0)*0.5; gl_Position=vec4(p,0,1); }\`;
-
-const FS_MAIN=\`#version 300 es
-precision highp float;
-in vec2 uv; out vec4 o;
-uniform sampler2D UImg;
-uniform vec2 UImgSize;     // full image size
-uniform vec2 UCropOrigin;  // top-left in full px
-uniform vec2 UCropSize;    // crop size in px (equals target size)
-uniform float intensity, grainSize, lumBias, contrast, opacityDecay, blendOpacity, sharpPreserve;
-uniform int distribution, shape, periodicity, subpixel, blendMode;
-uniform mat3 rgbCorr;
-uniform float midPeak, midWidth, midGain;
-uniform float frameSeed;
-
-// Randomness helpers (hash + gaussian)
-uint hash2(uvec2 v){ v=v*1664525u+1013904223u; v.x^=v.y>>16; v.y^=v.x<<5; v=v*2246822519u; return v.x^v.y; }
-float prng(vec2 p){ uvec2 v = uvec2(floatBitsToUint(p.x), floatBitsToUint(p.y)); return float(hash2(v))/4294967295.0; }
-float gaussian2(float u1, float u2){ u1=max(u1,1e-6); float r=sqrt(-2.0*log(u1)); float t=6.2831853*u2; return r*cos(t); }
-
-// Simple blue-noise-ish mix: combine hash with small rotated cell jitter
-float noiseCell(vec2 cell, float phase){
-  vec2 s = cell + vec2(phase, phase*1.37);
-  float n = prng(s);
-  float n2 = prng(s*vec2(1.37,1.79));
-  return (n*0.7 + n2*0.3);
-}
-
-float shapeMask(vec2 f, int shp) {
-  if (shp==0) return 1.0; // square cell
-  if (shp==1){ vec2 d=f-0.5; return (dot(d,d)<=0.25)?1.0:0.0; } // circle
-  vec2 d=f-0.5; float ang=atan(d.y,d.x); float rad=length(d);
-  float ir=(sin(ang*5.0+rad*10.0)*0.5+0.5)*(1.0-abs(rad-0.5));
-  return clamp(ir,0.0,1.0);
-}
-
-vec3 blendOverlay(vec3 I, vec3 N){ return mix(2.0*I*N, 1.0-2.0*(1.0-I)*(1.0-N), step(0.5,I)); }
-vec3 blendSoftLight(vec3 I, vec3 N){ return (1.0-2.0*N)*I*I + 2.0*N*I; }
-vec3 blendScreen(vec3 I, vec3 N){ return 1.0-(1.0-I)*(1.0-N); }
-vec3 blendMultiply(vec3 I, vec3 N){ return I*N; }
-
-void main(){
-  // Compute full-res pixel for current crop pixel
-  vec2 fullPx = UCropOrigin + uv * UCropSize;
-  vec2 texUV = fullPx / UImgSize;
-  texUV.y = 1.0 - texUV.y; // top-left origin
-  vec4 base = texture(UImg, texUV);
-  vec3 I = base.rgb;
-
-  // Luminance
-  float L = dot(I, vec3(0.2126,0.7152,0.0722));
-
-  // Grain cell coordinates
-  float gs = max(0.5, grainSize);
-  vec2 cell = floor(fullPx/gs);
-  vec2 frac = fract(fullPx/gs);
-
-  // Temporal seed affects micro jitter but keeps spatial stability
-  float phase = frameSeed * 0.17;
-
-  // Subpixel jitter
-  if (subpixel==1) {
-    frac += vec2(prng(fullPx+vec2(11.1,7.7)+phase), prng(fullPx+vec2(23.3,19.1)-phase))*0.15;
-    frac = fract(frac);
+  float edgeMag(vec2 uv){
+    vec2 texel=1.0/u_imageSize;
+    float tl=luma(texture(u_image, uv + texel*vec2(-1,-1)).rgb);
+    float  t=luma(texture(u_image, uv + texel*vec2( 0,-1)).rgb);
+    float tr=luma(texture(u_image, uv + texel*vec2( 1,-1)).rgb);
+    float l =luma(texture(u_image, uv + texel*vec2(-1, 0)).rgb);
+    float r =luma(texture(u_image, uv + texel*vec2( 1, 0)).rgb);
+    float bl=luma(texture(u_image, uv + texel*vec2(-1, 1)).rgb);
+    float b =luma(texture(u_image, uv + texel*vec2( 0, 1)).rgb);
+    float br=luma(texture(u_image, uv + texel*vec2( 1, 1)).rgb);
+    float gx = -tl -2.0*l -bl + tr + 2.0*r + br;
+    float gy = -tl -2.0*t -tr + bl + 2.0*b + br;
+    return clamp(sqrt(gx*gx+gy*gy), 0.0, 1.0);
   }
 
-  // Base random fields per channel (independent phases)
-  float r1 = noiseCell(cell + vec2(13.0,  5.0), phase);
-  float r2 = noiseCell(cell + vec2(-7.0, 19.0), phase*1.31);
-  float r3 = noiseCell(cell + vec2(29.0, -3.0), phase*2.07);
+  void main(){
+    // Screen pixel in TOP-LEFT origin (since v_uv is bottom-left, invert Y once)
+    vec2 fragTL = vec2(v_uv.x * u_viewSize.x, (1.0 - v_uv.y) * u_viewSize.y);
+    vec2 ip = u_offset + fragTL / max(u_scale, 1e-6);      // image pixels (TOP-LEFT origin)
 
-  // Convert to Gaussian-ish
-  float g1 = (gaussian2(r1, r2)+1.0)*0.5;
-  float g2 = (gaussian2(r2, r3)+1.0)*0.5;
-  float g3 = (gaussian2(r3, r1)+1.0)*0.5;
+    // Orientation fix: sample in bottom-left uv space (texture is flipped on upload)
+    vec2 uv = vec2(ip.x / u_imageSize.x, 1.0 - ip.y / u_imageSize.y);
 
-  // Periodicity option
-  if (periodicity==1){
-    float p1 = (sin(cell.x*3.14159)*cos(cell.y*3.14159)*0.5+0.5);
-    g1 = mix(g1, p1, 0.8);
-    g2 = mix(g2, p1, 0.8);
-    g3 = mix(g3, p1, 0.8);
+    if(any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))){
+      fragColor = vec4(0.0,0.0,0.0,1.0); return;
+    }
+
+    vec3 base = texture(u_image, uv).rgb;
+    if(u_showOriginal && !u_grainOnly){ fragColor = vec4(base,1.0); return; }
+
+    // --- Grain domain (anti-aliasing + decorrelation) ---
+    vec2 gp = ip / max(u_grainSize, 0.001);
+    // rotate domain (~30°) to avoid alignment with the screen lattice
+    const mat2 R = mat2(0.8660254, -0.5, 0.5, 0.8660254);
+    gp = R * gp;
+    // derivative-scaled jitter to break residual lock-in
+    vec2 gw = fwidth(gp);
+    vec2 j = vec2(hash31(vec3(ip, u_time)) - 0.5,
+                  hash31(vec3(ip.yx, u_time + 17.0)) - 0.5) * gw;
+    gp += j;
+
+    float t = u_time;
+    float g;
+    if(u_pattern==0){ g = fbm(vec3(gp, t*0.5)); }
+    else if(u_pattern==1){ float n = valueNoise(vec3(gp*1.2, t*0.8)); g = step(0.7, n); }
+    else if(u_pattern==2){ g = hash31(vec3(floor(gp), floor(t*60.0))); } // cell-random
+    else { g = pow(fbm(vec3(gp*0.5, t*0.3)), 1.5); }
+
+    // Band-limit: when grains are sub-pixel, fade to temporally varying white noise
+    float pixelNoise = hash31(vec3(floor(ip), floor(t*60.0)));
+    float k = smoothstep(2.0, 0.8, u_grainSize); // 0→pattern, 1→white noise
+    g = mix(g, pixelNoise, k);
+
+    // Film response
+    float L = luma(base);
+    float resp = 1.0 - L * u_response;
+    g = (g - 0.5) * u_intensity * resp + 0.5;
+
+    // Color variation
+    float rD=0.0, gD=0.0, bD=0.0;
+    if(u_colorMode==1){ float vAmp=0.02;
+      rD=(hash31(vec3(gp,t+1.0))-0.5)*2.0*vAmp;
+      gD=(hash31(vec3(gp,t+2.0))-0.5)*2.0*vAmp;
+      bD=(hash31(vec3(gp,t+3.0))-0.5)*2.0*vAmp;
+    }
+    vec3 grainRGB = vec3(g + rD, g + gD, g + bD);
+    if(u_colorMode==2){ grainRGB.r *= 1.02; grainRGB.b *= 0.98; }
+
+    if(u_grainOnly){ fragColor = vec4(clamp(grainRGB,0.0,1.0),1.0); return; }
+
+    vec3 blended = applyBlend(base, clamp(grainRGB,0.0,1.0), u_blend);
+    float att = mix(1.0, 1.0 - edgeMag(uv), clamp(u_sharpness,0.0,1.0));
+    vec3 col = mix(base, blended, clamp(u_opacity*att, 0.0, 1.0));
+    col = ((col - 0.5) * u_contrast + 0.5);
+    col = satAdjust(col, u_saturation);
+    fragColor = vec4(clamp(col,0.0,1.0), 1.0);
+  }`;
+
+  function makeProgram(gl, vsSrc, fsSrc){
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, vsSrc); gl.compileShader(vs);
+    if(!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) throw new Error('VS error: '+gl.getShaderInfoLog(vs));
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, fsSrc); gl.compileShader(fs);
+    if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error('FS error: '+gl.getShaderInfoLog(fs));
+    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('Link error: '+gl.getProgramInfoLog(prog));
+    gl.deleteShader(vs); gl.deleteShader(fs); return prog;
   }
 
-  // Shape mask in the cell
-  float mask = shapeMask(frac, shape);
+  const program = makeProgram(gl, VERT, FRAG);
+  gl.useProgram(program);
 
-  // Distribution (luma-aware vs uniform)
-  float dist = (distribution==0) ? 1.0 : pow((1.0-L), lumBias);
-
-  // Mid-tone visibility curve (sweet-spot)
-  float vis = exp(-0.5 * pow((L - midPeak)/max(1e-3, midWidth), 2.0)) * midGain;
-
-  // Apply correlation matrix across channels
-  vec3 z = vec3(g1, g2, g3) * mask;
-  vec3 N = rgbCorr * z;
-
-  // Contrast and decay shaping
-  N = (N - 0.5) * contrast + 0.5;
-  N = N * (1.0 - opacityDecay) + opacityDecay * 0.5;
-
-  // Intensity with luma distribution and mid-tone visibility
-  N *= intensity * dist * vis;
-
-  // Blend modes
-  vec3 B = I;
-  if (blendMode==0) B=blendOverlay(I,N);
-  else if (blendMode==1) B=blendSoftLight(I,N);
-  else if (blendMode==2) B=blendScreen(I,N);
-  else if (blendMode==3) B=blendMultiply(I,N);
-
-  vec3 outC = mix(I, B, blendOpacity);
-  outC = mix(I, outC, sharpPreserve);
-
-  o = vec4(outC, 1.0);
-}\`;
-
-// Simple separable Gaussian blur passes to emulate scanner PSF
-const FS_BLUR_H=\`#version 300 es
-precision highp float;
-in vec2 uv; out vec4 o;
-uniform sampler2D UTex;
-uniform vec2 texel;     // 1/width, 1/height
-uniform float sigma;
-vec3 blur5(vec2 off){
-  // 5-tap Gaussian approx (normalized): weights ~ [0.06136, 0.24477, 0.38774, 0.24477, 0.06136]
-  vec2 dx = vec2(off.x, 0.0);
-  vec3 c0 = texture(UTex, uv - 2.0*dx).rgb * 0.06136;
-  vec3 c1 = texture(UTex, uv - 1.0*dx).rgb * 0.24477;
-  vec3 c2 = texture(UTex, uv).rgb         * 0.38774;
-  vec3 c3 = texture(UTex, uv + 1.0*dx).rgb * 0.24477;
-  vec3 c4 = texture(UTex, uv + 2.0*dx).rgb * 0.06136;
-  return c0+c1+c2+c3+c4;
-}
-void main(){
-  // Scale taps with sigma by stretching texel offset
-  float s = max(0.25, sigma);
-  vec2 off = vec2(texel.x*s, texel.y);
-  vec3 c = blur5(off);
-  o = vec4(c,1.0);
-}\`;
-
-const FS_BLUR_V=\`#version 300 es
-precision highp float;
-in vec2 uv; out vec4 o;
-uniform sampler2D UTex;
-uniform vec2 texel;
-uniform float sigma;
-vec3 blur5(vec2 off){
-  vec2 dy = vec2(0.0, off.y);
-  vec3 c0 = texture(UTex, uv - 2.0*dy).rgb * 0.06136;
-  vec3 c1 = texture(UTex, uv - 1.0*dy).rgb * 0.24477;
-  vec3 c2 = texture(UTex, uv).rgb         * 0.38774;
-  vec3 c3 = texture(UTex, uv + 1.0*dy).rgb * 0.24477;
-  vec3 c4 = texture(UTex, uv + 2.0*dy).rgb * 0.06136;
-  return c0+c1+c2+c3+c4;
-}
-void main(){
-  float s = max(0.25, sigma);
-  vec2 off = vec2(texel.x, texel.y*s);
-  vec3 c = blur5(off);
-  o = vec4(c,1.0);
-}\`;
-
-// True copy shader (one fetch)
-const FS_COPY=\`#version 300 es
-precision highp float;
-in vec2 uv; out vec4 o;
-uniform sampler2D UTex;
-void main(){ o = texture(UTex, uv); }
-\`;
-
-function makeProg(vsSrc, fsSrc){
-  const vs = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vs, vsSrc);
-  gl.compileShader(vs);
-  if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) throw new Error('VS: '+gl.getShaderInfoLog(vs));
-
-  const fs = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fs, fsSrc);
-  gl.compileShader(fs);
-  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error('FS: '+gl.getShaderInfoLog(fs));
-
-  const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('Link: '+gl.getProgramInfoLog(prog));
-  return prog;
-}
-
-function initGL(width,height){
-  try{
-    cvs = new OffscreenCanvas(width,height);
-    gl = cvs.getContext('webgl2', {premultipliedAlpha:false});
-  }catch(e){}
-  if(!gl){ postMessage({type:'cap', ok:false, reason:'no-webgl2'}); return false; }
-
-  const vbo = gl.createBuffer();
-  vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  // Fullscreen quad
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-  progMain = makeProg(VS, FS_MAIN);
-  progBlurH = makeProg(VS, FS_BLUR_H);
-  progBlurV = makeProg(VS, FS_BLUR_V);
-  progCopy = makeProg(VS, FS_COPY);
+  // Uniform locations
+  const U = {
+    image: gl.getUniformLocation(program, 'u_image'),
+    imageSize: gl.getUniformLocation(program, 'u_imageSize'),
+    viewSize: gl.getUniformLocation(program, 'u_viewSize'),
+    offset: gl.getUniformLocation(program, 'u_offset'),
+    scale: gl.getUniformLocation(program, 'u_scale'),
+    time: gl.getUniformLocation(program, 'u_time'),
+    intensity: gl.getUniformLocation(program, 'u_intensity'),
+    grainSize: gl.getUniformLocation(program, 'u_grainSize'),
+    pattern: gl.getUniformLocation(program, 'u_pattern'),
+    blend: gl.getUniformLocation(program, 'u_blend'),
+    opacity: gl.getUniformLocation(program, 'u_opacity'),
+    response: gl.getUniformLocation(program, 'u_response'),
+    contrast: gl.getUniformLocation(program, 'u_contrast'),
+    saturation: gl.getUniformLocation(program, 'u_saturation'),
+    sharpness: gl.getUniformLocation(program, 'u_sharpness'),
+    colorMode: gl.getUniformLocation(program, 'u_colorMode'),
+    showOriginal: gl.getUniformLocation(program, 'u_showOriginal'),
+    grainOnly: gl.getUniformLocation(program, 'u_grainOnly'),
+  };
 
-  // Ping-pong FBOs for blur
-  function makeTex(w,h){
-    const t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D,t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  // State
+  const state = {
+    imageTex: null,
+    imageSize: {w: 0, h: 0},
+    viewSize: {w: 960, h: 450}, // default MEDIUM
+    offset: {x: 0, y: 0},       // top-left origin
+    scale: 1,
+    animate: true,
+    showOriginal: false,
+    params: { intensity: 0.5, grainSize: 2.0, pattern: 0, blend: 0, opacity: 0.5, response: 0.5, sharp: 0.7, contrast: 1.0, color: 0, sat: 1.0 },
+    dragging: false, start: {x: 0,y: 0}, startOffset: {x:0,y:0},
+    fps: 60, lastRAF: performance.now(),
+  };
+
+  // Helpers
+  function setCanvasSize(w,h){
+    glCanvas.width = w; glCanvas.height = h;
+    glCanvas.style.width = w + 'px';
+    glCanvas.style.height = h + 'px';
+    const stage = d('#stage');
+    stage.style.width = w + 'px';
+    stage.style.height = h + 'px';
+    gl.viewport(0,0,w,h);
+    state.viewSize = {w, h};
+    d('#infoView').textContent = `${w}×${h}`;
+    clampOffsets();
+  }
+  setCanvasSize(state.viewSize.w, state.viewSize.h);
+
+  function createTexture(img){
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    // Flip on upload so sampling with bottom-left uv keeps the image upright
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
-    return t;
-  }
-  function makeFbo(tex){
-    const f = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    return f;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    return tex;
   }
 
-  texA = makeTex(width,height);
-  texB = makeTex(width,height);
-  fboA = makeFbo(texA);
-  fboB = makeFbo(texB);
-
-  w=width; h=height;
-  postMessage({type:'cap', ok:true});
-  return true;
-}
-
-function resizeTargets(width,height){
-  if (!gl){ if(!initGL(width,height)) return; }
-  if (width===w && height===h) return;
-  cvs.width = width; cvs.height = height; w=width; h=height;
-
-  // Recreate ping-pong textures/framebuffers
-  if (texA) gl.deleteTexture(texA);
-  if (texB) gl.deleteTexture(texB);
-  if (fboA) gl.deleteFramebuffer(fboA);
-  if (fboB) gl.deleteFramebuffer(fboB);
-  const makeTex = (W,H)=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,W,H,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
-    return t; };
-  const makeFbo = (tex)=>{ const f=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,f);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0); return f; };
-  texA = makeTex(width,height); texB = makeTex(width,height);
-  fboA = makeFbo(texA); fboB = makeFbo(texB);
-}
-
-function uploadImage(bmp){
-  if (!bmp || bmp.width===0 || bmp.height===0){ postMessage({type:'failed', reason:'Empty image'}); return; }
-  if (texIn) gl.deleteTexture(texIn);
-  texIn = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texIn);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
-}
-
-function passMain(p){
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
-  gl.viewport(0,0,p.targetW,p.targetH);
-  gl.useProgram(progMain);
-  gl.bindVertexArray(vao);
-
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texIn);
-  gl.uniform1i(gl.getUniformLocation(progMain,'UImg'),0);
-
-  gl.uniform2f(gl.getUniformLocation(progMain,'UImgSize'), p.imgW, p.imgH);
-  gl.uniform2f(gl.getUniformLocation(progMain,'UCropOrigin'), p.cropX, p.cropY);
-  gl.uniform2f(gl.getUniformLocation(progMain,'UCropSize'), p.cropW, p.cropH);
-
-  gl.uniform1f(gl.getUniformLocation(progMain,'intensity'), p.intensity);
-  gl.uniform1f(gl.getUniformLocation(progMain,'grainSize'), p.grainSize);
-  gl.uniform1f(gl.getUniformLocation(progMain,'lumBias'), p.lumBias);
-  gl.uniform1f(gl.getUniformLocation(progMain,'contrast'), p.contrast);
-  gl.uniform1f(gl.getUniformLocation(progMain,'opacityDecay'), p.opacityDecay);
-  gl.uniform1f(gl.getUniformLocation(progMain,'blendOpacity'), p.blendOpacity);
-  gl.uniform1f(gl.getUniformLocation(progMain,'sharpPreserve'), p.sharpPreserve);
-  gl.uniform1i(gl.getUniformLocation(progMain,'distribution'), p.distribution);
-  gl.uniform1i(gl.getUniformLocation(progMain,'shape'), p.shape);
-  gl.uniform1i(gl.getUniformLocation(progMain,'periodicity'), p.periodicity);
-  gl.uniform1i(gl.getUniformLocation(progMain,'subpixel'), p.subpixel);
-  gl.uniform1i(gl.getUniformLocation(progMain,'blendMode'), p.blendMode);
-
-  // Sweet-spot uniforms
-  gl.uniformMatrix3fv(gl.getUniformLocation(progMain,'rgbCorr'), false, new Float32Array(p.rgbCorr));
-  gl.uniform1f(gl.getUniformLocation(progMain,'midPeak'), p.midPeak);
-  gl.uniform1f(gl.getUniformLocation(progMain,'midWidth'), p.midWidth);
-  gl.uniform1f(gl.getUniformLocation(progMain,'midGain'), p.midGain);
-  gl.uniform1f(gl.getUniformLocation(progMain,'frameSeed'), p.frameSeed);
-
-  gl.clearColor(0.08,0.09,0.12,1); gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
-function passBlur(texSrc, fboDst, dir, sigma, W, H){
-  const prog = (dir===0)? progBlurH : progBlurV;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fboDst);
-  gl.viewport(0,0,W,H);
-  gl.useProgram(prog);
-  gl.bindVertexArray(vao);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texSrc);
-  gl.uniform1i(gl.getUniformLocation(prog,'UTex'), 0);
-  gl.uniform2f(gl.getUniformLocation(prog,'texel'), 1.0/W, 1.0/H);
-  gl.uniform1f(gl.getUniformLocation(prog,'sigma'), sigma);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
-function draw(p){
-  if (!gl || !progMain || !texIn) return null;
-  resizeTargets(p.targetW, p.targetH);
-
-  // Pass 1: main grain render to texA
-  passMain(p);
-
-  // Optional scanner PSF blur (cheap): texA -> texB (H), texB -> texA (V)
-  if (p.psfSigma > 0.05) {
-    passBlur(texA, fboB, 0, p.psfSigma, p.targetW, p.targetH);
-    passBlur(texB, fboA, 1, p.psfSigma, p.targetW, p.targetH);
+  function setTextureFiltering(){
+    gl.bindTexture(gl.TEXTURE_2D, state.imageTex);
+    const filter = (Math.abs(state.scale - 1.0) < 1e-4) ? gl.NEAREST : gl.LINEAR;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
   }
 
-  // Read back final (texA) into transfer bitmap
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.viewport(0,0,p.targetW,p.targetH);
-
-  // True copy
-  gl.useProgram(progCopy);
-  gl.bindVertexArray(vao);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
-  gl.uniform1i(gl.getUniformLocation(progCopy,'UTex'), 0);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-  return cvs.transferToImageBitmap();
-}
-
-onmessage = async (e)=>{
-  const d = e.data;
-  if (d.type==='init'){
-    try{
-      const tmp = new OffscreenCanvas(2,2);
-      const gl2 = tmp.getContext('webgl2');
-      postMessage({type:'cap', ok: !!gl2, reason: gl2? '':'no-webgl2'});
-    }catch(err){
-      postMessage({type:'cap', ok:false, reason:'no-offscreen'});
-    }
-    postMessage({type:'inited'});
+  function setImage(img){
+    if (state.imageTex) gl.deleteTexture(state.imageTex);
+    state.imageTex = createTexture(img);
+    state.imageSize = {w: img.naturalWidth || img.width, h: img.naturalHeight || img.height};
+    d('#infoImage').textContent = `${state.imageSize.w}×${state.imageSize.h}`;
+    // Center in current view at 1:1
+    state.scale = 1;
+    state.offset.x = Math.max(0, (state.imageSize.w - state.viewSize.w) * 0.5);
+    state.offset.y = Math.max(0, (state.imageSize.h - state.viewSize.h) * 0.5);
+    updateZoomInfo();
+    setTextureFiltering();
   }
-  else if (d.type==='image'){
-    if (!gl) initGL(d.w||2, d.h||2);
-    uploadImage(d.bmp);
-    postMessage({type:'image-ok'});
+
+  // Placeholder gradient image
+  (function createPlaceholder(){
+    const c = document.createElement('canvas'); c.width = 800; c.height = 600;
+    const cx = c.getContext('2d');
+    const g = cx.createLinearGradient(0,0,800,600); g.addColorStop(0,'#444'); g.addColorStop(0.5,'#666'); g.addColorStop(1,'#888');
+    cx.fillStyle = g; cx.fillRect(0,0,c.width,c.height);
+    cx.fillStyle = 'rgba(255,255,255,0.2)'; cx.font = '48px sans-serif'; cx.textAlign='center'; cx.fillText('Load an image', 400, 300);
+    const img = new Image(); img.onload = ()=> setImage(img); img.src = c.toDataURL();
+  })();
+
+  // Controls
+  function bindRange(id, key){
+    const s = d('#'+id), n = d('#'+id+'N'), v = d('#v-'+(id==='size'?'size': id==='sat'?'sat': id));
+    const sync = (val)=>{ s.value = val; n.value = val; if(v) v.textContent = (+val).toFixed(2); };
+    s.addEventListener('input', ()=>{ state.params[key] = +s.value; sync(s.value); });
+    n.addEventListener('change', ()=>{ state.params[key] = +n.value; sync(n.value); });
+    sync(state.params[key]);
   }
-  else if (d.type==='render'){
-    try{
-      const out = draw(d.p);
-      if (!out){ postMessage({type:'failed', reason:'Draw failed'}); return; }
-      postMessage({type:'done', bmp: out, task: d.task}, [out]);
-    }catch(err){
-      postMessage({type:'failed', reason: String(err)});
-    }
+  bindRange('intensity','intensity');
+  bindRange('size','grainSize');
+  bindRange('opacity','opacity');
+  bindRange('response','response');
+  bindRange('sharp','sharp');
+  bindRange('contrast','contrast');
+  bindRange('sat','sat');
+
+  d('#pattern').addEventListener('change', e=> state.params.pattern = +e.target.value);
+  d('#blend').addEventListener('change', e=> state.params.blend = +e.target.value);
+  d('#color').addEventListener('change', e=> state.params.color = +e.target.value);
+  d('#toggleOriginal').addEventListener('change', e=> state.showOriginal = !!e.target.checked);
+  d('#toggleAnim').addEventListener('change', e=> state.animate = !!e.target.checked);
+
+  // Presets
+  d('#p35').addEventListener('click', ()=> applyPreset({ intensity:.6, grainSize:2.5, pattern:0, blend:0, opacity:.7, response:.6, sharp:.6, contrast:1.1, color:1, sat:1.1 }));
+  d('#p120').addEventListener('click',()=> applyPreset({ intensity:.3, grainSize:1.5, pattern:0, blend:1, opacity:.5, response:.4, sharp:.8, contrast:1.0, color:0, sat:1.0 }));
+  d('#pPush').addEventListener('click',()=> applyPreset({ intensity:.9, grainSize:4.0, pattern:1, blend:0, opacity:.8, response:.8, sharp:.5, contrast:1.3, color:2, sat:.9 }));
+  d('#pMin').addEventListener('click', ()=> applyPreset({ intensity:.2, grainSize:1.0, pattern:2, blend:0, opacity:.3, response:.3, sharp:.9, contrast:1.0, color:0, sat:1.0 }));
+  function applyPreset(p){ Object.assign(state.params, p);
+    [['intensity','intensity'],['size','grainSize'],['opacity','opacity'],['response','response'],['sharp','sharp'],['contrast','contrast'],['sat','sat']].forEach(([id,key])=>{
+      const val = state.params[key]; const s=d('#'+id), n=d('#'+id+'N'), v=d('#v-'+(id==='size'?'size': id==='sat'?'sat': id));
+      s.value = val; n.value = val; if(v) v.textContent=(+val).toFixed(2);
+    });
+    d('#pattern').value = p.pattern; d('#blend').value = p.blend; d('#color').value = p.color;
   }
-};
-`;
 
-// Boot worker
-function bootWorker(){
-  const blob = new Blob([workerCode], {type:'application/javascript'});
-  worker = new Worker(URL.createObjectURL(blob), { type:'module' });
-  worker.onmessage = (e)=>{
-    const d = e.data;
-    if (d.type==='inited'){ setStatus('Ready'); }
-    else if (d.type==='cap'){ hasWorkerGL = d.ok; setEnv(d.ok? 'Worker: WebGL2 OK' : 'Worker: No WebGL2 ('+d.reason+')'); }
-    else if (d.type==='image-ok'){
-      setStatus('Image uploaded'); scheduleRender(true); updateMini(); drawGuide();
-    }
-    else if (d.type==='done'){
-      if (d.task !== lastTask) return;
-      setStatus('Done');
+  // Preview size controls
+  const btnS = d('#sizeS'), btnM = d('#sizeM'), btnL = d('#sizeL');
+  function setActive(b){ [btnS,btnM,btnL].forEach(x=>x.classList.remove('active')); b.classList.add('active'); }
+  btnS.addEventListener('click', ()=>{ setActive(btnS); setCanvasSize(720,405); updateZoomInfo(); });
+  btnM.addEventListener('click', ()=>{ setActive(btnM); setCanvasSize(960,450); updateZoomInfo(); });
+  btnL.addEventListener('click', ()=>{ setActive(btnL); setCanvasSize(1280,720); updateZoomInfo(); });
 
-      // Draw main crop
-      vctx.clearRect(0,0,view.width,view.height);
-      vctx.drawImage(d.bmp, 0, 0);
+  // File input & DnD
+  const fileInput = d('#file'); const fileLabel = d('#fileLabel');
+  ['dragover','drop'].forEach(evt=> document.body.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); }));
+  fileLabel.addEventListener('dragover', e=>{ e.preventDefault(); fileLabel.classList.add('drag-over'); });
+  fileLabel.addEventListener('dragleave', ()=> fileLabel.classList.remove('drag-over'));
+  fileLabel.addEventListener('drop', e=>{ fileLabel.classList.remove('drag-over'); const f=e.dataTransfer.files?.[0]; if(f && f.type.startsWith('image/')) handleFile(f); });
+  fileInput.addEventListener('change', e=>{ const f=e.target.files?.[0]; if(f) handleFile(f); });
+  function handleFile(file){ const r=new FileReader(); r.onload = ()=>{ const img = new Image(); img.onload = ()=> setImage(img); img.src = r.result; }; r.readAsDataURL(file); }
 
-      // Add tiny flare in 2D (cheaper than another worker pass)
-      if (params.flare > 0.0001){
-        vctx.save();
-        vctx.globalCompositeOperation = 'screen';
-        vctx.globalAlpha = params.flare;
-        vctx.fillStyle = '#ffffff';
-        vctx.fillRect(0,0,view.width,view.height);
-        vctx.restore();
-      }
+  // Pan & Zoom (top-left origin for offsets)
+  const stage = d('#stage');
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function clampOffsets(){
+    const maxX = Math.max(0, state.imageSize.w - state.viewSize.w / state.scale);
+    const maxY = Math.max(0, state.imageSize.h - state.viewSize.h / state.scale);
+    state.offset.x = clamp(state.offset.x, 0, maxX);
+    state.offset.y = clamp(state.offset.y, 0, maxY);
+  }
+  stage.addEventListener('mousedown', e=>{ state.dragging = true; state.start.x=e.clientX; state.start.y=e.clientY; state.startOffset.x=state.offset.x; state.startOffset.y=state.offset.y; stage.style.cursor='grabbing'; });
+  window.addEventListener('mousemove', e=>{ if(!state.dragging) return; const dx = (e.clientX - state.start.x); const dy = (e.clientY - state.start.y); state.offset.x = state.startOffset.x - dx / state.scale; state.offset.y = state.startOffset.y - dy / state.scale; clampOffsets(); });
+  window.addEventListener('mouseup', ()=>{ state.dragging=false; stage.style.cursor='move'; });
 
-      // Draw dimmed global context (preview-only)
-      if (imgFull){
-        vctx.save();
-        vctx.globalAlpha = 0.10;
-        const scale = Math.min(view.width/fullW, view.height/fullH);
-        const dw = Math.round(fullW*scale), dh = Math.round(fullH*scale);
-        const dx = Math.round((view.width - dw)/2), dy = Math.round((view.height - dh)/2);
-        if (!window._ctxPreview || window._ctxPreview.width!==dw || window._ctxPreview.height!==dh){
-          const c = document.createElement('canvas'); c.width=dw; c.height=dh;
-          const c2 = c.getContext('2d');
-          c2.drawImage(imgFull, 0, 0, dw, dh);
-          window._ctxPreview = c;
-        }
-        vctx.drawImage(window._ctxPreview, dx, dy);
-        vctx.globalAlpha = 1.0;
-        vctx.restore();
-        vctx.drawImage(d.bmp, 0, 0); // draw crop on top; do NOT clear
-      }
-    }
-    else if (d.type==='failed'){
-      setStatus('Worker error: '+d.reason);
-      console.warn('[Worker failed]', d.reason);
-    }
-  };
-  worker.postMessage({type:'init'});
-}
-bootWorker();
+  d('#zoom100').addEventListener('click', ()=>{ state.scale = 1; clampOffsets(); setTextureFiltering(); updateZoomInfo(); });
+  d('#zoomFit').addEventListener('click', ()=>{
+    if(!state.imageSize.w) return;
+    const sx = state.viewSize.w / state.imageSize.w;
+    const sy = state.viewSize.h / state.imageSize.h;
+    state.scale = Math.min(sx, sy);
+    state.offset.x=0; state.offset.y=0; clampOffsets(); setTextureFiltering(); updateZoomInfo();
+  });
+  function updateZoomInfo(){ d('#infoZoom').textContent = `${Math.round(state.scale*100)}%`; }
 
-// -------------------- Param packing --------------------
-function packParams(){
-  // Push/pull scaling for σ and mid visibility (rough heuristic)
-  const push = params.pushStops|0;
-  const pushGain = 1.0 + 0.25 * push; // +25% per stop
-  const midGain = params.midGain * pushGain;
-  const rgbCorr = params.rgbCorr;
+  // Downloads (render full-res temporarily into the main canvas, then restore)
+  function renderToSize(width, height, grainOnly=false){
+    const prev = { w: glCanvas.width, h: glCanvas.height, scale: state.scale, offX: state.offset.x, offY: state.offset.y, viewW: state.viewSize.w, viewH: state.viewSize.h };
+    glCanvas.width = width; glCanvas.height = height; gl.viewport(0,0,width,height);
+    state.viewSize = {w: width, h: height}; state.scale = 1; state.offset.x = 0; state.offset.y = 0;
+    drawFrame(performance.now(), grainOnly);
+    return function restore(){
+      glCanvas.width = prev.w; glCanvas.height = prev.h;
+      gl.viewport(0,0,prev.w,prev.h);
+      setCanvasSize(prev.viewW, prev.viewH);
+      state.scale = prev.scale; state.offset.x = prev.offX; state.offset.y = prev.offY;
+    };
+  }
+  d('#dlWith').addEventListener('click', ()=>{
+    if(!state.imageSize.w) return;
+    const restore = renderToSize(state.imageSize.w, state.imageSize.h, false);
+    glCanvas.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='image_with_grain.png'; a.click(); URL.revokeObjectURL(a.href); restore(); });
+  });
+  d('#dlGrain').addEventListener('click', ()=>{
+    if(!state.imageSize.w) return;
+    const restore = renderToSize(state.imageSize.w, state.imageSize.h, true);
+    glCanvas.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='grain_layer.png'; a.click(); URL.revokeObjectURL(a.href); restore(); });
+  });
 
-  return {
-    imgW: fullW, imgH: fullH,
-    cropX, cropY, cropW, cropH,
-    intensity: params.intensity,
-    grainSize: params.grainSize,
-    distribution: (params.distribution==='uniform'?0:1),
-    shape: (params.shape==='square'?0 : params.shape==='circle'?1:2),
-    periodicity: (params.periodicity==='regular'?1:0),
-    subpixel: (params.subpixel==='on'?1:0),
-    lumBias: params.lumBias,
-    contrast: params.contrast,
-    opacityDecay: params.opacityDecay,
-    blendMode: (params.blendMode==='overlay'?0: params.blendMode==='softlight'?1: params.blendMode==='screen'?2:3),
-    blendOpacity: params.blendOpacity,
-    sharpPreserve: params.sharpPreserve,
-    targetW: cropW, targetH: cropH,
+  // Draw loop
+  function drawFrame(now, grainOnly=false){
+    const tSec = now * 0.001;
+    gl.useProgram(program); gl.bindVertexArray(vao);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, state.imageTex); gl.uniform1i(U.image, 0);
+    gl.uniform2f(U.imageSize, state.imageSize.w, state.imageSize.h);
+    gl.uniform2f(U.viewSize, state.viewSize.w, state.viewSize.h);
+    gl.uniform2f(U.offset, state.offset.x, state.offset.y);
+    gl.uniform1f(U.scale, state.scale);
+    gl.uniform1f(U.time, state.animate ? tSec : 0.0);
+    gl.uniform1f(U.intensity, state.params.intensity);
+    gl.uniform1f(U.grainSize, state.params.grainSize);
+    gl.uniform1i(U.pattern, state.params.pattern);
+    gl.uniform1i(U.blend, state.params.blend);
+    gl.uniform1f(U.opacity, state.params.opacity);
+    gl.uniform1f(U.response, state.params.response);
+    gl.uniform1f(U.contrast, state.params.contrast);
+    gl.uniform1f(U.saturation, state.params.sat);
+    gl.uniform1f(U.sharpness, state.params.sharp);
+    gl.uniform1i(U.colorMode, state.params.color);
+    gl.uniform1i(U.showOriginal, state.showOriginal?1:0);
+    gl.uniform1i(U.grainOnly, grainOnly?1:0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
 
-    // sweet-spot extras
-    rgbCorr,
-    midPeak: params.midPeak,
-    midWidth: params.midWidth,
-    midGain,
-    frameSeed: params.frameSeed,
-    psfSigma: params.psfSigma
-  };
-}
+  function loop(now){
+    drawFrame(now, false);
+    const dt = now - state.lastRAF; state.fps = Math.round(1000 / (dt||1)); state.lastRAF = now; d('#fps').textContent = state.fps;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
 
-function scheduleRender(force=false){
-  if(!imgFull) return;
-  if(!hasWorkerGL){ renderFallback2D(); return; }
-  if (!force && rafPending) return;
-  rafPending = true;
-  requestAnimationFrame(()=>{ rafPending=false; render(); });
-}
-function render(){
-  const p = packParams();
-  lastTask++;
-  setStatus('Rendering…');
-  worker.postMessage({ type:'render', p, task:lastTask });
-}
-
-// Simple main-thread 2D fallback so Safari/iOS shows *something*
-function renderFallback2D(){
-  const sx = cropX, sy = cropY, sw = cropW, sh = cropH;
-  vctx.clearRect(0,0,view.width,view.height);
-  vctx.drawImage(imgFull, sx, sy, sw, sh, 0, 0, view.width, view.height);
-  setStatus('Preview (no WebGL2/worker)');
-}
-
-// -------------------- Crop and canvas --------------------
-function clampCrop(){
-  if (!fullW || !fullH) return;
-  cropW = Math.min(cropW, fullW);
-  cropH = Math.min(cropH, fullH);
-  cropX = Math.max(0, Math.min(cropX, fullW - cropW));
-  cropY = Math.max(0, Math.min(cropY, fullH - cropH));
-}
-
-function computeCanvasSizeFromMax(maxD){ return { w: maxD, h: Math.round(maxD*9/16) }; }
-
-// -------------------- Load image --------------------
-$$('file').addEventListener('change', async (e)=>{
-  const f = e.target.files[0]; if(!f) return;
-  const blobURL = URL.createObjectURL(f);
-  imgFull = await createImageBitmap(f);
-  URL.revokeObjectURL(blobURL);
-  fullW = imgFull.width; fullH = imgFull.height;
-  window._ctxPreview = null; // reset preview cache
-
-  const up = await createImageBitmap(imgFull);
-  worker.postMessage({type:'image', bmp: up, w: view.width, h: view.height}, [up]);
-
-  cropW = view.width; cropH = view.height;
-  cropX = Math.max(0, Math.floor((fullW - cropW)/2));
-  cropY = Math.max(0, Math.floor((fullH - cropH)/2));
-  clampCrop();
-  updateMini();
-  scheduleRender(true);
-});
-
-// -------------------- Canvas size selector --------------------
-$$('previewSize').addEventListener('change', ()=>{
-  const maxD = parseInt($$('previewSize').value,10);
-  const {w,h} = computeCanvasSizeFromMax(maxD);
-  view.width = w; view.height = h;
-  cropW = w; cropH = h; clampCrop();
-  updateMini();
-  scheduleRender(true);
-});
-
-// -------------------- Controls --------------------
-function bindRange(id, key, vid, precision=2){
-  const r=$$(id), v=$$(vid);
-  const upd=()=>{ params[key]=parseFloat(r.value); v.textContent=Number(r.value).toFixed(precision); scheduleRender(); };
-  r.addEventListener('input', upd); r.addEventListener('change', upd); v.textContent=Number(r.value).toFixed(precision);
-}
-function bindSelect(id, setter){
-  const s=$$(id); s.addEventListener('change', ()=>{ setter(s.value); scheduleRender(); });
-}
-bindRange('intensity','intensity','vIntensity',2);
-bindRange('grainSize','grainSize','vGrainSize',1);
-bindSelect('distribution', v=>params.distribution=v);
-bindSelect('shape', v=>params.shape=v);
-bindSelect('periodicity', v=>params.periodicity=v);
-bindSelect('subpixel', v=>params.subpixel=v);
-bindRange('lumBias','lumBias','vLumBias',2);
-bindRange('contrast','contrast','vContrast',2);
-bindRange('opacityDecay','opacityDecay','vOpacityDecay',2);
-bindSelect('blendMode', v=>params.blendMode=v);
-bindRange('blendOpacity','blendOpacity','vBlendOpacity',2);
-bindRange('sharpPreserve','sharpPreserve','vSharpPreserve',2);
-
-// Stock + push/pull
-$$('stock').addEventListener('change', ()=>{
-  const v = $$('stock').value;
-  if (v==='custom') return;
-  const s = STOCKS[v];
-  if (!s) return;
-  params.mu = s.mu; params.sigma = s.sigma;
-  params.rgbCorr = s.rgbCorr.slice();
-  params.midPeak = s.midPeak; params.midWidth = s.midWidth; params.midGain = s.midGain;
-  scheduleRender(true);
-});
-$$('push').addEventListener('change', ()=>{
-  params.pushStops = parseInt($$('push').value,10) || 0;
-  scheduleRender(true);
-});
-
-// Presets (original)
-function syncUI(){
-  $$('intensity').value=params.intensity; $$('vIntensity').textContent=fmt(params.intensity);
-  $$('grainSize').value=params.grainSize; $$('vGrainSize').textContent=fmt(params.grainSize,1);
-  $$('distribution').value=params.distribution; $$('shape').value=params.shape;
-  $$('periodicity').value=params.periodicity; $$('subpixel').value=params.subpixel;
-  $$('lumBias').value=params.lumBias; $$('vLumBias').textContent=fmt(params.lumBias);
-  $$('contrast').value=params.contrast; $$('vContrast').textContent=fmt(params.contrast);
-  $$('opacityDecay').value=params.opacityDecay; $$('vOpacityDecay').textContent=fmt(params.opacityDecay);
-  $$('blendMode').value=params.blendMode; $$('blendOpacity').value=params.blendOpacity; $$('vBlendOpacity').textContent=fmt(params.blendOpacity);
-  $$('sharpPreserve').value=params.sharpPreserve; $$('vSharpPreserve').textContent=fmt(params.sharpPreserve);
-}
-$$('presetVintage').addEventListener('click', ()=>{
-  Object.assign(params, {
-    intensity:0.82, grainSize:3.4, distribution:'dynamic', shape:'irregular',
-    periodicity:'random', subpixel:'on', lumBias:0.72, contrast:1.25, opacityDecay:0.42,
-    blendMode:'softlight', blendOpacity:0.64, sharpPreserve:0.6
-  }); syncUI(); scheduleRender(true);
-});
-$$('presetMinimal').addEventListener('click', ()=>{
-  Object.assign(params, {
-    intensity:0.28, grainSize:1.2, distribution:'uniform', shape:'circle',
-    periodicity:'random', subpixel:'off', lumBias:0.5, contrast:1.0, opacityDecay:0.2,
-    blendMode:'overlay', blendOpacity:0.35, sharpPreserve:0.85
-  }); syncUI(); scheduleRender(true);
-});
-$$('presetGrit').addEventListener('click', ()=>{
-  Object.assign(params, {
-    intensity:0.9, grainSize:2.8, distribution:'dynamic', shape:'square',
-    periodicity:'regular', subpixel:'on', lumBias:0.65, contrast:1.35, opacityDecay:0.25,
-    blendMode:'multiply', blendOpacity:0.55, sharpPreserve:0.72
-  }); syncUI(); scheduleRender(true);
-});
-
-// -------------------- Export full-res --------------------
-$$('exportFull').addEventListener('click', async ()=>{
-  if (!imgFull){ setStatus('Load an image first'); return; }
-  setStatus('Exporting full-res…');
-
-  const blob = new Blob([workerCode], {type:'application/javascript'});
-  const w2 = new Worker(URL.createObjectURL(blob), { type:'module' });
-
-  let timeout = setTimeout(()=>{
-    setStatus('Export timeout — browser may block WebGL2 in workers');
-    try{ w2.terminate(); }catch(_){ }
-  }, 30000);
-
-  w2.onmessage = async (e)=>{
-    const d=e.data;
-    if (d.type==='cap'){
-      if(!d.ok){ clearTimeout(timeout); setStatus('Full-res failed (no WebGL2 in worker)'); w2.terminate(); return; }
-      const bmp = await createImageBitmap(imgFull);
-      w2.postMessage({type:'image', bmp, w: fullW, h: fullH}, [bmp]);
-    }
-    else if (d.type==='image-ok'){
-      const p = {
-        imgW: fullW, imgH: fullH,
-        cropX:0, cropY:0, cropW:fullW, cropH:fullH,
-        intensity: params.intensity,
-        grainSize: params.grainSize,
-        distribution: (params.distribution==='uniform'?0:1),
-        shape: (params.shape==='square'?0 : params.shape==='circle'?1:2),
-        periodicity: (params.periodicity==='regular'?1:0),
-        subpixel: (params.subpixel==='on'?1:0),
-        lumBias: params.lumBias,
-        contrast: params.contrast,
-        opacityDecay: params.opacityDecay,
-        blendMode: (params.blendMode==='overlay'?0: params.blendMode==='softlight'?1: params.blendMode==='screen'?2:3),
-        blendOpacity: params.blendOpacity,
-        sharpPreserve: params.sharpPreserve,
-        targetW: fullW, targetH: fullH,
-        // sweet-spot extras
-        rgbCorr: params.rgbCorr,
-        midPeak: params.midPeak,
-        midWidth: params.midWidth,
-        midGain: params.midGain * (1.0 + 0.25*(params.pushStops|0)),
-        frameSeed: params.frameSeed,
-        psfSigma: params.psfSigma
-      };
-      w2.postMessage({ type:'render', p, task:1 });
-    }
-    else if (d.type==='done'){
-      clearTimeout(timeout);
-      setStatus('Saving…');
-      const outBmp = d.bmp;
-      const canvas = document.createElement('canvas');
-      canvas.width = outBmp.width; canvas.height = outBmp.height;
-      const c2d = canvas.getContext('2d');
-      c2d.drawImage(outBmp,0,0);
-
-      // Apply tiny flare in 2D for export too
-      if (params.flare > 0.0001){
-        c2d.globalCompositeOperation = 'screen';
-        c2d.globalAlpha = params.flare;
-        c2d.fillStyle = '#ffffff';
-        c2d.fillRect(0,0,canvas.width,canvas.height);
-      }
-
-      // Prefer async blob over DataURL to avoid blocking big images
-      canvas.toBlob((blob)=>{
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'grainlab.png';
-        a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-      }, 'image/png');
-
-      setStatus('Full-res done');
-      w2.terminate();
-    }
-    else if (d.type==='failed'){
-      clearTimeout(timeout);
-      setStatus('Export failed: '+d.reason);
-      w2.terminate();
-    }
-  };
-
-  w2.postMessage({type:'init'});
-});
-
-// -------------------- Mini‑map --------------------
-const mini = $$('mini');
-const miniBox = $$('miniBox');
-let isDraggingMini = false;
-let miniScale = 1, miniW = 0, miniH = 0, miniOffsetX = 0, miniOffsetY = 0;
-
-function updateMini(){
-  if (!fullW || !fullH) return;
-  const rect = mini.getBoundingClientRect();
-  const w = rect.width, h = rect.height;
-  const s = Math.min(w/fullW, h/fullH);
-  miniScale = s; miniW = fullW*s; miniH = fullH*s;
-  miniOffsetX = (w-miniW)*0.5; miniOffsetY = (h-miniH)*0.5;
-
-  const bx = miniOffsetX + cropX*s;
-  const by = miniOffsetY + cropY*s;
-  const bw = cropW*s;
-  const bh = cropH*s;
-
-  miniBox.style.left = bx+'px';
-  miniBox.style.top  = by+'px';
-  miniBox.style.width  = bw+'px';
-  miniBox.style.height = bh+'px';
-}
-
-mini.addEventListener('mousedown', (ev)=>{
-  isDraggingMini = true; moveMini(ev);
-});
-window.addEventListener('mousemove', (ev)=>{ if(isDraggingMini) moveMini(ev); });
-window.addEventListener('mouseup', ()=>{ isDraggingMini=false; });
-
-// Touch support
-mini.addEventListener('touchstart', (e)=>{ isDraggingMini=true; moveMini(e.touches[0]); e.preventDefault(); }, {passive:false});
-mini.addEventListener('touchmove',  (e)=>{ if(isDraggingMini) moveMini(e.touches[0]); e.preventDefault(); }, {passive:false});
-window.addEventListener('touchend', ()=>{ isDraggingMini=false; });
-
-function moveMini(ev){
-  const r = mini.getBoundingClientRect();
-  const mx = ev.clientX - r.left;
-  const my = ev.clientY - r.top;
-
-  let cx = (mx - miniOffsetX) / miniScale - cropW / 2;
-  let cy = (miniOffsetY + miniH - my) / miniScale - cropH / 2; // invert Y for intuitive mapping
-
-  cx = Math.max(0, Math.min(cx, fullW - cropW));
-  cy = Math.max(0, Math.min(cy, fullH - cropH));
-
-  cropX = Math.round(cx);
-  cropY = Math.round(cy);
-
-  updateMini();
-  scheduleRender();
-}
-
-// -------------------- Drag-to-pan on main canvas --------------------
-let isPanning = false, panStartX=0, panStartY=0, panStartCropX=0, panStartCropY=0;
-view.addEventListener('mousedown', (e)=>{
-  if (!fullW) return;
-  isPanning = true;
-  panStartX = e.clientX; panStartY = e.clientY;
-  panStartCropX = cropX; panStartCropY = cropY;
-  hideGuide();
-});
-window.addEventListener('mousemove', (e)=>{
-  if (!isPanning) return;
-  const dx = e.clientX - panStartX;
-  const dy = e.clientY - panStartY;
-  cropX = panStartCropX - dx; // drag right -> cropX decreases
-  cropY = panStartCropY + dy; // drag down -> move down
-  clampCrop();
-  updateMini();
-  scheduleRender();
-});
-window.addEventListener('mouseup', ()=>{ isPanning=false; });
-
-// Touch panning
-view.addEventListener('touchstart', (e)=>{
-  if (!fullW) return;
-  isPanning = true; const t = e.touches[0];
-  panStartX=t.clientX; panStartY=t.clientY; panStartCropX=cropX; panStartCropY=cropY; hideGuide();
-}, {passive:true});
-window.addEventListener('touchmove', (e)=>{
-  if (!isPanning) return;
-  const t = e.touches[0]; const dx=t.clientX-panStartX, dy=t.clientY-panStartY;
-  cropX = panStartCropX - dx; cropY = panStartCropY + dy; clampCrop(); updateMini(); scheduleRender();
-}, {passive:true});
-window.addEventListener('touchend', ()=>{ isPanning=false; });
-
-// -------------------- Guide overlay --------------------
-function drawGuide(){
-  const g = $$('guide');
-  g.style.opacity = '1';
-  setTimeout(()=>{ g.style.opacity='0'; }, 2500);
-}
-function hideGuide(){ $$('guide').style.opacity='0'; }
-
-// Keep mini-map in sync on resize
-window.addEventListener('resize', ()=>{ updateMini(); });
-
-// -------------------- Init canvas --------------------
-(function initCanvas(){
-  const {w,h} = computeCanvasSizeFromMax(parseInt($$('previewSize').value,10));
-  view.width=w; view.height=h;
-  cropW=w; cropH=h;
-  vctx.fillStyle='#0d1118'; vctx.fillRect(0,0,view.width,view.height);
-  setStatus('Drop an image');
+  // Handle context loss
+  glCanvas.addEventListener('webglcontextlost', (e)=>{ e.preventDefault(); });
+  glCanvas.addEventListener('webglcontextrestored', ()=>{ gl.useProgram(program); gl.bindVertexArray(vao); gl.viewport(0,0,glCanvas.width,glCanvas.height); });
 })();
 </script>
 </body>
