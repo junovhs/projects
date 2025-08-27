@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bloat Detective — pro build</title>
+<style>
+  :root{
+    --bg:#0b0f14;--panel:#121822;--muted:#8aa0b4;--fg:#e7eff7;--accent:#7dd3fc;--accent2:#a78bfa;--bad:#fca5a5;--good:#86efac;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #1b2440 0%, rgba(27,36,64,0) 60%), var(--bg);
+    color:var(--fg);
+  }
+  header{
+    padding:28px 20px 8px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  header h1{margin:0; font-size:1.4rem; letter-spacing:.5px}
+  header .sub{color:var(--muted); font-size:.9rem}
+  .bar{display:flex; gap:10px; flex-wrap:wrap; margin-left:auto}
+  .btn{
+    background:linear-gradient(120deg,var(--accent),var(--accent2));
+    color:#021018; border:0; padding:10px 14px; border-radius:10px;
+    font-weight:600; cursor:pointer;
+    box-shadow:0 6px 18px rgba(74,222,255,.25);
+  }
+  .btn.secondary{background:#1d2736; color:var(--fg); box-shadow:none; border:1px solid #2a3548}
+  input[type="file"]{display:none}
+  main{padding:10px 16px 80px; display:grid; grid-template-columns: 380px 1fr; gap:16px}
+  @media (max-width: 1080px){ main{grid-template-columns:1fr} }
+  .panel{background:rgba(18,24,34,.75); border:1px solid #202a3b; border-radius:14px; padding:16px; backdrop-filter: blur(8px)}
+  h2{margin:0 0 8px; font-size:1rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+  .drop{border:2px dashed #2a3548; border-radius:12px; padding:18px; text-align:center; color:var(--muted)}
+  .drop.drag{border-color: var(--accent); background:rgba(125,211,252,.05)}
+  .muted{color:var(--muted)}
+  .small{font-size:.9rem}
+  .grid{display:grid; grid-template-columns: repeat(2, 1fr); gap:10px}
+  .kpi{background:#0f1621; border:1px solid #1b2433; border-radius:12px; padding:10px}
+  .kpi b{display:block; font-size:1.4rem}
+  .score-wrap{display:flex; align-items:center; gap:16px}
+  .gauge{
+    width:130px; height:130px; border-radius:50%;
+    background: conic-gradient(var(--good) 0deg, var(--accent) 120deg, var(--bad) 240deg, #334155 240deg);
+    display:grid; place-items:center; position:relative; overflow:hidden;
+  }
+  .needle{position:absolute; width:2px; height:60px; background:var(--fg); top:5px; left:50%; transform-origin: bottom center; border-radius:2px}
+  .gauge::after{content:""; position:absolute; inset:10px; background:var(--panel); border-radius:50%; border:1px solid #233047}
+  .score{position:relative; z-index:1; font-weight:800; font-size:1.6rem}
+  .tag{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid #2a3548; color:var(--muted); margin:0 6px 6px 0; font-size:.85rem}
+  .ok{color:var(--good); border-color:#32503b}
+  .warn{color:#fcd34d; border-color:#5a4c21}
+  .bad{color:var(--bad); border-color:#5a2b2b}
+  .list{display:flex; flex-direction:column; gap:8px; max-height:420px; overflow:auto}
+  .item{background:#0d1420; border:1px solid #1b2436; border-radius:10px; padding:10px}
+  .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+  details{background:#0a0f17; border:1px solid #152033; padding:10px; border-radius:10px}
+  summary{cursor:pointer; color:var(--accent)}
+  .footer{opacity:.65; font-size:.85rem; margin-top:8px}
+  .path{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hl{background:linear-gradient(90deg,rgba(125,211,252,.15),rgba(167,139,250,.15)); padding:2px 6px; border-radius:6px}
+  #status{margin-top:8px; font-size:.85rem; color:var(--muted)}
+  /* Modal */
+  .modal{position:fixed; inset:0; display:none; place-items:center; background:rgba(2,8,23,.6); backdrop-filter: blur(6px); z-index:999}
+  .modal.open{display:grid}
+  .sheet{background:#0e1521; border:1px solid #233047; border-radius:16px; width:min(720px,96vw); padding:16px}
+  .sheet h3{margin:0 0 8px; font-size:1.1rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .row input[type="text"], .row input[type="number"]{background:#0b111b; border:1px solid #1b2436; color:var(--fg); padding:8px 10px; border-radius:10px}
+  .row .grow{flex:1}
+  .table{width:100%; border-collapse: collapse; margin-top:6px}
+  .table th,.table td{border:1px solid #1b2436; padding:6px 8px; font-size:.9rem}
+  .pill{padding:3px 8px; border:1px solid #2a3548; border-radius:999px; font-size:.8rem; color:var(--muted)}
+  .right{margin-left:auto}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🕵️‍♀️ Bloat Detective</h1>
+    <div class="sub">Local, zero-setup static analyzer that outputs a safe shrink plan.</div>
+    <div class="bar">
+      <label class="btn" for="picker">Choose folder</label>
+      <input id="picker" type="file" webkitdirectory directory multiple />
+      <button id="export" class="btn">Export report</button>
+      <button id="aliases" class="btn secondary">Aliases</button>
+      <button id="settings" class="btn secondary">Settings</button>
+      <button id="demo" class="btn secondary">Try demo</button>
+      <button id="reset" class="btn secondary">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Project overview</h2>
+      <div id="overview" class="small muted">
+        Select or drop a project folder to analyze JS/TS/JSX/TSX/Python/CSS/HTML files. You can also drop a <code>coverage/lcov.info</code> and a <code>git-log-numstat.txt</code> (optional).
+      </div>
+      <div id="drop" class="drop small" style="margin-top:10px">Drop a folder here (we honor .gitignore)</div>
+      <div id="status"></div>
+
+      <div style="height:10px"></div>
+      <div class="grid">
+        <div class="kpi"><span class="muted small">Files</span><b id="kpi-files">–</b></div>
+        <div class="kpi"><span class="muted small">Lines</span><b id="kpi-lines">–</b></div>
+        <div class="kpi"><span class="muted small">Avg lines/file</span><b id="kpi-avg">–</b></div>
+        <div class="kpi"><span class="muted small">Deepest path</span><b id="kpi-depth">–</b></div>
+      </div>
+      <div style="height:16px"></div>
+      <div class="score-wrap">
+        <div class="gauge">
+          <div id="needle" class="needle" style="transform: translateX(-50%) rotate(220deg)"></div>
+          <div id="score" class="score">–</div>
+        </div>
+        <div>
+          <div class="muted small">Lean score (higher is better)</div>
+          <div id="badges" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="footer">Heuristic score: fewer tiny files, low duplication, shallow deps, little dead code, & covered code preferred.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Opportunities</h2>
+      <div class="list" id="ops"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Dependency map</h2>
+      <div id="deps" class="list"></div>
+      <div class="footer">Relative imports + aliases; external packages ignored.</div>
+    </section>
+
+    <section class="panel">
+      <h2>"Shrink Plan"</h2>
+      <div id="plan" class="list"></div>
+    </section>
+  </main>
+
+  <!-- Aliases Modal -->
+  <div id="aliases-modal" class="modal">
+    <div class="sheet">
+      <h3>Alias overrides</h3>
+      <div class="small muted">Add/override path aliases. Examples: <code>@/* → src/*</code>, <code>~/ → app/</code></div>
+      <table class="table" id="alias-table">
+        <thead><tr><th>Find</th><th>Replacement</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="row" style="margin-top:8px">
+        <input id="alias-find" class="grow" placeholder="e.g. @/* or ~/" />
+        <input id="alias-repl" class="grow" placeholder="e.g. src/* or app/" />
+        <button id="alias-add" class="btn secondary">Add</button>
+        <span class="right"></span>
+        <button id="alias-close" class="btn">Done & Re-analyze</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="sheet">
+      <h3>Settings</h3>
+      <div class="row">
+        <div class="pill">Tiny &lt; lines</div>
+        <input id="set-tiny" type="number" min="5" max="200" step="1" />
+        <div class="pill">Dup warn ≥ %</div>
+        <input id="set-dup" type="number" min="1" max="100" step="1" />
+        <div class="pill">Deep path warn ≥</div>
+        <input id="set-deep" type="number" min="2" max="20" step="1" />
+        <div class="pill">Skip files over (MB)</div>
+        <input id="set-maxmb" type="number" min="0.1" max="10" step="0.1" />
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label><input id="set-ignore-tests" type="checkbox" checked /> Treat tests/specs as entrypoints</label>
+        <label><input id="set-ignore-stories" type="checkbox" checked style="margin-left:12px"/> Treat stories as entrypoints</label>
+        <label><input id="set-ignore-configs" type="checkbox" checked style="margin-left:12px"/> Treat config files as entrypoints</label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="settings-save" class="btn">Save & Re-analyze</button>
+        <button id="settings-cancel" class="btn secondary">Cancel</button>
+        <span class="right"></span>
+        <button id="settings-export" class="btn secondary">Download .bloatdetective.json</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ========================== CONFIG ========================== */
+const ACCEPT = ['.js','.mjs','.cjs','.ts','.tsx','.jsx','.py','.css','.html'];
+const REL_PATH = /^(\.|\.\.)\//;
+const PY_REL   = /^\.+/;
+const DEFAULT_MAX_BYTES = 1.5 * 1024 * 1024;
+const DEFAULT_IGNORES = [
+  /\/\.git\//, /\/node_modules\//, /\/dist\//, /\/build\//, /\/out\//, /\/target\//,
+  /\/coverage\//, /\/\.next\//, /\/\.nuxt\//, /\/\.cache\//,
+  /\/(?:venv|\.venv)\//, /\/__pycache__\//, /\/\.mypy_cache\//,
+  /\/\.idea\//, /\/\.vscode\//
+];
+
+const DEFAULT_SETTINGS = {
+  tinyLines: 30,
+  dupWarnPct: 10,
+  deepPathWarn: 5,
+  maxFileMB: 1.5,
+  treatTestsAsEntrypoints: true,
+  treatStoriesAsEntrypoints: true,
+  treatConfigsAsEntrypoints: true,
+  manualAliases: [] // {find:'@/*', replacement:'src/*'}
+};
+
+let CURRENT_SETTINGS = {...DEFAULT_SETTINGS};
+let CURRENT_ROOT_KEY = 'default-root';
+let LAST_CONFIG_FILE = null; // if .bloatdetective.json existed
+let COVERAGE_MAP = new Map(); // normalizedPath -> coveredLines count
+let CHURN_MAP = new Map();    // normalizedPath -> {adds, dels, commits}
+
+/* ===================== DOM HELPERS ===================== */
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, text) => { const n=document.createElement(tag); if(cls) n.className=cls; if(text!=null) n.textContent=text; return n; };
+function setStatus(msg){ $('#status').textContent = msg || ''; }
+function normalizePath(p){ return (p || '').replaceAll('\\','/'); }
+function pathDir(p){ const i=normalizePath(p).lastIndexOf('/'); return i===-1? '' : normalizePath(p).slice(0,i); }
+function ext(p){ const i=p.lastIndexOf('.'); return i>-1? p.slice(i).toLowerCase() : ''; }
+function isCode(p){ return ACCEPT.includes(ext(p)); }
+function dirDepth(p){ return normalizePath(p).split('/').length-1; }
+function download(filename, text, mime='text/plain'){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: mime+';charset=utf-8'}));
+  a.download = filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ==================== .gitignore SUPPORT ==================== */
+function reEscape(s){ return s.replace(/[.+^${}()|[\]\\]/g,'\\$&'); }
+function globToRegExp(glob){
+  let g = reEscape(glob);
+  g = g.replace(/\\\*/g,'[*]');
+  g = g.replace(/\*\*/g, '§§DOUBLESTAR§§');
+  g = g.replace(/\*/g,'[^/]*').replace(/\?/g,'[^/]');
+  g = g.replace(/§§DOUBLESTAR§§/g,'.*');
+  return g;
+}
+function compileGitignore(text){
+  const rules=[];
+  const lines = (text||'').split(/\r?\n/);
+  for(let raw of lines){
+    if(raw==null) continue;
+    let line = raw.replace(/\s+$/,'');
+    if(!line) continue;
+    if(line[0]==='#') continue;
+    if(line[0]==='\\' && (line[1]==='#' || line[1]==='!')) line=line.slice(1);
+
+    let neg=false;
+    if(line[0]==='!'){ neg=true; line=line.slice(1); }
+    if(!line) continue;
+
+    let dirOnly=false;
+    if(line.endsWith('/')){ dirOnly=true; line=line.slice(0,-1); }
+
+    let anchored=false;
+    if(line.startsWith('/')){ anchored=true; line=line.slice(1); }
+
+    const hasSlash = line.includes('/');
+
+    const full = new RegExp('^' + globToRegExp(line) + (dirOnly? '(?:/.*)?' : '') + '$');
+    const base = new RegExp('^' + globToRegExp(line) + '$');
+
+    rules.push({neg, dirOnly, anchored, hasSlash, full, base});
+  }
+  return rules;
+}
+function buildIgnoreIndex(gitignoreEntries){
+  const sets = gitignoreEntries.map(e=>{
+    const dir = pathDir(e.path);
+    return { dir, depth: dir? dir.split('/').length : 0, rules: compileGitignore(e.text) };
+  }).sort((a,b)=>a.depth-b.depth);
+
+  function isUnderDir(p, dir){ return dir==='' || p===dir || p.startsWith(dir + '/'); }
+  function relTo(p, dir){
+    if(dir==='') return p;
+    if(p===dir) return '';
+    return p.startsWith(dir + '/') ? p.slice(dir.length+1) : null;
+  }
+
+  function isIgnored(path){
+    const p = normalizePath(path);
+    if (DEFAULT_IGNORES.some(rx => rx.test('/' + p + '/'))) return true;
+    let ignored = false;
+    for(const s of sets){
+      if(!isUnderDir(p, s.dir)) continue;
+      const rel = relTo(p, s.dir);
+      if(rel==null) continue;
+      const first = rel.split('/')[0];
+      for(const r of s.rules){
+        let match = false;
+        if(!r.anchored && !r.hasSlash){
+          match = r.base.test(first);
+          if(match && r.dirOnly){ match = first === rel.split('/')[0]; }
+        }else{
+          match = r.full.test(rel);
+        }
+        if(match){ ignored = !r.neg; }
+      }
+    }
+    return ignored;
+  }
+  return { isIgnored };
+}
+
+/* ================ DUPLICATION (normalized shingles) ================ */
+function hashStr(str){
+  let h=0x811c9dc5;
+  for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h = Math.imul(h,0x01000193)>>>0; }
+  return h>>>0;
+}
+function normalizeForDupeline(s){
+  s = s.replace(/\/\/.*$/,'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/#.*$/,'');
+  if (/^\s*(import|export|from\s+|require\()/.test(s)) return '';
+  if (/^\s*(type|interface)\b/.test(s)) return '';
+  if (/^\s*[{}();,]+$/.test(s)) return '';
+  if (s.trim().length < 4) return '';
+  return s.replace(/\s+/g,' ').trim();
+}
+function shingles(lines, w=5){
+  const cleaned = lines.map(normalizeForDupeline).filter(Boolean);
+  const s=[];
+  for(let i=0;i+w<=cleaned.length;i++){
+    const chunk = cleaned.slice(i,i+w).join('\n');
+    if(chunk) s.push(hashStr(chunk).toString(36));
+  }
+  return s;
+}
+
+/* ================= PARSERS / RESOLVERS ================= */
+const JS_IMPORTS = [
+  [/\bimport\s+[^'"]*?from\s*['"]([^'"]+)['"]/g,1],
+  [/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,1],
+  [/\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,1],
+];
+const PY_IMPORTS = [
+  [/\bfrom\s+([.\w\/_-]+)\s+import\b/g,1],
+  [/\bimport\s+([.\w\/_-]+)\b/g,1],
+];
+const CSS_IMPORTS = [
+  [/@import\s*(?:url\()?['"]?([^'")]+)['"]?\)?/g,1],
+];
+const HTML_IMPORTS = [
+  [/<script[^>]+src=['"]([^'"]+)['"]/gi,1],
+  [/<link[^>]+href=['"]([^'"]+)['"]/gi,1],
+];
+const IMPORTMAP_RE = new RegExp('<script[^>]+type=["\\\']importmap["\\\'][^>]*>([\\s\\S]*?)<\\/script>','i');
+
+function parseImports(code, path){
+  const pext = ext(path);
+  const mods=[];
+  const add = (arr)=>{ for(const [re,idx] of arr){ for(const m of code.matchAll(re)){ const v=(m[idx]||'').trim().replace(/['"]/g,''); if(v) mods.push(v); } } };
+  if(pext === '.py') add(PY_IMPORTS);
+  else if(pext === '.css') add(CSS_IMPORTS);
+  else if(pext === '.html') add(HTML_IMPORTS);
+  else add(JS_IMPORTS);
+  return mods;
+}
+function parseExports(code, path){
+  const pext = ext(path);
+  const names=[];
+  if (pext === '.py'){
+    for(const m of code.matchAll(/\bdef\s+(\w+)\s*\(/g)){ names.push(m[1]); }
+    for(const m of code.matchAll(/\bclass\s+(\w+)\s*:/g)){ names.push(m[1]); }
+  }else{
+    for(const m of code.matchAll(/\bexport\s+(?:async\s+)?function\s+(\w+)/g)){ names.push(m[1]); }
+    for(const m of code.matchAll(/\bexport\s+class\s+(\w+)/g)){ names.push(m[1]); }
+    for(const m of code.matchAll(/\bexport\s+(?:const|let|var)\s+(\w+)/g)){ names.push(m[1]); }
+    for(const m of code.matchAll(/\bmodule\.exports\s*=\s*\{([^}]+)\}/g)){
+      const keys=(m[1]||'').split(',').map(s=>s.trim().split(':')[0].trim()).filter(Boolean);
+      names.push(...keys);
+    }
+    for(const m of code.matchAll(/\bexports\.(\w+)\s*=/g)){ names.push(m[1]); }
+  }
+  return Array.from(new Set(names));
+}
+
+/* ---------- Relative + Python dotted ---------- */
+function relResolve(basePath, spec, allPaths){
+  const baseDir = normalizePath(basePath).split('/').slice(0,-1).join('/');
+  const tryCand = cand => { for (const c of cand){ if(allPaths.has(c)) return c; } return null; };
+
+  if(REL_PATH.test(spec)){
+    const stem = normalizePath(baseDir + '/' + spec);
+    const cand = [
+      stem, stem + '.js', stem + '.ts', stem + '.tsx', stem + '.jsx', stem + '.mjs', stem + '.cjs', stem + '.py',
+      stem + '/index.js', stem + '/index.ts', stem + '/index.tsx', stem + '/index.jsx', stem + '/index.mjs', stem + '/index.cjs',
+      stem + '/__init__.py'
+    ];
+    return tryCand(cand);
+  }
+  if(PY_REL.test(spec)){
+    const m = spec.match(/^(\.+)(.*)$/);
+    if(!m) return null;
+    const dots = m[1].length;
+    const ups  = Math.max(0, dots - 1);
+    let rest = (m[2] || '').replace(/^\./,'');
+    const baseParts = baseDir.split('/').filter(Boolean);
+    const dirParts  = baseParts.slice(0, baseParts.length - ups);
+    const relPart   = rest ? rest.replace(/\./g,'/') : '';
+    const stem      = normalizePath((dirParts.join('/')) + (relPart?'/'+relPart:''));
+    if(!stem) return null;
+    const cand = [
+      stem + '.py', stem + '/__init__.py',
+      stem + '.js', stem + '.ts', stem + '.tsx', stem + '.jsx',
+      stem + '/index.js', stem + '/index.ts', stem + '/index.tsx'
+    ];
+    return tryCand(cand);
+  }
+  return null;
+}
+
+/* ---------- Alias patterns ---------- */
+function escapeReg(str){ return str.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function makeAliasPattern(find, replace){
+  const parts = find.split('*'); const re = new RegExp('^' + parts.map(escapeReg).join('(.+?)') + '$');
+  let i=0; const rep = replace.replace(/\*/g, ()=>`$${++i}`);
+  return { re, rep, src:find, dst:replace };
+}
+function addPathMapping(patterns, key, targets){ for(const t of targets){ patterns.push(makeAliasPattern(key, t)); } }
+function buildAliasPatterns({tsPaths=[], viteAliases=[], importMap=[], manual=[]}){
+  const patterns=[];
+  // TS/JSConfig
+  for(const {key, targets} of tsPaths){ addPathMapping(patterns, key, targets); }
+  // Vite
+  for(const {find, replacement} of viteAliases){
+    if(find.includes('*')) patterns.push(makeAliasPattern(find, replacement));
+    else{
+      patterns.push(makeAliasPattern(find+'/*', replacement.replace(/\/?$/,'/')+'*'));
+      patterns.push(makeAliasPattern(find, replacement));
+    }
+  }
+  // Import maps
+  for(const {key, target, isPrefix} of importMap){
+    if(isPrefix) patterns.push(makeAliasPattern(key + '*', target.replace(/\/?$/,'/') + '*'));
+    else patterns.push(makeAliasPattern(key, target));
+  }
+  // Manual overrides
+  for(const {find, replacement} of manual){ patterns.push(makeAliasPattern(find, replacement)); }
+  return patterns;
+}
+function replaceByPattern(spec, patt){ const m = spec.match(patt.re); if(!m) return null; return patt.rep.replace(/\$(\d+)/g, (_,g)=> m[+g] || ''); }
+function aliasResolveByPatterns(spec, patterns, allPaths, baseUrl){
+  for(const p of patterns){
+    const stem = replaceByPattern(spec, p); if(!stem) continue;
+    const s = stem.replace(/^\.?\//,'');
+    const cand = [
+      s, s+'.ts', s+'.tsx', s+'.js', s+'.jsx', s+'.mjs', s+'.cjs', s+'.py',
+      s+'/index.ts', s+'/index.tsx', s+'/index.js', s+'/index.jsx', s+'/__init__.py'
+    ];
+    for(const c of cand){ if(allPaths.has(c)) return c; }
+  }
+  if(baseUrl){
+    const s2 = (baseUrl.replace(/\/$/,'') + '/' + spec).replace(/^\.?\//,'');
+    const cand = [ s2, s2+'.ts', s2+'.tsx', s2+'.js', s2+'.jsx', s2+'/index.ts', s2+'/index.tsx', s2+'/index.js' ];
+    for(const c of cand){ if(allPaths.has(c)) return c; }
+  }
+  return null;
+}
+
+/* =================== FILE INGEST =================== */
+function isProbablyMinifiedText(text){
+  const lines = text.split(/\r?\n/);
+  const maxLen = lines.reduce((m,l)=>Math.max(m,l.length),0);
+  const avgLen = text.length / Math.max(1, lines.length);
+  const nonWsRatio = text.replace(/\s+/g,'').length / Math.max(1, text.length);
+  return (maxLen > 1500) || (avgLen > 200) || (nonWsRatio > 0.9);
+}
+async function gatherFromHandle(handle, base=''){
+  const out=[];
+  if (handle.kind === 'file'){
+    const f = await handle.getFile();
+    f.relativePath = base + f.name;
+    out.push(f);
+  } else if (handle.kind === 'directory'){
+    const prefix = base + handle.name + '/';
+    for await (const h of handle.values()){
+      out.push(...await gatherFromHandle(h, prefix));
+    }
+  }
+  return out;
+}
+function gatherFromEntry(entry, base='', acc=[]){
+  return new Promise(resolve=>{
+    if(entry.isFile){
+      entry.file(file => { file.relativePath = base + entry.name; acc.push(file); resolve(acc); });
+    }else if(entry.isDirectory){
+      const reader = entry.createReader();
+      const path = base + entry.name + '/';
+      const bucket=[];
+      const drain = ()=> Promise.all(bucket.map(e=>gatherFromEntry(e, path, acc))).then(()=>resolve(acc));
+      const loop = () => reader.readEntries(entries=>{
+        if(!entries.length) return drain();
+        bucket.push(...entries); loop();
+      });
+      loop();
+    }else resolve(acc);
+  });
+}
+async function filesFromDataTransfer(dt){
+  const items = dt.items ? Array.from(dt.items) : [];
+  if (items.length && items[0].getAsFileSystemHandle){
+    const files=[];
+    for (const it of items){ const h = await it.getAsFileSystemHandle(); if (h) files.push(...await gatherFromHandle(h, '')); }
+    return files;
+  }
+  if (items.length && items[0].webkitGetAsEntry){
+    const files=[]; for (const it of items){ const e = it.webkitGetAsEntry(); if (e) await gatherFromEntry(e, '', files); }
+    return files;
+  }
+  return Array.from(dt.files || []);
+}
+
+function computeRootKey(paths){
+  if(!paths.length) return 'no-paths';
+  const parts = paths[0].split('/');
+  let prefix = [];
+  outer: for(let i=0;i<parts.length;i++){
+    const test = parts.slice(0,i+1).join('/') + '/';
+    for(const p of paths){ if(!p.startsWith(test)) break outer; }
+    prefix.push(parts[i]);
+  }
+  const key = prefix.join('/') || 'root';
+  return key;
+}
+
+async function readFiles(fileList){
+  setStatus('Reading directory…');
+
+  const files = Array.from(fileList).map(f=>{
+    const path = normalizePath(f.webkitRelativePath || f.relativePath || f.name);
+    try{ Object.defineProperty(f, '_path', { value: path, configurable: true }); }catch{}
+    return f;
+  }).filter(f=>!f._path.includes('/.git/'));
+
+  CURRENT_ROOT_KEY = computeRootKey(files.map(f=>f._path));
+  loadSettingsForRootKey();
+
+  const giFiles = files.filter(f => f.name === '.gitignore' || f._path.endsWith('/.gitignore'));
+  const giEntries = await Promise.all(giFiles.map(async f => ({ path: f._path, text: await f.text().catch(()=> '') })));
+  const ignoreIndex = buildIgnoreIndex(giEntries);
+
+  // load .bloatdetective.json if present
+  LAST_CONFIG_FILE = files.find(f => /(^|\/)\.bloatdetective\.json$/.test(f._path)) || null;
+  if (LAST_CONFIG_FILE){
+    try{
+      const cfg = JSON.parse(await LAST_CONFIG_FILE.text());
+      applyConfig(cfg); saveSettingsForRootKey(); // also persist
+    }catch{}
+  }
+
+  // preload configs for alias inference
+  const configNeedsText = files.filter(f =>
+    /(^|\/)(tsconfig|jsconfig)\.json$/.test(f._path) ||
+    /(^|\/)vite\.config\.(t|j)s$/.test(f._path) ||
+    /(^|\/)package\.json$/.test(f._path)
+  );
+  for (const f of configNeedsText){ try{ f._text = await f.text(); }catch{ f._text=''; } }
+
+  // coverage: try to locate lcov.info among files (if provided)
+  const lcovFile = files.find(f => /(^|\/)lcov\.info$/.test(f._path)) || null;
+  COVERAGE_MAP = new Map();
+  if (lcovFile){
+    try{ COVERAGE_MAP = parseLcov(await lcovFile.text()); }catch{}
+  }
+
+  // git churn: user can drop a git log export
+  const gitLog = files.find(f => /git-log-numstat/i.test(f._path)) || null;
+  CHURN_MAP = new Map();
+  if (gitLog){
+    try{ CHURN_MAP = parseGitNumstat(await gitLog.text()); }catch{}
+  }
+
+  // filter to code files
+  const maxBytes = (CURRENT_SETTINGS.maxFileMB || DEFAULT_SETTINGS.maxFileMB) * 1024 * 1024;
+  const codeFiles = files.filter(f => isCode(f._path) && !ignoreIndex.isIgnored(f._path));
+
+  const entries=[];
+  let skippedLarge=0, skippedMinified=0;
+
+  for(const f of codeFiles){
+    try{
+      if (f.size > maxBytes){ skippedLarge++; continue; }
+      const text = await f.text();
+      if (/\0/.test(text)) { skippedLarge++; continue; } // binary-ish
+      const minified = (ext(f._path) !== '.html' && isProbablyMinifiedText(text));
+      entries.push({path:f._path, text, _minified:minified});
+      if (minified) skippedMinified++;
+    }catch{}
+  }
+
+  // Build alias sources
+  const tsPaths=[], viteAliases=[], importMap=[];
+  let baseUrl = '';
+  const tsCfg = configNeedsText.find(f => /(^|\/)tsconfig\.json$/.test(f._path));
+  const jsCfg = configNeedsText.find(f => /(^|\/)jsconfig\.json$/.test(f._path));
+  const cfgFile = tsCfg || jsCfg;
+  if (cfgFile && cfgFile._text){
+    try {
+      const cfg = JSON.parse(cfgFile._text);
+      const co = (cfg.compilerOptions || {});
+      baseUrl = (co.baseUrl || '').replace(/^\.?\//,'');
+      const paths = co.paths || {};
+      for (const [k,v] of Object.entries(paths)){
+        const key = k;
+        const targets = (Array.isArray(v)?v:[v]).map(s=> String(s||'').replace(/^\.?\//,''));
+        tsPaths.push({key, targets});
+      }
+      if (cfg.extends){
+        const p = normalizePath(pathDir(cfgFile._path) + '/' + cfg.extends).replace(/\/+/g,'/');
+        const possible = [p, p+'.json'];
+        const extd = configNeedsText.find(f => possible.includes(f._path));
+        if (extd && extd._text){
+          try{
+            const ec = JSON.parse(extd._text);
+            const eco=(ec.compilerOptions||{});
+            if (!baseUrl && eco.baseUrl) baseUrl = eco.baseUrl.replace(/^\.?\//,'');
+            const epaths = eco.paths || {};
+            for (const [k,v] of Object.entries(epaths)){
+              const targets=(Array.isArray(v)?v:[v]).map(s=> String(s||'').replace(/^\.?\//,''));
+              tsPaths.push({key:k, targets});
+            }
+          }catch{}
+        }
+      }
+    } catch {}
+  }
+  const vite = configNeedsText.find(f => /(^|\/)vite\.config\.(t|j)s$/.test(f._path));
+  if (vite && vite._text){
+    const t = vite._text;
+    const objForm = t.match(/resolve\s*:\s*\{[\s\S]*?alias\s*:\s*\{([\s\S]*?)\}[\s\S]*?\}/m);
+    if (objForm){
+      const blob = objForm[1];
+      const re = /['"]([^'"]+)['"]\s*:\s*['"]([^'"]+)['"]/g;
+      let m; while((m=re.exec(blob))){ viteAliases.push({find:m[1], replacement:m[2].replace(/^\/?/,'').replace(/^\.?\//,'')}); }
+    }
+    const arrForm = t.match(/resolve\s*:\s*\{[\s\S]*?alias\s*:\s*\[([\s\S]*?)\][\s\S]*?\}/m);
+    if (arrForm){
+      const blob = arrForm[1];
+      const re = /find\s*:\s*['"]([^'"]+)['"][\s,]+replacement\s*:\s*['"]([^'"]+)['"]/g;
+      let m; while((m=re.exec(blob))){ viteAliases.push({find:m[1], replacement:m[2].replace(/^\/?/,'').replace(/^\.?\//,'')}); }
+    }
+  }
+
+  for(const e of entries.filter(x=>ext(x.path)==='.html')){
+    const m = e.text.match(IMPORTMAP_RE);
+    if (m){
+      try{
+        const json = JSON.parse(m[1]);
+        const im = json.imports || {};
+        for(const [k,v] of Object.entries(im)){
+          if (k.endsWith('/')) importMap.push({key:k, target:String(v).replace(/^\/?/,'').replace(/^\.?\//,''), isPrefix:true});
+          else importMap.push({key:k, target:String(v).replace(/^\/?/,'').replace(/^\.?\//,''), isPrefix:false});
+        }
+      }catch{}
+    }
+  }
+
+  const manual = CURRENT_SETTINGS.manualAliases || [];
+  const aliasPatterns = buildAliasPatterns({tsPaths, viteAliases, importMap, manual});
+
+  return { entries, aliasPatterns, baseUrl, stats:{ skippedLarge, skippedMinified } };
+}
+
+/* ================== COVERAGE & CHURN PARSERS ================== */
+function parseLcov(text){
+  const map = new Map();
+  const blocks = text.split('end_of_record');
+  for(const b of blocks){
+    const sf = (b.match(/^SF:(.+)$/m)||[])[1];
+    if(!sf) continue;
+    const lines = b.match(/^DA:(\d+),(\d+)/mg) || [];
+    let covered=0;
+    for(const ln of lines){
+      const m = ln.match(/^DA:(\d+),(\d+)/); if(!m) continue;
+      const hits = +m[2]; if(hits>0) covered++;
+    }
+    const norm = normalizePath(sf).replace(/^.*?([^/]+\/[^/]+)$/, '$1'); // tail path (best effort)
+    map.set(norm, covered);
+  }
+  return map;
+}
+function parseGitNumstat(text){
+  // Expect output from: git log --numstat --date=short --pretty=format:'---%H %ad'
+  const map = new Map();
+  let currentCommit = null;
+  for(const line of text.split(/\r?\n/)){
+    if (line.startsWith('---')){
+      currentCommit = true; continue;
+    }
+    const m = line.match(/^(\d+|-)\s+(\d+|-)\s+(.+)$/);
+    if(!m) continue;
+    const adds = m[1]==='-'?0:+m[1], dels = m[2]==='-'?0:+m[2];
+    const path = normalizePath(m[3]);
+    const rec = map.get(path) || {adds:0, dels:0, commits:0};
+    rec.adds += adds; rec.dels += dels; rec.commits += 1;
+    map.set(path, rec);
+  }
+  return map;
+}
+
+/* ====================== ANALYZE ====================== */
+function isEntryByPattern(p){
+  const tests = /(\/|^)(test|tests|__tests__|spec|__specs__)\//i;
+  const testFile = /\.(test|spec)\.[cm]?[jt]sx?$/.test(p);
+  const stories = /\.stories\.[cm]?[jt]sx?$/.test(p) || /(\/|^)\.storybook\//.test(p);
+  const configs = /(eslint|prettier|vite|vitest|jest|karma|webpack|rollup|tsconfig|babel|postcss|tailwind|playwright)\.config\.[cm]?[jt]s$/.test(p)
+               || /(\/|^)(jest|babel|eslint|postcss)\.config\.[cm]?[jt]s$/.test(p);
+  if (CURRENT_SETTINGS.treatTestsAsEntrypoints && (tests.test(p) || testFile)) return true;
+  if (CURRENT_SETTINGS.treatStoriesAsEntrypoints && stories) return true;
+  if (CURRENT_SETTINGS.treatConfigsAsEntrypoints && configs) return true;
+  return false;
+}
+
+function analyze(entries, aliasPatterns=[], baseUrl=''){
+  const allPaths = new Set(entries.map(x=>x.path));
+  const nodes = entries.map(e=>{
+    const lines = e.text.split(/\r?\n/);
+    const nonEmpty = lines.filter(l=>l.trim()).length;
+    const imps = parseImports(e.text, e.path);
+    const exps = parseExports(e.text, e.path);
+    const sh = e._minified ? [] : shingles(lines, 5);
+    const covered = COVERAGE_MAP.get(e.path) || 0;
+    const churn = CHURN_MAP.get(e.path) || CHURN_MAP.get(e.path.replace(/^.*?([^/]+\/[^/]+)$/,'$1')) || {adds:0,dels:0,commits:0};
+    return {path:e.path, lines:lines.length, nonEmpty, imps, exps, sh, _minified:e._minified, covered, churn};
+  });
+
+  const edges=[];
+  for(const n of nodes){
+    for(const spec of n.imps){
+      if (/^(?:https?:)?\/\//.test(spec) || spec.startsWith('/')) continue;
+      let target = relResolve(n.path, spec, allPaths);
+      if (!target) target = aliasResolveByPatterns(spec, aliasPatterns, allPaths, baseUrl);
+      if (target) edges.push([n.path, target]);
+    }
+  }
+
+  const inbound = new Map(nodes.map(n=>[n.path,0]));
+  for(const [,b] of edges){ inbound.set(b, (inbound.get(b)||0)+1); }
+
+  const sh2files = new Map();
+  nodes.forEach(n=>n.sh.forEach(h=>{
+    if(!sh2files.has(h)) sh2files.set(h, new Set());
+    sh2files.get(h).add(n.path);
+  }));
+  const dupCountByFile=new Map(nodes.map(n=>[n.path,0]));
+  for(const [, set] of sh2files){ if(set.size>1){ for(const p of set){ dupCountByFile.set(p, dupCountByFile.get(p)+1); } } }
+  const dupRatioByFile = new Map(nodes.map(n=>{
+    const r = n.sh.length? (dupCountByFile.get(n.path)/n.sh.length) : 0;
+    return [n.path, r];
+  }));
+
+  const adj = new Map(nodes.map(n=>[n.path,[]]));
+  edges.forEach(([a,b])=>adj.get(a).push(b));
+  const memo=new Map();
+  function dfs(p, seen=new Set()){
+    if(memo.has(p)) return memo.get(p);
+    if(seen.has(p)) return 0;
+    seen.add(p);
+    let best=0;
+    for(const q of adj.get(p)){ best = Math.max(best, 1+dfs(q, new Set(seen))); }
+    memo.set(p,best); return best;
+  }
+  const chainLengths = nodes.map(n=>dfs(n.path));
+  const longestChain = chainLengths.length? Math.max(...chainLengths) : 0;
+  const maxDirDepth = nodes.length ? Math.max(...nodes.map(n=>dirDepth(n.path))) : 0;
+
+  const tinyThresh = CURRENT_SETTINGS.tinyLines || DEFAULT_SETTINGS.tinyLines;
+
+  const totals = {
+    files:nodes.length,
+    lines:nodes.reduce((a,b)=>a+b.lines,0),
+    nonEmpty:nodes.reduce((a,b)=>a+b.nonEmpty,0),
+    tiny:nodes.filter(n=>n.nonEmpty<50).length,
+    ultraTiny:nodes.filter(n=>n.nonEmpty<tinyThresh).length,
+    singleImportConsumers: (()=>{ const c = new Map(nodes.map(n=>[n.path,0])); for(const [,b] of edges){ c.set(b,(c.get(b)||0)+1); } return Array.from(c).filter(([,v])=>v===1).length; })(),
+    unusedFiles: nodes.filter(n=>{
+      const p = n.path;
+      const isEntry = /(^|\/)index\.(m?js|ts|tsx|jsx|html)$/.test(p) ||
+                      /(^|\/)(__init__|__main__|main|app)\.py$/.test(p) ||
+                      isEntryByPattern(p);
+      const hasInbound = inbound.get(p) > 0;
+      const hasCoverage = n.covered > 0;
+      return !hasInbound && !isEntry && !hasCoverage;
+    }).length,
+    deepPaths: nodes.filter(n=>dirDepth(n.path)>= (CURRENT_SETTINGS.deepPathWarn || DEFAULT_SETTINGS.deepPathWarn)).length,
+    longestChain,
+    maxDirDepth,
+    avgLines: nodes.length? Math.round(nodes.reduce((a,b)=>a+b.nonEmpty,0)/nodes.length) : 0,
+    dupPct: (()=>{ const ratios = nodes.map(n=>dupRatioByFile.get(n.path)||0); const avg = ratios.length? (ratios.reduce((a,b)=>a+b,0)/ratios.length) : 0; return Math.round(avg*100); })(),
+  };
+
+  // Score
+  let score = 100;
+  score -= Math.min(30, totals.ultraTiny*1.0);
+  score -= Math.min(20, totals.unusedFiles*2);
+  score -= Math.min(12, Math.max(0, totals.avgLines<40? (40-totals.avgLines)*0.4 : 0));
+  score -= Math.min(15, totals.longestChain*1.2);
+  score -= Math.min(12, totals.deepPaths*1.5);
+  score -= Math.min(20, Math.max(0, (totals.dupPct-(CURRENT_SETTINGS.dupWarnPct||DEFAULT_SETTINGS.dupWarnPct))));
+  // Bonus if coverage provided (prefer covered code)
+  const coveredFiles = nodes.filter(n=>n.covered>0).length;
+  if (coveredFiles>0) score += Math.min(5, Math.floor(coveredFiles / Math.max(1, nodes.length) * 10));
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  // Ops
+  const ops=[];
+  if(totals.unusedFiles>0) ops.push({sev:'bad', title:`${totals.unusedFiles} file(s) appear unused`, tip:'Verify via alias-aware search & coverage; safe to delete after checks.'});
+  if(totals.ultraTiny>0) ops.push({sev:'warn', title:`${totals.ultraTiny} ultra-tiny file(s) (<${tinyThresh} lines)`, tip:'Merge trivial helpers into their consumer or co-locate.'});
+  if(totals.singleImportConsumers>0) ops.push({sev:'warn', title:`${totals.singleImportConsumers} module(s) used by only one file`, tip:'Inline or move next to the importer.'});
+  if(totals.deepPaths>0) ops.push({sev:'warn', title:`${totals.deepPaths} deeply nested file(s) (>=${CURRENT_SETTINGS.deepPathWarn})`, tip:'Flatten directories where reasonable.'});
+  if(totals.longestChain>5) ops.push({sev:'bad', title:`Longest dependency chain is ${totals.longestChain}`, tip:'Consolidate or import directly to shorten chains.'});
+  if(totals.dupPct>(CURRENT_SETTINGS.dupWarnPct||DEFAULT_SETTINGS.dupWarnPct)) ops.push({sev:'bad', title:`Approx. ${totals.dupPct}% duplicated shingles`, tip:'Extract shared utilities/components.'});
+  if(ops.length===0) ops.push({sev:'ok', title:'Looking lean!', tip:'No obvious issues. Consider small readability refactors.'});
+
+  // Suggestions: merge/prune/dedupe/move
+  const shrink=[];
+  const consumers = new Map(nodes.map(n=>[n.path,0]));
+  for(const [a,b] of edges){ consumers.set(b,(consumers.get(b)||0)+1); }
+  // simple helper
+  const importerOf = (p)=>{ for(const [a,b] of edges){ if(b===p) return a; } return null; };
+  // compute move candidates (tiny but multi-used)
+  nodes.forEach(n=>{
+    const p=n.path, c=consumers.get(p)||0;
+    const isEntry = /(^|\/)index\.(m?js|ts|tsx|jsx|html)$/.test(p) ||
+                    /(^|\/)(__init__|__main__|main|app)\.py$/.test(p) ||
+                    isEntryByPattern(p);
+    if(isEntry) return;
+
+    if(n.nonEmpty < tinyThresh && c<=1){
+      const importer = c===1 ? importerOf(p) : null;
+      shrink.push({type:'merge', path:p, into: importer, reason:'tiny+single-consumer'});
+    }
+    if((dupRatioByFile.get(p)||0)>.2){
+      shrink.push({type:'dedupe', path:p, reason:'>20% duplicate shingles'});
+    }
+    const hasInbound = inbound.get(p)>0;
+    const hasCoverage = n.covered>0;
+    if(!hasInbound && !hasCoverage){
+      shrink.push({type:'prune', path:p, reason:'no inbound imports & 0 coverage'});
+    }
+    if(n.nonEmpty < tinyThresh && c>1){
+      // move next to majority consumer
+      const importers = edges.filter(([a,b])=>b===p).map(([a])=>a);
+      const prefix = commonPrefix(importers);
+      if(prefix){ shrink.push({type:'move', path:p, into: prefix, reason:'tiny+multi-consumer; co-locate'}); }
+    }
+  });
+
+  // Impact/Effort scoring
+  const inboundCount = (p)=>inbound.get(p)||0;
+  const consumersOfConsumers = (p)=>{
+    // number of files that import files which import p
+    const direct = new Set(edges.filter(([,b])=>b===p).map(([a])=>a));
+    let c=0; for(const d of direct){ c += edges.filter(([,b])=>b===d).length; }
+    return c;
+  };
+  shrink.forEach(s=>{
+    const node = nodes.find(n=>n.path===s.path);
+    const lines = node? node.nonEmpty : 0;
+    const imp = inboundCount(s.path)+consumersOfConsumers(s.path)+Math.min(100,lines);
+    const eff = Math.max(1, lines) + (s.type==='merge' && s.into? 10:0) + (s.type==='dedupe'? 25:0) + (s.type==='prune'? 5:0) + (s.type==='move'? 15:0);
+    s.impact = imp; s.effort = eff; s.score = +(imp/eff).toFixed(2);
+  });
+  shrink.sort((a,b)=> b.score - a.score);
+
+  return {nodes, edges, totals, score, ops, shrink, aliasPatterns};
+}
+function commonPrefix(paths){
+  if(!paths.length) return null;
+  const parts = paths.map(p=>p.split('/'));
+  let out=[];
+  for(let i=0;i<parts[0].length;i++){
+    const x = parts[0][i];
+    if(paths.every(p=>p.split('/')[i]===x)) out.push(x); else break;
+  }
+  return out.join('/');
+}
+
+/* ======================= EXPORT (ONE FILE: MD) ======================= */
+let __lastResult = null;
+let __aliasPatterns = [];
+
+function prettyAliasList(patterns){
+  return patterns.slice(0, 20).map(p=>`${p.src??p.re}  →  ${p.dst??p.rep}`);
+}
+function makeVerifyCommands(action){
+  const base = action.path.split('/').pop().replace(/\.[^.]+$/,'');
+  // ripgrep verify both module name and relative path
+  const rg = `rg -n --hidden --no-ignore-vcs -S "(from|import).*${base}|${escapeRg(action.path)}" .`;
+  if (action.op === 'prune') return [rg, `# if no matches above: git rm "${action.path}"`];
+  if (action.op === 'merge'){
+    const into = action.into || '<IMPORTER>';
+    return [rg, `# inline ${action.path} into ${into}, then remove exports/imports`];
+  }
+  if (action.op === 'dedupe') return [rg, `# extract shared logic to a single module; update imports to point there`];
+  if (action.op === 'move') return [rg, `# git mv "${action.path}" "${action.into}/"`];
+  return [rg];
+}
+function escapeRg(s){ return s.replace(/[\\^$.*+?()[\]{}|]/g,'\\$&'); }
+
+function toPlanJSON(result, meta){
+  const {nodes, edges, totals, score, ops, shrink} = result;
+  return {
+    meta: {
+      analyzedAt: new Date().toISOString(),
+      rootKey: CURRENT_ROOT_KEY,
+      score, totals,
+      aliasHints: meta.aliasHints || [],
+      settings: CURRENT_SETTINGS,
+      notes: [
+        "All 'prune' actions must be verified by a full-text search with alias resolution.",
+        "For 'merge', inline into 'into' and update imports.",
+        "For 'dedupe', extract common logic into a shared module and update call sites.",
+        "For 'move', co-locate small shared helpers next to majority consumer."
+      ]
+    },
+    actions: shrink.map(s => ({
+      op: s.type, path: s.path, into: s.into || null, reason: s.reason,
+      impact: s.impact, effort: s.effort, priority: s.score,
+      verify: makeVerifyCommands({op:s.type, path:s.path, into:s.into})
+    })),
+    findings: {
+      ops,
+      edges,
+      files: nodes.map(n => ({
+        path:n.path, lines:n.nonEmpty, covered:n.covered, churn:n.churn, inbound: edges.filter(([,b])=>b===n.path).length
+      }))
+    }
+  };
+}
+
+function toOneMarkdown(plan){
+  const { meta, actions, findings } = plan;
+  const lines = [];
+  lines.push(`# Bloat Detective Report`);
+  lines.push(`**Date:** ${meta.analyzedAt}`);
+  lines.push(`**Root:** ${meta.rootKey}`);
+  lines.push(`\n## Summary`);
+  lines.push(`- **Score:** ${meta.score}`);
+  lines.push(`- **Files:** ${meta.totals.files}`);
+  lines.push(`- **Non-empty lines:** ${meta.totals.nonEmpty}`);
+  lines.push(`- **Avg lines/file:** ${meta.totals.avgLines}`);
+  lines.push(`- **Longest chain:** ${meta.totals.longestChain}`);
+  lines.push(`- **Deepest dir:** ${meta.totals.maxDirDepth}`);
+  lines.push(`- **Dup avg:** ${meta.totals.dupPct}%`);
+  if (meta.aliasHints?.length){
+    lines.push(`- **Alias patterns (detected):**`);
+    meta.aliasHints.forEach(a=>lines.push(`  - \`${a}\``));
+  }
+
+  lines.push(`\n## Opportunities`);
+  for (const o of (findings.ops || [])){
+    lines.push(`- **${o.title}** — _${o.tip}_`);
+  }
+
+  lines.push(`\n## Suggested actions (sorted by impact/effort)`);
+  if (!actions.length){
+    lines.push(`- No immediate actions suggested.`);
+  } else {
+    for (const a of actions){
+      const into = a.into ? ` → **${a.into}**` : '';
+      lines.push(`- \`${a.op}\` • **${a.path}**${into} — ${a.reason} _(impact:${a.impact}, effort:${a.effort}, priority:${a.priority})_`);
+      if (a.verify?.length){
+        lines.push(`  - verify:`);
+        for(const cmd of a.verify){ lines.push(`    - \`${cmd}\``); }
+      }
+    }
+  }
+
+  lines.push(`\n## How to use with an AI`);
+  lines.push(`Paste the JSON below into your AI assistant, with this instruction:`);
+  lines.push(`> Follow the JSON plan. For "merge": inline code and update imports. For "prune": only delete if zero references remain after alias-resolved search. For "dedupe": extract shared logic to a single module and update call sites. For "move": co-locate small helpers next to the majority consumer. Keep behavior unchanged.`);
+
+  lines.push(`\n## Machine-readable plan (JSON)`);
+  lines.push('```json');
+  lines.push(JSON.stringify(plan, null, 2));
+  lines.push('```');
+
+  lines.push(`\n## Current settings (.bloatdetective.json)`);
+  lines.push('```json');
+  lines.push(JSON.stringify(settingsToConfig(), null, 2));
+  lines.push('```');
+
+  return lines.join('\n');
+}
+
+/* ======================= RENDER ======================= */
+function render(res, stats){
+  __lastResult = res;
+  __aliasPatterns = res.aliasPatterns || [];
+
+  const {edges, totals, score, ops, shrink} = res;
+  $('#kpi-files').textContent = totals.files;
+  $('#kpi-lines').textContent = totals.nonEmpty.toLocaleString();
+  $('#kpi-avg').textContent = totals.avgLines;
+  $('#kpi-depth').textContent = totals.maxDirDepth;
+
+  const needle = $('#needle');
+  const angle = 240 - (score*2.4);
+  needle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+  $('#score').textContent = score;
+
+  const badges=$('#badges'); badges.innerHTML='';
+  const makeTag=(txt,cls)=>{ const t=el('span','tag '+cls,txt); badges.appendChild(t); };
+  makeTag(`chain ${totals.longestChain}`, totals.longestChain>8?'bad':totals.longestChain>4?'warn':'ok');
+  makeTag(`${totals.ultraTiny} ultra-tiny`, `${totals.ultraTiny>10?'bad':totals.ultraTiny>3?'warn':'ok'}`);
+  makeTag(`${totals.unusedFiles} unused`, `${totals.unusedFiles>5?'bad':totals.unusedFiles>0?'warn':'ok'}`);
+  makeTag(`${totals.dupPct}% dup`, `${totals.dupPct>(CURRENT_SETTINGS.dupWarnPct||DEFAULT_SETTINGS.dupWarnPct)?'bad':totals.dupPct>7?'warn':'ok'}`);
+
+  // Ops
+  const $ops=$('#ops'); $ops.innerHTML='';
+  ops.forEach(o=>{
+    const it=el('div','item');
+    const title=el('div','',o.title);
+    const tip=el('div','muted small',o.tip);
+    title.classList.add(o.sev==='bad'?'bad':o.sev==='warn'?'warn':'ok');
+    it.appendChild(title); it.appendChild(tip);
+    $ops.appendChild(it);
+  });
+
+  // Deps
+  const $deps=$('#deps'); $deps.innerHTML='';
+  const grouped = new Map();
+  edges.forEach(([a,b])=>{ if(!grouped.has(b)) grouped.set(b, new Set()); grouped.get(b).add(a); });
+  Array.from(grouped.entries()).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([target,set])=>{
+    const it=el('div','item');
+    const lbl=el('div','mono path',target);
+    const sub=el('div','small muted', `${set.size} importer(s)`);
+    it.appendChild(lbl); it.appendChild(sub);
+    const det=el('details'); const sum=el('summary',null,'Show importers'); det.appendChild(sum);
+    const ul=el('div','small mono');
+    Array.from(set).sort().forEach(x=> ul.appendChild(el('div','', '↳ '+x)) );
+    det.appendChild(ul); it.appendChild(det);
+    $deps.appendChild(it);
+  });
+  if(grouped.size===0){ $deps.appendChild(el('div','muted small','No relative/alias imports detected.')); }
+
+  // Plan
+  const $plan=$('#plan'); $plan.innerHTML='';
+  if(shrink.length===0){
+    $plan.appendChild(el('div','muted small','No obvious shrink steps. You look lean!'));
+  }else{
+    shrink.forEach(s=>{
+      const it=el('div','item');
+      const t=el('div','', (s.type==='merge'?'Merge': s.type==='move'?'Move':'Prune/Dedupe') + ' • ' + s.path + `  [prio ${s.score}]`);
+      const tip=el('div','muted small', (s.type==='merge' && s.into) ? `Inline into ${s.into}` : s.reason);
+      it.appendChild(t); it.appendChild(tip);
+      $plan.appendChild(it);
+    });
+  }
+
+  const aliasHints = prettyAliasList(__aliasPatterns);
+  const overview = `${totals.files} files, ${totals.nonEmpty.toLocaleString()} non-empty lines • ${edges.length} edges • longest chain ${totals.longestChain} • deepest dir ${totals.maxDirDepth}`;
+  const skips = stats ? ` • skipped ${stats.skippedLarge} large, ${stats.skippedMinified} minified` : '';
+  $('#overview').innerHTML = `
+    <div>Analyzed: <span class="hl">${overview}${skips}</span></div>
+    <div class="footer">Tip: We honor .gitignore and skip common build/vendor dirs. Drop <code>lcov.info</code> and <code>git-log-numstat.txt</code> to improve accuracy.</div>`;
+  setStatus(aliasHints.length ? `Alias hints: ${aliasHints.join('  |  ')}` : '');
+}
+
+/* ====================== SETTINGS & CONFIG ====================== */
+function applyConfig(cfg){
+  const s = {...CURRENT_SETTINGS};
+  if (cfg.settings){ Object.assign(s, cfg.settings); }
+  if (cfg.manualAliases){ s.manualAliases = cfg.manualAliases; }
+  CURRENT_SETTINGS = s;
+}
+function settingsToConfig(){
+  return {
+    settings: {
+      tinyLines: CURRENT_SETTINGS.tinyLines,
+      dupWarnPct: CURRENT_SETTINGS.dupWarnPct,
+      deepPathWarn: CURRENT_SETTINGS.deepPathWarn,
+      maxFileMB: CURRENT_SETTINGS.maxFileMB,
+      treatTestsAsEntrypoints: CURRENT_SETTINGS.treatTestsAsEntrypoints,
+      treatStoriesAsEntrypoints: CURRENT_SETTINGS.treatStoriesAsEntrypoints,
+      treatConfigsAsEntrypoints: CURRENT_SETTINGS.treatConfigsAsEntrypoints
+    },
+    manualAliases: CURRENT_SETTINGS.manualAliases || []
+  };
+}
+function loadSettingsForRootKey(){
+  try{
+    const s = localStorage.getItem('bd:'+CURRENT_ROOT_KEY);
+    if(s){ applyConfig(JSON.parse(s)); }
+  }catch{}
+}
+function saveSettingsForRootKey(){
+  try{ localStorage.setItem('bd:'+CURRENT_ROOT_KEY, JSON.stringify(settingsToConfig())); }catch{}
+}
+
+/* ====================== DROP/PICKER & UI ====================== */
+let __lastEntries = null;
+let __lastAliasPatterns = null;
+let __lastBaseUrl = '';
+
+async function runAnalysisFromFileList(fileList){
+  try{
+    setStatus('Reading…');
+    const { entries, aliasPatterns, baseUrl, stats } = await readFiles(fileList);
+    __lastEntries = entries; __lastAliasPatterns = aliasPatterns; __lastBaseUrl = baseUrl;
+    setStatus('Analyzing…');
+    const result = analyze(entries, aliasPatterns, baseUrl);
+    render(result, stats);
+    setStatus('Done.');
+  }catch(err){
+    console.error(err);
+    setStatus('Error while analyzing. See console.');
+  }
+}
+
+function refreshWithCurrent(){
+  if(!__lastEntries) return;
+  const patterns = buildAliasPatterns({ tsPaths:[], viteAliases:[], importMap:[], manual:CURRENT_SETTINGS.manualAliases || []});
+  const merged = (__lastAliasPatterns||[]).concat(patterns);
+  const result = analyze(__lastEntries, merged, __lastBaseUrl);
+  render(result, {skippedLarge:0, skippedMinified:0});
+  saveSettingsForRootKey();
+}
+
+function openModal(node){ node.classList.add('open'); }
+function closeModal(node){ node.classList.remove('open'); }
+
+function wireAliasesModal(){
+  const modal = $('#aliases-modal');
+  const tbody = $('#alias-table tbody');
+  const refresh = ()=>{
+    tbody.innerHTML='';
+    (CURRENT_SETTINGS.manualAliases||[]).forEach((m,i)=>{
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td'); td1.textContent = m.find;
+      const td2 = document.createElement('td'); td2.textContent = m.replacement;
+      const td3 = document.createElement('td'); const rm = document.createElement('button'); rm.textContent='Remove'; rm.className='btn secondary';
+      rm.onclick = ()=>{ CURRENT_SETTINGS.manualAliases.splice(i,1); refresh(); };
+      td3.appendChild(rm);
+      tr.append(td1,td2,td3); tbody.appendChild(tr);
+    });
+  };
+  $('#alias-add').onclick = ()=>{
+    const f = $('#alias-find').value.trim(); const r = $('#alias-repl').value.trim();
+    if(!f || !r) return;
+    CURRENT_SETTINGS.manualAliases = CURRENT_SETTINGS.manualAliases || [];
+    CURRENT_SETTINGS.manualAliases.push({find:f, replacement:r});
+    $('#alias-find').value=''; $('#alias-repl').value=''; refresh();
+  };
+  $('#alias-close').onclick = ()=>{ closeModal(modal); refreshWithCurrent(); };
+  refresh();
+}
+function wireSettingsModal(){
+  const modal = $('#settings-modal');
+  $('#set-tiny').value = CURRENT_SETTINGS.tinyLines;
+  $('#set-dup').value = CURRENT_SETTINGS.dupWarnPct;
+  $('#set-deep').value = CURRENT_SETTINGS.deepPathWarn;
+  $('#set-maxmb').value = CURRENT_SETTINGS.maxFileMB;
+  $('#set-ignore-tests').checked = !!CURRENT_SETTINGS.treatTestsAsEntrypoints;
+  $('#set-ignore-stories').checked = !!CURRENT_SETTINGS.treatStoriesAsEntrypoints;
+  $('#set-ignore-configs').checked = !!CURRENT_SETTINGS.treatConfigsAsEntrypoints;
+
+  $('#settings-save').onclick = ()=>{
+    CURRENT_SETTINGS.tinyLines = +$('#set-tiny').value || DEFAULT_SETTINGS.tinyLines;
+    CURRENT_SETTINGS.dupWarnPct = +$('#set-dup').value || DEFAULT_SETTINGS.dupWarnPct;
+    CURRENT_SETTINGS.deepPathWarn = +$('#set-deep').value || DEFAULT_SETTINGS.deepPathWarn;
+    CURRENT_SETTINGS.maxFileMB = +$('#set-maxmb').value || DEFAULT_SETTINGS.maxFileMB;
+    CURRENT_SETTINGS.treatTestsAsEntrypoints = $('#set-ignore-tests').checked;
+    CURRENT_SETTINGS.treatStoriesAsEntrypoints = $('#set-ignore-stories').checked;
+    CURRENT_SETTINGS.treatConfigsAsEntrypoints = $('#set-ignore-configs').checked;
+    saveSettingsForRootKey();
+    closeModal(modal); refreshWithCurrent();
+  };
+  $('#settings-cancel').onclick = ()=> closeModal(modal);
+  $('#settings-export').onclick = ()=> download('.bloatdetective.json', JSON.stringify(settingsToConfig(), null, 2), 'application/json');
+}
+
+function setDropHandlers(){
+  const picker  = $('#picker');
+  const demoBtn = $('#demo');
+  const exportBtn = $('#export');
+  const resetBtn= $('#reset');
+  const drop    = $('#drop');
+  const aliasesBtn = $('#aliases');
+  const settingsBtn= $('#settings');
+
+  if (!picker || !demoBtn || !resetBtn || !drop || !exportBtn) {
+    console.error('UI controls not found.');
+    return;
+  }
+
+  picker.addEventListener('change', async e=>{
+    await runAnalysisFromFileList(e.target.files);
+  });
+
+  // Drag & drop
+  ;['dragenter','dragover'].forEach(evt => {
+    drop.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); drop.classList.add('drag'); });
+  });
+  ;['dragleave','dragend','drop'].forEach(evt => {
+    drop.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('drag'); });
+  });
+  drop.addEventListener('drop', async e=>{
+    const files = await filesFromDataTransfer(e.dataTransfer);
+    await runAnalysisFromFileList(files);
+  });
+
+  demoBtn.addEventListener('click', async()=>{
+    const demoFiles = [
+      {path:'src/index.js', text:`import {add} from './math.js'; import util from './util/index.js'; console.log(add(1,2), util())`},
+      {path:'src/math.js', text:`export const add=(a,b)=>a+b; export const sub=(a,b)=>a-b;`},
+      {path:'src/util/index.js', text:`import x from './tiny.js'; export default function(){ return 'ok-'+x }`},
+      {path:'src/util/tiny.js', text:`export default 'tiny'`},
+      {path:'src/unused.js', text:`export const nope=1`},
+      {path:'styles/main.css', text:`@import "./base.css"; .btn{padding:8px}`},
+      {path:'styles/base.css', text:`/* base */`},
+      {path:'components/Button.jsx', text:`export default function Button(){ return <button/> }`},
+      {path:'lib/clone.js', text:`export function clone(o){return JSON.parse(JSON.stringify(o))}`},
+      {path:'lib/copy.js', text:`export function clone(o){return JSON.parse(JSON.stringify(o))}`},
+      {path:'index.html', text:`<link href="./styles/main.css"/><script src="./src/index.js"><\\/script>`},
+      {path:'pkg/__init__.py', text:`from .util import helper\ndef f():\n  return helper()`},
+      {path:'pkg/util.py', text:`def helper():\n  return "ok"`},
+      {path:'coverage/lcov.info', text:`TN:\nSF:src/util/index.js\nDA:1,1\nDA:2,1\nend_of_record\nSF:src/unused.js\nDA:1,0\nend_of_record`},
+      {path:'git-log-numstat.txt', text:`---deadbeef 2025-08-01\n10\t2\tsrc/util/index.js\n1\t1\tsrc/unused.js\n`},
+      {path:'.bloatdetective.json', text:`{"settings":{"tinyLines":30,"dupWarnPct":10,"deepPathWarn":5,"maxFileMB":1.5,"treatTestsAsEntrypoints":true,"treatStoriesAsEntrypoints":true,"treatConfigsAsEntrypoints":true},"manualAliases":[{"find":"@/*","replacement":"src/*"}]}`}
+    ];
+    // simulate file input FilesList shape enough for readFiles
+    await runAnalysisFromFileList(demoFiles.map(x=>({ name:x.path.split('/').pop(), webkitRelativePath:x.path, text: async ()=>x.text, size: x.text.length, _path:x.path })));
+  });
+
+  // Export (one file)
+  exportBtn.addEventListener('click', ()=>{
+    if (!__lastResult){ alert('Analyze a folder first.'); return; }
+    const plan = toPlanJSON(__lastResult, { aliasHints: prettyAliasList(__aliasPatterns) });
+    const md = toOneMarkdown(plan);
+    download('bloat-detective-report.md', md, 'text/markdown');
+  });
+
+  resetBtn.addEventListener('click', ()=>{
+    $('#kpi-files').textContent='–';
+    $('#kpi-lines').textContent='–';
+    $('#kpi-avg').textContent='–';
+    $('#kpi-depth').textContent='–';
+    $('#score').textContent='–';
+    $('#badges').innerHTML='';
+    $('#ops').innerHTML='';
+    $('#deps').innerHTML='';
+    $('#plan').innerHTML='';
+    $('#overview').textContent='Select or drop a project folder to analyze JS/TS/JSX/TSX/Python/CSS/HTML files.';
+    $('#needle').style.transform='translateX(-50%) rotate(220deg)';
+    $('#picker').value='';
+    setStatus('');
+    __lastResult = null;
+    __aliasPatterns = [];
+    __lastEntries = null;
+    saveSettingsForRootKey();
+  });
+
+  aliasesBtn.addEventListener('click', ()=>{ wireAliasesModal(); openModal($('#aliases-modal')); });
+  settingsBtn.addEventListener('click', ()=>{ wireSettingsModal(); openModal($('#settings-modal')); });
+
+  // close modals on background click
+  $('#aliases-modal').addEventListener('click', e=>{ if(e.target.id==='aliases-modal') closeModal(e.currentTarget); });
+  $('#settings-modal').addEventListener('click', e=>{ if(e.target.id==='settings-modal') closeModal(e.currentTarget); });
+}
+
+// Run once after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setDropHandlers, { once: true });
+} else {
+  setDropHandlers();
+}
+</script>
+</body>
+</html>
