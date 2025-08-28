@@ -1,0 +1,149 @@
+:root{
+  /* light */
+  --bg: #f8fafc; /* slate-50 */
+  --bg2: #eef2ff; /* indigo-50 */
+  --card: #ffffff;
+  --muted: #f1f5f9;
+  --text: #0f172a; /* slate-900 */
+  --text-muted:#64748b;
+  --primary:#1d4ed8;
+  --primary-foreground:#ffffff;
+  --border:#e2e8f0;
+  --ring:#93c5fd;
+
+  --headerH:56px;
+  --footerH:40px;
+}
+
+.dark{
+  --bg:#0b1220;
+  --bg2:#111827;
+  --card:#0f172a;
+  --muted:#0b1424;
+  --text:#e5e7eb;
+  --text-muted:#9ca3af;
+  --primary:#60a5fa;
+  --primary-foreground:#0b1220;
+  --border:#1f2937;
+  --ring:#3b82f6;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%; overflow:hidden}
+body{
+  margin:0;
+  font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background:linear-gradient(135deg,var(--bg),var(--bg2));
+}
+a{color:inherit}
+
+.row{display:flex; align-items:center}
+.col{display:flex; flex-direction:column}
+.between{justify-content:space-between}
+.center{justify-content:center}
+.g-1{gap:.25rem} .g-2{gap:.5rem} .g-3{gap:.75rem} .g-4{gap:1rem}
+.p-2{padding:.5rem} .p-3{padding:.75rem} .p-4{padding:1rem} .p-6{padding:1.5rem}
+.px-4{padding-left:1rem; padding-right:1rem}
+.py-3{padding-top:.75rem; padding-bottom:.75rem}
+.py-2{padding-top:.5rem; padding-bottom:.5rem}
+.pb-2{padding-bottom:.5rem}
+.small{font-size:12px}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px}
+.shadow{box-shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.05)}
+.mono{font:12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+
+.muted{color:var(--text-muted)}
+.badge{display:inline-flex; align-items:center; height:22px; padding:0 .5rem; border:1px solid var(--border); background:var(--muted); border-radius:999px; font-size:12px}
+
+.btn{display:inline-flex; align-items:center; gap:.4rem; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:8px; height:32px; padding:0 .75rem; cursor:pointer}
+.btn:hover{background:color-mix(in hsl,var(--card),var(--primary) 5%)}
+.btn[disabled]{opacity:.5; cursor:not-allowed}
+.btn.primary{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground)}
+.btn.ghost{border-color:transparent; background:transparent}
+.btn.icon{width:36px; height:36px; justify-content:center}
+.input{height:32px; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:6px; padding:0 .5rem}
+.checkbox{width:14px; height:14px}
+
+header{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in hsl,var(--card), transparent 20%);
+  backdrop-filter:saturate(1.2) blur(6px);
+  border-bottom:1px solid var(--border)
+}
+
+.logo{
+  width:32px; height:32px; border-radius:999px;
+  background:radial-gradient(circle at 30% 20%, #93c5fd, #3b82f6);
+  display:inline-flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:700
+}
+
+/* Layout */
+#app{min-height:100vh}
+.shell{display:flex; height:calc(100vh - var(--headerH) - var(--footerH))}
+.sidebar{position:relative; width:320px; border-right:1px solid var(--border); background:color-mix(in hsl,var(--card), transparent 30%)}
+.main{flex:1; display:flex; flex-direction:column; min-height:0}
+.divider{position:absolute; top:0; right:0; bottom:0; width:6px; cursor:ew-resize}
+.divider:hover{background:color-mix(in hsl,var(--primary), transparent 50%)}
+
+.toolbar{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%); display:none}
+.title{font-size:16px; font-weight:600}
+
+/* Scrollbars */
+*{scrollbar-width:thin; scrollbar-color:color-mix(in hsl,var(--text-muted), transparent 50%) transparent; transition:background-color .2s, border-color .2s, color .2s}
+::-webkit-scrollbar{width:6px; height:6px}
+::-webkit-scrollbar-thumb{background:color-mix(in hsl,var(--text-muted), transparent 50%); border-radius:3px}
+::selection{background:var(--primary); color:var(--primary-foreground)}
+
+/* Tree */
+.tree{height:100%; overflow:auto; padding:.5rem}
+.tree-item{display:flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:6px; cursor:pointer}
+.tree-item:hover{background:color-mix(in hsl,var(--muted), var(--primary) 6%)}
+.tree-name{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+/* Editor */
+.editor-pane{display:none; height:100%}
+.editor{display:flex; height:100%; min-height:0}
+.linenums{
+  width:40px;
+  background:color-mix(in hsl,var(--muted), transparent 20%);
+  border-right:1px solid var(--border);
+  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  color:var(--text-muted);
+  padding:.25rem .25rem;
+  overflow:hidden; /* important: no independent scroll */
+}
+.linenums-inner{position:relative}
+.textarea{
+  flex:1; border:0; padding:.5rem .75rem; outline:none; resize:none;
+  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background:transparent; color:var(--text)
+}
+
+/* Main tree/report pane */
+.main-pane{height:100%}
+.pane-head{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%)}
+.pane-scroll{padding:1rem; height:100%; overflow:auto}
+.report-pre{white-space:pre-wrap; display:none}
+.empty{height:100%; text-align:center; color:var(--text-muted)}
+.empty-icon{width:96px;height:96px;border-radius:999px;background:color-mix(in hsl,var(--primary), transparent 85%); display:flex;align-items:center;justify-content:center; font-size:42px}
+.empty-title{font-size:18px; color:var(--text)}
+.drop-icon{width:64px;height:64px;border-radius:999px; background:color-mix(in hsl,var(--primary), transparent 80%); display:flex;align-items:center;justify-content:center}
+
+/* Footer status bar pinned */
+.status{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  border-top:1px solid var(--border);
+  background:var(--primary); color:var(--primary-foreground)
+}
+
+/* Dialog */
+dialog{border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:12px; padding:0; width:min(900px, calc(100vw - 2rem))}
+dialog::backdrop{background:#0006}
+.dlg-head{padding:1rem; border-bottom:1px solid var(--border)}
+.dlg-body{padding:1rem}
+.dlg-input{height:280px; border:1px solid var(--border); border-radius:8px}
+
+/* Toast */
+.toast{position:fixed; right:1rem; bottom:1rem; background:#111; color:#fff; border-radius:10px; padding:.75rem 1rem; box-shadow:0 8px 30px rgba(0,0,0,.3); z-index:50}
