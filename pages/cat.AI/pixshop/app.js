@@ -5,7 +5,8 @@ const els = Object.fromEntries(
   [
     'file','drop','img','meta','dot','preview','mode','prompt','run','clear',
     'out','download','log','prog','outcropControls','out_side','out_amount',
-    'undo','redo','resultPanel'
+    'undo','redo','resultPanel','debugPanel','dbg_view','dbg_fade','dbg_offset',
+    'dbg_scale','dbg_apply','dbg_recompose','dbg_close','dbg_canvas'
   ].map(id => [id, document.getElementById(id)])
 );
 
@@ -13,11 +14,16 @@ let state = {
   workingDu: null,            // main image that grows
   uploadDu: null,             // compressed copy for API
   natural: { w:0, h:0 },
-  hotspot: null
+  hotspot: null,
+
+  // debug (after outcrop)
+  preOutcropDu: null,
+  lastInfo: null,
+  lastGenSnippetDu: null
 };
 
 // ===== History (undo/redo, localStorage) =====
-const HIST_KEY = 'pixshop_hist_v2';
+const HIST_KEY = 'pixshop_hist_v3';
 const History = {
   stack: [], idx: -1, limit: 10,
   load() {
@@ -42,7 +48,6 @@ const History = {
   },
   undo(){ if (this.idx > 0) { this.idx--; this.save(); return this.stack[this.idx]; } return null; },
   redo(){ if (this.idx < this.stack.length - 1) { this.idx++; this.save(); return this.stack[this.idx]; } return null; },
-  current(){ return (this.idx >= 0 ? this.stack[this.idx] : null); }
 };
 function updateHistoryUi(){
   els.undo.disabled = !(History.idx > 0);
@@ -112,14 +117,13 @@ async function compressDataUrl(inputDataUrl, {
 // ===== Outcrop: snippet + overlap + yellow mask =====
 const YELLOW = '#FFFF00';
 
-// Build snippet with (pad + overlap), where overlap is copied from the original.
-// Returns details needed for re-composition.
+// Build snippet with (pad + overlap), copy overlap from original.
 async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
   const src = await showImage(sourceDu);
   const W = src.naturalWidth, H = src.naturalHeight;
   const pad = Math.max(4, Math.round((side==='left'||side==='right'?W:H) * frac));
   const ov  = Math.max(24, Math.min(160, Math.round(pad * 0.33))); // overlap
-  const fade = Math.min(64, Math.max(24, Math.floor(ov * 0.6)));   // seam fade
+  const fade = Math.min(64, Math.max(24, Math.floor(ov * 0.6)));   // default seam fade
 
   const horizontal = (side==='left'||side==='right');
   const snipW = horizontal ? (pad + ov) : W;
@@ -129,22 +133,18 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
   ctx.fillStyle = YELLOW; ctx.fillRect(0,0,snipW,snipH);
 
   if (side === 'left') {
-    // rightmost 'ov' of original → snippet's right 'ov'
     ctx.drawImage(src, 0, 0, ov, H, pad, 0, ov, H);
   } else if (side === 'right') {
-    // leftmost 'ov' → snippet's left 'ov'
     ctx.drawImage(src, W - ov, 0, ov, H, 0, 0, ov, H);
   } else if (side === 'top') {
-    // bottom 'ov' → snippet's bottom 'ov'
     ctx.drawImage(src, 0, 0, W, ov, 0, pad, W, ov);
   } else { // bottom
-    // top 'ov' → snippet's top 'ov'
     ctx.drawImage(src, 0, H - ov, W, ov, 0, 0, W, ov);
   }
 
   const snippetDu = c.toDataURL('image/png');
 
-  // scale snippet for API (keep ≤ 1024 on long edge)
+  // scale snippet for API (≤ 1024 long edge)
   const maxEdge = 1024;
   const scale = Math.min(1, maxEdge / Math.max(snipW, snipH));
   let uploadDu = snippetDu, upW = snipW, upH = snipH, upScale = 1;
@@ -168,13 +168,17 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
   };
 }
 
-// Compose: never modify the original; fade the extension into it.
-async function composeOutcropFromSnippet(originalDu, genSnippetDu, info) {
-  const { side, pad, ov, fade, snippet, upload, source, final } = info;
-  const srcImg = await showImage(originalDu);
-  const genImg = await showImage(genSnippetDu);
+// draw composite into a context; returns dataURL if ctx is omitted
+async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts = {}) {
+  const { side, pad, ov, snippet, upload, source, final } = info;
+  const fade = Math.max(0, Math.round(opts.fade ?? info.fade));
+  const offset = Math.round(opts.offset || 0); // px; horizontal or vertical depending on side
+  const scale = Math.max(0.95, Math.min(1.05, Number(opts.scale || 1)));
 
-  // crop rect in UPLOAD space for generated area (pad + fade)
+  const baseImg = await showImage(baseDu);
+  const genImg  = await showImage(genSnippetDu);
+
+  // where to crop from GENERATED snippet (pad + fade) in upload-space
   const crop = { x:0, y:0, w:0, h:0 };
   if (side === 'left') {
     crop.x = 0; crop.y = 0;
@@ -190,21 +194,28 @@ async function composeOutcropFromSnippet(originalDu, genSnippetDu, info) {
     crop.h = Math.round((pad + fade) * (upload.h / snippet.h));
   }
 
+  // final canvas
   const { c: out, ctx } = drawCanvas(final.w, final.h);
 
-  // draw ORIGINAL in place (no punching holes)
-  if (side === 'left')      ctx.drawImage(srcImg, pad, 0);
-  else if (side === 'right')ctx.drawImage(srcImg, 0, 0);
-  else if (side === 'top')  ctx.drawImage(srcImg, 0, pad);
-  else                      ctx.drawImage(srcImg, 0, 0);
+  // draw ORIGINAL first
+  if (side === 'left')      ctx.drawImage(baseImg, pad, 0);
+  else if (side === 'right')ctx.drawImage(baseImg, 0, 0);
+  else if (side === 'top')  ctx.drawImage(baseImg, 0, pad);
+  else                      ctx.drawImage(baseImg, 0, 0);
 
-  // build EXTENSION (pad+fade) and alpha-mask it
+  // extension (pad+fade)
   const extW = (side==='left'||side==='right') ? (pad + fade) : source.w;
-  const extH = (side==='left'||side==='right') ? source.h : (pad + fade);
+  const extH = (side==='left'||side==='right') ? source.h     : (pad + fade);
   const { c: extC, ctx: ex } = drawCanvas(extW, extH);
-  ex.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, extW, extH);
 
-  // alpha mask on extension: opaque away from seam → transparent at the seam
+  // draw cropped generated region, with micro-scale
+  const drawW = Math.round(extW * scale);
+  const drawH = Math.round(extH * (side==='left'||side==='right' ? 1 : scale)); // scale along major axis only
+  const dx = Math.round((extW - drawW)/2);
+  const dy = Math.round((extH - drawH)/2);
+  ex.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, dx, dy, drawW, drawH);
+
+  // build mask (alpha on extension)
   ex.globalCompositeOperation = 'destination-in';
   const g = ex.createLinearGradient(
     ...(side==='left'  ? [extW - fade, 0, extW, 0] :
@@ -217,16 +228,46 @@ async function composeOutcropFromSnippet(originalDu, genSnippetDu, info) {
   ex.fillStyle = g; ex.fillRect(0, 0, extW, extH);
   ex.globalCompositeOperation = 'source-over';
 
-  // place extension under seam with slight underlap
-  if (side === 'left')      ctx.drawImage(extC, 0, 0);
-  else if (side === 'right')ctx.drawImage(extC, source.w - fade, 0);
-  else if (side === 'top')  ctx.drawImage(extC, 0, 0);
-  else                      ctx.drawImage(extC, 0, source.h - fade);
+  // place extension with offset
+  if (side === 'left')      ctx.drawImage(extC, 0 + offset, 0);
+  else if (side === 'right')ctx.drawImage(extC, source.w - fade + offset, 0);
+  else if (side === 'top')  ctx.drawImage(extC, 0, 0 + offset);
+  else                      ctx.drawImage(extC, 0, source.h - fade + offset);
 
-  return out.toDataURL('image/png');
+  if (!opts || !opts.view || opts.view === 'composite') return out.toDataURL('image/png');
+
+  // debug draws for other views
+  const { c: dbg, ctx: dxctx } = drawCanvas(final.w, final.h);
+  if (opts.view === 'original') {
+    if (side === 'left')      dxctx.drawImage(baseImg, pad, 0);
+    else if (side === 'right')dxctx.drawImage(baseImg, 0, 0);
+    else if (side === 'top')  dxctx.drawImage(baseImg, 0, pad);
+    else                      dxctx.drawImage(baseImg, 0, 0);
+  } else if (opts.view === 'extMasked') {
+    dxctx.drawImage(extC,
+      (side==='left') ? 0 + offset : (side==='right') ? (source.w - fade + offset) : 0,
+      (side==='top') ? 0 + offset : (side==='bottom') ? (source.h - fade + offset) : 0
+    );
+  } else if (opts.view === 'mask') {
+    const { c: mC, ctx: mX } = drawCanvas(extW, extH);
+    const mg = mX.createLinearGradient(
+      ...(side==='left'  ? [extW - fade, 0, extW, 0] :
+         side==='right' ? [0, 0, fade, 0] :
+         side==='top'   ? [0, extH - fade, 0, extH] :
+                          [0, 0, 0, fade])
+    );
+    mg.addColorStop(0, 'rgba(255,255,255,1)');
+    mg.addColorStop(1, 'rgba(0,0,0,0)');
+    mX.fillStyle = mg; mX.fillRect(0,0,extW,extH);
+    dxctx.drawImage(mC,
+      (side==='left') ? 0 + offset : (side==='right') ? (source.w - fade + offset) : 0,
+      (side==='top') ? 0 + offset : (side==='bottom') ? (source.h - fade + offset) : 0
+    );
+  }
+  return dbg.toDataURL('image/png');
 }
 
-// ===== UI =====
+// ===== UI helpers =====
 function placeDot(x,y){ els.dot.style.display='block'; els.dot.style.left=(x*100)+'%'; els.dot.style.top=(y*100)+'%'; }
 function pickHotspot(ev){
   const r = els.img.getBoundingClientRect();
@@ -254,6 +295,7 @@ async function handleFile(file){
   els.meta.textContent = `${state.natural.w}×${state.natural.h} • ~${prettyBytes(dataUrlBytes(du))}`;
   const sp = els.preview.querySelector('span'); if (sp) sp.remove();
   els.download.disabled = true; setLog('');
+  hideDebug();
   updateModeUI();
 }
 
@@ -287,11 +329,12 @@ els.img.addEventListener('click', pickHotspot);
 
 // Clear & Download
 els.clear.addEventListener('click', ()=>{
-  state = { workingDu:null, uploadDu:null, natural:{w:0,h:0}, hotspot:null };
+  state = { ...state, workingDu:null, uploadDu:null, natural:{w:0,h:0}, hotspot:null, preOutcropDu:null, lastInfo:null, lastGenSnippetDu:null };
   History.stack = []; History.idx = -1; History.save();
   els.img.src=''; els.img.style.display='none'; els.dot.style.display='none';
   els.meta.textContent=''; els.out.src=''; els.out.style.display='none';
   els.download.disabled=true; setLog(''); els.prog.value = 0; els.prog.style.display='none';
+  hideDebug();
 });
 els.download.addEventListener('click', ()=>{
   const a=document.createElement('a'); a.download='pixshop.png'; a.href=els.img.src || els.out.src; a.click();
@@ -307,6 +350,7 @@ els.undo.addEventListener('click', async ()=>{
   state.uploadDu = compressed.du;
   els.img.src = du; els.img.style.display='block';
   els.out.src=''; els.out.style.display='none'; els.download.disabled = false;
+  hideDebug();
 });
 els.redo.addEventListener('click', async ()=>{
   const du = History.redo(); if (!du) return;
@@ -317,6 +361,7 @@ els.redo.addEventListener('click', async ()=>{
   state.uploadDu = compressed.du;
   els.img.src = du; els.img.style.display='block';
   els.out.src=''; els.out.style.display='none'; els.download.disabled = false;
+  hideDebug();
 });
 
 // ===== API streaming (bypass ai.js) =====
@@ -381,6 +426,72 @@ async function callApiStreaming(payload) {
   return json;
 }
 
+// ===== Debug panel =====
+function showDebug(defaults){
+  els.debugPanel.style.display = 'block';
+  els.dbg_view.value = defaults.view || 'composite';
+  els.dbg_fade.value = defaults.fade;
+  els.dbg_offset.value = defaults.offset;
+  els.dbg_scale.value = (defaults.scale*100).toFixed(1);
+
+  const rerender = async () => {
+    if (!state.lastInfo || !state.lastGenSnippetDu || !state.preOutcropDu) return;
+    const fade = Number(els.dbg_fade.value);
+    const offset = Number(els.dbg_offset.value);
+    const scale = Number(els.dbg_scale.value) / 100;
+    const view = els.dbg_view.value;
+
+    // draw into canvas (scaled to fit)
+    const { w, h } = state.lastInfo.final;
+    const canvas = els.dbg_canvas;
+    const maxW = Math.min(els.debugPanel.clientWidth - 24, 1000);
+    const s = Math.min(1, maxW / w);
+    canvas.width = Math.round(w * s);
+    canvas.height = Math.round(h * s);
+    const tmp = await composeOutcropFromSnippet(state.preOutcropDu, state.lastGenSnippetDu, state.lastInfo, { fade, offset, scale, view });
+    const img = await showImage(tmp);
+    const g = canvas.getContext('2d');
+    g.setTransform(s,0,0,s,0,0); g.clearRect(0,0,w,h);
+    g.drawImage(img, 0, 0);
+  };
+
+  els.dbg_recompose.onclick = rerender;
+  els.dbg_fade.oninput = rerender;
+  els.dbg_offset.oninput = rerender;
+  els.dbg_scale.oninput = rerender;
+  els.dbg_view.onchange = rerender;
+
+  els.dbg_apply.onclick = async () => {
+    const fade = Number(els.dbg_fade.value);
+    const offset = Number(els.dbg_offset.value);
+    const scale = Number(els.dbg_scale.value) / 100;
+    const finalDu = await composeOutcropFromSnippet(state.preOutcropDu, state.lastGenSnippetDu, state.lastInfo, { fade, offset, scale, view:'composite' });
+
+    // commit
+    state.workingDu = finalDu;
+    const im = await showImage(finalDu);
+    state.natural = { w: im.naturalWidth, h: im.naturalHeight };
+    const compressed = await compressDataUrl(finalDu);
+    state.uploadDu = compressed.du;
+
+    History.push(finalDu);
+    els.img.src = finalDu; els.img.style.display='block';
+    els.download.disabled = false;
+
+    hideDebug();
+  };
+
+  els.dbg_close.onclick = hideDebug;
+
+  rerender();
+}
+function hideDebug(){
+  els.debugPanel.style.display = 'none';
+  els.dbg_canvas.width = 0; els.dbg_canvas.height = 0;
+  state.preOutcropDu = null;
+  // keep lastInfo/gen so you can reopen if needed after Undo/Redo
+}
+
 // ===== Run =====
 els.run.addEventListener('click', async ()=>{
   if (!state.workingDu){ alert('Add an image first'); return; }
@@ -407,21 +518,17 @@ els.run.addEventListener('click', async ()=>{
       const genDu = res?.dataUrl;
       if (!genDu) throw new Error('No image returned');
 
-      const finalDu = await composeOutcropFromSnippet(state.workingDu, genDu, info);
+      // Open debug panel for manual alignment BEFORE committing
+      state.preOutcropDu = state.workingDu;        // hold base
+      state.lastInfo = info;
+      state.lastGenSnippetDu = genDu;
 
-      state.workingDu = finalDu;
-      const im = await showImage(finalDu);
-      state.natural = { w: im.naturalWidth, h: im.naturalHeight };
-      const compressed = await compressDataUrl(finalDu);
-      state.uploadDu = compressed.du;
+      // show ‘gen’/‘snippet’ in the debug view list
+      els.dbg_view.value = 'composite';
+      showDebug({ fade: info.fade, offset: 0, scale: 1, view: 'composite' });
 
-      History.push(finalDu);
-      els.img.src = finalDu; els.img.style.display='block';
-      els.download.disabled = false;
-
-      // keep result panel hidden in outcrop mode (no duplicate)
+      // no duplicate result
       els.out.src=''; els.out.style.display='none';
-      appendLog(`Applied extension → new size ${state.natural.w}×${state.natural.h}`);
       setBusy(false);
       return;
     }
