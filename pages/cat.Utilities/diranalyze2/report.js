@@ -1,5 +1,4 @@
-// Generate DIRANALYSE MATRIX REPORT (v3.2.1) exactly like the sample.
-// Pass { allPaths, getSize(path)->bytes, getExt(name)->string, scopeLabel?:string }
+// DIRANALYSE MATRIX REPORT (v3.2.1)
 function generateV3Report({ allPaths, getSize, getExt, scopeLabel }) {
   const version = 'v3.2.1';
   const now = new Date().toISOString();
@@ -32,9 +31,7 @@ function generateV3Report({ allPaths, getSize, getExt, scopeLabel }) {
     let dirs  = 0;
     for(const [,child] of node.dirs){
       const t = agg(child);
-      files += t.files;
-      size  += t.size;
-      dirs  += 1 + t.dirs;
+      files += t.files; size += t.size; dirs += 1 + t.dirs;
     }
     node.totals = { files, dirs, size };
     return node.totals;
@@ -59,15 +56,12 @@ function generateV3Report({ allPaths, getSize, getExt, scopeLabel }) {
     let idx = 0;
     const nextPref = (isLast) => prefix + (isLast ? '    ' : '│   ');
     for(const d of dirNames){
-      idx++;
-      const child = node.dirs.get(d);
-      const isLast = idx === totalKids;
+      idx++; const child = node.dirs.get(d); const isLast = idx === totalKids;
       out.push(`${prefix}${isLast?'└── ':'├── '}${d}/ (Files: ${child.totals.files}, Subdirs: ${child.totals.dirs}, Size: ${formatSize(child.totals.size)})`);
       out.push(...printDir(child, nextPref(isLast)));
     }
     for(const f of fileObjs){
-      idx++;
-      const isLast = idx === totalKids;
+      idx++; const isLast = idx === totalKids;
       out.push(`${prefix}${isLast?'└── ':'├── '}${f.name} (Size: ${formatSize(f.size)}, Ext: ${f.ext})`);
     }
     return out;
@@ -83,9 +77,8 @@ function generateV3Report({ allPaths, getSize, getExt, scopeLabel }) {
     `//--- DIRECTORY STRUCTURE ---`,
   ].join('\n');
 
-  const bodyLines = printDir(root, '');
+  const body = printDir(root, '');
   const totals = root.totals;
-
   const summary = [
     `//`,
     `//--- SUMMARY (Current View) ---`,
@@ -96,5 +89,5 @@ function generateV3Report({ allPaths, getSize, getExt, scopeLabel }) {
     `//--- END OF REPORT ---//`
   ].join('\n');
 
-  return `${header}\n${bodyLines.join('\n')}\n${summary}`;
+  return `${header}\n${body.join('\n')}\n${summary}`;
 }

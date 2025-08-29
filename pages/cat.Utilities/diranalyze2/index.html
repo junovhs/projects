@@ -7,6 +7,32 @@
   <link rel="stylesheet" href="ui.css" />
 </head>
 <body>
+<!-- SVG sprite (real icons, no emojis) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute; width:0; height:0; overflow:hidden">
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10M3 7v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-1l3-7H11l-2-4H3z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-file-code" viewBox="0 0 24 24"><use href="#i-file"/><path d="M10 17l-2-2 2-2M14 13l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-md" viewBox="0 0 24 24"><use href="#i-file"/><path d="M8 16v-6l3 3 3-3v6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-json" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 10c-1 0-2 1-2 2s1 2 2 2M15 10c1 0 2 1 2 2s-1 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><use href="#i-file"/><path d="M8 15l2-2 2 2 3-3 3 3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-html" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 12l-2 2 2 2M15 12l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-css" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 15h6M9 12h6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-js" viewBox="0 0 24 24"><use href="#i-file"/><path d="M10 16v-4M14 12h2a2 2 0 0 1 0 4h-1" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M17 21v-8H7v8M7 3v5h8" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M16 16H8a2 2 0 0 1-2-2V6h8l4 4v4a2 2 0 0 1-2 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6V4a2 2 0 0 1 2-2h6l4 4v2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-patch" viewBox="0 0 24 24"><path d="M22 12l-4 4-6-6-6 6-4-4 10-10z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.5 6.5l-1.5-1.5M6.5 6.5L5 5m13 0l-1.5 1.5M6.5 17.5L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3h-5v5M16 3h5v5M8 21H3v-5M16 21h5v-5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M3 9V4h5M21 9V4h-5M3 15v5h5M21 15v5h-5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 5l14 14" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</svg>
+
 <div id="app">
   <!-- Header -->
   <header>
@@ -15,12 +41,16 @@
         <div class="logo">D2</div>
         <div>
           <div style="font-weight:700">DirAnalyze 2.0</div>
-          <div class="muted" style="font-size:12px">Directory Analysis Tool</div>
+          <div class="muted small">Directory Analysis Tool</div>
         </div>
       </div>
       <div class="row g-2">
-        <button class="btn" id="clearBtn">🗑️ Clear Project</button>
-        <button class="btn ghost icon" id="themeBtn" title="Toggle theme">🌙</button>
+        <button class="btn has-tip" data-tip="Clear the current project" id="clearBtn">
+          <svg class="ico"><use href="#i-none"/></svg> Clear
+        </button>
+        <button class="btn ghost icon has-tip" data-tip="Toggle dark/light theme" id="themeBtn" title="Toggle theme">
+          <svg class="ico"><use id="themeIcon" href="#i-moon"/></svg>
+        </button>
       </div>
     </div>
   </header>
@@ -33,11 +63,13 @@
       <div class="p-4" id="sidebarEmpty">
         <div class="card p-6 shadow">
           <div class="col g-3 center">
-            <div class="drop-icon">📤</div>
+            <div class="drop-icon"> </div>
             <div style="font-weight:600">Drop Folder Here</div>
             <div class="muted small">Drag & drop a folder or click to select</div>
             <div class="row g-2">
-              <button class="btn" id="selectBtn">Select Folder</button>
+              <button class="btn has-tip" data-tip="Pick a folder from your machine" id="selectBtn">
+                <svg class="ico"><use href="#i-download"/></svg> Select Folder
+              </button>
               <input id="folderInput" type="file" style="display:none" webkitdirectory directory multiple />
             </div>
           </div>
@@ -47,23 +79,26 @@
       <div id="sidebarControls" style="display:none">
         <div class="p-4" style="border-bottom:1px solid var(--border)">
           <div class="row g-2 pb-2">
-            <button class="btn" id="textReportBtn">⬇️ Text Report</button>
-            <button class="btn" id="combinedBtn">🧩 Combined</button>
+            <button class="btn has-tip" data-tip="Copy the text-only report (current selection)" id="textReportBtn">
+              <svg class="ico"><use href="#i-copy"/></svg> Text Report
+            </button>
+            <button class="btn has-tip" data-tip="Download report + all selected file contents" id="combinedBtn">
+              <svg class="ico"><use href="#i-download"/></svg> Combined
+            </button>
           </div>
           <div class="row g-2 pb-2">
-            <button class="btn ghost" id="selectAllBtn">✅ All</button>
-            <button class="btn ghost" id="selectNoneBtn">❌ None</button>
-            <button class="btn ghost" id="expandAllBtn">🔎 Expand</button>
-            <button class="btn ghost" id="collapseAllBtn">📉 Collapse</button>
+            <button class="btn ghost has-tip" data-tip="Select everything" id="selectAllBtn"><svg class="ico"><use href="#i-check"/></svg> All</button>
+            <button class="btn ghost has-tip" data-tip="Clear all selections" id="selectNoneBtn"><svg class="ico"><use href="#i-none"/></svg> None</button>
+            <button class="btn ghost has-tip" data-tip="Expand all folders" id="expandAllBtn"><svg class="ico"><use href="#i-expand"/></svg> Expand</button>
+            <button class="btn ghost has-tip" data-tip="Collapse all folders" id="collapseAllBtn"><svg class="ico"><use href="#i-collapse"/></svg> Collapse</button>
           </div>
           <div class="col g-2">
-            <label class="small">Include patterns</label>
+            <label class="small has-tip" data-tip="Only include files matching these patterns (comma separated)">Include patterns</label>
             <input class="input" id="includeFilter" placeholder="*.js, *.css" />
-            <label class="small">Exclude patterns</label>
+            <label class="small has-tip" data-tip="Exclude files/folders matching these patterns (comma separated)">Exclude patterns</label>
             <input class="input" id="excludeFilter" />
-            <label class="row g-2 small" style="align-items:center">
-              <input type="checkbox" class="checkbox" id="showHiddenChk">
-              Show hidden files
+            <label class="row g-2 small has-tip" data-tip="Also show files and folders starting with a dot" style="align-items:center">
+              <input type="checkbox" class="checkbox" id="showHiddenChk"> Show hidden files
             </label>
           </div>
         </div>
@@ -75,10 +110,18 @@
     <main class="main">
       <div id="editorToolbar" class="row between p-4 toolbar">
         <div class="row g-2">
-          <button class="btn" id="copyLinesBtn">📋 Copy with Lines</button>
-          <button class="btn" id="patchBtn">⚙️ Apply Patch</button>
-          <button class="btn" id="saveBtn" disabled>💾 Save</button>
-          <button class="btn" id="closeBtn">✖️ Close</button>
+          <button class="btn has-tip" data-tip="Copy active file with line numbers" id="copyLinesBtn">
+            <svg class="ico"><use href="#i-copy"/></svg> Copy with Lines
+          </button>
+          <button class="btn has-tip" data-tip="Apply patch blocks to files" id="patchBtn">
+            <svg class="ico"><use href="#i-patch"/></svg> Apply Patch
+          </button>
+          <button class="btn has-tip" data-tip="Save changes to this in-memory file" id="saveBtn" disabled>
+            <svg class="ico"><use href="#i-save"/></svg> Save
+          </button>
+          <button class="btn has-tip" data-tip="Close the editor" id="closeBtn">
+            <svg class="ico"><use href="#i-x"/></svg> Close
+          </button>
         </div>
         <div id="currentFileLabel" class="muted small"></div>
       </div>
@@ -89,7 +132,9 @@
             <div class="title">Directory Structure</div>
             <span class="badge" id="committedBadge">0 committed files</span>
           </div>
-          <button class="btn" id="copyTreeBtn" disabled>📋 Copy Report</button>
+          <button class="btn has-tip" data-tip="Copy the matrix directory report" id="copyTreeBtn" disabled>
+            <svg class="ico"><use href="#i-copy"/></svg> Copy Report
+          </button>
         </div>
         <div class="pane-scroll">
           <pre id="treeReport" class="card p-4 report-pre"></pre>
@@ -107,9 +152,7 @@
 
       <section id="editorPane" class="editor-pane">
         <div class="editor">
-          <div class="linenums" id="linenums">
-            <div id="linenumsInner" class="linenums-inner"></div>
-          </div>
+          <div class="linenums" id="linenums"><div id="linenumsInner" class="linenums-inner"></div></div>
           <textarea class="textarea" id="editor" spellcheck="false"></textarea>
         </div>
       </section>
@@ -132,7 +175,7 @@
 <dialog id="patchDialog">
   <div class="dlg-head row between">
     <div style="font-weight:600">Apply AI Patches</div>
-    <button class="btn ghost icon" onclick="patchDialog.close()">✖️</button>
+    <button class="btn ghost icon" onclick="patchDialog.close()"><svg class="ico"><use href="#i-x"/></svg></button>
   </div>
   <div class="dlg-body col g-3">
     <div class="muted small">Paste patches with this format:
