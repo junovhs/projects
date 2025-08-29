@@ -16,7 +16,7 @@ let state = {
 };
 
 // ===== History (undo/redo) =====
-const HIST_KEY = 'pixshop_hist_v6';
+const HIST_KEY = 'pixshop_hist_v7';
 const History = {
   stack: [], idx: -1, limit: 10,
   load(){ try{ const p=JSON.parse(localStorage.getItem(HIST_KEY)||'null'); if(p){ this.stack=p.stack.slice(-this.limit); this.idx=Math.min(p.idx,this.stack.length-1);} }catch{} updateHistoryUi(); },
@@ -39,7 +39,7 @@ function showImage(du){ return new Promise((res,rej)=>{ const img=new Image(); i
 function drawCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return { c, ctx:c.getContext('2d') }; }
 function drawToDataUrl(img,w,h,type,q){ const {c,ctx}=drawCanvas(w,h); ctx.drawImage(img,0,0,w,h); return c.toDataURL(type,q); }
 
-// compression to avoid 413
+// compression (avoid 413)
 const TARGET_MAX_BYTES = 3.5*1024*1024;
 async function compressDataUrl(du,{maxEdge=2200,minEdge=1200,qualityStart=0.92,qualityMin=0.65,stepQ=0.08,stepEdge=256}={}){
   const img=await showImage(du); const nat={w:img.naturalWidth,h:img.naturalHeight};
@@ -63,31 +63,39 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2){
   const src=await showImage(sourceDu); const W=src.naturalWidth, H=src.naturalHeight;
   const pad=Math.max(4,Math.round((side==='left'||side==='right'?W:H)*frac));
   const ov =Math.max(24,Math.min(160,Math.round(pad*0.33)));
-  const fade=Math.min(64,Math.max(24,Math.floor(ov*0.6)));
+  const fadeDefault=Math.min(64,Math.max(24,Math.floor(ov*0.6)));
   const horiz=(side==='left'||side==='right');
   const snipW=horiz?(pad+ov):W, snipH=horiz?H:(pad+ov);
 
   const {c,ctx}=drawCanvas(snipW,snipH);
   ctx.fillStyle=YELLOW; ctx.fillRect(0,0,snipW,snipH);
-  if(side==='left')      ctx.drawImage(src,0,0,ov,H,pad,0,ov,H);
-  else if(side==='right')ctx.drawImage(src,W-ov,0,ov,H,0,0,ov,H);
-  else if(side==='top')  ctx.drawImage(src,0,0,W,ov,0,pad,W,ov);
-  else                   ctx.drawImage(src,0,H-ov,W,ov,0,0,W,ov);
+  if(side==='left')      ctx.drawImage(src,0,0,ov,H,pad,0,ov,H);            // seam at x = pad
+  else if(side==='right')ctx.drawImage(src,W-ov,0,ov,H,0,0,ov,H);            // seam at x = ov
+  else if(side==='top')  ctx.drawImage(src,0,0,W,ov,0,pad,W,ov);             // seam at y = pad
+  else                   ctx.drawImage(src,0,H-ov,W,ov,0,0,W,ov);            // seam at y = ov
   const snippetDu=c.toDataURL('image/png');
 
-  // upload: cap long edge at 1024, remember scale
+  // upload resize bookkeeping
   const maxEdge=1024, scale=Math.min(1,maxEdge/Math.max(snipW,snipH));
-  let uploadDu=snippetDu, upW=snipW, upH=snipH, upScale=1;
+  let uploadDu=snippetDu, upW=snipW, upH=snipH;
   if(scale<1){ const {c:cs,ctx:cx}=drawCanvas(Math.round(snipW*scale),Math.round(snipH*scale));
     const tmp=await showImage(snippetDu); cx.drawImage(tmp,0,0,cs.width,cs.height);
-    uploadDu=cs.toDataURL('image/jpeg',0.92); upW=cs.width; upH=cs.height; upScale=scale;
+    uploadDu=cs.toDataURL('image/jpeg',0.92); upW=cs.width; upH=cs.height;
   }
 
   const finalW=horiz?W+pad:W, finalH=horiz?H:H+pad;
-  return { side,pad,ov,fade, snippet:{du:snippetDu,w:snipW,h:snipH}, upload:{du:uploadDu,w:upW,h:upH,scale:upScale}, source:{w:W,h:H}, final:{w:finalW,h:finalH} };
+  return {
+    side,pad,ov,fade:fadeDefault,
+    snippet:{du:snippetDu,w:snipW,h:snipH},
+    upload:{du:uploadDu,w:upW,h:upH},
+    source:{w:W,h:H}, final:{w:finalW,h:finalH}
+  };
 }
 
-// ===== Compose (seam anchored; fade does not move content) =====
+/**
+ * Compose outcrop using returned snippet.
+ * KEY: seam position is fixed; changing fade only adjusts mask width.
+ */
 async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const { side, pad, ov, snippet, upload, source, final } = info;
   const fade = Math.max(0, Math.round(opts.fade ?? info.fade));
@@ -96,21 +104,43 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const baseImg = await showImage(baseDu);
   const genImg  = await showImage(genSnippetDu);
 
-  // 1) Define the crop in UPLOAD space (what part of returned image we want)
+  // seam in snippet BASE pixels (before resize)
+  const seamBaseX = (side==='left') ? pad : (side==='right' ? ov  : null);
+  const seamBaseY = (side==='top')  ? pad : (side==='bottom'? ov  : null);
+
+  // 1) Crop in UPLOAD space (fixed seam; independent of fade except the size)
   let cropUp = { x:0, y:0, w:0, h:0 };
   if (side==='left') {
-    cropUp = { x: 0, y: 0, w: (pad+fade)*(upload.w/snippet.w), h: upload.h };
+    cropUp = {
+      x: 0,
+      y: 0,
+      w: (pad+fade) * (upload.w / snippet.w),
+      h: upload.h
+    };
   } else if (side==='right') {
-    const start = Math.max(0, ov - fade); // include fade *into* overlap
-    cropUp = { x: start*(upload.w/snippet.w), y: 0, w: (pad+fade)*(upload.w/snippet.w), h: upload.h };
+    cropUp = {
+      x: ( (seamBaseX - fade) * (upload.w / snippet.w) ),
+      y: 0,
+      w: (pad+fade) * (upload.w / snippet.w),
+      h: upload.h
+    };
   } else if (side==='top') {
-    cropUp = { x: 0, y: 0, w: upload.w, h: (pad+fade)*(upload.h/snippet.h) };
+    cropUp = {
+      x: 0,
+      y: 0,
+      w: upload.w,
+      h: (pad+fade) * (upload.h / snippet.h)
+    };
   } else { // bottom
-    const startY = Math.max(0, ov - fade);
-    cropUp = { x: 0, y: startY*(upload.h/snippet.h), w: upload.w, h: (pad+fade)*(upload.h/snippet.h) };
+    cropUp = {
+      x: 0,
+      y: ( (seamBaseY - fade) * (upload.h / snippet.h) ),
+      w: upload.w,
+      h: (pad+fade) * (upload.h / snippet.h)
+    };
   }
 
-  // 2) Remap that crop from UPLOAD → RETURNED coordinates
+  // 2) Remap UPLOAD crop → RETURNED coordinates
   const kx = genImg.naturalWidth  / upload.w;
   const ky = genImg.naturalHeight / upload.h;
   const srcX = Math.round(cropUp.x * kx);
@@ -118,62 +148,68 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const srcW = Math.round(cropUp.w * kx);
   const srcH = Math.round(cropUp.h * ky);
 
-  // 3) Final canvas & place ORIGINAL
+  // 3) Final canvas & draw ORIGINAL at its offset
   const { c: out, ctx } = drawCanvas(final.w, final.h);
   if (side==='left')      ctx.drawImage(baseImg, pad, 0);
   else if (side==='right')ctx.drawImage(baseImg, 0, 0);
   else if (side==='top')  ctx.drawImage(baseImg, 0, pad);
   else                    ctx.drawImage(baseImg, 0, 0);
 
-  // 4) Build the extension (pad + fade), WITHOUT shifting when fade changes
-  const extW = (side==='left'||side==='right') ? (pad + fade) : source.w;
-  const extH = (side==='left'||side==='right') ? source.h     : (pad + fade);
+  // 4) Build extension canvas (pad + fade) and draw sampled region
+  const horiz = (side==='left'||side==='right');
+  const extW = horiz ? (pad + fade) : source.w;
+  const extH = horiz ? source.h     : (pad + fade);
 
-  // Unmasked extension
   const { c: extRaw, ctx: exRaw } = drawCanvas(extW, extH);
   exRaw.drawImage(genImg, srcX, srcY, srcW, srcH, 0, 0, extW, extH);
 
-  // Masked copy with seam-anchored gradient
+  // 5) Mask with seam anchored (no content shift)
   const { c: extMasked, ctx: ex } = drawCanvas(extW, extH);
   ex.drawImage(extRaw, 0, 0);
   ex.globalCompositeOperation = 'destination-in';
 
   if (side==='left') {
-    // Seam at local x = pad (extension is left of seam)
+    // seam at local x = pad
     const g = ex.createLinearGradient(pad, 0, pad + Math.max(1, fade), 0);
-    g.addColorStop(0, 'rgba(0,0,0,1)');   // fully visible at seam
-    g.addColorStop(1, 'rgba(0,0,0,0)');   // fade out into overlap
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
   } else if (side==='right') {
-    // Seam at local x = pad (extension is right of seam)
-    const g = ex.createLinearGradient(Math.max(0, pad - fade), 0, pad, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)');   // far in overlap
-    g.addColorStop(1, 'rgba(0,0,0,1)');   // fully visible at seam
+    // seam at local x = fade
+    const g = ex.createLinearGradient(0, 0, Math.max(1, fade), 0);
+    g.addColorStop(0, 'rgba(0,0,0,0)');   // overlap region (left of seam)
+    g.addColorStop(1, 'rgba(0,0,0,1)');   // seam and beyond
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
   } else if (side==='top') {
+    // seam at local y = pad
     const g = ex.createLinearGradient(0, pad, 0, pad + Math.max(1, fade));
     g.addColorStop(0, 'rgba(0,0,0,1)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
-  } else { // bottom
-    const g = ex.createLinearGradient(0, Math.max(0, pad - fade), 0, pad);
+  } else { // bottom -> seam at local y = fade
+    const g = ex.createLinearGradient(0, 0, 0, Math.max(1, fade));
     g.addColorStop(0, 'rgba(0,0,0,0)');
     g.addColorStop(1, 'rgba(0,0,0,1)');
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
   }
   ex.globalCompositeOperation = 'source-over';
 
-  // 5) Place extension so SEAM NEVER MOVES with fade
+  // 6) Place so seam stays fixed: place = seamAbs - seamLocal
+  const seamAbsX = (side==='left') ? pad : (side==='right' ? source.w : null);
+  const seamAbsY = (side==='top')  ? pad : (side==='bottom'? source.h : null);
+  const seamLocalX = (side==='left') ? pad : (side==='right' ? fade : 0);
+  const seamLocalY = (side==='top')  ? pad : (side==='bottom'? fade : 0);
+
   const placeX =
-    side==='left'  ? 0 :
-    side==='right' ? (source.w - pad) :
+    side==='left'  ? (seamAbsX - seamLocalX) :
+    side==='right' ? (seamAbsX - seamLocalX) :
     0;
   const placeY =
-    side==='top'    ? 0 :
-    side==='bottom' ? (source.h - pad) :
+    side==='top'    ? (seamAbsY - seamLocalY) :
+    side==='bottom' ? (seamAbsY - seamLocalY) :
     0;
 
-  // Final composite or debug views
+  // draw chosen view
   if (view==='original') {
     // original only (already drawn)
   } else if (view==='extMasked') {
