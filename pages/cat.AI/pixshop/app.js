@@ -367,13 +367,32 @@ async function handleFile(file){
 function updateModeUI(){
   const isOutcrop = (els.mode.value === 'outcrop');
   els.outcropControls.style.display = isOutcrop ? 'grid' : 'none';
-  // Hide result panel on outcrop to avoid duplicate image
   els.resultPanel.style.display = isOutcrop ? 'none' : 'block';
 }
 els.mode.addEventListener('change', updateModeUI);
 
-// Drag/drop & paste
+// === Drag/drop & paste restored ===
 els.file.addEventListener('change', e => handleFile(e.target.files?.[0]));
+
+['dragenter','dragover'].forEach(t => els.drop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation();
+  els.drop.style.borderColor = '#4b7bf7';
+}));
+['dragleave','drop'].forEach(t => els.drop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation();
+  els.drop.style.borderColor = 'var(--border)';
+  if (t === 'drop') handleFile(e.dataTransfer.files?.[0]);
+}));
+window.addEventListener('paste', async (e)=>{
+  const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));
+  if (item){ const file = item.getAsFile(); await handleFile(file); }
+});
+
+// === Click-to-focus retouch restored ===
+els.img.addEventListener('click', pickHotspot);
+els.preview.addEventListener('click', ev => {
+  if (ev.target === els.preview) els.file.click();
+});
 ['dragenter','dragover'].forEach(t => els.drop.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); els.drop.style.borderColor = '#4b7bf7'; }));
 ['dragleave','drop'].forEach(t => els.drop.addEventListener(t, e => {
   e.preventDefault(); e.stopPropagation(); els.drop.style.borderColor = 'var(--border)';
