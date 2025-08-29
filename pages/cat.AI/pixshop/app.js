@@ -2,19 +2,19 @@
 
 // ===== DOM =====
 const els = Object.fromEntries(
-  ['file','drop','img','meta','dot','preview','mode','prompt','run','clear','out','download','log','prog','outcropControls','out_side','out_amount','undo','redo']
+  ['file','drop','img','meta','dot','preview','mode','prompt','run','clear','out','download','log','prog','outcropControls','out_side','out_amount','undo','redo','resultPanel']
     .map(id => [id, document.getElementById(id)])
 );
 
 let state = {
-  workingDu: null,            // full-quality current image (what user sees/edits)
-  uploadDu: null,             // compressed copy for API upload
-  natural: { w:0, h:0 },      // original dims (updates as we extend)
+  workingDu: null,            // current main image (what grows)
+  uploadDu: null,             // compressed copy for API
+  natural: { w:0, h:0 },
   hotspot: null
 };
 
-// ===== History (undo/redo with localStorage, capped at 10) =====
-const HIST_KEY = 'pixshop_hist_v1';
+// ===== History (undo/redo, localStorage) =====
+const HIST_KEY = 'pixshop_hist_v2';
 const History = {
   stack: [],
   idx: -1,
@@ -29,38 +29,23 @@ const History = {
         this.idx = Math.min(parsed.idx, this.stack.length - 1);
       }
     } catch {}
+    updateHistoryUi();
   },
   save() {
     try { localStorage.setItem(HIST_KEY, JSON.stringify({ stack:this.stack, idx:this.idx })); } catch {}
     updateHistoryUi();
   },
-  init(du) {
-    this.stack = [du];
-    this.idx = 0;
-    this.save();
-  },
+  init(du) { this.stack=[du]; this.idx=0; this.save(); },
   push(du) {
-    // drop any redo tail
     if (this.idx < this.stack.length - 1) this.stack = this.stack.slice(0, this.idx + 1);
     this.stack.push(du);
-    // enforce limit
-    while (this.stack.length > this.limit) {
-      this.stack.shift();
-    }
-    this.idx = this.stack.length - 1;
-    this.save();
+    while (this.stack.length > this.limit) this.stack.shift();
+    this.idx = this.stack.length - 1; this.save();
   },
-  undo() {
-    if (this.idx > 0) { this.idx--; this.save(); return this.stack[this.idx]; }
-    return null;
-  },
-  redo() {
-    if (this.idx < this.stack.length - 1) { this.idx++; this.save(); return this.stack[this.idx]; }
-    return null;
-  },
-  current() { return (this.idx >= 0 ? this.stack[this.idx] : null); }
+  undo() { if (this.idx > 0) { this.idx--; this.save(); return this.stack[this.idx]; } return null; },
+  redo() { if (this.idx < this.stack.length - 1) { this.idx++; this.save(); return this.stack[this.idx]; } return null; },
+  current(){ return (this.idx >= 0 ? this.stack[this.idx] : null); }
 };
-
 function updateHistoryUi() {
   els.undo.disabled = !(History.idx > 0);
   els.redo.disabled = !(History.idx < History.stack.length - 1 && History.idx >= 0);
@@ -98,9 +83,7 @@ function drawToDataUrl(img, w, h, type, quality){
   const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
   return Promise.resolve(c.toDataURL(type, quality));
 }
-function drawCanvas(w, h) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h; return { c, ctx: c.getContext('2d') };
-}
+function drawCanvas(w, h) { const c = document.createElement('canvas'); c.width=w; c.height=h; return { c, ctx: c.getContext('2d') }; }
 
 // Compression to avoid 413
 const TARGET_MAX_BYTES = 3.5 * 1024 * 1024;
@@ -128,124 +111,155 @@ async function compressDataUrl(inputDataUrl, {
   return { ...best, natural };
 }
 
-// ===== Outcrop (double-pad) =====
-async function buildOutcrop2x(sourceDu, side='right', frac=0.2) {
-  const img = await showImage(sourceDu);
-  const W = img.naturalWidth, H = img.naturalHeight;
-  const pad = Math.max(1, Math.round((side === 'left' || side === 'right' ? W : H) * frac));
-  let newW = W, newH = H, dx = 0, dy = 0;
+// ===== Build outcrop SNIPPET (overlap + yellow mask) =====
+const YELLOW = '#FFFF00';
+// returns: { snippet:{du,w,h}, uploadDu, pad, ov, fade, side, final:{w,h}, map:{} }
+async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
+  const src = await showImage(sourceDu);
+  const W = src.naturalWidth, H = src.naturalHeight;
+  const pad = Math.max(4, Math.round((side === 'left' || side === 'right' ? W : H) * frac)); // pixels to GROW
+  const ov = Math.max(24, Math.min(160, Math.round(pad * 0.33))); // overlap pixels to show
+  const fade = Math.min(32, Math.floor(ov * 0.5));                // crossfade inside overlap
 
-  if (side === 'left' || side === 'right') {
-    newW = W + 2 * pad;
-    dx = (side === 'left') ? 2 * pad : 0; // original offset
-  } else {
-    newH = H + 2 * pad;
-    dy = (side === 'top') ? 2 * pad : 0;
+  // Snippet logical size BEFORE any scaling (horizontal case: width = pad + ov, height = H)
+  let snipW = (side === 'left' || side === 'right') ? (pad + ov) : W;
+  let snipH = (side === 'left' || side === 'right') ? H : (pad + ov);
+
+  // Build snippet: yellow fill + copy of overlap from original
+  const { c, ctx } = drawCanvas(snipW, snipH);
+  ctx.fillStyle = YELLOW; ctx.fillRect(0,0,snipW,snipH);
+
+  if (side === 'left') {
+    // copy rightmost ov pixels from original into snippet's right ov area
+    ctx.drawImage(src, 0, 0, ov, H, pad, 0, ov, H);
+  } else if (side === 'right') {
+    // copy leftmost ov pixels into snippet's left ov area
+    ctx.drawImage(src, W - ov, 0, ov, H, 0, 0, ov, H);
+  } else if (side === 'top') {
+    // copy bottom ov pixels into snippet's bottom ov area
+    ctx.drawImage(src, 0, 0, W, ov, 0, pad, W, ov);
+  } else { // bottom
+    // copy top ov pixels into snippet's top ov area
+    ctx.drawImage(src, 0, H - ov, W, ov, 0, 0, W, ov);
   }
 
-  const { c, ctx } = drawCanvas(newW, newH);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, newW, newH);
-  ctx.drawImage(img, dx, dy);
+  let snippetDu = c.toDataURL('image/png');
 
-  const fullDu = c.toDataURL('image/png'); // exact black
-  const compressed = await compressDataUrl(fullDu);
-  const normRect = { l: dx/newW, t: dy/newH, r: (dx+W)/newW, b: (dy+H)/newH };
+  // Limit snippet payload to ~1024 on long edge for the API (keeps cost+speed, helps alignment)
+  const maxSnippetEdge = 1024;
+  const scale = Math.min(1, maxSnippetEdge / Math.max(snipW, snipH));
+  let uploadDu = snippetDu, upW = snipW, upH = snipH, upScale = 1;
+  if (scale < 1) {
+    const { c: cs, ctx: cstx } = drawCanvas(Math.round(snipW*scale), Math.round(snipH*scale));
+    const tmp = new Image(); tmp.src = snippetDu; await new Promise(r => tmp.onload=r);
+    cstx.drawImage(tmp, 0, 0, cs.width, cs.height);
+    uploadDu = cs.toDataURL('image/jpeg', 0.92);
+    upW = cs.width; upH = cs.height; upScale = scale;
+  }
+
+  // Final grown image size
+  const finalW = (side === 'left' || side === 'right') ? W + pad : W;
+  const finalH = (side === 'left' || side === 'right') ? H : H + pad;
 
   return {
-    pad, side,
-    full: { du: fullDu, w: newW, h: newH },
-    upload: { du: compressed.du, w: compressed.w, h: compressed.h },
+    side, pad, ov, fade,
+    snippet: { du: snippetDu, w: snipW, h: snipH },
+    upload: { du: uploadDu, w: upW, h: upH, scale: upScale },
     source: { w: W, h: H },
-    normRect
+    final: { w: finalW, h: finalH }
   };
 }
 
-// Compose: take ONLY inner-half (adjacent strip) from generated image and blend over original with a small fade.
-async function composeOutcropBack(sourceDu, genDu, details, fadePx = 24) {
-  const { pad, side, full, upload, source } = details;
-  const srcImg = await showImage(sourceDu);
-  const genImg = await showImage(genDu);
+// Compose: take pad (+fade) from generated snippet and blend with original into a larger canvas
+async function composeOutcropFromSnippet(originalDu, genSnippetDu, info) {
+  const { side, pad, ov, fade, snippet, upload, source, final } = info;
+  const srcImg = await showImage(originalDu);
+  const genImg = await showImage(genSnippetDu);
 
-  // Scale from upload -> full geometry
-  const sx = full.w / upload.w;
-  const sy = full.h / upload.h;
-
-  // Crop rectangle (in upload-space) for the inner-half of blank area
-  let crop = { x:0, y:0, w:0, h:0 };
+  // Where to crop from GENERATED snippet (in upload-space)
+  // We need pad + fade width of generated area (so the extension continues under the blend)
+  const crop = { x:0, y:0, w:0, h:0 };
   if (side === 'left') {
-    crop = { x: Math.round(pad / sx), y: 0, w: Math.round(pad / sx), h: upload.h };
+    // yellow was on the LEFT => generated content fills [0 .. pad] (+ a bit of overlap)
+    crop.x = 0; crop.y = 0; crop.w = Math.round((pad + fade) * (upload.w / snippet.w)); crop.h = upload.h;
   } else if (side === 'right') {
-    const start = Math.round((source.w + 0) / sx); // inner half immediately after original
-    crop = { x: start, y: 0, w: Math.round(pad / sx), h: upload.h };
+    // yellow on RIGHT => generated content fills [ov .. ov+pad]
+    crop.x = Math.round(ov * (upload.w / snippet.w));
+    crop.y = 0; crop.w = Math.round((pad + fade) * (upload.w / snippet.w)); crop.h = upload.h;
   } else if (side === 'top') {
-    crop = { x: 0, y: Math.round(pad / sy), w: upload.w, h: Math.round(pad / sy) };
+    crop.x = 0; crop.y = 0; crop.w = upload.w; crop.h = Math.round((pad + fade) * (upload.h / snippet.h));
   } else { // bottom
-    const startY = Math.round((source.h + 0) / sy);
-    crop = { x: 0, y: startY, w: upload.w, h: Math.round(pad / sy) };
+    crop.x = 0; crop.y = Math.round(ov * (upload.h / snippet.h));
+    crop.w = upload.w; crop.h = Math.round((pad + fade) * (upload.h / snippet.h));
   }
 
-  // Final canvas size: original + pad on chosen side
-  const finalW = (side === 'left' || side === 'right') ? source.w + pad : source.w;
-  const finalH = (side === 'top' || side === 'bottom') ? source.h + pad : source.h;
+  // Final canvas
+  const { c: out, ctx } = drawCanvas(final.w, final.h);
 
-  const { c: extLayer, ctx: extCtx } = drawCanvas(finalW, finalH);
-  const { c: origLayer, ctx: origCtx } = drawCanvas(finalW, finalH);
-  const { c: out, ctx } = drawCanvas(finalW, finalH);
+  if (side === 'left' || side === 'right') {
+    // Draw extension strip scaled to pad(+fade) × H
+    const extW = pad + fade, extH = source.h;
+    const { c: extLayer, ctx: extCtx } = drawCanvas(extW, extH);
+    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, extW, extH);
 
-  // Draw extension crop, scaled to pad width/height
-  if (side === 'left') {
-    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, pad, source.h);
-    origCtx.drawImage(srcImg, pad, 0);
-    // Feather the seam on the original layer (left edge)
-    const g = origCtx.createLinearGradient(pad - fadePx, 0, pad, 0);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    origCtx.globalCompositeOperation = 'destination-out';
-    origCtx.fillStyle = g;
-    origCtx.fillRect(pad - fadePx, 0, fadePx, source.h);
-    origCtx.globalCompositeOperation = 'source-over';
-  } else if (side === 'right') {
-    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, source.w, 0, pad, source.h);
-    origCtx.drawImage(srcImg, 0, 0);
-    const seamX = source.w;
-    const g = origCtx.createLinearGradient(seamX, 0, seamX + fadePx, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,1)');
-    origCtx.globalCompositeOperation = 'destination-out';
-    origCtx.fillStyle = g;
-    origCtx.fillRect(seamX, 0, fadePx, source.h);
-    origCtx.globalCompositeOperation = 'source-over';
-  } else if (side === 'top') {
-    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, source.w, pad);
-    origCtx.drawImage(srcImg, 0, pad);
-    const g = origCtx.createLinearGradient(0, pad - fadePx, 0, pad);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    origCtx.globalCompositeOperation = 'destination-out';
-    origCtx.fillStyle = g;
-    origCtx.fillRect(0, pad - fadePx, source.w, fadePx);
-    origCtx.globalCompositeOperation = 'source-over';
-  } else { // bottom
-    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, source.h, source.w, pad);
-    origCtx.drawImage(srcImg, 0, 0);
-    const seamY = source.h;
-    const g = origCtx.createLinearGradient(0, seamY, 0, seamY + fadePx);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,1)');
-    origCtx.globalCompositeOperation = 'destination-out';
-    origCtx.fillStyle = g;
-    origCtx.fillRect(0, seamY, source.w, fadePx);
-    origCtx.globalCompositeOperation = 'source-over';
+    // Place extension
+    const placeX = (side === 'left') ? 0 : source.w - fade;
+    ctx.drawImage(extLayer, placeX, 0);
+
+    // Draw original with feathered edge
+    if (side === 'left') {
+      // original shifted right by pad
+      ctx.drawImage(srcImg, pad, 0);
+      const g = ctx.createLinearGradient(pad - fade, 0, pad, 0);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = g; ctx.fillRect(pad - fade, 0, fade, source.h);
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      // extension underlaps by fade, original at x=0
+      ctx.drawImage(srcImg, 0, 0);
+      const seamX = source.w;
+      const g = ctx.createLinearGradient(seamX, 0, seamX + fade, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,1)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = g; ctx.fillRect(seamX, 0, fade, source.h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  } else {
+    // vertical
+    const extW = source.w, extH = pad + fade;
+    const { c: extLayer, ctx: extCtx } = drawCanvas(extW, extH);
+    extCtx.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, extW, extH);
+
+    const placeY = (side === 'top') ? 0 : source.h - fade;
+    ctx.drawImage(extLayer, 0, placeY);
+
+    if (side === 'top') {
+      ctx.drawImage(srcImg, 0, pad);
+      const g = ctx.createLinearGradient(0, pad - fade, 0, pad);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = g; ctx.fillRect(0, pad - fade, source.w, fade);
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      ctx.drawImage(srcImg, 0, 0);
+      const seamY = source.h;
+      const g = ctx.createLinearGradient(0, seamY, 0, seamY + fade);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,1)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = g; ctx.fillRect(0, seamY, source.w, fade);
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
-
-  // Compose: extension below, faded original above
-  ctx.drawImage(extLayer, 0, 0);
-  ctx.drawImage(origLayer, 0, 0);
 
   return out.toDataURL('image/png');
 }
 
-// ===== UI wiring =====
+// ===== UI =====
 function placeDot(x,y){ els.dot.style.display='block'; els.dot.style.left=(x*100)+'%'; els.dot.style.top=(y*100)+'%'; }
 function pickHotspot(ev){
   const r = els.img.getBoundingClientRect();
@@ -270,14 +284,19 @@ async function handleFile(file){
 
   History.init(du);
   els.img.src = du; els.img.style.display='block';
-  els.meta.textContent = `${file.name} — ${state.natural.w}×${state.natural.h} • ${prettyBytes(file.size)}`;
+  els.meta.textContent = `${state.natural.w}×${state.natural.h} • ~${prettyBytes(dataUrlBytes(du))}`;
   els.preview.querySelector('span')?.remove();
   els.download.disabled = true;
   setLog('');
+  updateModeUI();
 }
 
-// Toggle outcrop controls
-function updateModeUI() { els.outcropControls.style.display = (els.mode.value === 'outcrop') ? 'grid' : 'none'; }
+function updateModeUI(){
+  const isOutcrop = (els.mode.value === 'outcrop');
+  els.outcropControls.style.display = isOutcrop ? 'grid' : 'none';
+  // Hide result panel on outcrop to avoid duplicate image
+  els.resultPanel.style.display = isOutcrop ? 'none' : 'block';
+}
 els.mode.addEventListener('change', updateModeUI);
 
 // Drag/drop & paste
@@ -305,7 +324,7 @@ els.clear.addEventListener('click', ()=>{
   els.download.disabled=true; setLog(''); els.prog.value = 0; els.prog.style.display='none';
 });
 els.download.addEventListener('click', ()=>{
-  const a=document.createElement('a'); a.download='pixshop.png'; a.href=els.out.src; a.click();
+  const a=document.createElement('a'); a.download='pixshop.png'; a.href=els.img.src || els.out.src; a.click();
 });
 
 // Undo / Redo
@@ -317,7 +336,7 @@ els.undo.addEventListener('click', async ()=>{
   const compressed = await compressDataUrl(du);
   state.uploadDu = compressed.du;
   els.img.src = du; els.img.style.display='block';
-  els.out.src=''; els.out.style.display='none'; els.download.disabled = true;
+  els.out.src=''; els.out.style.display='none'; els.download.disabled = false;
 });
 els.redo.addEventListener('click', async ()=>{
   const du = History.redo(); if (!du) return;
@@ -327,7 +346,7 @@ els.redo.addEventListener('click', async ()=>{
   const compressed = await compressDataUrl(du);
   state.uploadDu = compressed.du;
   els.img.src = du; els.img.style.display='block';
-  els.out.src=''; els.out.style.display='none'; els.download.disabled = true;
+  els.out.src=''; els.out.style.display='none'; els.download.disabled = false;
 });
 
 // ===== API streaming (bypass ai.js) =====
@@ -402,28 +421,29 @@ els.run.addEventListener('click', async ()=>{
 
   try{
     const mode = els.mode.value;
-    let imageForApi = state.uploadDu;
-    let payloadExtra = {};
 
     if (mode === 'outcrop') {
       const side = els.out_side.value;
       const frac = parseFloat(els.out_amount.value);
-      appendLog(`Building outcrop (double-pad): side=${side}, amount=${(frac*100).toFixed(0)}%`);
-      // Build from full-res working image, then compress for upload
-      const built = await buildOutcrop2x(state.workingDu, side, frac);
-      imageForApi = built.upload.du;
-      appendLog(`Outcrop canvas: ${built.full.w}×${built.full.h} (upload ~${built.upload.w}×${built.upload.h}, ~${prettyBytes(dataUrlBytes(imageForApi))})`);
-      payloadExtra = { outcrop: { side, frac, normRect: built.normRect } };
+      appendLog(`Outcrop (snippet): side=${side}, amount=${(frac*100).toFixed(0)}%`);
+
+      // Build snippet (overlap + yellow mask), send to API
+      const info = await buildOutcropSnippet(state.workingDu, side, frac);
+      appendLog(`Snippet ${info.upload.w}×${info.upload.h} (pad=${info.pad}px, overlap=${info.ov}px, fade=${info.fade}px)`);
 
       const res = await callApiStreaming({
-        mode, prompt: els.prompt.value.trim(), image: imageForApi, ...payloadExtra
+        mode: 'outcrop',
+        prompt: els.prompt.value.trim(),
+        image: info.upload.du,
+        outcrop: { side, frac, overlapPx: info.ov, maskColor: YELLOW }
       });
 
       const genDu = res?.dataUrl;
       if(!genDu) throw new Error('No image returned');
-      const finalDu = await composeOutcropBack(state.workingDu, genDu, built);
 
-      // Update UI and history — final becomes new working image
+      // Compose back to a grown image (replace main image)
+      const finalDu = await composeOutcropFromSnippet(state.workingDu, genDu, info);
+
       state.workingDu = finalDu;
       const im = await showImage(finalDu);
       state.natural = { w: im.naturalWidth, h: im.naturalHeight };
@@ -432,15 +452,20 @@ els.run.addEventListener('click', async ()=>{
 
       History.push(finalDu);
       els.img.src = finalDu; els.img.style.display='block';
-      els.out.src = finalDu; els.out.style.display='block';
       els.download.disabled=false;
+
+      // No duplicate “Result” image in outcrop mode
+      els.out.src=''; els.out.style.display='none';
+
       appendLog(`Applied extension → new size ${state.natural.w}×${state.natural.h}`);
       return;
     }
 
-    // Non-outcrop modes (still show in Result, but do not replace working image yet)
+    // Non-outcrop modes → show result below but do NOT replace main unless you decide to
     const res = await callApiStreaming({
-      mode, prompt: els.prompt.value.trim(), image: imageForApi, hotspot: (mode === 'retouch') ? state.hotspot : undefined
+      mode, prompt: els.prompt.value.trim(),
+      image: state.uploadDu,
+      hotspot: (mode === 'retouch') ? state.hotspot : undefined
     });
     const du = res?.dataUrl;
     if(!du) throw new Error('No image returned');
@@ -454,6 +479,5 @@ els.run.addEventListener('click', async ()=>{
   }
 });
 
-// Initialize UI state
-History.load(); updateHistoryUi();
-updateModeUI();
+// Init
+History.load(); updateModeUI();

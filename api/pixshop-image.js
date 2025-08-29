@@ -55,40 +55,33 @@ export default async function handler(req, res) {
       adjust: 'Perform global photo adjustments (exposure, contrast, white balance). Minimal changes; no additions.'
     };
 
-    // Outcrop (double-pad) prompt: the client sends a canvas where the blank strip is ~2× the final extension width.
+    // OUTCROP (snippet + overlap + yellow mask #FFFF00)
     let outcropTemplate = '';
     if (mode === 'outcrop') {
       const side = outcrop?.side || 'right';
-      const frac = Math.max(0.01, Math.min(0.6, Number(outcrop?.frac) || 0.2));
-      const nr = outcrop?.normRect; // normalized rect of the original inside the larger canvas
-      const norm = (nr && typeof nr.l === 'number')
-        ? `Original content normalized rect: left=${nr.l.toFixed(3)}, top=${nr.t.toFixed(3)}, right=${nr.r.toFixed(3)}, bottom=${nr.b.toFixed(3)}.`
-        : '';
-
+      const frac = Math.max(0.01, Math.min(0.6, Number(outcrop?.frac) || 0.2)); // requested growth (e.g., 0.5 = +50% width)
+      const ov = Math.max(16, Math.min(160, Math.round((outcrop?.overlapPx || 64)))); // client overlap (px in input snippet)
+      const maskColor = outcrop?.maskColor || '#FFFF00';
       outcropTemplate = [
-        `A solid black strip has been added on the ${side} side, about ${(frac*200).toFixed(0)}% of the final extension width (double-pad).`,
-        'Fill ONLY the black strip and produce a seamless continuation of the scene.',
-        'Do not alter any pixel of the non-black (original) area; treat those pixels as locked.',
-        'Match perspective, lighting, horizon, textures, and reflections.',
-        'Return exactly one completed image at the same resolution as the input.',
-        norm
-      ].filter(Boolean).join(' ');
+        `The provided image is a SNIPPET for ${side}-side outcropping.`,
+        `The right/left/top/bottom edge adjacent to the ${side} seam contains a small visible sample of the original scene (overlap ≈ ${ov}px in this snippet).`,
+        `The ${maskColor} regions mark the area to be generated.`,
+        `STRICT RULES:`,
+        `• Modify ONLY the ${maskColor} region. Non-${maskColor} pixels must remain unchanged (pixel-perfect).`,
+        `• Continue perspective, horizon, lighting and textures seamlessly from the visible sample into the ${maskColor} area.`,
+        `• Do not crop or rescale; return a single completed image at the SAME resolution as the input snippet.`,
+        prompt ? `User request: ${prompt}` : ''
+      ].filter(Boolean).join('\n');
     }
 
-    const fullPrompt = [
-      mode === 'outcrop' ? outcropTemplate : (baseTemplates[mode] || baseTemplates.retouch),
-      prompt ? `User request: ${prompt}` : ''
-    ].filter(Boolean).join('\n\n');
+    const fullPrompt =
+      mode === 'outcrop'
+        ? outcropTemplate
+        : (baseTemplates[mode] || baseTemplates.retouch) + (prompt ? `\n\nUser request: ${prompt}` : '');
 
-    const contents = {
-      parts: [
-        { inlineData: { mimeType, data: b64 } },
-        { text: fullPrompt }
-      ]
-    };
+    const contents = { parts: [{ inlineData: { mimeType, data: b64 } }, { text: fullPrompt }] };
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
     const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) });
     if (!r.ok) return send(res, r.status, { error: 'Gemini error', details: await r.text() });
 

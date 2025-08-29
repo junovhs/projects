@@ -41,7 +41,7 @@
     <div class="card">
       <div class="header">
         <h1 class="title">Pixshop <span class="kicker">— minimal image edit via Gemini</span></h1>
-        <p class="kicker">Upload → set focus (retouch) or extend (outcrop). Strong constraints keep existing pixels untouched.</p>
+        <p class="kicker">Upload → retouch or outcrop. Outcrop uses a snippet+overlap+yellow-mask so alignment is rock solid.</p>
       </div>
       <div class="content">
         <div class="row">
@@ -91,11 +91,11 @@
                     <option value="0.50">50%</option>
                   </select>
                 </div>
-                <small class="kicker">We create a larger canvas with a black blank strip of width 2× the final extension, ask Gemini to fill only the black area, then blend the inner half back over the original.</small>
+                <small class="kicker">We build a snippet with an overlap strip + a yellow (#FFFF00) blank area. Gemini may change only yellow.</small>
               </div>
 
               <label style="margin-top:10px">Prompt</label>
-              <textarea id="prompt" rows="6" placeholder="Optional. e.g., continue river and cliffs seamlessly."></textarea>
+              <textarea id="prompt" rows="6" placeholder="Optional. e.g., continue river + cliffs, match horizon/lighting."></textarea>
 
               <div class="actions">
                 <button id="run">Generate</button>
@@ -116,7 +116,7 @@
 
         <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
 
-        <div class="panel">
+        <div class="panel" id="resultPanel">
           <label>Result</label>
           <div class="row">
             <div class="col">
@@ -129,11 +129,11 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 
-  <!-- Keep ai.js for the rest of your site; Pixshop bypasses it to avoid double-reading Response bodies -->
   <script src="/ai.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
