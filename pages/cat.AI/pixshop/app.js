@@ -69,10 +69,10 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2){
 
   const {c,ctx}=drawCanvas(snipW,snipH);
   ctx.fillStyle=YELLOW; ctx.fillRect(0,0,snipW,snipH);
-  if(side==='left')      ctx.drawImage(src,0,0,ov,H,pad,0,ov,H);            // seam at x = pad
-  else if(side==='right')ctx.drawImage(src,W-ov,0,ov,H,0,0,ov,H);            // seam at x = ov
-  else if(side==='top')  ctx.drawImage(src,0,0,W,ov,0,pad,W,ov);             // seam at y = pad
-  else                   ctx.drawImage(src,0,H-ov,W,ov,0,0,W,ov);            // seam at y = ov
+  if(side==='left')      ctx.drawImage(src,0,0,ov,H,pad,0,ov,H);      // seam at x = pad
+  else if(side==='right')ctx.drawImage(src,W-ov,0,ov,H,0,0,ov,H);      // seam at x = ov
+  else if(side==='top')  ctx.drawImage(src,0,0,W,ov,0,pad,W,ov);       // seam at y = pad
+  else                   ctx.drawImage(src,0,H-ov,W,ov,0,0,W,ov);      // seam at y = ov
   const snippetDu=c.toDataURL('image/png');
 
   // upload resize bookkeeping
@@ -94,7 +94,7 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2){
 
 /**
  * Compose outcrop using returned snippet.
- * KEY: seam position is fixed; changing fade only adjusts mask width.
+ * Seam is fixed; Fade only changes mask width (no pixel shifts).
  */
 async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const { side, pad, ov, snippet, upload, source, final } = info;
@@ -104,43 +104,31 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const baseImg = await showImage(baseDu);
   const genImg  = await showImage(genSnippetDu);
 
-  // seam in snippet BASE pixels (before resize)
+  // seam position in SNIPPET base pixels
   const seamBaseX = (side==='left') ? pad : (side==='right' ? ov  : null);
   const seamBaseY = (side==='top')  ? pad : (side==='bottom'? ov  : null);
 
-  // 1) Crop in UPLOAD space (fixed seam; independent of fade except the size)
+  // ---- 1) CROP in UPLOAD space (seam fixed; independent of fade except size) ----
   let cropUp = { x:0, y:0, w:0, h:0 };
   if (side==='left') {
-    cropUp = {
-      x: 0,
-      y: 0,
+    cropUp = { x: 0, y: 0,
       w: (pad+fade) * (upload.w / snippet.w),
-      h: upload.h
-    };
+      h: upload.h };
   } else if (side==='right') {
-    cropUp = {
-      x: ( (seamBaseX - fade) * (upload.w / snippet.w) ),
-      y: 0,
+    cropUp = { x: ( (seamBaseX - fade) * (upload.w / snippet.w) ), y: 0,
       w: (pad+fade) * (upload.w / snippet.w),
-      h: upload.h
-    };
+      h: upload.h };
   } else if (side==='top') {
-    cropUp = {
-      x: 0,
-      y: 0,
+    cropUp = { x: 0, y: 0,
       w: upload.w,
-      h: (pad+fade) * (upload.h / snippet.h)
-    };
+      h: (pad+fade) * (upload.h / snippet.h) };
   } else { // bottom
-    cropUp = {
-      x: 0,
-      y: ( (seamBaseY - fade) * (upload.h / snippet.h) ),
+    cropUp = { x: 0, y: ( (seamBaseY - fade) * (upload.h / snippet.h) ),
       w: upload.w,
-      h: (pad+fade) * (upload.h / snippet.h)
-    };
+      h: (pad+fade) * (upload.h / snippet.h) };
   }
 
-  // 2) Remap UPLOAD crop → RETURNED coordinates
+  // ---- 2) Remap UPLOAD -> RETURNED coordinates ----
   const kx = genImg.naturalWidth  / upload.w;
   const ky = genImg.naturalHeight / upload.h;
   const srcX = Math.round(cropUp.x * kx);
@@ -148,14 +136,14 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const srcW = Math.round(cropUp.w * kx);
   const srcH = Math.round(cropUp.h * ky);
 
-  // 3) Final canvas & draw ORIGINAL at its offset
+  // ---- 3) Final canvas & original placement ----
   const { c: out, ctx } = drawCanvas(final.w, final.h);
   if (side==='left')      ctx.drawImage(baseImg, pad, 0);
   else if (side==='right')ctx.drawImage(baseImg, 0, 0);
   else if (side==='top')  ctx.drawImage(baseImg, 0, pad);
   else                    ctx.drawImage(baseImg, 0, 0);
 
-  // 4) Build extension canvas (pad + fade) and draw sampled region
+  // ---- 4) Extension bitmap (pad + fade) ----
   const horiz = (side==='left'||side==='right');
   const extW = horiz ? (pad + fade) : source.w;
   const extH = horiz ? source.h     : (pad + fade);
@@ -163,7 +151,7 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   const { c: extRaw, ctx: exRaw } = drawCanvas(extW, extH);
   exRaw.drawImage(genImg, srcX, srcY, srcW, srcH, 0, 0, extW, extH);
 
-  // 5) Mask with seam anchored (no content shift)
+  // ---- 5) Mask with seam anchored ----
   const { c: extMasked, ctx: ex } = drawCanvas(extW, extH);
   ex.drawImage(extRaw, 0, 0);
   ex.globalCompositeOperation = 'destination-in';
@@ -175,10 +163,10 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
   } else if (side==='right') {
-    // seam at local x = fade
+    // seam at local x = fade (overlap on left)
     const g = ex.createLinearGradient(0, 0, Math.max(1, fade), 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)');   // overlap region (left of seam)
-    g.addColorStop(1, 'rgba(0,0,0,1)');   // seam and beyond
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,1)');
     ex.fillStyle = g; ex.fillRect(0,0,extW,extH);
   } else if (side==='top') {
     // seam at local y = pad
@@ -194,24 +182,18 @@ async function composeOutcropFromSnippet(baseDu, genSnippetDu, info, opts={}) {
   }
   ex.globalCompositeOperation = 'source-over';
 
-  // 6) Place so seam stays fixed: place = seamAbs - seamLocal
+  // ---- 6) Place so seam stays fixed: place = seamAbs - seamLocal ----
   const seamAbsX = (side==='left') ? pad : (side==='right' ? source.w : null);
   const seamAbsY = (side==='top')  ? pad : (side==='bottom'? source.h : null);
   const seamLocalX = (side==='left') ? pad : (side==='right' ? fade : 0);
   const seamLocalY = (side==='top')  ? pad : (side==='bottom'? fade : 0);
 
-  const placeX =
-    side==='left'  ? (seamAbsX - seamLocalX) :
-    side==='right' ? (seamAbsX - seamLocalX) :
-    0;
-  const placeY =
-    side==='top'    ? (seamAbsY - seamLocalY) :
-    side==='bottom' ? (seamAbsY - seamLocalY) :
-    0;
+  const placeX = (side==='left'||side==='right') ? (seamAbsX - seamLocalX) : 0;
+  const placeY = (side==='top' ||side==='bottom')? (seamAbsY - seamLocalY) : 0;
 
-  // draw chosen view
+  // view
   if (view==='original') {
-    // original only (already drawn)
+    // original only
   } else if (view==='extMasked') {
     ctx.drawImage(extMasked, placeX, placeY);
   } else if (view==='extensionUnmasked') {
