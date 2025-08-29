@@ -67,7 +67,17 @@
   el('saveBtn').onclick = saveCurrentFile;
   el('closeBtn').onclick = exitEditor;
 
-  selectBtn.onclick = ()=> folderInput.click();
+  selectBtn.onclick = () => {
+  try {
+    if (typeof folderInput.showPicker === 'function') {
+      folderInput.showPicker();   // modern, works even if visually hidden
+    } else {
+      folderInput.click();        // fallback
+    }
+  } catch (e) {
+    folderInput.click();          // extra fallback
+  }
+};
   folderInput.addEventListener('change',(e)=>{
     const files = Array.from(e.target.files||[]);
     if(files.length) handleFilesLoaded(files);
@@ -77,6 +87,29 @@
   const sidebar = document.getElementById('sidebar');
   sidebar.addEventListener('dragover', (e)=>{ e.preventDefault(); });
   sidebar.addEventListener('drop', async (e)=>{
+  e.preventDefault();
+  const files = [];
+
+  const items = e.dataTransfer && e.dataTransfer.items ? Array.from(e.dataTransfer.items) : [];
+  if (items.length) {
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+        if (entry) {
+          await traverse(entry, files);  // preserves folder structure
+        } else {
+          const f = item.getAsFile && item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    }
+  } else if (e.dataTransfer && e.dataTransfer.files) {
+    // Firefox fallback (no directory entries API)
+    files.push(...Array.from(e.dataTransfer.files));
+  }
+
+  if (files.length) handleFilesLoaded(files);
+});
     e.preventDefault();
     const items = Array.from(e.dataTransfer.items||[]);
     const files = [];
