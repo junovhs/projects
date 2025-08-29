@@ -1,4 +1,3 @@
-<!-- projects/pages/cat.AI/pixshop/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -32,6 +31,9 @@
     .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px;margin-top:8px}
     .log{margin-top:10px;color:var(--muted);font:12px ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap}
     progress{width:100%;height:10px;border-radius:12px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media (max-width:860px){.grid2{grid-template-columns:1fr}}
+    small[data-hide]{display:none}
   </style>
 </head>
 <body>
@@ -39,7 +41,7 @@
     <div class="card">
       <div class="header">
         <h1 class="title">Pixshop <span class="kicker">— minimal image edit via Gemini</span></h1>
-        <p class="kicker">Upload an image, click to set a focus point, write a prompt, and run an edit. No API keys in the browser; uses your serverless route.</p>
+        <p class="kicker">Upload an image, optionally set a focus point (retouch), or extend the canvas (outcrop). Strong constraints prevent unwanted changes.</p>
       </div>
       <div class="content">
         <div class="row">
@@ -65,10 +67,35 @@
                 <option value="retouch">Retouch (local edit)</option>
                 <option value="filter">Filter (style)</option>
                 <option value="adjust">Adjust (photo settings)</option>
+                <option value="outcrop">Outcrop (extend edges)</option>
               </select>
 
+              <div id="outcropControls" style="display:none;margin-top:8px" class="grid2">
+                <div>
+                  <label>Side</label>
+                  <select id="out_side">
+                    <option value="right">Right</option>
+                    <option value="left">Left</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Amount</label>
+                  <select id="out_amount">
+                    <option value="0.10">10%</option>
+                    <option value="0.15">15%</option>
+                    <option value="0.20" selected>20%</option>
+                    <option value="0.25">25%</option>
+                    <option value="0.33">33%</option>
+                    <option value="0.50">50%</option>
+                  </select>
+                </div>
+                <small class="kicker">We’ll add a black strip on that side and ask Gemini to fill ONLY that strip, keeping the original untouched.</small>
+              </div>
+
               <label style="margin-top:10px">Prompt</label>
-              <textarea id="prompt" rows="6" placeholder="e.g., soften blemishes around the focus point; keep skin texture and lighting natural"></textarea>
+              <textarea id="prompt" rows="6" placeholder="Optional. e.g., extend the water and ice ridge, continue penguins naturally."></textarea>
 
               <div class="actions">
                 <button id="run">Generate</button>
@@ -96,7 +123,7 @@
               </div>
             </div>
             <div class="col">
-              <small class="kicker">Tip: click on the left image to set a focus point (used for “retouch”).</small>
+              <small class="kicker">Tip: Retouch → click the source image to set a focus point.</small>
             </div>
           </div>
         </div>
@@ -104,7 +131,7 @@
     </div>
   </div>
 
-  <!-- Keep ai.js available for the rest of your site, but Pixshop bypasses it to avoid double-reading the Response body -->
+  <!-- Keep ai.js available for the rest of your site; Pixshop bypasses it to avoid double-reading the Response body -->
   <script src="/ai.js"></script>
   <script type="module" src="./app.js"></script>
 </body>

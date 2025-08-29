@@ -29,14 +29,13 @@ export default async function handler(req, res) {
   if (!requireBearerAuth(req, res)) return; // sends 401 on failure
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  // Prefer GEMINI_IMG_MODEL for this app, else fall back to GEMINI_MODEL, else default:
   const MODEL = (process.env.GEMINI_IMG_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash-image-preview').trim();
   if (!GEMINI_API_KEY) return send(res, 500, { error: 'GEMINI_API_KEY is not set' });
 
   try {
     const t0 = Date.now();
     const body = await readBody(req);
-    const { mode = 'retouch', prompt = '', image, hotspot } = body || {};
+    const { mode = 'retouch', prompt = '', image, hotspot, outcrop } = body || {};
     if (!image || typeof image !== 'string') return send(res, 400, { error: 'Missing image dataUrl' });
 
     // Parse data URL
@@ -45,7 +44,7 @@ export default async function handler(req, res) {
     if (!mimeMatch || !b64) return send(res, 400, { error: 'Invalid image dataUrl' });
     const mimeType = mimeMatch[1];
 
-    const templates = {
+    const baseTemplates = {
       retouch: [
         'You are an expert photo retoucher. Improve the local region around the user focus point.',
         'Keep global composition, identity, lighting, and background unchanged.',
@@ -57,7 +56,29 @@ export default async function handler(req, res) {
       adjust: 'Perform global photo adjustments (exposure, contrast, white balance) to enhance realism. Minimal changes; no additions.'
     };
 
-    const fullPrompt = `${templates[mode] || templates.retouch}\n\nUser request: ${prompt}`.trim();
+    // Outcrop template (extend canvas). We rely on the client to embed a solid black blank region.
+    let outcropTemplate = '';
+    if (mode === 'outcrop') {
+      const side = outcrop?.side || 'right';
+      const frac = Math.max(0.01, Math.min(0.6, Number(outcrop?.frac) || 0.2)); // 1–60%
+      // Norm rect of original content inside the larger canvas (optional, improves control)
+      const nr = outcrop?.normRect;
+      const norm = (nr && typeof nr.l === 'number')
+        ? `Original content normalized rect: left=${nr.l.toFixed(3)}, top=${nr.t.toFixed(3)}, right=${nr.r.toFixed(3)}, bottom=${nr.b.toFixed(3)}.`
+        : '';
+      outcropTemplate = [
+        `Extend the scene by filling ONLY the solid black blank strip added on the ${side} side (about ${(frac*100).toFixed(0)}% of the new ${side==='left'||side==='right'?'width':'height'}).`,
+        'Do not alter any existing pixel from the original region; treat it as locked.',
+        'Synthesize new content that matches perspective, lighting, textures, reflections, and horizon, producing a seamless extension with no visible boundary.',
+        'Do not crop or change the final resolution; return a single, completed image exactly the same size as the input.',
+        norm
+      ].filter(Boolean).join(' ');
+    }
+
+    const fullPrompt = [
+      mode === 'outcrop' ? outcropTemplate : (baseTemplates[mode] || baseTemplates.retouch),
+      prompt ? `User request: ${prompt}` : ''
+    ].filter(Boolean).join('\n\n');
 
     const contents = {
       parts: [
