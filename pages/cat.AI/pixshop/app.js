@@ -456,5 +456,4 @@ els.run.addEventListener('click', async ()=>{
 
 // Initialize UI state
 History.load(); updateHistoryUi();
-function updateModeUI(){ els.outcropControls.style.display = (els.mode.value === 'outcrop') ? 'grid' : 'none'; }
 updateModeUI();
