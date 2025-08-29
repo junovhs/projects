@@ -119,7 +119,7 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
   const W = src.naturalWidth, H = src.naturalHeight;
   const pad = Math.max(4, Math.round((side === 'left' || side === 'right' ? W : H) * frac)); // pixels to GROW
   const ov = Math.max(24, Math.min(160, Math.round(pad * 0.33))); // overlap pixels to show
-  const fade = Math.min(32, Math.floor(ov * 0.5));                // crossfade inside overlap
+  const fade = Math.min(48, Math.floor(ov * 0.6));                // crossfade inside overlap
 
   // Snippet logical size BEFORE any scaling (horizontal case: width = pad + ov, height = H)
   let snipW = (side === 'left' || side === 'right') ? (pad + ov) : W;
@@ -172,6 +172,79 @@ async function buildOutcropSnippet(sourceDu, side='right', frac=0.2) {
 
 // Compose: take pad (+fade) from generated snippet and blend with original into a larger canvas
 async function composeOutcropFromSnippet(originalDu, genSnippetDu, info) {
+  const { side, pad, ov, fade, snippet, upload, source, final } = info;
+  const srcImg = await showImage(originalDu);
+  const genImg = await showImage(genSnippetDu);
+
+  // crop from the GENERATED snippet (coords in upload space; gen == upload dims)
+  const crop = { x:0, y:0, w:0, h:0 };
+  if (side === 'left') {
+    // yellow area was [0..pad]; take pad+fade so we can underlap+blend
+    crop.x = 0; crop.y = 0;
+    crop.w = Math.round((pad + fade) * (upload.w / snippet.w));
+    crop.h = upload.h;
+  } else if (side === 'right') {
+    // yellow area was [ov..ov+pad] in snippet
+    crop.x = Math.round(ov * (upload.w / snippet.w)); crop.y = 0;
+    crop.w = Math.round((pad + fade) * (upload.w / snippet.w));
+    crop.h = upload.h;
+  } else if (side === 'top') {
+    crop.x = 0; crop.y = 0;
+    crop.w = upload.w;
+    crop.h = Math.round((pad + fade) * (upload.h / snippet.h));
+  } else { // bottom
+    crop.x = 0; crop.y = Math.round(ov * (upload.h / snippet.h));
+    crop.w = upload.w;
+    crop.h = Math.round((pad + fade) * (upload.h / snippet.h));
+  }
+
+  // final canvas
+  const { c: out, ctx } = (() => {
+    const c = document.createElement('canvas'); c.width = final.w; c.height = final.h;
+    return { c, ctx: c.getContext('2d') };
+  })();
+
+  // draw ORIGINAL first (never punch holes in it)
+  if (side === 'left') ctx.drawImage(srcImg, pad, 0);
+  else if (side === 'right') ctx.drawImage(srcImg, 0, 0);
+  else if (side === 'top') ctx.drawImage(srcImg, 0, pad);
+  else ctx.drawImage(srcImg, 0, 0);
+
+  // build EXTENSION layer (pad+fade) and apply a gradient MASK on the extension itself
+  const extW = (side === 'left' || side === 'right') ? (pad + fade) : source.w;
+  const extH = (side === 'left' || side === 'right') ? source.h : (pad + fade);
+  const extC = document.createElement('canvas'); extC.width = extW; extC.height = extH;
+  const extX = extC.getContext('2d');
+
+  // draw the generated crop scaled into the extension layer
+  extX.drawImage(genImg, crop.x, crop.y, crop.w, crop.h, 0, 0, extW, extH);
+
+  // create alpha mask on the EXTENSION:
+  // - alpha = 1 away from seam
+  // - alpha -> 0 approaching seam (across "fade" px)
+  extX.globalCompositeOperation = 'destination-in';
+  const mask = extX.createLinearGradient(
+    ...(side === 'left'  ? [extW - fade, 0, extW, 0] :
+       side === 'right' ? [0, 0, fade, 0] :
+       side === 'top'   ? [0, extH - fade, 0, extH] :
+                          [0, 0, 0, fade])
+  );
+  // opaque far from seam
+  mask.addColorStop(0, 'rgba(0,0,0,1)');
+  // transparent right at the seam edge
+  mask.addColorStop(1, 'rgba(0,0,0,0)');
+  extX.fillStyle = mask;
+  extX.fillRect(0, 0, extW, extH);
+  extX.globalCompositeOperation = 'source-over';
+
+  // place extension UNDER the seam with a slight underlap so gradient crosses the join
+  if (side === 'left')      ctx.drawImage(extC, 0, 0);                 // original starts at x=pad
+  else if (side === 'right')ctx.drawImage(extC, source.w - fade, 0);   // overlap onto original by fade
+  else if (side === 'top')  ctx.drawImage(extC, 0, 0);
+  else                      ctx.drawImage(extC, 0, source.h - fade);
+
+  return out.toDataURL('image/png');
+}
   const { side, pad, ov, fade, snippet, upload, source, final } = info;
   const srcImg = await showImage(originalDu);
   const genImg = await showImage(genSnippetDu);
