@@ -33,7 +33,8 @@
     .log{margin-top:10px;color:var(--muted);font:12px ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap}
     progress{width:100%;height:10px;border-radius:12px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    @media (max-width:860px){.grid2{grid-template-columns:1fr}}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    @media (max-width:860px){.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}}
     canvas{max-width:100%}
   </style>
 </head>
@@ -42,7 +43,7 @@
     <div class="card">
       <div class="header">
         <h1 class="title">Pixshop <span class="kicker">— minimal image edit via Gemini</span></h1>
-        <p class="kicker">Upload → retouch or outcrop. Outcrop uses a snippet+overlap+yellow-mask; you can tweak fade/offset/scale after generation.</p>
+        <p class="kicker">Upload → retouch or outcrop. Outcrop uses snippet+overlap+yellow-mask; tweak blend in the debugger.</p>
       </div>
       <div class="content">
         <div class="row">
@@ -92,11 +93,11 @@
                     <option value="0.50">50%</option>
                   </select>
                 </div>
-                <small class="kicker">We send a snippet with overlap + a yellow area to fill. You can fine-tune the seam below.</small>
+                <small class="kicker">We send a snippet with an overlap & a yellow area to fill. You can tune seam/fade below.</small>
               </div>
 
               <label style="margin-top:10px">Prompt</label>
-              <textarea id="prompt" rows="6" placeholder="Optional. e.g., continue river + cliffs, match horizon/lighting."></textarea>
+              <textarea id="prompt" rows="6" placeholder="Optional. e.g., continue river + cliffs, match horizon/lighting. "></textarea>
 
               <div class="actions">
                 <button id="run">Generate</button>
@@ -133,6 +134,7 @@
 
         <div class="panel" id="debugPanel" style="display:none;margin-top:12px">
           <label>Blend debugger (after outcrop)</label>
+
           <div class="grid2" style="margin-bottom:8px">
             <div>
               <label>View</label>
@@ -140,30 +142,50 @@
                 <option value="composite">Composite</option>
                 <option value="original">Original only</option>
                 <option value="extMasked">Extension (masked)</option>
+                <option value="extensionUnmasked">Extension (unmasked)</option>
                 <option value="mask">Mask only</option>
                 <option value="snippet">Sent snippet</option>
                 <option value="gen">Returned snippet</option>
               </select>
             </div>
             <div></div>
+          </div>
+
+          <div class="grid3" style="margin-bottom:8px">
             <div>
               <label>Fade (px)</label>
               <input id="dbg_fade" type="range" min="0" max="128" step="1" value="64" />
             </div>
             <div>
-              <label>Offset (px)</label>
-              <input id="dbg_offset" type="range" min="-128" max="128" step="1" value="0" />
+              <label>Offset X (px)</label>
+              <input id="dbg_offset_x" type="range" min="-128" max="128" step="1" value="0" />
             </div>
             <div>
-              <label>Scale (%)</label>
-              <input id="dbg_scale" type="range" min="95" max="105" step="0.1" value="100" />
+              <label>Offset Y (px)</label>
+              <input id="dbg_offset_y" type="range" min="-128" max="128" step="1" value="0" />
             </div>
           </div>
+
+          <div class="grid3" style="margin-bottom:8px">
+            <div>
+              <label>Scale X (%)</label>
+              <input id="dbg_scale_x" type="range" min="95" max="105" step="0.1" value="100" />
+            </div>
+            <div>
+              <label>Scale Y (%)</label>
+              <input id="dbg_scale_y" type="range" min="95" max="105" step="0.1" value="100" />
+            </div>
+            <div style="display:flex;align-items:end;gap:8px">
+              <button id="dbg_download_gen" class="secondary">Download Returned</button>
+            </div>
+          </div>
+
           <div class="actions">
             <button id="dbg_apply">Apply to Image</button>
             <button id="dbg_recompose" class="secondary">Recompose</button>
             <button id="dbg_close" class="secondary">Close</button>
           </div>
+
           <div style="margin-top:10px">
             <canvas id="dbg_canvas"></canvas>
           </div>
