@@ -393,11 +393,11 @@ els.img.addEventListener('click', pickHotspot);
 els.preview.addEventListener('click', ev => {
   if (ev.target === els.preview) els.file.click();
 });
-['dragenter','dragover'].forEach(t => els.drop.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); els.drop.style.borderColor = '#4b7bf7'; }));
-['dragleave','drop'].forEach(t => els.drop.addEventListener(t, e => {
+['dragenter','dragover'].forEach(t => [els.drop, els.file].forEach(el => el.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); els.drop.style.borderColor = '#4b7bf7'; })));
+['dragleave','drop'].forEach(t => [els.drop, els.file].forEach(el => el.addEventListener(t, e => {
   e.preventDefault(); e.stopPropagation(); els.drop.style.borderColor = 'var(--border)';
-  if (t==='drop') handleFile(e.dataTransfer.files?.[0]);
-}));
+  if (t === 'drop') handleFile((e.dataTransfer?.files?.[0]) || (e.target?.files?.[0]));
+})));
 window.addEventListener('paste', async (e)=>{
   const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));
   if (item){ const file = item.getAsFile(); await handleFile(file); }
@@ -405,7 +405,7 @@ window.addEventListener('paste', async (e)=>{
 
 // Click-to-focus (retouch)
 els.img.addEventListener('click', pickHotspot);
-els.preview.addEventListener('click', ev => { if(ev.target===els.preview) els.file.click(); });
+els.preview.addEventListener('click', ev => { if (ev.target !== els.img) els.file.click(); });
 
 // Clear & Download
 els.clear.addEventListener('click', ()=>{
