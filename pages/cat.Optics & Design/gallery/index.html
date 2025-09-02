@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Image Album Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cal+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <!-- PWA meta tags -->
+    <meta name="theme-color" content="#007acc">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23007acc'/><text y='0.9em' font-size='90' fill='white'>📸</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Album</h1>
+            <div class="album-controls">
+                <select id="albumSelect">
+                    <option value="unsorted">Unsorted Images</option>
+                </select>
+                <button id="newAlbumBtn">New Album</button>
+                <button id="deleteAlbumBtn">Delete Album</button>
+            </div>
+            <div class="controls">
+                <input type="text" id="searchInput" placeholder="Search by tags..." />
+                <select id="sortSelect">
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="tags-panel" id="tagsPanel">
+            <div class="tags-header">
+                <h3>Available Tags</h3>
+                <span class="tags-hint">Click to apply to selected images</span>
+            </div>
+            <div class="tags-container" id="tagsContainer">
+                <!-- Tags will be rendered here -->
+            </div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-content">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7,10 12,15 17,10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <p>Drag and drop images here or <span class="browse-text">browse files</span></p>
+                <input type="file" id="fileInput" multiple accept="image/*" hidden>
+            </div>
+        </div>
+
+        <div class="image-grid" id="imageGrid">
+            <!-- Images will be dynamically inserted here -->
+        </div>
+
+        <div class="modal" id="imageModal">
+            <div class="modal-content">
+                <span class="close" id="closeModal">&times;</span>
+                <img id="modalImage" src="" alt="">
+                <div class="modal-info">
+                    <input type="text" id="modalTags" placeholder="Add tags (comma separated)">
+                    <div class="modal-buttons">
+                        <button id="downloadImage" class="download-btn">Download Clean</button>
+                        <button id="saveTags">Save Tags</button>
+                        <button id="deleteImage" class="delete-btn">Delete Image</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Album Modal -->
+        <div class="modal" id="albumModal">
+            <div class="modal-content">
+                <span class="close" id="closeAlbumModal">&times;</span>
+                <h2>Create New Album</h2>
+                <input type="text" id="albumNameInput" placeholder="Album name">
+                <div class="modal-buttons">
+                    <button id="saveAlbum">Create Album</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="storage.js"></script>
+    <script type="module" src="upload.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
