@@ -166,7 +166,7 @@ async function processImage(file){
         const image={
             id: generateId(),
             name: file.name,
-            originalName: file.name,
+            originalName: '', // don’t duplicate name
             data: result.url,
             prompt: '',
             tags: [],
@@ -175,8 +175,7 @@ async function processImage(file){
             pathname: result.pathname || null,
             isRemote: true
         };
-        images.push(image);
-        saveData();
+        await initialSync(); // refresh from server so no doubles
         render();
     }catch(error){
         console.error('Upload failed:', error);
