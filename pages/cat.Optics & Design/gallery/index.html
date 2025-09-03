@@ -824,24 +824,37 @@
             });
         }
 
-        function processImage(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+        async function processImage(file) {
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const response = await fetch('/api/images', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) throw new Error('Upload failed');
+
+                const result = await response.json();
+
                 const image = {
                     id: generateId(),
                     name: file.name,
                     originalName: file.name,
-                    data: e.target.result,
+                    data: result.url, // server URL (Vercel Blob)
                     prompt: '',
                     tags: [],
                     uploadDate: new Date().toISOString(),
                     fileSize: file.size
                 };
+
                 images.push(image);
                 saveData();
                 render();
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('Upload failed:', error);
+                alert('Failed to upload image. Please try again.');
+            }
         }
 
         // Post management
@@ -1283,24 +1296,33 @@
             closeModal();
         }
 
-        function deleteImage(imageId = currentImageId) {
+        async function deleteImage(imageId = currentImageId) {
             if (!imageId) return;
 
             const image = images.find(img => img.id === imageId);
             if (!image) return;
 
             if (confirm(`Are you sure you want to delete "${image.name}"? This cannot be undone.`)) {
+                try {
+                    // Best-effort server delete by URL (backend should ignore if not found)
+                    if (image.data && typeof image.data === 'string') {
+                        await fetch(`/api/images?url=${encodeURIComponent(image.data)}`, { method: 'DELETE' });
+                    }
+                } catch (err) {
+                    console.warn('Server delete failed or not configured; proceeding with local cleanup.', err);
+                }
+
                 // Remove from all posts
                 posts.forEach(post => {
                     post.images = post.images.map(id => id === imageId ? null : id);
                 });
-                
+
                 // Remove from images array
                 images = images.filter(img => img.id !== imageId);
 
                 saveData();
                 render();
-                
+
                 if (currentImageId === imageId) {
                     closeModal();
                 }
@@ -1388,10 +1410,71 @@
         });
 
         // Initialize app
-        function init() {
+        async function init() {
             setupUpload();
             setupDragAndDrop();
+            await initialSync();
             render();
+        }
+
+        async function initialSync() {
+            // 1) Migrate any leftover base64 images to the server
+            const needsMigration = images.filter(img => typeof img.data === 'string' && img.data.startsWith('data:image/'));
+            for (const legacy of needsMigration) {
+                try {
+                    const blob = dataURLtoBlob(legacy.data);
+                    const file = new File([blob], legacy.originalName || legacy.name || 'image.jpg', { type: blob.type || 'image/jpeg' });
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    const res = await fetch('/api/images', { method: 'POST', body: formData });
+                    if (!res.ok) throw new Error('Migration upload failed');
+
+                    const out = await res.json();
+                    legacy.data = out.url; // swap base64 for server URL
+                } catch (e) {
+                    console.warn('Migration of one image failed; skipping.', e);
+                }
+            }
+            if (needsMigration.length) saveData();
+
+            // 2) Pull server list and merge any images we don’t know about (by URL)
+            try {
+                const res = await fetch('/api/images', { method: 'GET' });
+                if (res.ok) {
+                    const payload = await res.json();
+                    const serverImages = Array.isArray(payload) ? payload : (payload.images || []);
+                    const known = new Set(images.map(i => i.data));
+                    serverImages.forEach(item => {
+                        if (!item?.url || known.has(item.url)) return;
+                        images.push({
+                            id: generateId(),
+                            name: item.name || item.filename || 'image.jpg',
+                            originalName: item.originalName || item.name || item.filename || 'image.jpg',
+                            data: item.url,
+                            prompt: item.prompt || '',
+                            tags: item.tags || [],
+                            uploadDate: item.uploadDate || new Date().toISOString(),
+                            fileSize: item.size || null
+                        });
+                    });
+                    if (serverImages.length) saveData();
+                }
+            } catch (e) {
+                console.warn('Initial server sync skipped:', e);
+            }
+
+            function dataURLtoBlob(dataURL) {
+                const parts = dataURL.split(',');
+                const meta = parts[0];
+                const base64 = parts[1];
+                const mime = (meta.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
+                const binary = atob(base64);
+                const len = binary.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+                return new Blob([bytes], { type: mime });
+            }
         }
 
         init();
