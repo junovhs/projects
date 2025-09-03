@@ -1,5 +1,4 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { list, head, put, del } from "@vercel/blob";
+import { put, del, head } from "@vercel/blob";
 
 const META_IMAGES = "meta/images.json";
 
@@ -24,65 +23,85 @@ async function saveJson(path, data) {
   });
 }
 
-export default async function handler(req, res) {
+export async function POST(request) {
   try {
-    if (req.method === "POST") {
-      const formData = await req.formData();
-      const file = formData.get("image");
-      if (!file) return res.status(400).send("No file uploaded");
+    const formData = await request.formData();
+    const file = formData.get("image");
+    if (!file) return new Response("No file uploaded", { status: 400 });
 
-      const blob = await put(`uploads/${file.name}`, file, {
-        access: "public",
-        addRandomSuffix: true,
-      });
+    const blob = await put(`uploads/${file.name}`, file, {
+      access: "public",
+      addRandomSuffix: true,
+    });
 
-      const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
-      meta.items.push({
-        id: blob.pathname,
-        name: blob.pathname.split("/").pop(),
-        url: blob.url,
-        pathname: blob.pathname,
-        uploadDate: new Date().toISOString(),
-        tags: [],
-        size: blob.size,
-      });
-      await saveJson(META_IMAGES, meta);
+    const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
+    meta.items.push({
+      id: blob.pathname,
+      name: blob.pathname.split("/").pop(),
+      url: blob.url,
+      pathname: blob.pathname,
+      uploadDate: new Date().toISOString(),
+      tags: [],
+      size: blob.size,
+    });
+    await saveJson(META_IMAGES, meta);
 
-      return res.status(200).json(blob);
-    }
-
-    if (req.method === "GET") {
-      const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
-      return res.status(200).json(meta.items);
-    }
-
-    if (req.method === "PUT") {
-      const { id, name, tags } = await req.json();
-      const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
-      const idx = meta.items.findIndex((it) => it.id === id);
-      if (idx === -1) return res.status(404).send("Not found");
-      if (name) meta.items[idx].name = name;
-      if (tags) meta.items[idx].tags = Array.from(new Set(tags));
-      await saveJson(META_IMAGES, meta);
-      return res.status(200).json({ ok: true });
-    }
-
-    if (req.method === "DELETE") {
-      const { id } = req.query;
-      const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
-      const idx = meta.items.findIndex((it) => it.id === id);
-      if (idx === -1) return res.status(404).send("Not found");
-
-      await del(meta.items[idx].pathname);
-      meta.items.splice(idx, 1);
-      await saveJson(META_IMAGES, meta);
-      return res.status(200).json({ ok: true });
-    }
-
-    res.setHeader("Allow", "GET,POST,PUT,DELETE");
-    return res.status(405).send("Method Not Allowed");
+    return Response.json(blob);
   } catch (e) {
     console.error(e);
-    return res.status(500).send(e?.message ?? "Server error");
+    return new Response(e?.message ?? "Server error", { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
+    return Response.json(meta.items);
+  } catch (e) {
+    console.error(e);
+    return new Response(e?.message ?? "Server error", { status: 500 });
+  }
+}
+
+export async function PUT(request) {
+  try {
+    const { id, name, tags } = await request.json();
+    const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
+    const idx = meta.items.findIndex((it) => it.id === id);
+    if (idx === -1) return new Response("Not found", { status: 404 });
+    if (name) meta.items[idx].name = name;
+    if (tags) meta.items[idx].tags = Array.from(new Set(tags));
+    await saveJson(META_IMAGES, meta);
+    return Response.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return new Response(e?.message ?? "Server error", { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return new Response("Missing id", { status: 400 });
+
+    const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
+    const idx = meta.items.findIndex((it) => it.id === id);
+    if (idx === -1) return new Response("Not found", { status: 404 });
+
+    // Try deleting blob (ignore if already gone)
+    try {
+      await del(meta.items[idx].pathname);
+    } catch (e) {
+      console.warn("Blob already gone:", e.message);
+    }
+
+    meta.items.splice(idx, 1);
+    await saveJson(META_IMAGES, meta);
+
+    return Response.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return new Response(e?.message ?? "Server error", { status: 500 });
   }
 }
