@@ -58,7 +58,7 @@ function getPassword() {
   return pw || "";
 }
 
-// Export a single function your app can call
+// Exported utility (kept for compatibility)
 export async function uploadImagesWithProgress(files) {
   const results = [];
   for (const file of files) {
@@ -69,7 +69,6 @@ export async function uploadImagesWithProgress(files) {
       access: "public",
       handleUploadUrl: "/api/images",
       headers: { "x-api-password": pwd }, // forwarded to /api/images
-      // official progress callback
       onUploadProgress: (e) => {
         // e.loaded, e.total, e.percentage
         ui.update(e.loaded || 0, e.total || 0);
@@ -82,6 +81,21 @@ export async function uploadImagesWithProgress(files) {
   return results;
 }
 
-// If your app previously imported { upload } from this file,
-// you can re-export for compatibility:
+// Provide a global manager the app expects: window.uploadManager.handleFiles(...)
+if (typeof window !== "undefined") {
+  window.uploadManager = {
+    async handleFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return [];
+      const res = await uploadImagesWithProgress(files);
+      // refresh UI after upload
+      if (window.app?.loadImages) {
+        try { await window.app.loadImages(); } catch {}
+      }
+      return res;
+    }
+  };
+}
+
+// Re-export 'upload' if other code imports from here
 export { upload };

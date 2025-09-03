@@ -1,6 +1,6 @@
 // /storage.js
 // Remote storage with: streaming load progress, storage meter, and auth headers.
-// Exports BOTH a ready-to-use default instance (with init()) and the class.
+// Exposes BOTH a ready-to-use default instance (with init()) AND attaches it to window as window.imageStorage.
 
 const REQ_HEADER = "x-api-password";
 
@@ -138,17 +138,23 @@ export class ImageStorageRemote {
       method: "PUT",
       headers: {
         "content-type": "application/json",
-        [REQ_HEADER]: getPassword(),
+        "x-api-password": getPassword(),
       },
       body: JSON.stringify({ id, name, tags }),
     });
     if (!res.ok) throw new Error(await res.text());
   }
 
+  // Aliases expected by app.js
+  async updateImage(image) {
+    const { id, name, tags } = image || {};
+    return this.saveImageMeta({ id, name, tags });
+  }
+
   async deleteImage(id) {
     const res = await fetch(`/api/images?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
-      headers: { [REQ_HEADER]: getPassword() },
+      headers: { "x-api-password": getPassword() },
     });
     if (!res.ok) throw new Error(await res.text());
   }
@@ -163,11 +169,16 @@ export class ImageStorageRemote {
       method: "PUT",
       headers: {
         "content-type": "application/json",
-        [REQ_HEADER]: getPassword(),
+        "x-api-password": getPassword(),
       },
       body: JSON.stringify(album),
     });
     if (!res.ok) throw new Error(await res.text());
+  }
+
+  // Alias expected by app.js
+  async updateAlbum(album) {
+    return this.saveAlbum(album);
   }
 
   async createAlbum(album) {
@@ -175,7 +186,7 @@ export class ImageStorageRemote {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        [REQ_HEADER]: getPassword(),
+        "x-api-password": getPassword(),
       },
       body: JSON.stringify(album),
     });
@@ -186,7 +197,7 @@ export class ImageStorageRemote {
   async deleteAlbum(id) {
     const res = await fetch(`/api/albums?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
-      headers: { [REQ_HEADER]: getPassword() },
+      headers: { "x-api-password": getPassword() },
     });
     if (!res.ok) throw new Error(await res.text());
   }
@@ -217,3 +228,8 @@ export class ImageStorageRemote {
 // ---- default export: ready-to-use instance with init() ----
 const defaultStorage = new ImageStorageRemote();
 export default defaultStorage;
+
+// Make it available globally for app.js
+if (typeof window !== "undefined") {
+  window.imageStorage = defaultStorage;
+}
