@@ -1,17 +1,10 @@
 // /api/albums.js
-export const config = { runtime: "edge" };
-
+// Node Serverless Function (NOT Edge)
 import { head, put } from "@vercel/blob";
 
 const META_ALBUMS = "meta/albums.json";
 
-// --- helpers ---
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" }
-  });
-
+// ---------- helpers ----------
 async function loadJson(path, fallback) {
   try {
     const info = await head(path);
@@ -29,57 +22,65 @@ async function saveJson(path, data) {
     // @ts-ignore
     allowOverwrite: true,
     contentType: "application/json",
-    cacheControlMaxAge: 0
+    cacheControlMaxAge: 0,
   });
 }
 
-// --- handler ---
-export default async function handler(req) {
+function parseBody(req) {
   try {
-    const { method } = req;
+    if (typeof req.body === "string") return JSON.parse(req.body || "{}");
+    if (req.body && typeof req.body === "object") return req.body;
+    return {};
+  } catch {
+    return {};
+  }
+}
 
-    if (method === "GET") {
+export default async function handler(req, res) {
+  try {
+    if (req.method === "GET") {
       const meta = await loadJson(META_ALBUMS, { version: 1, items: [] });
-      return json(meta.items);
+      return res.status(200).json(meta.items);
     }
 
-    if (method === "POST") {
-      const album = await req.json().catch(() => ({}));
+    if (req.method === "POST") {
+      const album = parseBody(req);
       const meta = await loadJson(META_ALBUMS, { version: 1, items: [] });
       meta.items.push(album);
       await saveJson(META_ALBUMS, meta);
-      return json({ id: album.id }, 201);
+      return res.status(201).json({ id: album.id });
     }
 
-    if (method === "PUT") {
-      const album = await req.json().catch(() => ({}));
-      if (!album?.id) return json({ error: "Missing album.id" }, 400);
+    if (req.method === "PUT") {
+      const album = parseBody(req);
+      if (!album?.id) return res.status(400).send("Missing album.id");
 
       const meta = await loadJson(META_ALBUMS, { version: 1, items: [] });
       const idx = meta.items.findIndex((a) => String(a.id) === String(album.id));
-      if (idx === -1) return json({ error: "Not found" }, 404);
+      if (idx === -1) return res.status(404).send("Not found");
 
       meta.items[idx] = album;
       await saveJson(META_ALBUMS, meta);
-      return json({ ok: true });
+      return res.status(200).json({ ok: true });
     }
 
-    if (method === "DELETE") {
-      const url = new URL(req.url);
-      const id = url.searchParams.get("id");
-      if (!id) return json({ error: "Missing id" }, 400);
+    if (req.method === "DELETE") {
+      const { id } = req.query || {};
+      if (!id) return res.status(400).send("Missing id");
 
       const meta = await loadJson(META_ALBUMS, { version: 1, items: [] });
       const idx = meta.items.findIndex((a) => String(a.id) === String(id));
-      if (idx === -1) return json({ error: "Not found" }, 404);
+      if (idx === -1) return res.status(404).send("Not found");
 
       meta.items.splice(idx, 1);
       await saveJson(META_ALBUMS, meta);
-      return json({ ok: true });
+      return res.status(200).json({ ok: true });
     }
 
-    return json({ error: "Method Not Allowed" }, 405);
+    res.setHeader("Allow", "GET,POST,PUT,DELETE");
+    return res.status(405).send("Method Not Allowed");
   } catch (e) {
-    return json({ error: e?.message ?? "Server error" }, 500);
+    console.error(e);
+    return res.status(500).send(e?.message ?? "Server error");
   }
 }
