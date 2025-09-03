@@ -4,8 +4,22 @@ import { handleUpload } from "@vercel/blob/client";
 import { head, put, del } from "@vercel/blob";
 
 const META_IMAGES = "meta/images.json";
+const REQ_HEADER = "x-api-password";
 
 // ---------- helpers ----------
+function getPasswordFromReq(req) {
+  const h = (req.headers?.[REQ_HEADER] || req.headers?.authorization || "").toString();
+  if (h.startsWith("Bearer ")) return h.slice(7);
+  return h || null;
+}
+function requireAuth(req, res) {
+  const expected = process.env.AI_API_PASSWORD || "";
+  const provided = getPasswordFromReq(req);
+  if (!expected || provided === expected) return true;
+  res.status(401).send("Unauthorized");
+  return false;
+}
+
 async function loadJson(path, fallback) {
   try {
     const info = await head(path);
@@ -27,7 +41,6 @@ async function saveJson(path, data) {
   });
 }
 
-// Parse JSON body safely in Node
 function parseBody(req) {
   try {
     if (typeof req.body === "string") return JSON.parse(req.body || "{}");
@@ -42,12 +55,16 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const meta = await loadJson(META_IMAGES, { version: 1, items: [] });
+      // also include a quick-used-bytes header for convenience
+      const used = meta.items.reduce((a, b) => a + (Number(b.size) || 0), 0);
+      res.setHeader("x-used-bytes", String(used));
       return res.status(200).json(meta.items);
     }
 
     if (req.method === "POST") {
-      const body = parseBody(req);
+      if (!requireAuth(req, res)) return;
 
+      const body = parseBody(req);
       const json = await handleUpload({
         request: req,
         body,
@@ -80,6 +97,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PUT") {
+      if (!requireAuth(req, res)) return;
+
       const { id, name, tags } = parseBody(req);
       if (!id) return res.status(400).send("Missing id");
 
@@ -95,6 +114,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
+      if (!requireAuth(req, res)) return;
+
       const { id } = req.query || {};
       if (!id) return res.status(400).send("Missing id");
 

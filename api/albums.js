@@ -3,8 +3,22 @@
 import { head, put } from "@vercel/blob";
 
 const META_ALBUMS = "meta/albums.json";
+const REQ_HEADER = "x-api-password";
 
 // ---------- helpers ----------
+function getPasswordFromReq(req) {
+  const h = (req.headers?.[REQ_HEADER] || req.headers?.authorization || "").toString();
+  if (h.startsWith("Bearer ")) return h.slice(7);
+  return h || null;
+}
+function requireAuth(req, res) {
+  const expected = process.env.AI_API_PASSWORD || "";
+  const provided = getPasswordFromReq(req);
+  if (!expected || provided === expected) return true;
+  res.status(401).send("Unauthorized");
+  return false;
+}
+
 async function loadJson(path, fallback) {
   try {
     const info = await head(path);
@@ -44,6 +58,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      if (!requireAuth(req, res)) return;
+
       const album = parseBody(req);
       const meta = await loadJson(META_ALBUMS, { version: 1, items: [] });
       meta.items.push(album);
@@ -52,6 +68,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PUT") {
+      if (!requireAuth(req, res)) return;
+
       const album = parseBody(req);
       if (!album?.id) return res.status(400).send("Missing album.id");
 
@@ -65,6 +83,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
+      if (!requireAuth(req, res)) return;
+
       const { id } = req.query || {};
       if (!id) return res.status(400).send("Missing id");
 
