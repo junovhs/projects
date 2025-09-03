@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dream Series Manager</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.5;}button{cursor:pointer;}input,textarea,select,button{background:#111;color:#e0e0e0;border:1px solid #333;border-radius:8px;padding:0.6rem 0.8rem;outline:none;}input::placeholder,textarea::placeholder{color:#666}h1,h2,h3{font-weight:700}a{color:#8ab4f8;text-decoration:none}a:hover{text-decoration:underline}.container{max-width:1200px;margin:0 auto;padding:2rem}.top-bar{display:flex;gap:1rem;align-items:center;justify-content:space-between;margin-bottom:1.2rem}.left-actions,.right-actions{display:flex;gap:0.7rem;align-items:center}.search{display:flex;align-items:center;background:#111;border:1px solid #333;border-radius:8px;padding:0.4rem 0.7rem;gap:0.5rem}.search input{border:0;padding:0.4rem 0.2rem;background:transparent}.upload-area{display:flex;gap:0.8rem;align-items:center}.btn{background:#222;color:#ddd;border:1px solid #444;padding:0.6rem 0.9rem;border-radius:8px;transition:all .2s ease}.btn:hover{background:#2a2a2a}.btn.primary{background:#1f3a8a;border-color:#3555a7}.btn.primary:hover{background:#29479f}.btn.danger{background:#631313;border-color:#8a1f1f}.btn.danger:hover{background:#792020}.posts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.post-container{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:1.5rem;position:relative;transition:all .3s ease}.post-container:hover{border-color:#555;background:#1f1f1f}.post-container.drag-over-post{border-color:#4f83ff;background:#1a2235}.post-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}.post-title{font-size:1.1rem;font-weight:700}.post-sub{font-size:.85rem;color:#aaa}.post-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}.slot{height:84px;border:1px dashed #444;background:#111;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .2s}.slot:hover{border-color:#666}.slot.drag-over{border-color:#4f83ff;background:#14213a}.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.slot .slot-index{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.5);padding:.1rem .35rem;border-radius:6px;font-size:.7rem}.slot .remove-btn{position:absolute;top:6px;right:6px;background:rgba(99,19,19,.75);border:1px solid #a33;color:#fdd;padding:.15rem .4rem;border-radius:6px;font-size:.7rem}.post-actions{display:flex;gap:.5rem;align-items:center;margin-top:1rem;justify-content:space-between}.image-count{font-size:.8rem;color:#aaa}.empty{color:#666}.unassigned{margin-top:2rem}.unassigned h2{margin-bottom:.6rem}.unassigned-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}.card{background:#1a1a1a;border:1px solid #333;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}.card .thumb{height:180px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}.card img{width:100%;height:100%;object-fit:cover}.card .meta{padding:0.9rem;border-top:1px solid #333;display:flex;flex-direction:column;gap:0.35rem}.meta .title{font-weight:700}.meta .subtitle{color:#aaa;font-size:.9rem}.meta .prompt{font-size:.85rem;color:#777}.card .actions{display:flex;gap:0.5rem;padding:.9rem;border-top:1px solid #333}.grid-empty{background:#0f0f0f;border:1px dashed #333;border-radius:12px;padding:1rem;text-align:center;color:#777}.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:1rem;z-index:100}.modal.open{display:flex}.modal .panel{background:#141414;border:1px solid #333;border-radius:12px;width:min(620px,94vw);max-height:90vh;overflow:auto}.modal .panel header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem;border-bottom:1px solid #333}.modal .panel .content{padding:1rem 1.1rem;display:grid;gap:.6rem}.modal .panel footer{display:flex;justify-content:flex-end;gap:.6rem;padding:0.9rem 1.1rem;border-top:1px solid #333}.close{background:#222;border:1px solid #444;border-radius:8px;padding:.35rem .5rem}.kbd{background:#222;border:1px solid #444;border-radius:6px;padding:.1rem .3rem;font-size:.75rem}.dragging{opacity:.6;transform:scale(.98)}.ghost{position:absolute;pointer-events:none;opacity:.85;border-radius:10px;overflow:hidden;border:1px solid #666;box-shadow:0 6px 20px rgba(0,0,0,.5)}.ghost img{display:block;width:200px;height:auto}.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1000;background:#1b2333;border:1px solid #395083;color:#d6e3ff;padding:.6rem 1rem;border-radius:8px;display:none}.toast.show{display:block}@media (max-width:980px){.posts-grid{grid-template-columns:repeat(2,1fr)}.unassigned-grid{grid-template-columns:repeat(2,1fr)}}@media (max-width:640px){.posts-grid{grid-template-columns:1fr}.unassigned-grid{grid-template-columns:1fr}}</style></head><body><div class="container"><div class="top-bar"><div class="left-actions"><button id="uploadBtn" class="btn primary">Upload</button><input type="file" id="fileInput" multiple accept="image/*" style="display:none"><div class="search"><span>🔎</span><input id="searchInput" placeholder="Search by name, tag, or prompt..."></div></div><div class="right-actions"><button id="createPostBtn" class="btn">New Post</button><button id="batchCreateBtn" class="btn">Batch</button><button id="clearAllBtn" class="btn danger">Clear All</button></div></div><div id="postsContainer" class="posts-grid"></div><div class="unassigned"><h2>Unassigned Images <span id="unassignedCount" class="sub"></span></h2><div id="unassignedGrid" class="unassigned-grid"></div></div></div><div id="imageModal" class="modal"><div class="panel"><header><strong id="modalTitle">Image</strong><button class="close" onclick="closeModal()">✕</button></header><div class="content"><div style="display:grid;grid-template-columns:220px 1fr;gap:1rem;align-items:start;"><div id="modalThumb" style="background:#0f0f0f;border:1px solid #333;border-radius:10px;height:220px;display:flex;align-items:center;justify-content:center;overflow:hidden"><span class="empty">No preview</span></div><div><div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem"><input id="imageName" placeholder="Image name"><input id="imageOriginalName" placeholder="Original filename"></div><textarea id="imagePrompt" placeholder="Prompt..." rows="4" style="margin-top:.6rem"></textarea><input id="imageTags" placeholder="Tags (comma separated)" style="margin-top:.6rem"></div></div><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn" onclick="downloadCurrentImage()">Download</button><button class="btn danger" onclick="deleteImage()">Delete</button></div></div></div></div><div id="createPostModal" class="modal"><div class="panel"><header><strong>New Post</strong><button class="close" onclick="closeCreatePostModal()">✕</button></header><div class="content"><input id="newPostTitle" placeholder="Title"><div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem"><input id="newPostDate" type="date"><input id="newPostSlots" type="number" min="1" max="20" value="8" placeholder="Slots"></div></div><footer><button class="btn" onclick="closeCreatePostModal()">Cancel</button><button class="btn primary" onclick="createPost()">Create</button></footer></div></div><div id="batchCreateModal" class="modal"><div class="panel"><header><strong>Batch Create Posts</strong><button class="close" onclick="closeBatchModal()">✕</button></header><div class="content"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem"><input id="batchCount" type="number" min="1" value="10" placeholder="How many?"><input id="batchSlots" type="number" min="1" max="20" value="8" placeholder="Slots each"><select id="batchOrder"><option value="ascending">Ascending</option><option value="descending">Descending</option></select></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem"><input id="batchStartDate" type="date"><input id="batchTitlePrefix" placeholder="Title prefix (optional)"><input id="batchTitleSuffix" placeholder="Title suffix (optional)"></div></div><footer><button class="btn" onclick="closeBatchModal()">Cancel</button><button class="btn primary" onclick="batchCreatePosts()">Create</button></footer></div></div><div id="toast" class="toast"></div><script>
 // State
-let images=JSON.parse(localStorage.getItem('dreamImages')||'[]');let posts=JSON.parse(localStorage.getItem('dreamPosts')||'[]');let currentImageId=null,draggedImageId=null,draggedFromPost=null,draggedFromSlot=null,isDragging=false,dragStartPos={x:0,y:0},currentDragElement=null;
+let images=JSON.parse(localStorage.getItem('dreamImageMetadata')||localStorage.getItem('dreamImages')||'[]');let posts=JSON.parse(localStorage.getItem('dreamPosts')||'[]');let currentImageId=null,draggedImageId=null,draggedFromPost=null,draggedFromSlot=null,isDragging=false,dragStartPos={x:0,y:0},currentDragElement=null;
 // Utils
 function generateId(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1700);}
@@ -10,7 +10,39 @@ function closeCreatePostModal(){document.getElementById('createPostModal').class
 function closeBatchModal(){document.getElementById('batchCreateModal').classList.remove('open');}
 function setupUpload(){const u=document.getElementById('uploadBtn');const f=document.getElementById('fileInput');u.onclick=()=>f.click();f.onchange=(e)=>handleFiles(e.target.files);}
 function setupDragAndDrop(){document.addEventListener('dragstart',e=>{const id=e.target?.dataset?.imageId;if(!id)return;e.dataTransfer.setData('text/plain',id);draggedImageId=id;isDragging=true;dragStartPos={x:e.clientX,y:e.clientY};currentDragElement=e.target.closest('.draggable');if(currentDragElement)currentDragElement.classList.add('dragging');});document.addEventListener('dragend',()=>{isDragging=false;draggedImageId=null;if(currentDragElement)currentDragElement.classList.remove('dragging');currentDragElement=null;});}
-function saveData(){localStorage.setItem('dreamImages',JSON.stringify(images));localStorage.setItem('dreamPosts',JSON.stringify(posts));}
+function saveData(){
+    // Save lightweight metadata only
+    const meta = images.map(img => ({
+        id: img.id,
+        name: img.name,
+        originalName: img.originalName,
+        // keep remote URL (tiny) but never base64
+        data: (typeof img.data === 'string' && img.data.startsWith('http')) ? img.data : null,
+        prompt: img.prompt || '',
+        tags: img.tags || [],
+        uploadDate: img.uploadDate || null,
+        fileSize: img.fileSize || null,
+        pathname: img.pathname || null,
+        isRemote: img.isRemote === true
+    }));
+    try{
+        localStorage.setItem('dreamImageMetadata', JSON.stringify(meta));
+        localStorage.setItem('dreamPosts', JSON.stringify(posts));
+        // clean up legacy key
+        localStorage.removeItem('dreamImages');
+    }catch(e){
+        console.error('Failed to save metadata:', e);
+        if(e && (e.name==='QuotaExceededError' || e.code===22)){
+            localStorage.removeItem('dreamImages');
+            try{
+                localStorage.setItem('dreamImageMetadata', JSON.stringify(meta));
+                localStorage.setItem('dreamPosts', JSON.stringify(posts));
+            }catch(e2){
+                alert('Storage quota exceeded while saving metadata.');
+            }
+        }
+    }
+}
 // ===== Auth + fetch helpers =====
 let __apiToken=localStorage.getItem('ai_api_password')||null;async function ensureAuth(){if(__apiToken)return;const entered=prompt('Enter AI API Password:');if(!entered)throw new Error('No password provided');__apiToken=entered.trim();}function authHeaders(){return __apiToken?{'Authorization':'Bearer '+__apiToken,'x-api-password':__apiToken}:{ };}async function authFetch(path,options={}){await ensureAuth();const opts={...options,headers:{...(options.headers||{}),...authHeaders()}};let res=await fetch(path,opts);if(res.status===401){localStorage.removeItem('ai_api_password');__apiToken=null;await ensureAuth();const retryOpts={...options,headers:{...(options.headers||{}),...authHeaders()}};res=await fetch(path,retryOpts);}if(res.ok&&!localStorage.getItem('ai_api_password')&&__apiToken){localStorage.setItem('ai_api_password',__apiToken);}return res;}
 // ===== Compression to avoid 413 =====
@@ -18,10 +50,139 @@ async function compressIfNeeded(file,maxBytes=4000000,maxWidth=2048,minQuality=0
 // ===== Migration & pruning =====
 function dataURLtoFile(dataURL,filename='image.jpg'){const parts=dataURL.split(','),meta=parts[0],base64=parts[1];const mime=(meta.match(/data:(.*?);/)|[])[1]||'image/jpeg';const bin=atob(base64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);return new File([u8],filename,{type:mime});}
 async function pruneMissingRemoteImages(){const stale=[];await Promise.all(images.map(img=>new Promise(resolve=>{if(typeof img.data==='string'&&img.data.startsWith('http')){const probe=new Image();probe.onload=()=>resolve();probe.onerror=()=>{stale.push(img.id);resolve();};probe.src=img.data+(img.data.includes('?')?'&':'?')+'cb='+Date.now();}else resolve();})));if(stale.length){posts.forEach(p=>{p.images=p.images.map(id=>stale.includes(id)?null:id);});images=images.filter(img=>!stale.includes(img.id));saveData();}}
-async function initialSync(){await pruneMissingRemoteImages();const needs=images.filter(img=>typeof img.data==='string'&&img.data.startsWith('data:image/'));if(needs.length)await ensureAuth();for(const legacy of needs){try{const file=dataURLtoFile(legacy.data,legacy.originalName||legacy.name||'image.jpg');const small=await compressIfNeeded(file);let fd=new FormData();fd.append('image',small);let res=await authFetch('/api/images',{method:'POST',body:fd});if(res.status===413){const smaller=await compressIfNeeded(file,3000000,1600,0.5);fd=new FormData();fd.append('image',smaller);res=await authFetch('/api/images',{method:'POST',body:fd});}if(!res.ok)throw new Error('Migration upload failed');const out=await res.json();legacy.data=out.url;}catch(e){console.warn('Migration skip',e);}}if(needs.length)saveData();try{const res=await authFetch('/api/images',{method:'GET'});if(res.ok){const payload=await res.json();const server=Array.isArray(payload)?payload:(payload.images||[]);const known=new Set(images.map(i=>i.data));server.forEach(it=>{if(!it?.url||known.has(it.url))return;images.push({id:generateId(),name:it.name||it.filename||'image.jpg',originalName:it.originalName||it.name||it.filename||'image.jpg',data:it.url,prompt:it.prompt||'',tags:it.tags||[],uploadDate:it.uploadDate||new Date().toISOString(),fileSize:it.size||null});});if(server.length)saveData();}}catch(e){console.warn('Server sync skipped',e);}}
+async function initialSync(){
+    // 1) Clean up any dead remote links
+    await pruneMissingRemoteImages();
+
+    // 2) Migrate legacy base64 -> server
+    const needs = images.filter(img => typeof img.data === 'string' && img.data.startsWith('data:image/'));
+    if(needs.length) await ensureAuth();
+    for(const legacy of needs){
+        try{
+            const file = dataURLtoFile(legacy.data, legacy.originalName||legacy.name||'image.jpg');
+            const small = await compressIfNeeded(file);
+            let fd = new FormData();
+            fd.append('image', small);
+            let res = await authFetch('/api/images', { method:'POST', body: fd });
+            if(res.status===413){
+                const smaller=await compressIfNeeded(file,3000000,1600,0.5);
+                fd = new FormData();
+                fd.append('image', smaller);
+                res = await authFetch('/api/images', { method:'POST', body: fd });
+            }
+            if(!res.ok) throw new Error('Migration upload failed');
+            const out = await res.json();
+            legacy.data = out.url;
+            legacy.pathname = out.pathname || null;
+            legacy.isRemote = true;
+        }catch(e){
+            console.warn('Migration skip', e);
+        }
+    }
+    if(needs.length) saveData();
+
+    // 3) Pull server list and merge with local metadata
+    try{
+        const res = await authFetch('/api/images', { method: 'GET' });
+        if(res.ok){
+            const payload = await res.json();
+            const server = Array.isArray(payload) ? payload : (payload.images || []);
+
+            const byPath = new Map(server.map(it => [it.pathname || it.url, it]));
+            const havePath = new Set(images.map(i => i.pathname || null).filter(Boolean));
+            const haveUrl  = new Set(images.map(i => i.data || null).filter(Boolean));
+
+            // Fill in missing data for known metadata rows
+            images.forEach(img => {
+                const key = img.pathname || img.data;
+                const remote = key ? byPath.get(key) : null;
+                if(remote){
+                    img.data = remote.url || img.data || null;
+                    img.pathname = remote.pathname || img.pathname || null;
+                    img.fileSize = remote.size || img.fileSize || null;
+                    img.isRemote = true;
+                }
+            });
+
+            // Add any server images we don't already know about
+            server.forEach(it => {
+                const key = it.pathname || it.url;
+                if(havePath.has(it.pathname) || haveUrl.has(it.url)) return;
+                images.push({
+                    id: generateId(),
+                    name: it.name || it.filename || 'image.jpg',
+                    originalName: it.originalName || it.name || it.filename || 'image.jpg',
+                    data: it.url,
+                    prompt: it.prompt || '',
+                    tags: it.tags || [],
+                    uploadDate: it.uploadDate || new Date().toISOString(),
+                    fileSize: it.size || null,
+                    pathname: it.pathname || null,
+                    isRemote: true
+                });
+            });
+
+            saveData();
+        }
+    }catch(e){
+        console.warn('Server sync skipped', e);
+    }
+}
+async function updateStorageStatus(){
+    try{
+        const res = await authFetch('/api/images', { method:'GET' });
+        if(!res.ok) return;
+        const payload = await res.json();
+        const imagesArr = Array.isArray(payload) ? payload : (payload.images || []);
+        const usedBytes = imagesArr.reduce((acc, it) => acc + (it.size || 0), 0);
+
+        const statusDiv = document.createElement('div');
+        statusDiv.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#1a1a1a;padding:10px;border-radius:8px;border:1px solid #333;font-size:.9rem;color:#888;z-index:9999';
+        statusDiv.textContent = `Remote storage: ${(usedBytes/1024/1024).toFixed(2)} MB • ${imagesArr.length} images`;
+        document.body.appendChild(statusDiv);
+    }catch(e){
+        console.warn('Storage status skipped', e);
+    }
+}
+
 // Files
 function handleFiles(files){Array.from(files).forEach(file=>{if(file.type.startsWith('image/'))processImage(file);});}
-async function processImage(file){try{const toSend=await compressIfNeeded(file);let formData=new FormData();formData.append('image',toSend);let response=await authFetch('/api/images',{method:'POST',body:formData});if(response.status===413){const smaller=await compressIfNeeded(file,3000000,1600,0.5);formData=new FormData();formData.append('image',smaller);response=await authFetch('/api/images',{method:'POST',body:formData});}if(!response.ok)throw new Error('Upload failed');const result=await response.json();const image={id:generateId(),name:file.name,originalName:file.name,data:result.url,prompt:'',tags:[],uploadDate:new Date().toISOString(),fileSize:file.size};images.push(image);saveData();render();}catch(error){console.error('Upload failed:',error);alert('Failed to upload image. Please check your password and try again.');}}
+async function processImage(file){
+    try{
+        const toSend=await compressIfNeeded(file);
+        let formData=new FormData();
+        formData.append('image',toSend);
+
+        let response=await authFetch('/api/images',{method:'POST',body:formData});
+        if(response.status===413){
+            const smaller=await compressIfNeeded(file,3000000,1600,0.5);
+            formData=new FormData();
+            formData.append('image',smaller);
+            response=await authFetch('/api/images',{method:'POST',body:formData});
+        }
+        if(!response.ok) throw new Error('Upload failed');
+
+        const result=await response.json();
+        const image={
+            id: generateId(),
+            name: file.name,
+            originalName: file.name,
+            data: result.url,
+            prompt: '',
+            tags: [],
+            uploadDate: new Date().toISOString(),
+            fileSize: file.size,
+            pathname: result.pathname || null,
+            isRemote: true
+        };
+        images.push(image);
+        saveData();
+        render();
+    }catch(error){
+        console.error('Upload failed:', error);
+        alert('Failed to upload image. Please check your password and try again.');
+    }
+}
 // Rendering
 function render(){const postsContainer=document.getElementById('postsContainer');postsContainer.innerHTML='';if(!posts.length){postsContainer.innerHTML='<div class="grid-empty">No posts yet. Create one to start arranging images.</div>';}posts.forEach((post,idx)=>{const wrap=document.createElement('div');wrap.className='post-container';wrap.dataset.postId=post.id;wrap.addEventListener('dragover',e=>{e.preventDefault();wrap.classList.add('drag-over-post');});wrap.addEventListener('dragleave',()=>wrap.classList.remove('drag-over-post'));wrap.addEventListener('drop',e=>{e.preventDefault();wrap.classList.remove('drag-over-post');if(draggedImageId){addImageToPost(post.id,draggedImageId);} });const header=document.createElement('div');header.className='post-header';const left=document.createElement('div');left.innerHTML='<div class="post-title">Post '+(idx+1)+': '+(post.title||'Untitled')+'</div><div class="post-sub">'+(post.date||'')+'</div>';const right=document.createElement('div');right.innerHTML='<span class="image-count">'+(post.images.filter(Boolean).length)+'/'+post.slots+' images</span>';const delBtn=document.createElement('button');delBtn.className='btn danger';delBtn.textContent='Delete';delBtn.onclick=()=>deletePost(post.id);right.appendChild(delBtn);header.appendChild(left);header.appendChild(right);wrap.appendChild(header);const grid=document.createElement('div');grid.className='post-slots';for(let i=0;i<post.slots;i++){const slot=document.createElement('div');slot.className='slot';slot.dataset.postId=post.id;slot.dataset.slot=i;slot.ondragover=e=>{e.preventDefault();slot.classList.add('drag-over');};slot.ondragleave=()=>slot.classList.remove('drag-over');slot.ondrop=e=>{e.preventDefault();slot.classList.remove('drag-over');if(draggedImageId)placeImageInSlot(post.id,i,draggedImageId);};slot.onclick=()=>{if(!post.images[i])return;openModal(post.images[i]);};const idxTag=document.createElement('div');idxTag.className='slot-index';idxTag.textContent=i+1;slot.appendChild(idxTag);if(post.images[i]){const img=images.find(im=>im.id===post.images[i]);if(img){const im=document.createElement('img');im.src=img.data;im.alt=img.name;slot.appendChild(im);const rm=document.createElement('button');rm.className='remove-btn';rm.textContent='×';rm.onclick=(ev)=>{ev.stopPropagation();post.images[i]=null;saveData();render();};slot.appendChild(rm);}}else{slot.innerHTML+='<span style="color:#555;font-size:1.6rem">+</span>';slot.querySelector('.slot-index').style.position='absolute';}grid.appendChild(slot);}wrap.appendChild(grid);postsContainer.appendChild(wrap);});renderUnassigned();}
 function renderUnassigned(){const grid=document.getElementById('unassignedGrid');const count=document.getElementById('unassignedCount');const assigned=new Set(posts.flatMap(p=>p.images.filter(Boolean)));const list=images.filter(img=>!assigned.has(img.id));count.textContent='('+list.length+')';grid.innerHTML='';if(!list.length){grid.innerHTML='<div class="grid-empty">No unassigned images.</div>';return;}list.forEach(img=>{const c=document.createElement('div');c.className='card draggable';c.draggable=true;c.dataset.imageId=img.id;c.ondblclick=()=>openModal(img.id);c.addEventListener('dragstart',()=>{c.classList.add('dragging');});c.addEventListener('dragend',()=>c.classList.remove('dragging'));const th=document.createElement('div');th.className='thumb';const im=document.createElement('img');im.src=img.data;im.alt=img.name||'';th.appendChild(im);c.appendChild(th);const meta=document.createElement('div');meta.className='meta';meta.innerHTML='<div class="title">'+(img.name||'Untitled')+'</div><div class="subtitle">'+(img.originalName||'')+'</div><div class="prompt">'+(img.prompt?img.prompt:'<em>No prompt saved</em>')+'</div>';c.appendChild(meta);const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.className='btn';edit.textContent='Edit';edit.onclick=()=>openModal(img.id);const dl=document.createElement('button');dl.className='btn';dl.textContent='Download';dl.onclick=()=>downloadImage(img);const del=document.createElement('button');del.className='btn danger';del.textContent='Delete';del.onclick=()=>deleteImage(img.id);actions.appendChild(edit);actions.appendChild(dl);actions.appendChild(del);c.appendChild(actions);grid.appendChild(c);});}
@@ -31,7 +192,32 @@ function placeImageInSlot(postId,slotIndex,imageId){const p=posts.find(p=>p.id==
 function deletePost(postId){if(!confirm('Delete this post?'))return;posts=posts.filter(p=>p.id!==postId);saveData();render();}
 function downloadImage(img){const a=document.createElement('a');a.href=img.data;a.download=img.name||'image';document.body.appendChild(a);a.click();a.remove();}
 function downloadCurrentImage(){const img=images.find(i=>i.id===currentImageId);if(img)downloadImage(img);}
-async function deleteImage(imageId=currentImageId){if(!imageId)return;const image=images.find(img=>img.id===imageId);if(!image)return;if(confirm(`Are you sure you want to delete "${image.name}"? This cannot be undone.`)){try{if(image.data&&typeof image.data==='string'&&image.data.startsWith('http')){await authFetch(`/api/images?url=${encodeURIComponent(image.data)}`,{method:'DELETE'});}}catch(err){console.warn('Remote delete failed; continuing local cleanup.',err);}posts.forEach(post=>{post.images=post.images.map(id=>id===imageId?null:id);});images=images.filter(img=>img.id!==imageId);saveData();render();if(currentImageId===imageId)closeModal();}}
+async function deleteImage(imageId=currentImageId){
+    if(!imageId) return;
+    const image=images.find(img=>img.id===imageId);
+    if(!image) return;
+
+    if(confirm(`Are you sure you want to delete "${image.name}"? This cannot be undone.`)){
+        try{
+            if(image.isRemote){
+                const qp = image.pathname
+                    ? `id=${encodeURIComponent(image.pathname)}`
+                    : `url=${encodeURIComponent(image.data||'')}`;
+                await authFetch(`/api/images?${qp}`, { method:'DELETE' });
+            }
+        }catch(err){
+            console.warn('Remote delete failed; continuing local cleanup.', err);
+        }
+
+        posts.forEach(post=>{
+            post.images = post.images.map(id => id===imageId ? null : id);
+        });
+        images = images.filter(img => img.id !== imageId);
+        saveData();
+        render();
+        if(currentImageId===imageId) closeModal();
+    }
+}
 // Post creation
 function openCreatePostModal(){document.getElementById('createPostModal').classList.add('open');}
 function createPost(){const title=document.getElementById('newPostTitle').value.trim();const date=document.getElementById('newPostDate').value;const slots=parseInt(document.getElementById('newPostSlots').value)||8;if(!title){alert('Please enter a post title');return;}const post={id:generateId(),title,date:date||new Date().toISOString().split('T')[0],slots:Math.min(Math.max(slots,1),20),images:new Array(slots).fill(null)};posts.push(post);saveData();render();closeCreatePostModal();}
@@ -43,6 +229,19 @@ document.getElementById('searchInput').addEventListener('input',e=>{const q=e.ta
 // Buttons
 document.getElementById('createPostBtn').onclick=openCreatePostModal;document.getElementById('batchCreateBtn').onclick=()=>document.getElementById('batchCreateModal').classList.add('open');document.getElementById('clearAllBtn').onclick=()=>{if(confirm('Clear ALL posts and images?')){images=[];posts=[];saveData();render();}};document.getElementById('fileInput').addEventListener('change',e=>handleFiles(e.target.files));
 // Init
-async function init(){setupUpload();setupDragAndDrop();await initialSync();render();}
+async function init(){
+    setupUpload();
+    setupDragAndDrop();
+
+    // One-time migration clean-up if legacy key exists
+    if(localStorage.getItem('dreamImages')){
+        console.log('Migrating from legacy localStorage format...');
+        // saveData() will drop dreamImages after writing dreamImageMetadata
+    }
+
+    await initialSync();
+    render();
+    updateStorageStatus(); // optional badge
+}
 init();
 </script></body></html>
