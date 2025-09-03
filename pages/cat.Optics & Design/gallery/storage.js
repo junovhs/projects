@@ -1,132 +1,97 @@
-// IndexedDB wrapper for image storage
-class ImageStorage {
-    constructor() {
-        this.dbName = 'ImageAlbum';
-        this.dbVersion = 2; // Increment version for album support
-        this.imageStoreName = 'images';
-        this.albumStoreName = 'albums';
-        this.db = null;
-    }
+// Server-backed storage using Vercel Blob via /api/* routes.
+// Exposes the same API your app already uses.
 
-    async init() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, this.dbVersion);
-            
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                this.db = request.result;
-                resolve();
-            };
-            
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                
-                // Create images store
-                if (!db.objectStoreNames.contains(this.imageStoreName)) {
-                    const imageStore = db.createObjectStore(this.imageStoreName, { keyPath: 'id' });
-                    imageStore.createIndex('name', 'name', { unique: false });
-                    imageStore.createIndex('uploadDate', 'uploadDate', { unique: false });
-                }
-                
-                // Create albums store
-                if (!db.objectStoreNames.contains(this.albumStoreName)) {
-                    const albumStore = db.createObjectStore(this.albumStoreName, { keyPath: 'id' });
-                    albumStore.createIndex('name', 'name', { unique: false });
-                    albumStore.createIndex('createdDate', 'createdDate', { unique: false });
-                }
-            };
-        });
-    }
+class ImageStorageRemote {
+  async init() {
+    // no-op, but keeps your app's init() happy
+    return;
+  }
 
-    async saveImage(imageData) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.imageStoreName], 'readwrite');
-            const store = transaction.objectStore(this.imageStoreName);
-            
-            const request = store.add(imageData);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  // ------- Images -------
+  async saveImage(imageData) {
+    // imageData: { id, name, data: dataURL, uploadDate, tags[], size }
+    const res = await fetch('/api/images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(imageData)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return (await res.json()).id;
+  }
 
-    async getAllImages() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.imageStoreName], 'readonly');
-            const store = transaction.objectStore(this.imageStoreName);
-            
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  async getAllImages() {
+    const res = await fetch('/api/images');
+    if (!res.ok) throw new Error(await res.text());
+    const list = await res.json();
 
-    async updateImage(imageData) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.imageStoreName], 'readwrite');
-            const store = transaction.objectStore(this.imageStoreName);
-            
-            const request = store.put(imageData);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+    // Server returns { id, name, url, uploadDate, tags, size, pathname }.
+    // Your app expects image.data to be the src, so map url -> data.
+    return list.map(it => ({
+      id: it.id,
+      name: it.name,
+      data: it.url,             // <— important
+      uploadDate: it.uploadDate,
+      tags: it.tags || [],
+      size: it.size
+    }));
+  }
 
-    async deleteImage(id) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.imageStoreName], 'readwrite');
-            const store = transaction.objectStore(this.imageStoreName);
-            
-            const request = store.delete(id);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  async updateImage(imageData) {
+    const res = await fetch('/api/images', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: imageData.id,
+        name: imageData.name,
+        tags: imageData.tags
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  }
 
-    // Album methods
-    async saveAlbum(albumData) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.albumStoreName], 'readwrite');
-            const store = transaction.objectStore(this.albumStoreName);
-            
-            const request = store.add(albumData);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  async deleteImage(id) {
+    const res = await fetch(`/api/images?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  }
 
-    async getAllAlbums() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.albumStoreName], 'readonly');
-            const store = transaction.objectStore(this.albumStoreName);
-            
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  // ------- Albums -------
+  async saveAlbum(albumData) {
+    const res = await fetch('/api/albums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(albumData)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return (await res.json()).id;
+  }
 
-    async updateAlbum(albumData) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.albumStoreName], 'readwrite');
-            const store = transaction.objectStore(this.albumStoreName);
-            
-            const request = store.put(albumData);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  async getAllAlbums() {
+    const res = await fetch('/api/albums');
+    if (!res.ok) throw new Error(await res.text());
+    return await res.json(); // array of albums
+  }
 
-    async deleteAlbum(id) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.albumStoreName], 'readwrite');
-            const store = transaction.objectStore(this.albumStoreName);
-            
-            const request = store.delete(id);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  async updateAlbum(albumData) {
+    const res = await fetch('/api/albums', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(albumData)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  }
+
+  async deleteAlbum(id) {
+    const res = await fetch(`/api/albums?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  }
 }
 
-// Export for use in other modules
-window.imageStorage = new ImageStorage();
+window.imageStorage = new ImageStorageRemote();
