@@ -1,30 +1,44 @@
 // /storage.js
-// Streams /api/images for "every byte" load progress and shows a storage meter.
-// Also attaches password header automatically on write operations.
+// Remote storage with: streaming load progress, storage meter, and auth headers.
+// Exports BOTH a ready-to-use default instance (with init()) and the class.
 
 const REQ_HEADER = "x-api-password";
+
 function getPassword() {
   return localStorage.getItem("ai_api_password") || "";
 }
+
 function bytes(n) {
   const f = (x, u) => `${x.toFixed(1)} ${u}`;
-  if (n >= 1<<30) return f(n/(1<<30), "GB");
-  if (n >= 1<<20) return f(n/(1<<20), "MB");
-  if (n >= 1<<10) return f(n/(1<<10), "KB");
+  if (n >= 1 << 30) return f(n / (1 << 30), "GB");
+  if (n >= 1 << 20) return f(n / (1 << 20), "MB");
+  if (n >= 1 << 10) return f(n / (1 << 10), "KB");
   return `${n} B`;
 }
 
-// --- tiny UI overlay for loading + storage ---
+// ---- tiny UI overlay for loading + storage ----
 const LoaderUI = (() => {
   const host = document.createElement("div");
   host.style.cssText = `
     position: fixed; left: 12px; bottom: 12px; z-index: 99998;
     max-width: 380px; font: 13px/1.3 system-ui, -apple-system, Segoe UI, Roboto; color:#111;
   `;
-  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(host));
+  let attached = false;
+  function ensureHost() {
+    if (!attached) {
+      attached = true;
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => document.body.appendChild(host), { once: true });
+      } else {
+        document.body.appendChild(host);
+      }
+    }
+  }
   function card(title) {
+    ensureHost();
     const el = document.createElement("div");
-    el.style.cssText = "background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;margin-top:8px;box-shadow:0 2px 6px rgba(0,0,0,.06)";
+    el.style.cssText =
+      "background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;margin-top:8px;box-shadow:0 2px 6px rgba(0,0,0,.06)";
     el.innerHTML = `
       <div style="font-weight:600;margin-bottom:6px">${title}</div>
       <div class="meta" style="margin:6px 0 8px 0;opacity:.8"></div>
@@ -35,25 +49,30 @@ const LoaderUI = (() => {
     host.appendChild(el);
     return {
       set(loaded, total, text) {
-        const pct = total ? Math.round((loaded/total)*100) : 0;
+        const pct = total ? Math.round((loaded / total) * 100) : 0;
         el.querySelector(".bar").style.width = `${pct}%`;
-        el.querySelector(".meta").textContent = text ?? (total ? `${bytes(loaded)} of ${bytes(total)} (${pct}%)` : `${bytes(loaded)} loaded`);
+        el.querySelector(".meta").textContent =
+          text ?? (total ? `${bytes(loaded)} of ${bytes(total)} (${pct}%)` : `${bytes(loaded)} loaded`);
       },
       done(finalText) {
         el.querySelector(".bar").style.width = "100%";
         el.querySelector(".meta").textContent = finalText || "Complete";
         setTimeout(() => host.contains(el) && host.removeChild(el), 1200);
-      }
+      },
     };
   }
   const storageBadge = document.createElement("div");
-  storageBadge.style.cssText = "background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;margin-top:8px;box-shadow:0 2px 6px rgba(0,0,0,.06)";
+  storageBadge.style.cssText =
+    "background:#fff;border:1px solid #ddd;border-radius:10px;padding:10px;margin-top:8px;box-shadow:0 2px 6px rgba(0,0,0,.06)";
   storageBadge.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Storage</div><div class="smeta" style="opacity:.85"></div>`;
   function ensureBadge() {
+    ensureHost();
     if (!host.contains(storageBadge)) host.appendChild(storageBadge);
   }
   return {
-    start(title) { return card(title); },
+    start(title) {
+      return card(title);
+    },
     setStorage({ usedBytes, totalBytes, availableBytes, count }) {
       ensureBadge();
       const sm = storageBadge.querySelector(".smeta");
@@ -62,20 +81,40 @@ const LoaderUI = (() => {
       } else {
         sm.textContent = `${bytes(usedBytes)} used (${count} files)`;
       }
-    }
+    },
   };
 })();
 
+// ---- helper to join Uint8Array chunks ----
+function concatUint8(chunks) {
+  const len = chunks.reduce((a, c) => a + c.byteLength, 0);
+  const out = new Uint8Array(len);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
+  return out;
+}
+
 export class ImageStorageRemote {
+  // Provide an init() so app.js can call it safely.
+  async init() {
+    // Warm up the storage meter on load (non-blocking).
+    try {
+      await this._updateStorageMeter();
+    } catch {}
+  }
+
   async getAllImages() {
     const ui = LoaderUI.start("Loading images");
     const res = await fetch("/api/images", { cache: "no-store" });
     const total = Number(res.headers.get("content-length") || 0);
-    const reader = res.body?.getReader();
+    const reader = res.body?.getReader?.();
     if (!reader) {
       const list = await res.json();
       ui.done();
-      this._updateStorageMeter(); // async
+      this._updateStorageMeter();
       return list.map(this._mapItem);
     }
     const chunks = [];
@@ -89,7 +128,7 @@ export class ImageStorageRemote {
     }
     const text = new TextDecoder().decode(concatUint8(chunks));
     ui.done();
-    this._updateStorageMeter(); // async
+    this._updateStorageMeter();
     const list = JSON.parse(text);
     return list.map(this._mapItem);
   }
@@ -152,7 +191,7 @@ export class ImageStorageRemote {
     if (!res.ok) throw new Error(await res.text());
   }
 
-  // --- helpers ---
+  // --- internal helpers ---
   _mapItem(it) {
     return {
       id: it.id,
@@ -175,14 +214,6 @@ export class ImageStorageRemote {
   }
 }
 
-// util to join Uint8Array chunks
-function concatUint8(chunks) {
-  const len = chunks.reduce((a, c) => a + c.byteLength, 0);
-  const out = new Uint8Array(len);
-  let off = 0;
-  for (const c of chunks) {
-    out.set(c, off);
-    off += c.byteLength;
-  }
-  return out;
-}
+// ---- default export: ready-to-use instance with init() ----
+const defaultStorage = new ImageStorageRemote();
+export default defaultStorage;
