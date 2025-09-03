@@ -1,4 +1,4 @@
-import { upload } from "@vercel/blob/client";
+import { upload } from "https://esm.sh/@vercel/blob@0.24.0/client";
 
 class UploadManager {
   constructor() {

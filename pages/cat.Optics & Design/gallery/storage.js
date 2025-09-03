@@ -32,7 +32,7 @@ class ImageStorageRemote {
       data: it.url,             // <— important
       uploadDate: it.uploadDate,
       tags: it.tags || [],
-      size: it.size
+      size: it.size, pathname: it.pathname
     }));
   }
 
