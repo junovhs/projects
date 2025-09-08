@@ -1,13 +1,12 @@
-// app.js
-// tombstone: removed inline event listeners & global arrays from index.html
+// app.js — wiring
 
 var matchedDeals = [];
 var nonMatchedDeals = [];
 
-document.getElementById("compareButton").addEventListener("click", function() {
+document.getElementById("compareButton").addEventListener("click", function(){
   var hqText = document.getElementById("hqDeals").value;
   var jsonText = document.getElementById("jsonDeals").value;
-  var threshold = parseInt(document.getElementById("matchThreshold").value, 10);
+  var threshold = parseInt(document.getElementById("matchThreshold").value,10);
 
   var hqDealsArr = parseHQDeals(hqText);
   var jsonDealsArr = parseJSONDeals(jsonText);

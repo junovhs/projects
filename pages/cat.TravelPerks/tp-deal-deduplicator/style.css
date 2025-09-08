@@ -1,354 +1,41 @@
-/* Copied from former <style> block in index.html */
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin: 20px;
-  color: #333;
-  line-height: 1.6;
-  background-color: #f9f9f9;
-}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f6f7fb;color:#222}
+.container{max-width:1100px;margin:28px auto;padding:0 16px}
+h1{margin:0 0 12px 0;font-size:28px}
+.section{background:#fff;border:1px solid #e5e7ef;border-radius:10px;margin:16px 0;padding:16px}
+textarea{width:100%;min-height:140px;padding:10px;border:1px solid #d8dbe6;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.controls{display:flex;gap:12px;align-items:center}
+.controls input{width:90px}
+.controls button,#copyButton{border:0;background:#2d6cdf;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+.controls button:hover,#copyButton:hover{background:#1f56bd}
+.help-text{color:#555;margin-bottom:8px}
+.count-badge{background:#eef2ff;color:#3b5bcc;border:1px solid #c9d4ff;padding:2px 8px;border-radius:999px;font-weight:700;margin-left:8px}
+input[type=text],input[type=search],input#matchedFilter,input#nonMatchedFilter{width:100%;margin:10px 0 12px;padding:8px;border:1px solid #d8dbe6;border-radius:8px}
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
+.matched-deal,.non-matched-deal{display:grid;grid-template-columns:64px 1fr 1fr 40px 44px;gap:10px;align-items:flex-start;border:1px solid #e9ecf3;border-radius:10px;padding:12px;margin-bottom:12px;background:#fff}
+.matched-deal.possible-date-change{border-left:6px solid #f7c948}
+.matched-deal{border-left:6px solid #28a745}
+.non-matched-deal{border-left:6px solid #e33}
 
-h1, h2 {
-  color: #2c3e50;
-}
+.match-score{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#e9f7ef;color:#167a43;font-weight:800;font-size:18px}
+.deal-info .deal-vendor{font-weight:800;color:#1a4a96;margin-right:6px}
+.date-flag,.exclusive-flag{display:inline-block;margin-right:6px;margin-bottom:6px;padding:2px 8px;border-radius:8px;font-size:.78rem;font-weight:700;border:1px solid rgba(0,0,0,.08)}
+.date-flag{background:#fff5d9;color:#8a5a00}
+.exclusive-flag{background:#eef7ff;color:#0d4ea6}
 
-h1 {
-  border-bottom: 2px solid #eee;
-  padding-bottom: 10px;
-}
+.price-value{background:#e7f7ee;padding:0 4px;border-radius:4px}
+.percentage-value{background:#fff5d9;padding:0 4px;border-radius:4px}
+.expiry-date{background:#fdecea;padding:0 4px;border-radius:4px}
+.hq-date-mismatch{background:#fdecea;color:#a12622;padding:0 4px;border-radius:4px}
 
-textarea {
-  width: 100%;
-  height: 150px;
-  margin-bottom: 20px;
-  font-family: 'Courier New', monospace;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 12px;
-  transition: border 0.3s;
-}
+.json-match{background:#f7f9ff;border:1px solid #e5e7ef;border-radius:8px;padding:8px}
+.tooltip{position:relative;display:inline-block;padding:8px 0}
+.tooltip .tooltiptext{visibility:hidden;max-width:440px;background:#222;color:#fff;text-align:left;border-radius:6px;padding:8px 10px;position:absolute;z-index:1;top:30px;right:0;opacity:0;transition:opacity .1s}
+.tooltip:hover .tooltiptext{visibility:visible;opacity:1}
 
-textarea:focus {
-  border-color: #3498db;
-  outline: none;
-  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
-}
+.chip{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.78rem;font-weight:700;margin:0 6px 6px 0;border:1px solid rgba(0,0,0,.08)}
+.chip.ok{background:#e7f7ee;color:#1e7d4f}
+.chip.warn{background:#fff5d9;color:#8a5a00}
+.chip.bad{background:#fdecea;color:#a12622}
 
-button {
-  padding: 8px 15px;
-  cursor: pointer;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-weight: 600;
-  transition: background 0.3s;
-  margin: 5px;
-}
-
-button:hover {
-  background-color: #2980b9;
-}
-
-.action-button {
-  margin-right: 10px;
-}
-
-.control-bar {
-  margin: 15px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.threshold-control {
-  display: flex;
-  align-items: center;
-}
-
-.threshold-control label {
-  margin-right: 10px;
-  font-weight: 600;
-}
-
-.threshold-control input {
-  width: 60px;
-  padding: 5px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-}
-
-.matched-deal,
-.non-matched-deal {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 12px;
-  margin-bottom: 15px;
-  border-radius: 4px;
-  background-color: #f8f9fa;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: background-color 0.3s;
-}
-
-.matched-deal:hover,
-.non-matched-deal:hover {
-  background-color: #e9f7fe;
-}
-
-.matched-deal {
-  border-left: 4px solid #2ecc71;
-}
-
-.matched-deal.possible-date-change {
-  border-left: 4px solid orange !important;
-  background-color: #fff8e1;
-}
-
-.non-matched-deal {
-  border-left: 4px solid #e74c3c;
-  align-items: center;
-}
-
-.deal-info {
-  flex: 1;
-}
-
-.deal-vendor {
-  font-weight: bold;
-  color: #3498db;
-}
-
-.match-score {
-  background-color: #f39c12;
-  color: white;
-  font-weight: bold;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-}
-
-.json-match {
-  flex: 1;
-  background-color: #f1f8e9;
-  padding: 12px;
-  margin-left: 15px;
-  font-size: 0.95em;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.expiry-date {
-  background-color: #ffe0b2;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-weight: 600;
-  display: inline-block;
-}
-
-.hq-date-mismatch {
-  color: #985c04;
-  background: #ffe0b2;
-  border-radius: 0.35em;
-  border-bottom: 1.5px dotted orange;
-  padding: 0 4px;
-}
-
-.hq-date-mismatch small {
-  color: #d8870f;
-}
-
-.price-value {
-  background-color: #e8f5e9;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-weight: 600;
-}
-
-.percentage-value {
-  background-color: #e3f2fd;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-weight: 600;
-}
-
-.keyword {
-  background-color: #ede7f6;
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin: 0 2px;
-  font-size: 0.9em;
-}
-
-.keyword-flag {
-  background-color: #e1bee7;
-  color: #6a1b9a;
-  padding: 2px 5px;
-  border-radius: 2px;
-  font-size: 0.93em;
-  margin: 1px 2px;
-  font-weight: 600;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.tooltip {
-  position: relative;
-  display: inline-block;
-  margin-left: 10px;
-}
-
-.tooltip .tooltiptext {
-  visibility: hidden;
-  width: 250px;
-  background-color: #555;
-  color: #fff;
-  text-align: left;
-  border-radius: 6px;
-  padding: 10px;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%;
-  left: 50%;
-  margin-left: -125px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  font-size: 0.9em;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  line-height: 1.4;
-}
-
-.tooltip .tooltiptext::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: #555 transparent transparent transparent;
-}
-
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-  opacity: 1;
-}
-
-.section {
-  margin-bottom: 30px;
-  padding: 15px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.section h2 {
-  margin-top: 0;
-  display: flex;
-  align-items: center;
-}
-
-.section h2 .count-badge {
-  background-color: #3498db;
-  color: white;
-  font-size: 0.7em;
-  padding: 3px 8px;
-  border-radius: 20px;
-  margin-left: 10px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.search-filter {
-  margin-bottom: 15px;
-}
-
-.search-filter input {
-  padding: 8px;
-  width: 300px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.help-text {
-  background-color: #f8f9fa;
-  padding: 10px 15px;
-  border-left: 3px solid #3498db;
-  margin-bottom: 20px;
-  border-radius: 4px;
-}
-
-.no-matches {
-  padding: 20px;
-  text-align: center;
-  color: #7f8c8d;
-  font-style: italic;
-}
-
-.date-flag {
-  background-color: #ff980012;
-  border-bottom: 2px dotted orange;
-  color: #d35400;
-  font-size: 0.96em;
-  padding: 2px 6px 2px 4px;
-  border-radius: 3px;
-  margin-right: 6px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  display: inline-block;
-  vertical-align:baseline;
-}
-
-.exclusive-flag {
-  background: linear-gradient(90deg,#fceabb 30%,#f8b500 88%);
-  color: #b24b00;
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin-right: 6px;
-  font-weight: 700;
-  font-size: 0.92em;
-  letter-spacing: 0.05em;
-  display: inline-block;
-}
-
-@media (max-width: 768px) {
-  .matched-deal, .non-matched-deal {
-    flex-direction: column;
-  }
-  
-  .json-match {
-    margin-left: 0;
-    margin-top: 10px;
-  }
-  .date-flag,.exclusive-flag {margin-bottom:5px;}
-}
-
-.chip {
-  display:inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  margin: 0 6px 6px 0;
-  border: 1px solid rgba(0,0,0,0.08);
-}
-.chip.ok { background:#e7f7ee; color:#1e7d4f; }
-.chip.warn { background:#fff5d9; color:#8a5a00; }
-.chip.bad { background:#fdecea; color:#a12622; }
-.triage-row { margin: 4px 0 6px 0; }
+.no-matches{color:#666;font-style:italic;margin:6px 0}
