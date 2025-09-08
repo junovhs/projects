@@ -1,5 +1,9 @@
-// match.js
-// tombstone: removed inline match and scoring functions from index.html
+
+// match.js (enhanced)
+// - Looser, recall-friendly scoring (no hard reject if only one side has %/special numbers)
+// - Vendor fuzzy acceptance using vendorSimilarity()
+// - Strict match kept strict, but general scoring now more tolerant
+// - Utility function: group JSON by vendor to speed up matching
 
 // Remember last inputs for non-matched hover
 let _lastHQDeals = [], _lastJSONDeals = [], _lastThreshold = 150;
@@ -40,7 +44,7 @@ function sameExpiry(hqText, jsonDateStr) {
 
 // Strict matching using exact number+category+date matching
 function strictMatch(hqDeal, jsonDeal) {
-  // Must have same vendor
+  // Must have same vendor (strict)
   if (hqDeal.vendor !== jsonDeal.vendor) return false;
   
   const jsAllText = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
@@ -84,11 +88,20 @@ function strictMatch(hqDeal, jsonDeal) {
 
 // Compare HQ vs JSON deal and compute a score + reasons + flags
 function compareDealScore(hqDeal, jsonDeal) {
-  if (hqDeal.vendor !== jsonDeal.vendor) {
-    return { score: 0, reasons: ["Vendor mismatch"], flags: {} };
-  }
   let reasons = [], score = 0, flags = {};
-  reasons.push(`Vendor: ${hqDeal.vendor} (required)`);
+
+  // Vendor handling (allow fuzzy vendor if very close)
+  if (hqDeal.vendor !== jsonDeal.vendor) {
+    const sim = vendorSimilarity(hqDeal.vendor || "", jsonDeal.vendor || "");
+    if (sim < 0.78) {
+      return { score: 0, reasons: [`Vendor mismatch (${hqDeal.vendor || "?"} ≠ ${jsonDeal.vendor || "?"})`], flags: {} };
+    } else {
+      reasons.push(`Vendor (fuzzy) ${hqDeal.vendor} ≈ ${jsonDeal.vendor} (+10)`);
+      score += 10;
+    }
+  } else {
+    reasons.push(`Vendor: ${hqDeal.vendor} (required)`);
+  }
 
   const jsAllText = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
   const hqExp = extractNormalizedExpiry(hqDeal.text);
@@ -107,7 +120,6 @@ function compareDealScore(hqDeal, jsonDeal) {
     if (a.length!==b.length) return false;
     let A=a.slice().sort(), B=b.slice().sort();
     for (let i=0;i<A.length;i++) {
-      // Use strict equality for monetary/percent (so $200 ≠ $2000)
       if (A[i] !== B[i]) return false;
     }
     return true;
@@ -127,63 +139,43 @@ function compareDealScore(hqDeal, jsonDeal) {
   }
 
   let reject = false;
-  // --- strict numeric match enforcement (except money) ---
-  if ((hqPerc.length > 0 || jsPerc.length > 0)) {
-    if (!arraysEqual(hqPerc, jsPerc)) {
-      reasons.push("Percentage value mismatch - automatic rejection");
-      reject = true;
-    }
+  // --- strict numeric match enforcement (EXCEPT when only one side has values) ---
+  if (hqPerc.length > 0 && jsPerc.length > 0) {
+    if (!arraysEqual(hqPerc, jsPerc)) { reasons.push("Percentage value mismatch"); score = Math.max(0, score - 20); }
+    else { score+=60; reasons.push("Percentage match (+60)"); }
   }
-  if (hqSpecials.length>0&&jsSpecials.length>0&&!arraysEqual(hqSpecials,jsSpecials)) {
-    reasons.push("Special numeric value mismatch - automatic rejection"); reject = true;
+  if (hqSpecials.length > 0 && jsSpecials.length > 0) {
+    if (!arraysEqual(hqSpecials, jsSpecials)) { reasons.push("Special numeric value mismatch"); score = Math.max(0, score - 15); }
+    else { score+=60; reasons.push("Special numeric match (+60)"); }
   }
-  // OBC specific match must agree
-  if ((hqOBC||jsOBC) && !(hqOBC&&jsOBC)) { reasons.push("OBC term mismatch - automatic rejection"); reject = true; }
-  if ((hqGrat||jsGrat) && !(hqGrat&&jsGrat)) { reasons.push("Gratuity term mismatch - automatic rejection"); reject = true; }
-  if ((hqKids||jsKids) && !(hqKids&&jsKids)) { reasons.push("Kids term mismatch - automatic rejection"); reject = true; }
-  if (reject) return { score: 0, reasons, flags: {} };
 
-  // Special numeric
-  if (hqSpecials.length||jsSpecials.length) {
-    if (arraysEqual(hqSpecials,jsSpecials)) {
-      score+=60; reasons.push("Special numeric match (+60)");
-    }
-  }
-  // Percent
-  if (hqPerc.length||jsPerc.length) {
-    if (arraysEqual(hqPerc,jsPerc)) {
-      score+=60; reasons.push("Percentage match (+60)");
-    }
-  }
+  // OBC / Gratuity / Kids (never auto-reject; add points on agreement)
+  if (hqOBC && jsOBC) { score+=35; reasons.push("OBC present (+35)"); }
+  if (hqGrat && jsGrat) { score+=35; reasons.push("Gratuities present (+35)"); }
+  if (hqKids && jsKids) { score+=35; reasons.push("Kids present (+35)"); }
+
   // Money - scored instead of auto-rejected
   if (hqMoney.length||jsMoney.length) {
     // Try exact match first
     if (arraysEqual(hqMoney.map(x=>x.toFixed(2)), jsMoney.map(x=>x.toFixed(2)))) {
-      score+=60; 
-      reasons.push(`Money match: $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+60)`);
+      score+=60; reasons.push(`Money match: $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+60)`);
     } 
     // Then try fuzzy match with small tolerance
     else if (moneyArraysEqual(hqMoney, jsMoney, 0.01)) {
-      score+=55; 
-      reasons.push(`Money match (with tolerance): $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+55)`);
+      score+=55; reasons.push(`Money match (±0.01): $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+55)`);
     } 
     else {
-      // Don't auto-reject, just note the mismatch and subtract points
       reasons.push(`Money mismatch: HQ $${hqMoney.map(x=>x.toFixed(2)).join(', $')} vs JSON $${jsMoney.map(x=>x.toFixed(2)).join(', $')}`);
       score = Math.max(0, score - 15);
     }
   }
-  // Half-off synonyms (should remain after numeric is removed from keyword)
+
+  // Half-off synonyms
   if (isHalfOffDeal(hqDeal.text) && isHalfOffDeal(jsAllText)) {
     score+=60; reasons.push('"Half off"/50% match (+60)');
   }
-  // OBC/gratuity/kids presence
-  if (hqOBC&&jsOBC) { score+=35; reasons.push("OBC present (+35)"); }
-  if (hqGrat&&jsGrat) { score+=35; reasons.push("Gratuities present (+35)"); }
-  if (hqKids&&jsKids) { score+=35; reasons.push("Kids present (+35)"); }
 
   // --- Keyword overlap ---
-  // Money values can be slightly mismatched and we'll still consider keywords
   let kwsHQ = extractNormalizedKeywords(hqDeal.text,{noExclusive:true});
   let kwsJS = extractNormalizedKeywords(jsAllText,{noExclusive:true});
   let commonKW = keywordSetOverlap(kwsHQ, kwsJS);
@@ -193,7 +185,6 @@ function compareDealScore(hqDeal, jsonDeal) {
     reasons.push(`${commonKW.length} keyword(s) match (+${commonKW.length*15})`);
   }
   
-  // 24/48 hour/limited time logic is handled in normalization -> synonym mapping.
   if (commonKW.includes("limited time")) {
     score+=16;
     reasons.push('Limited time/24/48-hour match (+16)');
@@ -212,8 +203,8 @@ function compareDealScore(hqDeal, jsonDeal) {
     const diff = Math.round(Math.abs(hqExp.dateObj - jsExp.dateObj)/(1000*60*60*24));
     if (hqExp.ymd===jsExp.ymd) {
       score+=50; reasons.push("Exact date match (+50)");
-    } else if (diff<=5) {
-      score+=22; flags.dateFlag=true; reasons.push(`Date within 5 days (+22)`);
+    } else if (diff<=7) {
+      score+=22; flags.dateFlag=true; reasons.push(`Date within 7 days (+22)`);
     } else {
       flags.dateFlag=true; reasons.push("Date mismatch");
     }
@@ -228,7 +219,18 @@ function compareDealScore(hqDeal, jsonDeal) {
   flags.exclusiveFlag = exclusiveFlag(hqDeal.text, jsAllText);
 
   score = Math.max(0, Math.min(score, 510));
-  return { score, reasons, flags, commonKW, percentMatch: !!hqPerc.length, moneyMatch: !!hqMoney.length, dateFlag: !!flags.dateFlag, dateDiffDays: hqExp&&jsExp?Math.round(Math.abs(hqExp.dateObj-jsExp.dateObj)/(1000*60*60*24)):null, hqExp };
+  return { score, reasons, flags, commonKW, percentMatch: !!(hqPerc.length && jsPerc.length), moneyMatch: !!(hqMoney.length && jsMoney.length), dateFlag: !!flags.dateFlag, dateDiffDays: (hqExp&&jsExp)?Math.round(Math.abs(hqExp.dateObj-jsExp.dateObj)/(1000*60*60*24)):null, hqExp };
+}
+
+// Utility: group JSON deals by canonical vendor for faster candidate lookup
+function groupJSONByVendor(jsonDeals) {
+  const map = new Map();
+  for (let i = 0; i < jsonDeals.length; i++) {
+    const v = jsonDeals[i].vendor || "";
+    if (!map.has(v)) map.set(v, []);
+    map.get(v).push({ deal: jsonDeals[i], index: i });
+  }
+  return map;
 }
 
 // Perform full matching and enforce unique assignment
@@ -236,12 +238,29 @@ function performMatching(hqDeals, jsonDeals, threshold) {
   _lastHQDeals = hqDeals;
   _lastJSONDeals = jsonDeals;
   _lastThreshold = threshold;
+
   const candidate = [], nonMatched = [];
+  const jsonByVendor = groupJSONByVendor(jsonDeals);
 
   hqDeals.forEach(hq => {
     let best = {score: 0}, idx = null, isStrictMatch = false;
+
+    // Limit candidates to same (or very close) vendor buckets for speed & accuracy
+    const buckets = [];
+    if (jsonByVendor.has(hq.vendor)) {
+      buckets.push(...jsonByVendor.get(hq.vendor));
+    } else {
+      // try fuzzy vendor buckets
+      jsonByVendor.forEach((list, vend) => {
+        if (vendorSimilarity(hq.vendor || "", vend || "") >= 0.82) {
+          buckets.push(...list);
+        }
+      });
+    }
     
-    jsonDeals.forEach((js, i) => {
+    const searchPool = buckets.length ? buckets : jsonDeals.map((d,i)=>({deal:d,index:i}));
+
+    for (const {deal: js, index: i} of searchPool) {
       // First try strict matching - follows user's manual matching logic
       if (strictMatch(hq, js)) {
         best = { 
@@ -251,19 +270,17 @@ function performMatching(hqDeals, jsonDeals, threshold) {
         };
         idx = i;
         isStrictMatch = true;
-        return; // Break early if strict match found
+        break; // Break early if strict match found
       }
       
       // Fall back to regular scoring if no strict match
-      if (!isStrictMatch) {
-        const res = compareDealScore(hq, js);
-        if (res.score > best.score) {
-          best = res;
-          idx = i;
-          best.jsonDeal = js;
-        }
+      const res = compareDealScore(hq, js);
+      if (res.score > best.score) {
+        best = res;
+        idx = i;
+        best.jsonDeal = js;
       }
-    });
+    }
     
     if (best.score >= threshold) {
       candidate.push({ 

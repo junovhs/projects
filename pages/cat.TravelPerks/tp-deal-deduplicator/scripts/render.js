@@ -1,4 +1,7 @@
-// tombstone: removed inline render functions and global arrays from index.html
+
+// render.js (enhanced)
+// - Adds "HQ Duplicates" panel
+// - Displays reasons and flags as before
 
 // Highlight HQ & JSON text (dates, money, percent)
 function highlightText(text) {
@@ -60,7 +63,7 @@ function renderMatchedDeals() {
     }
     if (res.dateFlag){
       const s = document.createElement("span"); s.className="date-flag";
-      s.textContent = res.dateDiffDays<=5?"POSSIBLE DATE CHANGE":"DATE MISMATCH";
+      s.textContent = res.dateDiffDays<=7?"POSSIBLE DATE CHANGE":"DATE MISMATCH";
       left.appendChild(s);
     }
     if (res.flags.exclusiveFlag){
@@ -86,7 +89,7 @@ function renderMatchedDeals() {
     const right = document.createElement("div"); right.className="json-match";
     if (match.jsonDeal){
       right.innerHTML = `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>
-        <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate?formatDate(new Date(match.jsonDeal.expiryDate)):"N/A"}</span><br>
+        <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate?formatDate(new Date(normalizeJSONExpiry(match.jsonDeal.expiryDate).ymd+"T00:00:00Z")):"N/A"}</span><br>
         <strong>Title:</strong> ${highlightTextJSON(match.jsonDeal.title)}<br>
         <strong>Listing:</strong> ${highlightTextJSON(match.jsonDeal.shopListing)}`;
       if (res.flags.exclusiveFlag) right.innerHTML+=`<div style="margin-top:4px;"><span class="exclusive-flag">EXCLUSIVE</span> Present in JSON</div>`;
@@ -128,7 +131,7 @@ function renderNonMatchedDeals() {
       const tt = document.createElement("span"); tt.className="tooltiptext";
       tt.innerHTML = `<strong>Best Possible Match (Score: ${nearest.score}):</strong><br>
         <span style="color:#3498db"><b>Vendor:</b> ${nearest.jsonDeal.vendor}</span><br>
-        ${nearest.jsonDeal.expiryDate?`<b>Expiry:</b> <span class="expiry-date">${formatDate(new Date(nearest.jsonDeal.expiryDate))}</span><br>`:""}
+        ${nearest.jsonDeal.expiryDate?`<b>Expiry:</b> <span class="expiry-date">${formatDate(new Date(normalizeJSONExpiry(nearest.jsonDeal.expiryDate).ymd+"T00:00:00Z"))}</span><br>`:""}
         <b>Title:</b> ${highlightTextJSON(nearest.jsonDeal.title)}<br>
         <b>Listing:</b> ${highlightTextJSON(nearest.jsonDeal.shopListing)}<hr style="margin:5px 0;">${nearest.reasons.map(r=>"• "+r).join("<br>")}`;
       tip.appendChild(tt); info.appendChild(tip);
@@ -144,10 +147,32 @@ function renderNonMatchedDeals() {
   });
 }
 
+// New: Render HQ duplicates
+function renderHQDuplicates() {
+  const container = document.getElementById("hqDuplicatesContainer");
+  const countEl = document.getElementById("hqDuplicatesCount");
+  if (!window.hqDuplicates || !window.hqDuplicates.length) {
+    countEl.textContent = 0;
+    container.innerHTML = "<div class='no-matches'>No duplicate HQ lines detected.</div>";
+    return;
+  }
+  countEl.textContent = window.hqDuplicates.length;
+  container.innerHTML = "";
+  window.hqDuplicates.forEach(pair => {
+    const row = document.createElement("div"); row.className="non-matched-deal";
+    const info = document.createElement("div"); info.className="deal-info";
+    info.innerHTML = `<span class="deal-vendor">${pair.original.vendor} (duplicate):</span> ${highlightText(pair.original.text)}
+      <div style="margin-top:6px; font-size:0.9em; color:#555;"><b>Duplicate of →</b> ${pair.duplicateOf.vendor}: ${highlightText(pair.duplicateOf.text)}</div>`;
+    row.appendChild(info);
+    container.appendChild(row);
+  });
+}
+
 // Render both lists
 function renderAll() {
   renderMatchedDeals();
   renderNonMatchedDeals();
+  renderHQDuplicates && renderHQDuplicates();
 }
 
 // Copy non-matched back to clipboard
@@ -155,7 +180,7 @@ function copyNonMatchedToClipboard() {
   const groups = {};
   nonMatchedDeals.forEach(d=>{
     groups[d.vendor] = groups[d.vendor]||[];
-    groups[d.vendor].push(d.original);
+    groups[d.vendor].push(d.original || (`d\t${d.text}`));
   });
   let out = "";
   for (let v in groups){
