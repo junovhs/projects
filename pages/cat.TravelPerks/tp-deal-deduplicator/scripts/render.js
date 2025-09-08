@@ -28,7 +28,7 @@ function renderMatchedDeals(){
   container.innerHTML = list.length ? "" : "<div class='no-matches'>No matched deals found.</div>";
 
   list.forEach(match => {
-    const res = compareDealScore(match.hqDeal, match.jsonDeal);
+    const res = match.jsonDeal ? compareDealScore(match.hqDeal, match.jsonDeal) : {score: match.score||0, reasons: match.reasons||[], flags:{}, numbersEqual:false, dateFlag:false, dateDiffDays:null, commonKW:[]};
     const row = document.createElement("div");
     row.className = res.dateFlag ? "matched-deal possible-date-change" : "matched-deal";
 
@@ -75,24 +75,22 @@ function renderMatchedDeals(){
 
     // HQ text with date re-render to show raw+display
     let rendered = match.hqDeal.text.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g, m => {
-      const info = extractAllDatesWithInfo(match.hqDeal.text).find(d => `${d.ymd}` === m || d.display === m || d.raw === m);
-      if (!info) return m;
-      if (res.dateFlag && res.hqExp && info.ymd === res.hqExp.ymd){
-        return `<span class="hq-date-mismatch">${info.display}<br><small>(${m})</small></span>`;
-      }
-      return `<span class="expiry-date">${info.display}<br><small style="color:#777;">(${m})</small></span>`;
+      return `<span class="expiry-date">${m}</span>`;
     });
-    // highlight numbers and percents
     rendered = rendered.replace(/(\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
     rendered = rendered.replace(/(\d+\s*%|\d+\s*percent)/gi,'<span class="percentage-value">$1</span>');
     left.innerHTML += rendered;
 
     // Right JSON block
     const right = document.createElement("div"); right.className = "json-match";
-    right.innerHTML = `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>
-    <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate ? formatDate(new Date(match.jsonDeal.expiryDate)) : "N/A"}</span><br>
-    <strong>Title:</strong> ${highlightTextJSON(match.jsonDeal.title)}<br>
-    <strong>Listing:</strong> ${highlightTextJSON(match.jsonDeal.shopListing)}`;
+    if (match.jsonDeal){
+      right.innerHTML = `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>
+      <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate ? formatDate(new Date(match.jsonDeal.expiryDate)) : "N/A"}</span><br>
+      <strong>Title:</strong> ${highlightTextJSON(match.jsonDeal.title)}<br>
+      <strong>Listing:</strong> ${highlightTextJSON(match.jsonDeal.shopListing)}`;
+    } else {
+      right.textContent = "No JSON deal chosen for this row.";
+    }
 
     // Tooltip with reasons
     const tooltip = document.createElement("div"); tooltip.className="tooltip"; tooltip.innerHTML="👁️";

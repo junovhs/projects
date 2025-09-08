@@ -179,7 +179,7 @@ const STOP = new Set(("and or the a an of on to in for with by at from up as per
 function normalizeForKeywords(text){
   const lower = String(text||"").toLowerCase();
   // remove money and percentages
-  const noMoney = lower.replace(/\$\s*(?:\d{1,3}(?:,\\d{3})+|\d+)(?:\.\d+)?/g,"");
+  const noMoney = lower.replace(/\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g,"");
   const noPct = noMoney.replace(/\d+\s*%|\d+\s*percent/g,"");
   const clean = noPct.replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
   // normalize ordinals

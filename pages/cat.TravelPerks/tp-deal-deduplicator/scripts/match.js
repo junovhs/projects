@@ -22,9 +22,6 @@ function strictMatch(hqDeal, jsonDeal){
 
   const jsAll = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
 
-  const numsHQ = [...extractMoneyValues(hqDeal.text), ...extractPercentageValues(hqDeal.text), ...extractSpecialNumericAll(hqDeal.text)].sort((a,b)=>a-b);
-  const numsJS = [...extractMoneyValues(jsAll), ...extractPercentageValues(jsAll), ...extractSpecialNumericAll(jsAll)].sort((a,b)=>a-b);
-
   // Numbers: if present on both sides, they must be equal (within 1 cent for money)
   const moneyHQ = extractMoneyValues(hqDeal.text);
   const moneyJS = extractMoneyValues(jsAll);
@@ -45,20 +42,16 @@ function strictMatch(hqDeal, jsonDeal){
 
   // Date exact match (or JSON has no date)
   if (jsonDeal.expiryDate){
-    if (!sameExpiry(hqDeal.text, jsonDeal.expiryDate)) return false;
+    const hq = extractNormalizedExpiry(hqDeal.text);
+    const js = normalizeJSONExpiry(jsonDeal.expiryDate);
+    if (!(hq && js && hq.ymd === js.ymd)) return false;
   }
   return true;
 }
 
-function sameExpiry(hqText, jsExpiryStr){
-  const hq = extractNormalizedExpiry(hqText);
-  const js = normalizeJSONExpiry(jsExpiryStr);
-  if (!hq || !js) return false;
-  return hq.ymd === js.ymd;
-}
-
 // Main scoring function
 function compareDealScore(hqDeal, jsonDeal){
+  if (!jsonDeal) return { score: 0, reasons: ["Missing JSON deal"], flags:{} };
   if (hqDeal.vendor !== jsonDeal.vendor) {
     return { score: 0, reasons: ["Vendor mismatch"], flags: {} };
   }
@@ -188,7 +181,7 @@ function performMatching(hqDeals, jsonDeals, threshold){
       }
     });
 
-    if (best.score >= threshold){
+    if (best.jsonDeal && best.score >= threshold){
       candidate.push({ hqDeal: hq, jsonDeal: best.jsonDeal, score: best.score, jsonIndex: idx, reasons: best.reasons, isStrictMatch });
     } else {
       nonMatched.push(hq);
