@@ -338,3 +338,17 @@ button:hover {
   }
   .date-flag,.exclusive-flag {margin-bottom:5px;}
 }
+
+.chip {
+  display:inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0 6px 6px 0;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.chip.ok { background:#e7f7ee; color:#1e7d4f; }
+.chip.warn { background:#fff5d9; color:#8a5a00; }
+.chip.bad { background:#fdecea; color:#a12622; }
+.triage-row { margin: 4px 0 6px 0; }

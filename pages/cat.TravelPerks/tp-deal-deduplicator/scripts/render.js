@@ -1,13 +1,10 @@
-
-// render.js (enhanced)
-// - Adds "HQ Duplicates" panel
-// - Displays reasons and flags as before
+// tombstone: removed inline render functions and global arrays from index.html
 
 // Highlight HQ & JSON text (dates, money, percent)
 function highlightText(text) {
   let r = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   r = r.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g,'<span class="expiry-date">$1</span>');
-  r = r.replace(/(\$\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?|\$\s*\d+(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
+  r = r.replace(/(\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
   r = r.replace(/(\d+\s*%|\d+\s*percent)/gi,'<span class="percentage-value">$1</span>');
   return r;
 }
@@ -31,6 +28,7 @@ function filterNonMatched(deals, searchText) {
 }
 
 // Render matched deals
+
 function renderMatchedDeals() {
   const container = document.getElementById("matchedDealsContainer");
   const fb = document.getElementById("matchedFilter").value.trim();
@@ -53,24 +51,44 @@ function renderMatchedDeals() {
     }
 
     const left = document.createElement("div"); left.className="deal-info";
+
+    // Triage chips: Vendor / Numbers / Date
+    const triage = document.createElement("div");
+    triage.className = "triage-row";
+    const chipV = document.createElement("span"); chipV.className="chip ok"; chipV.textContent="Vendor ✓";
+    const chipN = document.createElement("span");
+    if (res.numbersEqual) { chipN.className="chip ok"; chipN.textContent="Numbers ✓"; }
+    else { chipN.className="chip warn"; chipN.textContent="Numbers –"; }
+    const chipD = document.createElement("span");
+    if (res.dateDiffDays===0 || (!res.dateFlag && res.hqExp)) { chipD.className="chip ok"; chipD.textContent="Date ✓"; }
+    else if (res.dateFlag && res.dateDiffDays<=5) { chipD.className="chip warn"; chipD.textContent="Date ±5"; }
+    else { chipD.className="chip bad"; chipD.textContent="Date ×"; }
+    triage.appendChild(chipV); triage.appendChild(chipN); triage.appendChild(chipD);
+
     if (match.isStrictMatch) {
       const s = document.createElement("span"); s.className="date-flag"; 
       s.style.backgroundColor = "#d5f5e3"; s.style.color = "#27ae60";
       s.textContent="PERFECT MATCH"; left.appendChild(s);
     }
-    else if ((res.percentMatch||res.moneyMatch) && res.commonKW.length){
-      const s = document.createElement("span"); s.className="date-flag"; s.textContent="SYNERGY"; left.appendChild(s);
+    else if ((res.numbersEqual) && res.commonKW && res.commonKW.length){
+      const s = document.createElement("span"); s.className="date-flag"; s.textContent="SYNERGY";
+      left.appendChild(s);
     }
     if (res.dateFlag){
       const s = document.createElement("span"); s.className="date-flag";
-      s.textContent = res.dateDiffDays<=7?"POSSIBLE DATE CHANGE":"DATE MISMATCH";
+      s.textContent = res.dateDiffDays<=5?"POSSIBLE DATE CHANGE":"DATE MISMATCH";
       left.appendChild(s);
     }
     if (res.flags.exclusiveFlag){
       const s = document.createElement("span"); s.className="exclusive-flag"; s.textContent="Exclusive listed on JSON";
       left.appendChild(s);
     }
+
+    // Vendor header + triage
     left.innerHTML += `<span class="deal-vendor">${match.hqDeal.vendor}:</span> `;
+    left.appendChild(triage);
+
+    // HQ text with highlighting and KW emphasis
     let rendered = match.hqDeal.text.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g,m=>{
       const info=extractAllDatesWithInfo(match.hqDeal.text).find(d=>d.raw===m);
       if (!info) return m;
@@ -82,14 +100,14 @@ function renderMatchedDeals() {
     res.commonKW && res.commonKW.forEach(kw=>{
       rendered = rendered.replace(new RegExp(`\\b(${kw})\\b`,"gi"),`<span class="keyword-flag">$1</span>`);
     });
-    rendered = rendered.replace(/(\$\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
+    rendered = rendered.replace(/(\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
     rendered = rendered.replace(/(\d+\s*%|\d+\s*percent)/gi,'<span class="percentage-value">$1</span>');
     left.innerHTML += rendered;
 
     const right = document.createElement("div"); right.className="json-match";
     if (match.jsonDeal){
       right.innerHTML = `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>
-        <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate?formatDate(new Date(normalizeJSONExpiry(match.jsonDeal.expiryDate).ymd+"T00:00:00Z")):"N/A"}</span><br>
+        <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate?formatDate(new Date(match.jsonDeal.expiryDate)):"N/A"}</span><br>
         <strong>Title:</strong> ${highlightTextJSON(match.jsonDeal.title)}<br>
         <strong>Listing:</strong> ${highlightTextJSON(match.jsonDeal.shopListing)}`;
       if (res.flags.exclusiveFlag) right.innerHTML+=`<div style="margin-top:4px;"><span class="exclusive-flag">EXCLUSIVE</span> Present in JSON</div>`;
@@ -112,6 +130,7 @@ function renderMatchedDeals() {
     container.appendChild(row);
   });
 }
+}
 
 // Render non-matched deals
 function renderNonMatchedDeals() {
@@ -131,7 +150,7 @@ function renderNonMatchedDeals() {
       const tt = document.createElement("span"); tt.className="tooltiptext";
       tt.innerHTML = `<strong>Best Possible Match (Score: ${nearest.score}):</strong><br>
         <span style="color:#3498db"><b>Vendor:</b> ${nearest.jsonDeal.vendor}</span><br>
-        ${nearest.jsonDeal.expiryDate?`<b>Expiry:</b> <span class="expiry-date">${formatDate(new Date(normalizeJSONExpiry(nearest.jsonDeal.expiryDate).ymd+"T00:00:00Z"))}</span><br>`:""}
+        ${nearest.jsonDeal.expiryDate?`<b>Expiry:</b> <span class="expiry-date">${formatDate(new Date(nearest.jsonDeal.expiryDate))}</span><br>`:""}
         <b>Title:</b> ${highlightTextJSON(nearest.jsonDeal.title)}<br>
         <b>Listing:</b> ${highlightTextJSON(nearest.jsonDeal.shopListing)}<hr style="margin:5px 0;">${nearest.reasons.map(r=>"• "+r).join("<br>")}`;
       tip.appendChild(tt); info.appendChild(tip);
@@ -147,32 +166,10 @@ function renderNonMatchedDeals() {
   });
 }
 
-// New: Render HQ duplicates
-function renderHQDuplicates() {
-  const container = document.getElementById("hqDuplicatesContainer");
-  const countEl = document.getElementById("hqDuplicatesCount");
-  if (!window.hqDuplicates || !window.hqDuplicates.length) {
-    countEl.textContent = 0;
-    container.innerHTML = "<div class='no-matches'>No duplicate HQ lines detected.</div>";
-    return;
-  }
-  countEl.textContent = window.hqDuplicates.length;
-  container.innerHTML = "";
-  window.hqDuplicates.forEach(pair => {
-    const row = document.createElement("div"); row.className="non-matched-deal";
-    const info = document.createElement("div"); info.className="deal-info";
-    info.innerHTML = `<span class="deal-vendor">${pair.original.vendor} (duplicate):</span> ${highlightText(pair.original.text)}
-      <div style="margin-top:6px; font-size:0.9em; color:#555;"><b>Duplicate of →</b> ${pair.duplicateOf.vendor}: ${highlightText(pair.duplicateOf.text)}</div>`;
-    row.appendChild(info);
-    container.appendChild(row);
-  });
-}
-
 // Render both lists
 function renderAll() {
   renderMatchedDeals();
   renderNonMatchedDeals();
-  renderHQDuplicates && renderHQDuplicates();
 }
 
 // Copy non-matched back to clipboard
@@ -180,7 +177,7 @@ function copyNonMatchedToClipboard() {
   const groups = {};
   nonMatchedDeals.forEach(d=>{
     groups[d.vendor] = groups[d.vendor]||[];
-    groups[d.vendor].push(d.original || (`d\t${d.text}`));
+    groups[d.vendor].push(d.original);
   });
   let out = "";
   for (let v in groups){

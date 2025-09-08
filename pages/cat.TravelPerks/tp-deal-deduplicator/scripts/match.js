@@ -1,9 +1,5 @@
-
-// match.js (enhanced)
-// - Looser, recall-friendly scoring (no hard reject if only one side has %/special numbers)
-// - Vendor fuzzy acceptance using vendorSimilarity()
-// - Strict match kept strict, but general scoring now more tolerant
-// - Utility function: group JSON by vendor to speed up matching
+// match.js
+// tombstone: removed inline match and scoring functions from index.html
 
 // Remember last inputs for non-matched hover
 let _lastHQDeals = [], _lastJSONDeals = [], _lastThreshold = 150;
@@ -44,7 +40,7 @@ function sameExpiry(hqText, jsonDateStr) {
 
 // Strict matching using exact number+category+date matching
 function strictMatch(hqDeal, jsonDeal) {
-  // Must have same vendor (strict)
+  // Must have same vendor
   if (hqDeal.vendor !== jsonDeal.vendor) return false;
   
   const jsAllText = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
@@ -87,21 +83,13 @@ function strictMatch(hqDeal, jsonDeal) {
 }
 
 // Compare HQ vs JSON deal and compute a score + reasons + flags
-function compareDealScore(hqDeal, jsonDeal) {
-  let reasons = [], score = 0, flags = {};
 
-  // Vendor handling (allow fuzzy vendor if very close)
+function compareDealScore(hqDeal, jsonDeal) {
   if (hqDeal.vendor !== jsonDeal.vendor) {
-    const sim = vendorSimilarity(hqDeal.vendor || "", jsonDeal.vendor || "");
-    if (sim < 0.78) {
-      return { score: 0, reasons: [`Vendor mismatch (${hqDeal.vendor || "?"} ≠ ${jsonDeal.vendor || "?"})`], flags: {} };
-    } else {
-      reasons.push(`Vendor (fuzzy) ${hqDeal.vendor} ≈ ${jsonDeal.vendor} (+10)`);
-      score += 10;
-    }
-  } else {
-    reasons.push(`Vendor: ${hqDeal.vendor} (required)`);
+    return { score: 0, reasons: ["Vendor mismatch"], flags: {} };
   }
+  let reasons = [], score = 0, flags = {};
+  reasons.push(`Vendor: ${hqDeal.vendor} (required)`);
 
   const jsAllText = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
   const hqExp = extractNormalizedExpiry(hqDeal.text);
@@ -125,7 +113,6 @@ function compareDealScore(hqDeal, jsonDeal) {
     return true;
   }
 
-  // Helper function for fuzzy money comparison with tolerance
   function moneyArraysEqual(a, b, tolerance = 0.01) {
     if (a.length !== b.length) return false;
     const aSort = a.slice().sort((x, y) => x - y);
@@ -138,99 +125,110 @@ function compareDealScore(hqDeal, jsonDeal) {
     return true;
   }
 
-  let reject = false;
-  // --- strict numeric match enforcement (EXCEPT when only one side has values) ---
-  if (hqPerc.length > 0 && jsPerc.length > 0) {
-    if (!arraysEqual(hqPerc, jsPerc)) { reasons.push("Percentage value mismatch"); score = Math.max(0, score - 20); }
-    else { score+=60; reasons.push("Percentage match (+60)"); }
+  // --- Hard rejections on numeric contradictions ---
+  // If both sides give the same numeric *type* but the values differ, reject.
+  if ((hqPerc.length && jsPerc.length) && !arraysEqual(hqPerc, jsPerc)) {
+    reasons.push("Percentage value mismatch - automatic rejection");
+    return { score: 0, reasons, flags: {} };
   }
-  if (hqSpecials.length > 0 && jsSpecials.length > 0) {
-    if (!arraysEqual(hqSpecials, jsSpecials)) { reasons.push("Special numeric value mismatch"); score = Math.max(0, score - 15); }
-    else { score+=60; reasons.push("Special numeric match (+60)"); }
+  if ((hqSpecials.length && jsSpecials.length) && !arraysEqual(hqSpecials, jsSpecials)) {
+    reasons.push("Special numeric value mismatch - automatic rejection");
+    return { score: 0, reasons, flags: {} };
   }
-
-  // OBC / Gratuity / Kids (never auto-reject; add points on agreement)
-  if (hqOBC && jsOBC) { score+=35; reasons.push("OBC present (+35)"); }
-  if (hqGrat && jsGrat) { score+=35; reasons.push("Gratuities present (+35)"); }
-  if (hqKids && jsKids) { score+=35; reasons.push("Kids present (+35)"); }
-
-  // Money - scored instead of auto-rejected
-  if (hqMoney.length||jsMoney.length) {
-    // Try exact match first
-    if (arraysEqual(hqMoney.map(x=>x.toFixed(2)), jsMoney.map(x=>x.toFixed(2)))) {
-      score+=60; reasons.push(`Money match: $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+60)`);
-    } 
-    // Then try fuzzy match with small tolerance
-    else if (moneyArraysEqual(hqMoney, jsMoney, 0.01)) {
-      score+=55; reasons.push(`Money match (±0.01): $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+55)`);
-    } 
-    else {
-      reasons.push(`Money mismatch: HQ $${hqMoney.map(x=>x.toFixed(2)).join(', $')} vs JSON $${jsMoney.map(x=>x.toFixed(2)).join(', $')}`);
-      score = Math.max(0, score - 15);
-    }
+  if ((hqMoney.length && jsMoney.length) && !moneyArraysEqual(hqMoney, jsMoney, 0.01)) {
+    reasons.push("Money value mismatch - automatic rejection");
+    return { score: 0, reasons, flags: {} };
   }
 
-  // Half-off synonyms
-  if (isHalfOffDeal(hqDeal.text) && isHalfOffDeal(jsAllText)) {
-    score+=60; reasons.push('"Half off"/50% match (+60)');
+  const numericBoth =
+      (hqMoney.length && jsMoney.length) ||
+      (hqPerc.length && jsPerc.length) ||
+      (hqSpecials.length && jsSpecials.length);
+
+  const numericEqual =
+      (hqMoney.length && jsMoney.length && moneyArraysEqual(hqMoney, jsMoney, 0.01)) ||
+      (hqPerc.length && jsPerc.length && arraysEqual(hqPerc, jsPerc)) ||
+      (hqSpecials.length && jsSpecials.length && arraysEqual(hqSpecials, jsSpecials));
+
+  const numericOneSided =
+      (!numericBoth) && ((hqMoney.length + hqPerc.length + hqSpecials.length) > 0 ||
+                         (jsMoney.length + jsPerc.length + jsSpecials.length) > 0);
+
+  // --- Score building ---
+
+  // Numeric scoring
+  if (numericEqual) {
+    // Reward exact equality by type
+    if (hqMoney.length) { score += 60; reasons.push(`Money match: $${hqMoney.map(x=>x.toFixed(2)).join(', $')} (+60)`); }
+    if (hqPerc.length)  { score += 60; reasons.push("Percentage match (+60)"); }
+    if (hqSpecials.length) { score += 60; reasons.push("Special numeric match (+60)"); }
+  } else if (numericOneSided) {
+    // Numbers only on one side: heavy penalty and disable synergy
+    reasons.push("Numeric present on one side only (-40)");
+    score -= 40;
+    flags.numericOneSided = true;
   }
 
-  // --- Keyword overlap ---
+  // Presence-only flags (OBC / gratuities / kids)
+  if (hqOBC && jsOBC) { score += 35; reasons.push("OBC present (+35)"); }
+  if (hqGrat && jsGrat) { score += 35; reasons.push("Gratuities present (+35)"); }
+  if (hqKids && jsKids) { score += 35; reasons.push("Kids present (+35)"); }
+
+  // Keywords
   let kwsHQ = extractNormalizedKeywords(hqDeal.text,{noExclusive:true});
   let kwsJS = extractNormalizedKeywords(jsAllText,{noExclusive:true});
   let commonKW = keywordSetOverlap(kwsHQ, kwsJS);
-  
   if (commonKW.length) {
-    score += commonKW.length*15;
+    score += commonKW.length * 15;
     reasons.push(`${commonKW.length} keyword(s) match (+${commonKW.length*15})`);
   }
-  
   if (commonKW.includes("limited time")) {
-    score+=16;
-    reasons.push('Limited time/24/48-hour match (+16)');
+    score += 16;
+    reasons.push("Limited time/24/48-hour match (+16)");
   }
 
-  // Synergy: numeric+keyword (if both matched non-empty numeric and at least one keyword)
-  const hasNumeric = (hqMoney.length && jsMoney.length) || 
-                     (hqPerc.length && jsPerc.length) || 
-                     (hqSpecials.length && jsSpecials.length);
-  if (hasNumeric && commonKW.length) {
-    score+=25; reasons.push("Synergy bonus: numeric+keyword (+25)");
+  // Synergy bonus requires BOTH numeric equality and keywords
+  if (numericEqual && commonKW.length) {
+    score += 25; reasons.push("Synergy bonus: numeric+keyword (+25)");
   }
 
   // Date logic
   if (hqExp && jsExp) {
     const diff = Math.round(Math.abs(hqExp.dateObj - jsExp.dateObj)/(1000*60*60*24));
-    if (hqExp.ymd===jsExp.ymd) {
-      score+=50; reasons.push("Exact date match (+50)");
-    } else if (diff<=7) {
-      score+=22; flags.dateFlag=true; reasons.push(`Date within 7 days (+22)`);
+    if (hqExp.ymd === jsExp.ymd) {
+      score += 50; reasons.push("Exact date match (+50)");
+    } else if (diff <= 5) {
+      score += 22; flags.dateFlag = true; reasons.push("Date within 5 days (+22)");
     } else {
-      flags.dateFlag=true; reasons.push("Date mismatch");
+      flags.dateFlag = true; reasons.push("Date mismatch");
     }
   }
 
-  // High-confidence synergy of value+date+keyword
-  if ((hqPerc.length||hqMoney.length) && hqExp && jsExp && hqExp.ymd===jsExp.ymd && commonKW.length) {
-    score+=60; flags.highConfidence=true; reasons.push("All-match synergy (+60)");
+  // High-confidence synergy: numeric equality + exact date + keywords
+  if (numericEqual && hqExp && jsExp && hqExp.ymd === jsExp.ymd && commonKW.length) {
+    score += 60; flags.highConfidence = true; reasons.push("All-match synergy (+60)");
   }
 
   // Exclusive note
   flags.exclusiveFlag = exclusiveFlag(hqDeal.text, jsAllText);
 
+  // Clamp
   score = Math.max(0, Math.min(score, 510));
-  return { score, reasons, flags, commonKW, percentMatch: !!(hqPerc.length && jsPerc.length), moneyMatch: !!(hqMoney.length && jsMoney.length), dateFlag: !!flags.dateFlag, dateDiffDays: (hqExp&&jsExp)?Math.round(Math.abs(hqExp.dateObj-jsExp.dateObj)/(1000*60*60*24)):null, hqExp };
+
+  return {
+    score,
+    reasons,
+    flags,
+    commonKW,
+    percentMatch: !!(hqPerc.length && jsPerc.length && arraysEqual(hqPerc, jsPerc)),
+    moneyMatch: !!(hqMoney.length && jsMoney.length && moneyArraysEqual(hqMoney, jsMoney, 0.01)),
+    numbersEqual: numericEqual,
+    dateFlag: !!flags.dateFlag,
+    dateDiffDays: hqExp && jsExp ? Math.round(Math.abs(hqExp.dateObj - jsExp.dateObj)/(1000*60*60*24)) : null,
+    hqExp
+  };
 }
 
-// Utility: group JSON deals by canonical vendor for faster candidate lookup
-function groupJSONByVendor(jsonDeals) {
-  const map = new Map();
-  for (let i = 0; i < jsonDeals.length; i++) {
-    const v = jsonDeals[i].vendor || "";
-    if (!map.has(v)) map.set(v, []);
-    map.get(v).push({ deal: jsonDeals[i], index: i });
-  }
-  return map;
 }
 
 // Perform full matching and enforce unique assignment
@@ -238,29 +236,12 @@ function performMatching(hqDeals, jsonDeals, threshold) {
   _lastHQDeals = hqDeals;
   _lastJSONDeals = jsonDeals;
   _lastThreshold = threshold;
-
   const candidate = [], nonMatched = [];
-  const jsonByVendor = groupJSONByVendor(jsonDeals);
 
   hqDeals.forEach(hq => {
     let best = {score: 0}, idx = null, isStrictMatch = false;
-
-    // Limit candidates to same (or very close) vendor buckets for speed & accuracy
-    const buckets = [];
-    if (jsonByVendor.has(hq.vendor)) {
-      buckets.push(...jsonByVendor.get(hq.vendor));
-    } else {
-      // try fuzzy vendor buckets
-      jsonByVendor.forEach((list, vend) => {
-        if (vendorSimilarity(hq.vendor || "", vend || "") >= 0.82) {
-          buckets.push(...list);
-        }
-      });
-    }
     
-    const searchPool = buckets.length ? buckets : jsonDeals.map((d,i)=>({deal:d,index:i}));
-
-    for (const {deal: js, index: i} of searchPool) {
+    jsonDeals.forEach((js, i) => {
       // First try strict matching - follows user's manual matching logic
       if (strictMatch(hq, js)) {
         best = { 
@@ -270,17 +251,19 @@ function performMatching(hqDeals, jsonDeals, threshold) {
         };
         idx = i;
         isStrictMatch = true;
-        break; // Break early if strict match found
+        return; // Break early if strict match found
       }
       
       // Fall back to regular scoring if no strict match
-      const res = compareDealScore(hq, js);
-      if (res.score > best.score) {
-        best = res;
-        idx = i;
-        best.jsonDeal = js;
+      if (!isStrictMatch) {
+        const res = compareDealScore(hq, js);
+        if (res.score > best.score) {
+          best = res;
+          idx = i;
+          best.jsonDeal = js;
+        }
       }
-    }
+    });
     
     if (best.score >= threshold) {
       candidate.push({ 

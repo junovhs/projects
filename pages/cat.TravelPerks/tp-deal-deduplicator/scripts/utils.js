@@ -1,11 +1,8 @@
+// utils.js
+// tombstone: removed inline helper definitions from index.html
 
-// utils.js (enhanced)
-// - Fuzzy vendor canonicalization (token/Jaccard + optional Levenshtein)
-// - Safer ISO date normalization (date-only, timezone-agnostic)
-// - HQ duplicate detection to reduce false "new" items
-// - More robust HQ parsing (accepts 'v', 'vendor', flexible separators)
-
-// === Supplier Mapping Placeholders (kept, expanded) ===
+// === Supplier Mapping Placeholders ===
+// The complete list of known suppliers
 const knownSuppliers = [
   "Abercrombie & Kent",
   "Adventures by Disney",
@@ -85,64 +82,45 @@ const knownSuppliers = [
   "Virgin Voyages",
   "Villas of Distinction",
   "Windstar",
-  "Zoëtry Wellness & Spa Resorts",
-  // Not in original list but seen in aliasMapping
-  "Atlas Ocean Voyages"
+  "Zoëtry Wellness & Spa Resorts"
 ];
-
 const aliasMapping = {
   "american airlines vacations": "American Airline Vacations",
   "american airline vacations": "American Airline Vacations",
   "american airlnes vacations": "American Airline Vacations",
-  "aa vacations": "American Airline Vacations",
-  "american airlines vacation": "American Airline Vacations",
-  "american cruise lines": "American Cruise Line",
-  "american cruise line": "American Cruise Line",
-
   "royal": "Royal Caribbean",
-  "rccl": "Royal Caribbean",
+  "rccL": "Royal Caribbean",
   "rcc": "Royal Caribbean",
   "royal caribbean": "Royal Caribbean",
-  "royal caribbean international": "Royal Caribbean",
-
   "norwegian": "Norwegian",
   "norwegian cruise": "Norwegian",
   "norwegian cruise line": "Norwegian",
   "ncl": "Norwegian",
-
   "disney cruise": "Disney Cruise Line",
   "disney cruises": "Disney Cruise Line",
   "disney cruise line": "Disney Cruise Line",
-
   "celebrity": "Celebrity Cruises",
   "celebrity cruises": "Celebrity Cruises",
-  "celebrity cruise line": "Celebrity Cruises",
-
   "virgin": "Virgin Voyages",
   "virgin voyages": "Virgin Voyages",
   "virgin cruise": "Virgin Voyages",
-
   "holland": "Holland America Line",
   "holland america": "Holland America Line",
   "holland america line": "Holland America Line",
-
   "princess": "Princess",
   "princess cruises": "Princess",
   "carnival": "Carnival",
   "carnival cruise": "Carnival",
   "carnival cruises": "Carnival",
-
   "msc": "MSC Cruises",
   "msc cruises": "MSC Cruises",
-
   "viking": "Viking Ocean",
   "viking ocean": "Viking Ocean",
-  "viking cruises": "Viking Ocean",
-
+  "american cruise": "American Cruise Line",
+  "american cruise line": "American Cruise Line",
   "atlas": "Atlas Ocean Voyages",
   "atlas ocean": "Atlas Ocean Voyages",
   "atlas ocean voyages": "Atlas Ocean Voyages",
-
   "azamara": "Azamara",
   "crystal": "Crystal Cruises",
   "crystal cruises": "Crystal Cruises",
@@ -258,78 +236,14 @@ const aliasMapping = {
   "trafalgar": "Trafalgar"
 };
 
-// --- Vendor fuzzy normalization ---
-function _normalizeVendorTokens(v) {
-  return v.toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\b(cruises?|cruise\s*line|vacations?|resorts?|hotels?|group|collection|yachts?|yacht|international|the|by|and|\.com)\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean);
-}
-
-function _jaccardSim(aTokens, bTokens) {
-  const A = new Set(aTokens), B = new Set(bTokens);
-  const inter = [...A].filter(x => B.has(x)).length;
-  const union = new Set([...A, ...B]).size || 1;
-  return inter / union;
-}
-
-// Lightweight Levenshtein for edge cases
-function _levenshtein(a, b) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
-    }
-  }
-  return dp[m][n];
-}
-
-// Exported: vendor similarity in [0,1]
-function vendorSimilarity(a, b) {
-  const at = _normalizeVendorTokens(a);
-  const bt = _normalizeVendorTokens(b);
-  const j = _jaccardSim(at, bt);
-  if (j >= 0.66) return j; // good enough on tokens
-  // try Levenshtein on collapsed strings
-  const as = at.join(""), bs = bt.join("");
-  const maxLen = Math.max(as.length, bs.length) || 1;
-  const lev = _levenshtein(as, bs);
-  return Math.max(j, 1 - lev / maxLen);
-}
-
-// Returns canonical vendor name (with fuzzy fallback)
+// Returns canonical vendor name
 function getCanonicalVendor(vendor) {
-  if (!vendor) return "";
-  const raw = vendor.trim();
-  const vendorLower = raw.toLowerCase();
-
-  // 1) Hard alias hits
+  const vendorLower = vendor.trim().toLowerCase();
   if (aliasMapping[vendorLower]) return aliasMapping[vendorLower];
-
-  // 2) Exact name in known list
   for (const supplier of knownSuppliers) {
     if (supplier.toLowerCase() === vendorLower) return supplier;
   }
-
-  // 3) Fuzzy to alias targets and known suppliers
-  const candidates = [...new Set([
-    ...Object.values(aliasMapping),
-    ...knownSuppliers
-  ])];
-  let best = raw, bestScore = 0;
-  for (const c of candidates) {
-    const s = vendorSimilarity(raw, c);
-    if (s > bestScore) { bestScore = s; best = c; }
-  }
-  return bestScore >= 0.72 ? best : raw;
+  return vendor;
 }
 
 // Parse HQ deals text into an array of objects { vendor, text, original }
@@ -338,20 +252,18 @@ function parseHQDeals(text) {
   const deals = [];
   let currentVendor = "";
   lines.forEach(line => {
-    const trimmed = line.trim();
+    let trimmed = line.trim();
     if (!trimmed) return;
-    // vendor lines: v ... , v: ..., vendor: ...
-    const vm = trimmed.match(/^v(?:endor)?\s*[:\-]?\s*(.+)$/i);
-    if (vm) {
-      currentVendor = getCanonicalVendor(vm[1].replace(/\s*:\s*$/, "").trim());
-      return;
-    }
-    // deal lines: d ... or ed ... (with flexible separators)
-    const dm = trimmed.match(/^(ed|d)\s*[:\-]?\s*(.+)$/i);
-    if (dm) {
-      const marker = dm[1].toLowerCase(); // "d" or "ed"
-      const dealText = dm[2].trim();
-      deals.push({ vendor: currentVendor, text: dealText, original: trimmed, marker });
+    if (trimmed.toLowerCase().startsWith("v")) {
+      currentVendor = getCanonicalVendor(trimmed.substring(1).replace(":", "").trim());
+    } else if (trimmed.toLowerCase().startsWith("d") || trimmed.toLowerCase().startsWith("ed")) {
+      let marker = trimmed.toLowerCase().startsWith("ed") ? "ed" : "d";
+      let dealText = marker === "ed" ? trimmed.substring(2).trim() : trimmed.substring(1).trim();
+      deals.push({
+        vendor: currentVendor,
+        text: dealText,
+        original: trimmed
+      });
     }
   });
   return deals;
@@ -380,26 +292,26 @@ function extractAllDatesWithInfo(text) {
   let match;
   while ((match = isoRegex.exec(text)) !== null) {
     let ymd = `${match[1]}-${match[2]}-${match[3]}`;
-    let dObj = new Date(ymd + "T00:00:00Z"); // prevent TZ shifts
+    let dObj = new Date(ymd);
     if (!isNaN(dObj)) dates.push({ raw: match[0], display: formatDate(dObj), ymd, dateObj: dObj });
   }
   const usRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/g;
   while ((match = usRegex.exec(text)) !== null) {
     let year = match[3].length === 2 ? "20" + match[3] : match[3];
-    let mm = String(match[1]).padStart(2, '0'),
-        dd = String(match[2]).padStart(2, '0');
-    let dObj = new Date(`${year}-${mm}-${dd}T00:00:00Z`);
+    let dObj = new Date(`${match[1]}/${match[2]}/${year}`);
     if (!isNaN(dObj)) {
+      let mm = String(match[1]).padStart(2, '0'),
+          dd = String(match[2]).padStart(2, '0');
       dates.push({ raw: match[0], display: formatDate(dObj), ymd: `${year}-${mm}-${dd}`, dateObj: dObj });
     }
   }
   const rangeRegex = /(\d{1,2})[\/\-](\d{1,2})\s*-\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/g;
   while ((match = rangeRegex.exec(text)) !== null) {
     let month = match[3], day = match[4], year = match[5].length === 2 ? "20" + match[5] : match[5];
-    let mm = String(month).padStart(2, '0'),
-        dd = String(day).padStart(2, '0');
-    let dObj = new Date(`${year}-${mm}-${dd}T00:00:00Z`);
+    let dObj = new Date(`${month}/${day}/${year}`);
     if (!isNaN(dObj)) {
+      let mm = String(month).padStart(2, '0'),
+          dd = String(day).padStart(2, '0');
       dates.push({ raw: match[0], display: formatDate(dObj), ymd: `${year}-${mm}-${dd}`, dateObj: dObj, isRange: true });
     }
   }
@@ -419,33 +331,22 @@ function extractNormalizedExpiry(text) {
   return latest ? { ...latest } : null;
 }
 
-// Normalize expiry from JSON ISO (timezone-agnostic date-only)
+// Normalize expiry from JSON ISO
 function normalizeJSONExpiry(dateStr) {
   if (!dateStr) return null;
-  // Prefer the first 10 chars if ISO-like string present to avoid TZ to previous/next day
-  const m = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
-  const ymd = m ? m[1] : null;
-  let dObj;
-  if (ymd) {
-    dObj = new Date(ymd + "T00:00:00Z");
-  } else {
-    // Fallback to Date parser (still normalized to date-only in UTC for ymd)
-    dObj = new Date(dateStr);
-    if (isNaN(dObj)) return null;
-  }
-  const year = dObj.getUTCFullYear();
-  const mm = String(dObj.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(dObj.getUTCDate()).padStart(2, '0');
-  const finalYMD = ymd || `${year}-${mm}-${dd}`;
-  return { ymd: finalYMD, dateObj: new Date(finalYMD + "T00:00:00Z"), display: formatDate(new Date(finalYMD + "T00:00:00Z")), original: dateStr };
+  let dObj = new Date(dateStr);
+  if (isNaN(dObj)) return null;
+  let mm = String(dObj.getMonth() + 1).padStart(2, '0'),
+      dd = String(dObj.getDate()).padStart(2, '0'),
+      year = dObj.getFullYear();
+  return { ymd: `${year}-${mm}-${dd}`, dateObj: dObj, display: formatDate(dObj), original: dateStr };
 }
 
 // Format date for display (M D, YYYY)
 function formatDate(dateObj) {
   if (!dateObj) return "N/A";
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  // Use UTC to avoid local TZ date drift
-  return `${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+  return `${months[dateObj.getMonth()]} ${dateObj.getDate()}, ${dateObj.getFullYear()}`;
 }
 
 // Extract percentage values from text
@@ -462,32 +363,39 @@ function extractPercentageValues(text) {
 }
 
 // Enhanced extraction of monetary values (e.g., 180 euro, 180 dollars, $180, 180€)
+
 function extractMoneyValues(text) {
   const vals = [];
   let match;
 
+  // Allow either comma-formatted thousands (e.g., 1,500 or 12,345,678)
+  // or plain digits (e.g., 1500). Use + for the comma branch so it never
+  // partially matches "$700" out of "$7000".
+  const MONEY_NUM = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)';
+  const DECIMAL = '(?:\\.\\d+)?';
+
   const regexes = [
-    /\$\s*(\d{1,3}(?:,\d{3})*|\d+)(\.\d+)?/g,
-    /(\d{1,3}(?:,\d{3})*|\d+)(\.\d+)?\s*(usd|dollars?|euro|euros|eur)/gi,
-    /(\d{1,3}(?:,\d{3})*|\d+)(\.\d+)?\s*(€)/g,
-    /(€)\s*(\d{1,3}(?:,\d{3})*|\d+)(\.\d+)?/g,
+    new RegExp('\\$\\s*(' + MONEY_NUM + ')' + DECIMAL, 'g'),
+    new RegExp('(' + MONEY_NUM + ')' + DECIMAL + '\\s*(usd|dollars?|euro|euros|eur)', 'gi'),
+    new RegExp('(' + MONEY_NUM + ')' + DECIMAL + '\\s*(€)', 'g'),
+    new RegExp('(€)\\s*(' + MONEY_NUM + ')' + DECIMAL, 'g'),
   ];
-  
-  regexes.forEach(regex => {
+
+  regexes.forEach((regex, idx) => {
     while ((match = regex.exec(text)) !== null) {
-      let num;
       let raw;
-      if (regex === regexes[3]) {
-        raw = match[2] + (match[3] || "");
+      if (idx === 3) { // leading € case
+        raw = match[2];
       } else {
-        raw = match[1] + (match[2] || "");
+        raw = match[1];
       }
-      num = parseFloat(raw.replace(/,/g, ""));
+      const num = parseFloat(String(raw).replace(/,/g, ''));
       if (!isNaN(num)) vals.push(num);
     }
   });
 
   return [...new Set(vals)].sort((a, b) => a - b);
+}
 }
 
 // Extract special numeric phrases (for 2, etc.)
@@ -508,7 +416,7 @@ function extractSpecialNumericAll(text) {
   const forNumRegex = /for\s+(two|three|four|five|six|seven|eight|nine|\d+)/gi;
   while ((m = forNumRegex.exec(t)) !== null) {
     let val = m[1];
-    if (wordNum[m[1]?.toLowerCase()]) val = wordNum[m[1].toLowerCase()];
+    if (wordNum[m[1].toLowerCase()]) val = wordNum[m[1].toLowerCase()];
     out.push(Number(val));
   }
   const buyGetRegex = /buy\s+(\d+)\s+get\s+(\d+)/gi;
@@ -570,7 +478,7 @@ function hasGratuity(text) {
 // Onboard credit detection
 function hasOBC(text) {
   const lower = text.toLowerCase();
-  const terms = ["onboard credit", "on board credit", "obc", "on-board credit", "dining credit"];
+  const terms = ["onboard credit", "on board credit", "obc", "on-board credit"];
   return terms.some(term => lower.includes(term));
 }
 
@@ -620,8 +528,7 @@ const keywordSynonyms = {
   "dining credit": ["onboard credit", "obc", "on board credit", "on-board credit"],
   "obc": ["onboard credit", "on board credit", "on-board credit", "dining credit"],
   "limited time offer": ["limited time", "24 hour", "48 hour", "24-hour", "48-hour"],
-  "limited time only": ["limited time", "24 hour", "48 hour", "24-hour", "48-hour"],
-  "reduced deposit": ["low deposit", "reduced dep", "reduced deposits", "reduced-deposit", "low-deposit", "nrd", "non-refundable deposit", "nrd deposit"]
+  "limited time only": ["limited time", "24 hour", "48 hour", "24-hour", "48-hour"]
 };
 
 // Normalize single keyword
@@ -657,7 +564,6 @@ function extractNormalizedKeywords(text, { noExclusive = false } = {}) {
   t = t.replace(/\b(complimentary|complementary|compliment|gratis)\b/g, "free");
   t = t.replace(/\b(24|48)[\s\-]?(hour|hr)[\s\-]?(sale)?/gi, (m, n, unit) => `${n}${unit}sale`);
   t = t.replace(/\b(24|48)[\s\-]?(hour|hr)/gi, (m, n, unit) => `${n}${unit}`);
-  // remove currency numbers
   t = t.replace(/\$\s*\d{1,3}(?:,\d{3})+|\$\s*\d+(?:\.\d+)?/g, ' ');
   t = t.replace(/(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(usd|dollars?|euro|euros|eur)/gi, ' ');
   t = t.replace(/(€)\s*(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?/g, ' ');
@@ -665,7 +571,6 @@ function extractNormalizedKeywords(text, { noExclusive = false } = {}) {
     t = t.replace(/\d+\s*%/g, ' ');
     t = t.replace(/\d+\s*percent/gi, ' ');
   }
-  // normalize time-limited phrases
   t = t.replace(/((24|48)[\s\-]?(hour|hr)|limited[\s\-]?time|limited[\s\-]?time[\s\-]?offer|limited[\s\-]?time[\s\-]?only)/gi, "limitedtime");
   t = t.replace(/\bdining credit\b/gi, "diningcredit");
   t = t.replace(/\bon[\s\-]?board credit\b/gi, "onboardcredit");
@@ -673,9 +578,6 @@ function extractNormalizedKeywords(text, { noExclusive = false } = {}) {
   t = t.replace(/\bon-board credit\b/gi, "onboardcredit");
   t = t.replace(/(50\s*%|50\s*percent)\s*(off|reduced|discount)/g, "halfoff");
   t = t.replace(/half[\s\-]?off/g, "halfoff");
-  // remove internal codes e.g. (PEM/OB7) or P3P etc
-  t = t.replace(/\([^)]*\)/g, " ");
-  t = t.replace(/\b[a-z]{1,4}\d+[a-z0-9/]*\b/gi, " ");
   t = t.replace(/[^a-z0-9\s]/g, ' ');
   const words = t.split(/\s+/).filter(w => w.length > 1);
   const ngrams = [];
@@ -709,48 +611,17 @@ function keywordSetOverlap(arr1, arr2) {
   const matches = [];
   for (let i = 0; i < set1.length; i++) {
     let kw = set1[i];
+    let foundMatch = false;
     for (let j = 0; j < set2.length; j++) {
       if (usedIdx2.has(j)) continue;
       const syn1 = synonymsFor(kw), syn2 = synonymsFor(set2[j]);
       if (syn1.some(x => syn2.includes(x))) {
         matches.push(syn1[0]);
         usedIdx2.add(j);
+        foundMatch = true;
         break;
       }
     }
   }
   return [...new Set(matches)];
-}
-
-// ---- HQ duplicate detection ----
-// Computes a light-weight "fingerprint" for a deal line to catch dupes
-function dealFingerprint(text) {
-  const kws = extractNormalizedKeywords(text, { noExclusive: true }).sort();
-  const money = extractMoneyValues(text).join(",");
-  const perc = extractPercentageValues(text).join(",");
-  const flags = [
-    hasOBC(text) ? "obc" : "",
-    hasGratuity(text) ? "grat" : "",
-    hasKids(text) ? "kids" : "",
-    isHalfOffDeal(text) ? "half" : ""
-  ].filter(Boolean).join("|");
-  return `${kws.join("|")}||${money}||${perc}||${flags}`;
-}
-
-// Returns { unique: [], duplicates: [{original, duplicateOf}...] }
-function dedupeHQDeals(hqDeals) {
-  const seen = new Map();
-  const unique = [];
-  const duplicates = [];
-  for (const d of hqDeals) {
-    const vendKey = _normalizeVendorTokens(d.vendor).join(" ");
-    const fp = vendKey + "||" + dealFingerprint(d.text);
-    if (seen.has(fp)) {
-      duplicates.push({ duplicateOf: seen.get(fp), original: d });
-    } else {
-      seen.set(fp, d);
-      unique.push(d);
-    }
-  }
-  return { unique, duplicates };
 }
