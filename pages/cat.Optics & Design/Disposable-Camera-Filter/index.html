@@ -3,8 +3,167 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Disposable Night — WebGL Flash Look</title>
-<link rel="stylesheet" href="styles.css">
+<title>Disposable Night — WebGL Flash Look (Boosted Bloom + Casts + Halation)</title>
+<style>
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --muted: #9aa3b2;
+  --text: #e8ecf1;
+  --accent: #62a1ff;
+  --border: #232836;
+  --flash-color: #ff6b35;
+  --tone-color: #10b981;
+  --effects-color: #8b5cf6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--text); background: var(--bg);
+  font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+/* Header */
+header {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 12px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #161a22, #12151c);
+  position: sticky; top: 0; z-index: 10; min-height: 64px;
+}
+.brand { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-main { font-weight: 700; letter-spacing: 0.2px; font-size: 16px; }
+.brand-sub { font-size: 11px; color: var(--muted); margin-top: -2px; }
+.spacer { flex: 1; min-width: 16px; }
+.header-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button, select, .file-input button {
+  background: #1f2634; color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; cursor: pointer; transition: all 0.15s ease; font-weight: 600; font-size: 13px;
+  min-height: 44px; white-space: nowrap;
+}
+button:hover, select:hover, .file-input button:hover { border-color: #2e3547; background: #212a3b; }
+button:active, .file-input button:active { transform: scale(0.98); }
+.file-input { position: relative; }
+.file-input input[type="file"] { position: absolute; opacity: 0; pointer-events: none; }
+
+/* Layout */
+#app { display: flex; flex-direction: column; height: calc(100vh - 64px); overflow: hidden; }
+.desktop-controls {
+  display: none; width: 380px; background: #11141a; border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 20px;
+}
+.control-section {
+  margin-bottom: 24px; padding: 16px; background: var(--panel);
+  border-radius: 12px; border: 1px solid var(--border);
+}
+.control-section h3 {
+  margin: 0 0 16px 0; font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+}
+
+/* Flash strength dial */
+.flash-pair { display: flex; gap: 20px; margin-bottom: 20px; align-items: center; }
+.flash-strength-dial, .flash-position-2d { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.flash-strength-dial label, .flash-position-2d label { margin-bottom: 8px; font-size: 12px; font-weight: 500; color: #bec6d6; }
+.flash-strength-dial x-knob { --accent: #ff6a2e; }
+.dial-value { font-weight: 700; font-size: 16px; color: var(--flash-color); }
+
+/* Position pad */
+.position-pad {
+  width: 110px; height: 110px; background: #1a1f2e;
+  border: 2px solid var(--flash-color); border-radius: 8px;
+  position: relative; cursor: crosshair;
+}
+.position-handle {
+  width: 12px; height: 12px; background: var(--flash-color); border-radius: 50%;
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  cursor: grab; box-shadow: 0 0 10px rgba(255,107,53,0.5);
+}
+.position-handle:active { cursor: grabbing; }
+
+/* Sliders */
+.standard-control, .dual-slider, .color-control { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.standard-control label, .dual-slider label, .color-control label {
+  min-width: 140px; font-size: 12px; font-weight: 500; color: #bec6d6;
+}
+.standard-control input[type="range"], .dual-slider input[type="range"], .color-control input[type="range"] {
+  flex: 1; height: 6px; background: #1a1f2e; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none;
+}
+.standard-control input[type="range"]::-webkit-slider-thumb,
+.dual-slider input[type="range"]::-webkit-slider-thumb,
+.color-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: var(--accent);
+  border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.control-value { min-width: 50px; text-align: right; font-size: 12px; font-weight: 600; color: var(--accent); }
+
+/* Exposure slider */
+.exposure-control { margin-bottom: 16px; }
+.ev-slider { position: relative; margin: 8px 0; }
+.ev-slider input[type="range"] { width: 100%; height: 6px; background: #1a1f2e; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; }
+.ev-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.ev-marks { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+/* Canvas */
+.canvas-container { flex: 1; display: flex; flex-direction: column; position: relative; min-height: 0; }
+.canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #0a0c11; display: flex; align-items: center; justify-content: center; }
+#glcanvas { max-width: 100%; max-height: 100%; display: block; background: #0a0c11; cursor: crosshair; touch-action: none; }
+.canvas-controls { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 5; }
+.zoom-btn, .compare-btn { padding: 8px 12px; background: rgba(23,26,33,0.9); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer; backdrop-filter: blur(8px); }
+.zoom-btn:hover, .compare-btn:hover { background: rgba(33,42,59,0.9); }
+.drop {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  pointer-events: none; color: var(--muted); padding: 24px; font-size: 15px;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 4px, rgba(255,255,255,0) 4px 8px);
+}
+.interaction-hint { font-size: 13px; opacity: 0.8; }
+
+/* Mobile tabs */
+.mobile-tabs { display: flex; background: var(--panel); border-top: 1px solid var(--border); flex-shrink: 0; }
+.tab-btn { flex: 1; padding: 12px 8px; background: transparent; border: none; color: var(--muted); font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s ease; position: relative; }
+.tab-btn.active { color: var(--text); }
+.tab-btn[data-tab="flash"].active { color: var(--flash-color); }
+.tab-btn[data-tab="tone"].active { color: var(--tone-color); }
+.tab-btn[data-tab="effects"].active { color: var(--effects-color); }
+.tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: currentColor; }
+
+/* Mobile controls */
+.mobile-controls { background: var(--bg); flex-shrink: 0; border-top: 1px solid var(--border); height: 220px; overflow: hidden; }
+.tab-content { display: none; padding: 16px; height: 100%; overflow-y: auto; }
+.tab-content.active { display: block; }
+.mobile-position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.pos-preset { padding: 8px 6px; background: #1a1f2e; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; cursor: pointer; transition: all 0.15s ease; }
+.pos-preset.active { background: var(--flash-color); color: #000; }
+.pos-preset:hover:not(.active) { background: #212a3b; }
+.mobile-slider { margin-bottom: 16px; }
+.mobile-slider label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text); }
+.mobile-slider input[type="range"] { width: 100%; height: 6px; background: #1a1f2e; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; margin-bottom: 6px; }
+.mobile-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--accent); border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.mobile-slider .control-value { float: right; font-size: 12px; font-weight: 700; color: var(--accent); }
+
+/* Tablet/Desktop breakpoints */
+@media (min-width: 768px) {
+  header { flex-wrap: nowrap; padding: 12px 16px; }
+  .brand { flex-direction: row; align-items: baseline; gap: 8px; }
+  .brand-sub { margin-top: 0; }
+  .header-actions { flex-wrap: nowrap; gap: 8px; }
+  button, select, .file-input button { min-height: 40px; padding: 8px 12px; }
+  .mobile-controls { height: 240px; }
+  .tab-content { padding: 20px; }
+}
+@media (min-width: 1024px) {
+  #app { display: grid; grid-template-columns: 380px 1fr; grid-template-rows: 1fr; height: calc(100vh - 64px); }
+  .desktop-controls { display: block; }
+  .mobile-tabs, .mobile-controls { display: none; }
+  .canvas-container { order: 2; }
+}
+@media (min-width: 1400px) {
+  #app { grid-template-columns: 420px 1fr; }
+  .desktop-controls { width: 420px; padding: 24px; }
+}
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:disabled:hover { background: #1f2634; border-color: var(--border); transform: none; }
+</style>
 </head>
 <body>
 <header>
@@ -61,9 +220,7 @@
         <label>Exposure (EV)</label>
         <div class="ev-slider">
           <input type="range" id="ev-slider" min="-1.0" max="0.5" step="0.01" value="-0.40">
-          <div class="ev-marks">
-            <span>-1</span><span>-0.5</span><span>0</span><span>+0.5</span>
-          </div>
+          <div class="ev-marks"><span>-1</span><span>-0.5</span><span>0</span><span>+0.5</span></div>
         </div>
         <span class="control-value">-0.40</span>
       </div>
@@ -107,13 +264,13 @@
       <div class="color-controls">
         <div class="color-control">
           <label>Green Shadows</label>
-          <input type="range" id="green-shadows-slider" min="0" max="1" step="0.01" value="0.35">
-          <span class="control-value">0.35</span>
+          <input type="range" id="green-shadows-slider" min="0" max="1" step="0.01" value="0.55">
+          <span class="control-value">0.55</span>
         </div>
         <div class="color-control">
           <label>Magenta Mids</label>
-          <input type="range" id="magenta-mids-slider" min="0" max="1" step="0.01" value="0.18">
-          <span class="control-value">0.18</span>
+          <input type="range" id="magenta-mids-slider" min="0" max="1" step="0.01" value="0.30">
+          <span class="control-value">0.30</span>
         </div>
       </div>
     </div>
@@ -123,28 +280,28 @@
       <div class="bloom-controls">
         <div class="standard-control">
           <label>Bloom Threshold</label>
-          <input type="range" id="bloom-threshold-slider" min="0.5" max="1" step="0.001" value="0.72">
-          <span class="control-value">0.72</span>
+          <input type="range" id="bloom-threshold-slider" min="0.2" max="1" step="0.001" value="0.62">
+          <span class="control-value">0.62</span>
         </div>
         <div class="standard-control">
           <label>Bloom Radius</label>
-          <input type="range" id="bloom-radius-slider" min="1" max="30" step="0.1" value="16.0">
-          <span class="control-value">16.0</span>
+          <input type="range" id="bloom-radius-slider" min="1" max="60" step="0.1" value="28.0">
+          <span class="control-value">28.0</span>
         </div>
         <div class="standard-control">
           <label>Bloom Intensity</label>
-          <input type="range" id="bloom-intensity-slider" min="0" max="1" step="0.01" value="0.55">
-          <span class="control-value">0.55</span>
+          <input type="range" id="bloom-intensity-slider" min="0" max="3" step="0.01" value="1.10">
+          <span class="control-value">1.10</span>
         </div>
         <div class="standard-control">
           <label>Bloom Warmth</label>
-          <input type="range" id="bloom-warm-slider" min="0" max="1" step="0.01" value="0.35">
-          <span class="control-value">0.35</span>
+          <input type="range" id="bloom-warm-slider" min="0" max="1" step="0.01" value="0.45">
+          <span class="control-value">0.45</span>
         </div>
         <div class="standard-control">
           <label>Halation (Red Bleed)</label>
-          <input type="range" id="halation-slider" min="0" max="1" step="0.01" value="0.25">
-          <span class="control-value">0.25</span>
+          <input type="range" id="halation-slider" min="0" max="2" step="0.01" value="0.80">
+          <span class="control-value">0.80</span>
         </div>
       </div>
       <div class="vignette-controls">
@@ -262,18 +419,18 @@
       <div class="mobile-effects-controls">
         <div class="mobile-slider">
           <label>Bloom Intensity</label>
-          <input type="range" id="mobile-bloom-intensity" min="0" max="1" step="0.01" value="0.55">
-          <span class="control-value">0.55</span>
+          <input type="range" id="mobile-bloom-intensity" min="0" max="3" step="0.01" value="1.10">
+          <span class="control-value">1.10</span>
         </div>
         <div class="mobile-slider">
           <label>Halation</label>
-          <input type="range" id="mobile-halation" min="0" max="1" step="0.01" value="0.25">
-          <span class="control-value">0.25</span>
+          <input type="range" id="mobile-halation" min="0" max="2" step="0.01" value="0.80">
+          <span class="control-value">0.80</span>
         </div>
         <div class="mobile-slider">
           <label>Green Shadows</label>
-          <input type="range" id="mobile-green-shadows" min="0" max="1" step="0.01" value="0.35">
-          <span class="control-value">0.35</span>
+          <input type="range" id="mobile-green-shadows" min="0" max="1" step="0.01" value="0.55">
+          <span class="control-value">0.55</span>
         </div>
         <div class="mobile-slider">
           <label>Vignette</label>
@@ -297,30 +454,22 @@
   </div>
 </div>
 
+<!-- Knob web component -->
 <script>
 class XKnob extends HTMLElement{
-  static get observedAttributes(){return["value","min","max","step","disabled"]}
+  static get observedAttributes(){return["value","min","max","step","disabled"];}
   constructor(){
     super();
     this._y=null;
-    this.attachShadow({mode:"open"}).innerHTML=\`<style>:host{--accent:#ff6a2e;--panel:#171b23;--bg:#0f1318;--size:110px;--track-w:2;--handle-r:6;display:inline-block}.wrap{background:transparent;border:none;padding:0;display:inline-flex;place-items:center}.knob{width:var(--size);height:var(--size);outline:0;cursor:grab;position:relative}.knob:active{cursor:grabbing}svg{width:100%;height:100%;display:block}.base{stroke:rgba(255,106,46,.18);fill:none;stroke-width:var(--track-w);stroke-linecap:round}.prog{stroke:var(--accent);fill:none;stroke-width:var(--track-w);stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(255,106,46,.35))}.handle{fill:var(--accent);filter:drop-shadow(0 0 8px rgba(255,106,46,.35))}.knob:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(255,106,46,.45) inset}:host([disabled]) .knob{opacity:.55;cursor:not-allowed}</style><div class="wrap"><div class="knob" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="base" d=""/><path class="prog" d=""/><circle class="handle" r="var(--handle-r)" cx="0" cy="0"/></svg></div></div>\`;
+    this.attachShadow({mode:"open"}).innerHTML=\`<style>:host{--accent:#ff6a2e;--size:110px;--track-w:2;--handle-r:6;display:inline-block}.wrap{background:transparent;border:none;padding:0;display:inline-flex;place-items:center}.knob{width:var(--size);height:var(--size);outline:0;cursor:grab;position:relative}.knob:active{cursor:grabbing}svg{width:100%;height:100%;display:block}.base{stroke:rgba(255,106,46,.18);fill:none;stroke-width:var(--track-w);stroke-linecap:round}.prog{stroke:var(--accent);fill:none;stroke-width:var(--track-w);stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(255,106,46,.35))}.handle{fill:var(--accent);filter:drop-shadow(0 0 8px rgba(255,106,46,.35))}.knob:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(255,106,46,.45) inset}:host([disabled]) .knob{opacity:.55;cursor:not-allowed}</style><div class="wrap"><div class="knob" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="base" d=""/><path class="prog" d=""/><circle class="handle" r="var(--handle-r)" cx="0" cy="0"/></svg></div></div>\`;
     this.$k=this.shadowRoot.querySelector(".knob");
     this.$base=this.shadowRoot.querySelector(".base");
     this.$prog=this.shadowRoot.querySelector(".prog");
     this.$handle=this.shadowRoot.querySelector(".handle");
-    this._min=0;
-    this._max=1;
-    this._step=0.01;
-    this._value=0.5;
-    this._start=-135;
-    this._sweep=270;
-    this._r=42
+    this._min=0; this._max=1; this._step=0.01; this._value=1.0; this._start=-135; this._sweep=270; this._r=42;
   }
   connectedCallback(){
-    this._upgrade("value");
-    this._upgrade("min");
-    this._upgrade("max");
-    this._upgrade("step");
+    ["value","min","max","step"].forEach(p=>this._upgrade(p));
     this._clampSet(this._value,false);
     this.$k.addEventListener("pointerdown",e=>{if(this.disabled)return;this.$k.setPointerCapture(e.pointerId);this._y=e.clientY});
     addEventListener("pointermove",e=>{if(this._y==null||this.disabled)return;const dy=e.clientY-this._y;this._y=e.clientY;const span=Math.max(20,180);const delta=-(dy/span)*(this._max-this._min);this._clampSet(this._value+this._quantize(delta),true)});
@@ -329,16 +478,11 @@ class XKnob extends HTMLElement{
     this.$k.addEventListener("keydown",e=>{if(this.disabled)return;const big=(this._max-this._min)/10;let d=0;if(e.key==="ArrowUp"||e.key==="ArrowRight")d=this._step;else if(e.key==="ArrowDown"||e.key==="ArrowLeft")d=-this._step;else if(e.key==="PageUp")d=big;else if(e.key==="PageDown")d=-big;else if(e.key==="Home"){this._clampSet(this._min,true);this.dispatchEvent(new Event("change"));return}else if(e.key==="End"){this._clampSet(this._max,true);this.dispatchEvent(new Event("change"));return}if(d){e.preventDefault();this._clampSet(this._value+d,true);this.dispatchEvent(new Event("change"))}});
     this.$k.addEventListener("dblclick",()=>{if(this.disabled)return;const dv=this.hasAttribute("default-value")?Number(this.getAttribute("default-value")):(this._min+this._max)/2;this._clampSet(dv,true);this.dispatchEvent(new Event("change"))})
   }
-  get value(){return this._value}
-  set value(v){this._clampSet(Number(v),false)}
-  get min(){return this._min}
-  set min(v){this._min=Number(v);this._clampSet(this._value,false)}
-  get max(){return this._max}
-  set max(v){this._max=Number(v);this._clampSet(this._value,false)}
-  get step(){return this._step}
-  set step(v){this._step=Math.max(0.0001,Number(v))}
-  get disabled(){return this.hasAttribute("disabled")}
-  set disabled(v){v?this.setAttribute("disabled",""):this.removeAttribute("disabled")}
+  get value(){return this._value} set value(v){this._clampSet(Number(v),false)}
+  get min(){return this._min} set min(v){this._min=Number(v);this._clampSet(this._value,false)}
+  get max(){return this._max} set max(v){this._max=Number(v);this._clampSet(this._value,false)}
+  get step(){return this._step} set step(v){this._step=Math.max(0.0001,Number(v))}
+  get disabled(){return this.hasAttribute("disabled")} set disabled(v){v?this.setAttribute("disabled",""):this.removeAttribute("disabled")}
   attributeChangedCallback(n,_,val){if(n==="disabled")return;const num=Number(val);if(n==="value")this.value=num;if(n==="min")this.min=num;if(n==="max")this.max=num;if(n==="step")this.step=num}
   _upgrade(p){if(this.hasOwnProperty(p)){const v=this[p];delete this[p];this[p]=v}}
   _quantize(v){const s=this._step;return Math.round(v/s)*s}
@@ -350,6 +494,808 @@ class XKnob extends HTMLElement{
 customElements.define("x-knob",XKnob);
 </script>
 
-<script type="module" src="script.js"></script>
+<!-- Main app -->
+<script type="module">
+(function () {
+  // ---------- State ----------
+  const state = {
+    img: null, imgTex: null,
+    width: 1280, height: 720,
+    dpr: Math.min(2, window.devicePixelRatio || 1),
+
+    // Core look
+    ev: -0.40,
+    flashStrength: 1.00, flashFalloff: 4.50, flashCenterX: 0.50, flashCenterY: 0.46,
+    scurve: 0.60, blacks: 0.06, knee: 0.12,
+    shadowCool: 0.35, highlightWarm: 0.35,
+
+    // Bloom stack (boosted)
+    bloomThreshold: 0.62,
+    bloomRadius: 28.0,       // "radius" controls blur spacing
+    bloomIntensity: 1.10,    // 0..3 (post-composite)
+    bloomWarm: 0.45,         // warmth applied to bloom energy
+
+    // Halation (amplified)
+    halation: 0.80,          // 0..2 added red-biased bloom
+
+    // Film-y casts (stronger)
+    greenShadows: 0.55,
+    magentaMids: 0.30,
+
+    // Other effects
+    vignette: 0.18, vignettePower: 2.5,
+    ca: 1.00, clarity: 0.00,
+    grain: 0.025, grainShadowBoost: 0.70,
+
+    // App
+    needsRender: true, draggingFlash: false,
+    zoom: 1.0, panX: 0, panY: 0,
+    showingBefore: false,
+  };
+
+  const presetDefs = {
+    street: { ev:-0.40, flashStrength:0.95, flashFalloff:4.8, flashCenterY:0.47,
+      scurve:0.58, blacks:0.06, knee:0.12, shadowCool:0.32, highlightWarm:0.35,
+      bloomThreshold:0.60, bloomRadius:30, bloomIntensity:1.20, bloomWarm:0.42, halation:0.9,
+      greenShadows:0.50, magentaMids:0.28,
+      vignette:0.18, vignettePower:2.4, ca:1.0, clarity:0.05, grain:0.028 },
+    kids: { ev:-0.30, flashStrength:1.05, flashFalloff:3.6,
+      scurve:0.65, blacks:0.05, knee:0.15, shadowCool:0.20, highlightWarm:0.40,
+      bloomThreshold:0.64, bloomRadius:34, bloomIntensity:1.45, bloomWarm:0.48, halation:0.8,
+      greenShadows:0.38, magentaMids:0.38,
+      vignette:0.12, vignettePower:2.2, ca:0.9, clarity:0.06, grain:0.02 },
+    skate: { ev:-0.52, flashStrength:0.75, flashFalloff:5.8,
+      scurve:0.48, blacks:0.08, knee:0.10, shadowCool:0.45, highlightWarm:0.25,
+      bloomThreshold:0.68, bloomRadius:24, bloomIntensity:0.95, bloomWarm:0.30, halation:1.1,
+      greenShadows:0.60, magentaMids:0.22,
+      vignette:0.22, vignettePower:2.8, ca:1.1, clarity:0.00, grain:0.035 },
+    club: { ev:-0.38, flashStrength:1.10, flashFalloff:4.0,
+      scurve:0.62, blacks:0.06, knee:0.16, shadowCool:0.30, highlightWarm:0.40,
+      bloomThreshold:0.58, bloomRadius:40, bloomIntensity:1.80, bloomWarm:0.55, halation:1.2,
+      greenShadows:0.46, magentaMids:0.36,
+      vignette:0.16, vignettePower:2.3, ca:0.8, clarity:0.07, grain:0.026 }
+  };
+
+  // ---------- Mobile tabs ----------
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabBtns.forEach(btn => btn.addEventListener('click', () => {
+    const target = btn.dataset.tab;
+    tabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabContents.forEach(c => c.classList.toggle('active', c.id === `tab-${target}`));
+  }));
+
+  // ---------- Controls binding ----------
+  function setupControlBinding(desktopId, mobileId, key, onChange){
+    const d = document.getElementById(desktopId);
+    const m = mobileId ? document.getElementById(mobileId) : null;
+    const setValue = (val) => {
+      const v = parseFloat(val);
+      state[key] = v;
+      if (d) { d.value = v; const s=d.parentElement.querySelector('.control-value'); if(s) s.textContent = v.toFixed( (d.step && d.step<0.01)?3:2 ); }
+      if (m) { m.value = v; const s=m.parentElement.querySelector('.control-value'); if(s) s.textContent = v.toFixed( (m.step && m.step<0.01)?3:2 ); }
+      onChange && onChange(v);
+      state.needsRender = true;
+    };
+    d && d.addEventListener('input', e=>setValue(e.target.value));
+    m && m.addEventListener('input', e=>setValue(e.target.value));
+    return setValue;
+  }
+  const updateEV = setupControlBinding('ev-slider','mobile-ev','ev');
+  const updateFalloff = setupControlBinding('falloff-slider','mobile-falloff','flashFalloff');
+  const updateScurve = setupControlBinding('scurve-slider','mobile-scurve','scurve');
+  const updateBlacks = setupControlBinding('blacks-slider','mobile-blacks','blacks');
+  const updateKnee = setupControlBinding('knee-slider','mobile-knee','knee');
+  const updateShadowCool = setupControlBinding('shadow-cool-slider', null, 'shadowCool');
+  const updateHighlightWarm = setupControlBinding('highlight-warm-slider', null, 'highlightWarm');
+  const updateBloomThreshold = setupControlBinding('bloom-threshold-slider', null, 'bloomThreshold');
+  const updateBloomRadius = setupControlBinding('bloom-radius-slider', null, 'bloomRadius');
+  const updateBloomIntensity = setupControlBinding('bloom-intensity-slider', 'mobile-bloom-intensity', 'bloomIntensity');
+  const updateBloomWarm = setupControlBinding('bloom-warm-slider', null, 'bloomWarm');
+  const updateHalation = setupControlBinding('halation-slider', 'mobile-halation', 'halation');
+  const updateGreenShadows = setupControlBinding('green-shadows-slider', 'mobile-green-shadows', 'greenShadows');
+  const updateMagentaMids = setupControlBinding('magenta-mids-slider', null, 'magentaMids');
+  const updateVignette = setupControlBinding('vignette-slider', 'mobile-vignette', 'vignette');
+  const updateVignettePower = setupControlBinding('vignette-power-slider', null, 'vignettePower');
+  const updateCA = setupControlBinding('ca-slider', null, 'ca');
+  const updateClarity = setupControlBinding('clarity-slider', null, 'clarity');
+  const updateGrain = setupControlBinding('grain-slider', 'mobile-grain', 'grain');
+
+  // Flash strength knob + mobile slider
+  const flashKnob = document.getElementById('flash-knob');
+  const mobileFlashStrength = document.getElementById('mobile-flash-strength');
+  function updateFlashStrength(v){
+    v = parseFloat(v); state.flashStrength = v; state.needsRender = true;
+    if (flashKnob){ flashKnob.value = v; const s=document.getElementById('flash-knob-value'); if(s) s.textContent=v.toFixed(2); }
+    if (mobileFlashStrength){ mobileFlashStrength.value = v; const s=mobileFlashStrength.parentElement.querySelector('.control-value'); if(s) s.textContent=v.toFixed(2); }
+  }
+  if (flashKnob){
+    flashKnob.min=0; flashKnob.max=1.5; flashKnob.step=0.01; flashKnob.value=state.flashStrength;
+    flashKnob.addEventListener('input', e=>updateFlashStrength(e.currentTarget.value));
+    flashKnob.addEventListener('change', e=>updateFlashStrength(e.currentTarget.value));
+    updateFlashStrength(state.flashStrength);
+  }
+  mobileFlashStrength?.addEventListener('input', e=>updateFlashStrength(e.target.value));
+
+  // 2D position pad
+  (function setup2DPad(){
+    const pad = document.getElementById('position-pad');
+    const handle = document.getElementById('position-handle');
+    if(!pad || !handle) return;
+    let dragging=false;
+    function setPos(x,y){
+      state.flashCenterX = Math.max(0, Math.min(1, x));
+      state.flashCenterY = Math.max(0, Math.min(1, y));
+      const r = pad.getBoundingClientRect();
+      handle.style.left = (state.flashCenterX*(r.width-12))+'px';
+      handle.style.top  = (state.flashCenterY*(r.height-12))+'px';
+      state.needsRender = true;
+    }
+    function pointer(e){
+      const r = pad.getBoundingClientRect();
+      const x = ((e.clientX || e.touches?.[0]?.clientX) - r.left) / r.width;
+      const y = ((e.clientY || e.touches?.[0]?.clientY) - r.top) / r.height;
+      setPos(x,y);
+    }
+    pad.addEventListener('mousedown', e=>{dragging=true; pointer(e);});
+    pad.addEventListener('touchstart', e=>{dragging=true; pointer(e);});
+    window.addEventListener('mousemove', e=>{if(dragging) pointer(e);});
+    window.addEventListener('touchmove', e=>{if(dragging) pointer(e);});
+    window.addEventListener('mouseup', ()=>dragging=false);
+    window.addEventListener('touchend', ()=>dragging=false);
+    setPos(state.flashCenterX, state.flashCenterY);
+  })();
+
+  // Mobile position presets
+  const posPresets = document.querySelectorAll('.pos-preset');
+  posPresets.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [x,y] = btn.dataset.pos.split(',').map(parseFloat);
+      state.flashCenterX=x; state.flashCenterY=y;
+      posPresets.forEach(p=>p.classList.remove('active')); btn.classList.add('active');
+      const pad=document.getElementById('position-pad'), handle=document.getElementById('position-handle');
+      if (pad && handle){
+        const r=pad.getBoundingClientRect();
+        handle.style.left=(x*(r.width-12))+'px';
+        handle.style.top=(y*(r.height-12))+'px';
+      }
+      state.needsRender=true;
+    });
+  });
+
+  // Canvas controls
+  document.getElementById('zoom-fit')?.addEventListener('click', ()=>{
+    state.zoom=1.0; state.panX=0; state.panY=0;
+    if (state.img) resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
+  });
+  document.getElementById('zoom-100')?.addEventListener('click', ()=>{
+    state.zoom=1.0; state.panX=0; state.panY=0;
+    if (state.img) setSize(state.img.naturalWidth, state.img.naturalHeight);
+  });
+  const compareBtn = document.getElementById('compare');
+  compareBtn?.addEventListener('mousedown', ()=>{state.showingBefore=true; state.needsRender=true;});
+  compareBtn?.addEventListener('mouseup',   ()=>{state.showingBefore=false; state.needsRender=true;});
+  compareBtn?.addEventListener('touchstart',()=>{state.showingBefore=true; state.needsRender=true;});
+  compareBtn?.addEventListener('touchend',  ()=>{state.showingBefore=false; state.needsRender=true;});
+
+  // File I/O
+  const fileIn = document.getElementById('file');
+  document.getElementById('open').onclick = ()=>fileIn.click();
+  document.getElementById('export').onclick = exportImage;
+  document.getElementById('mobile-export')?.addEventListener('click', exportImage);
+
+  function defaultState(){
+    return {
+      ev:-0.40, flashStrength:1.00, flashFalloff:4.50, flashCenterX:0.50, flashCenterY:0.46,
+      scurve:0.60, blacks:0.06, knee:0.12, shadowCool:0.35, highlightWarm:0.35,
+      bloomThreshold:0.62, bloomRadius:28.0, bloomIntensity:1.10, bloomWarm:0.45,
+      halation:0.80, greenShadows:0.55, magentaMids:0.30,
+      vignette:0.18, vignettePower:2.5, ca:1.00, clarity:0.00, grain:0.025, grainShadowBoost:0.70
+    };
+  }
+  function resetControls(){
+    Object.assign(state, defaultState());
+    updateEV(state.ev); updateFalloff(state.flashFalloff); updateScurve(state.scurve); updateBlacks(state.blacks); updateKnee(state.knee);
+    updateShadowCool(state.shadowCool); updateHighlightWarm(state.highlightWarm);
+    updateBloomThreshold(state.bloomThreshold); updateBloomRadius(state.bloomRadius); updateBloomIntensity(state.bloomIntensity); updateBloomWarm(state.bloomWarm);
+    updateHalation(state.halation); updateGreenShadows(state.greenShadows); updateMagentaMids(state.magentaMids);
+    updateVignette(state.vignette); updateVignettePower(state.vignettePower); updateCA(state.ca); updateClarity(state.clarity); updateGrain(state.grain);
+    const handle=document.getElementById('position-handle'); if (handle){ handle.style.left='50%'; handle.style.top='46%'; }
+    posPresets.forEach(p=>p.classList.toggle('active', p.dataset.pos==='0.5,0.46'));
+    updateFlashStrength(state.flashStrength);
+    state.needsRender=true;
+  }
+  document.getElementById('reset').onclick=resetControls;
+  document.getElementById('mobile-reset')?.addEventListener('click', resetControls);
+
+  document.getElementById('preset').onchange = e=>{
+    const p = presetDefs[e.target.value];
+    if (p){
+      Object.assign(state, p);
+      Object.keys(p).forEach(k=>{
+        if (k==='flashStrength') updateFlashStrength(p[k]);
+        else if (k==='ev') updateEV(p[k]);
+        else if (k==='flashFalloff') updateFalloff(p[k]);
+        else if (k==='scurve') updateScurve(p[k]);
+        else if (k==='blacks') updateBlacks(p[k]);
+        else if (k==='knee') updateKnee(p[k]);
+        else if (k==='shadowCool') updateShadowCool(p[k]);
+        else if (k==='highlightWarm') updateHighlightWarm(p[k]);
+        else if (k==='bloomThreshold') updateBloomThreshold(p[k]);
+        else if (k==='bloomRadius') updateBloomRadius(p[k]);
+        else if (k==='bloomIntensity') updateBloomIntensity(p[k]);
+        else if (k==='bloomWarm') updateBloomWarm(p[k]);
+        else if (k==='halation') updateHalation(p[k]);
+        else if (k==='greenShadows') updateGreenShadows(p[k]);
+        else if (k==='magentaMids') updateMagentaMids(p[k]);
+        else if (k==='vignette') updateVignette(p[k]);
+        else if (k==='vignettePower') updateVignettePower(p[k]);
+        else if (k==='ca') updateCA(p[k]);
+        else if (k==='clarity') updateClarity(p[k]);
+        else if (k==='grain') updateGrain(p[k]);
+      });
+      updateFlashStrength(p.flashStrength ?? state.flashStrength);
+      state.needsRender=true;
+    }
+    e.target.value='';
+  };
+
+  // ---------- WebGL ----------
+  const canvas = document.getElementById('glcanvas');
+  const dropHelp = document.getElementById('drophelp');
+  let gl;
+
+  function initGL(){
+    gl = canvas.getContext('webgl2', {premultipliedAlpha:false, preserveDrawingBuffer:true})
+      || canvas.getContext('webgl', {premultipliedAlpha:false, preserveDrawingBuffer:true});
+    if (!gl){ alert('WebGL not supported.'); return; }
+    gl.getExtension('OES_texture_float');
+    gl.getExtension('OES_texture_float_linear');
+    gl.getExtension('EXT_color_buffer_float');
+    buildPrograms(); initBuffers();
+  }
+
+  let quadVbo;
+  function initBuffers(){
+    const verts = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+    quadVbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+    gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  }
+  function createTexture(w,h,data=null){
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return tex;
+  }
+  function createFBO(w,h){
+    const tex=createTexture(w,h);
+    const fbo=gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    return {fbo, tex, w, h};
+  }
+  function setSize(w,h){
+    state.width=w; state.height=h;
+    const dpr=state.dpr;
+    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+    canvas.style.width=w+'px'; canvas.style.height=h+'px';
+    gl.viewport(0,0,canvas.width,canvas.height);
+  }
+
+  // ---------- Shaders ----------
+  const COMMON = `
+    precision highp float;
+    varying vec2 v_uv;
+    uniform vec2 uResolution;
+    vec3 toLinear(vec3 c){ return pow(c, vec3(2.2)); }
+    vec3 toSRGB(vec3 c){ return pow(max(c, 0.0), vec3(1.0/2.2)); }
+    float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+  `;
+  const VS = `
+    attribute vec2 a_pos; varying vec2 v_uv;
+    void main(){ v_uv = a_pos*0.5 + 0.5; gl_Position = vec4(a_pos,0.0,1.0); }
+  `;
+  const FS_pre = COMMON + `
+    uniform sampler2D uTex; uniform float uEV;
+    void main(){
+      vec3 c = toLinear(texture2D(uTex, v_uv).rgb);
+      c *= exp2(uEV);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_flash = COMMON + `
+    uniform sampler2D uTex;
+    uniform vec2 uFlashCenter;
+    uniform float uFlashStrength, uFlashFalloff;
+    void main(){
+      vec2 ac = vec2(uResolution.x/uResolution.y, 1.0);
+      float r = length((v_uv - uFlashCenter) * ac);
+      float mask = 1.0 / (1.0 + pow(uFlashFalloff * r, 2.0));
+      vec3 c = texture2D(uTex, v_uv).rgb * (1.0 + uFlashStrength * mask);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_tone = COMMON + `
+    uniform sampler2D uTex; uniform float uScurve, uBlacks, uKnee;
+    vec3 sCurve(vec3 x){ return mix(x, x*x*(3.0-2.0*x), uScurve); }
+    vec3 blackCrush(vec3 x){ return max(vec3(0.0), x - uBlacks) / (1.0 - uBlacks + 1e-6); }
+    vec3 shoulder(vec3 x){ return 1.0 - pow(1.0 - x, vec3(1.0 + 5.0*uKnee)); }
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb;
+      c = sCurve(c); c = blackCrush(c); c = shoulder(c);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_split = COMMON + `
+    uniform sampler2D uTex; uniform float uShadowCool, uHighlightWarm;
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb;
+      float Y = luma(c);
+      float wSh = smoothstep(0.7, 0.2, Y);
+      float wHi = smoothstep(0.5, 0.9, Y);
+      vec3 shTint = mix(vec3(1.0), vec3(0.95, 1.08, 1.15), uShadowCool);   // stronger cool
+      vec3 hiTint = mix(vec3(1.0), vec3(1.15, 1.00, 0.90), uHighlightWarm); // warmer highs
+      c *= mix(vec3(1.0), shTint, wSh);
+      c *= mix(vec3(1.0), hiTint, wHi);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_cast = COMMON + `
+    uniform sampler2D uTex; uniform float uGreenShadows, uMagentaMids;
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb;
+      float Y = luma(c);
+      float wS = 1.0 - smoothstep(0.18, 0.55, Y); // heavier in shadows
+      float wM = smoothstep(0.20, 0.60, Y) * (1.0 - smoothstep(0.60, 0.90, Y));
+      // Stronger casts
+      c *= mix(vec3(1.0), vec3(0.80, 1.25, 0.82), uGreenShadows * wS);
+      c *= mix(vec3(1.0), vec3(1.22, 0.80, 1.22), uMagentaMids  * wM);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_vignette = COMMON + `
+    uniform sampler2D uTex; uniform float uVStrength, uVPower;
+    void main(){
+      vec2 ac = vec2(uResolution.x/uResolution.y, 1.0);
+      float r = length((v_uv - 0.5) * ac);
+      float vig = pow(r, uVPower);
+      vec3 c = texture2D(uTex, v_uv).rgb * (1.0 - uVStrength * vig);
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  // Bright-pass (normalized) — keep only energy above threshold, with warmth
+  const FS_bright = COMMON + `
+    uniform sampler2D uTex; uniform float uThreshold, uWarm;
+    vec3 warmTint(float a){ return mix(vec3(1.0), vec3(1.10, 1.00, 0.88), a); }
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb; // linear
+      float Y = luma(c);
+      float m = clamp((Y - uThreshold)/max(1e-5, 1.0 - uThreshold), 0.0, 1.0);
+      vec3 bloom = c * m;
+      bloom *= warmTint(uWarm);
+      // Extra punch so sliders clearly "do something"
+      bloom *= 1.5;
+      gl_FragColor = vec4(bloom,1.0);
+    }
+  `;
+  // Separable blur
+  const FS_blur = COMMON + `
+    uniform sampler2D uTex; uniform vec2 uTexel; uniform float uRadius;
+    void main(){
+      vec3 s = vec3(0.0);
+      float w[5]; w[0]=0.227027; w[1]=0.1945946; w[2]=0.1216216; w[3]=0.054054; w[4]=0.016216;
+      vec2 stepv = uTexel * max(uRadius, 1.0);
+      s += texture2D(uTex, v_uv).rgb * w[0];
+      for (int i=1;i<5;i++){
+        s += texture2D(uTex, v_uv + stepv*float(i)).rgb * w[i];
+        s += texture2D(uTex, v_uv - stepv*float(i)).rgb * w[i];
+      }
+      gl_FragColor = vec4(s,1.0);
+    }
+  `;
+  // Downsample box 2x
+  const FS_downsample = COMMON + `
+    uniform sampler2D uTex; uniform vec2 uTexel;
+    void main(){
+      vec3 s = vec3(0.0);
+      s += texture2D(uTex, v_uv + uTexel * vec2(-0.5,-0.5)).rgb;
+      s += texture2D(uTex, v_uv + uTexel * vec2( 0.5,-0.5)).rgb;
+      s += texture2D(uTex, v_uv + uTexel * vec2(-0.5, 0.5)).rgb;
+      s += texture2D(uTex, v_uv + uTexel * vec2( 0.5, 0.5)).rgb;
+      gl_FragColor = vec4(s * 0.25, 1.0);
+    }
+  `;
+  // Upsample & add
+  const FS_upsampleAdd = COMMON + `
+    uniform sampler2D uLow;  // lower-res
+    uniform sampler2D uHigh; // same-res as target
+    uniform float uAdd;
+    void main(){
+      vec3 low = texture2D(uLow,  v_uv).rgb;
+      vec3 high= texture2D(uHigh, v_uv).rgb;
+      gl_FragColor = vec4(high + low * uAdd, 1.0);
+    }
+  `;
+  // Bloom composite with halation
+  const FS_bloomComposite = COMMON + `
+    uniform sampler2D uBase, uBloom;
+    uniform float uIntensity, uHalation;
+    vec3 screen(vec3 a, vec3 b){ return 1.0 - (1.0 - a)*(1.0 - b); }
+    void main(){
+      vec3 base  = texture2D(uBase,  v_uv).rgb;
+      vec3 bloom = texture2D(uBloom, v_uv).rgb;
+      vec3 outc = screen(base, bloom * uIntensity);
+      // Amplified red-biased halation (independent of intensity for visibility)
+      vec3 hal = bloom * (uHalation * 2.2) * vec3(1.0, 0.22, 0.07);
+      outc += hal;
+      gl_FragColor = vec4(outc,1.0);
+    }
+  `;
+  const FS_ca = COMMON + `
+    uniform sampler2D uTex; uniform vec2 uPx; uniform float uCA;
+    void main(){
+      vec2 ac = vec2(uResolution.x/uResolution.y, 1.0);
+      vec2 dir = normalize((v_uv-0.5)*ac);
+      dir = mix(vec2(1.0,0.0), dir, step(0.0001, length(dir)));
+      vec2 delta = dir * uPx * uCA;
+      vec3 c;
+      c.r = texture2D(uTex, v_uv + delta).r;
+      c.g = texture2D(uTex, v_uv).g;
+      c.b = texture2D(uTex, v_uv - delta).b;
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_clarity = COMMON + `
+    uniform sampler2D uTex; uniform vec2 uPx; uniform float uAmount;
+    vec3 blur9(vec2 uv){
+      vec3 s = vec3(0.0);
+      float w[5]; w[0]=0.227027; w[1]=0.1945946; w[2]=0.1216216; w[3]=0.054054; w[4]=0.016216;
+      s += texture2D(uTex, uv).rgb * w[0];
+      for (int i=1;i<5;i++){
+        s += texture2D(uTex, uv + uPx*float(i)).rgb * w[i];
+        s += texture2D(uTex, uv - uPx*float(i)).rgb * w[i];
+      }
+      return s;
+    }
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb;
+      vec3 blur = blur9(v_uv);
+      vec3 hi = c - blur;
+      c += hi * uAmount * 2.0;
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+  const FS_copy = COMMON + `uniform sampler2D uTex; void main(){ gl_FragColor=vec4(texture2D(uTex,v_uv).rgb,1.0); }`;
+  const FS_grainFinal = COMMON + `
+    uniform sampler2D uTex; uniform float uGrain, uShadowBoost, uTime;
+    float hash12(vec2 p){
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+    void main(){
+      vec3 c = texture2D(uTex, v_uv).rgb;
+      float Y = luma(c);
+      vec2 ip = floor(v_uv * uResolution);
+      float n  = hash12(ip) * 2.0 - 1.0;
+      float n2 = hash12(ip + 17.0) * 2.0 - 1.0;
+      float white = (n + n2) * 0.5;
+      float amt = uGrain * (0.5 + uShadowBoost * (1.0 - Y));
+      c += white * amt;
+      c = toSRGB(clamp(c, 0.0, 1.0));
+      gl_FragColor = vec4(c,1.0);
+    }
+  `;
+
+  const programs = {};
+  function makeProgram(vsSrc, fsSrc){
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs,vsSrc); gl.compileShader(vs);
+    if(!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vs));
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs,fsSrc); gl.compileShader(fs);
+    if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
+    const prog = gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
+    return prog;
+  }
+  function buildPrograms(){
+    programs.pre = makeProgram(VS, FS_pre);
+    programs.flash = makeProgram(VS, FS_flash);
+    programs.tone = makeProgram(VS, FS_tone);
+    programs.split = makeProgram(VS, FS_split);
+    programs.cast = makeProgram(VS, FS_cast);
+    programs.vignette = makeProgram(VS, FS_vignette);
+    programs.bright = makeProgram(VS, FS_bright);
+    programs.blur = makeProgram(VS, FS_blur);
+    programs.downsample = makeProgram(VS, FS_downsample);
+    programs.upsampleAdd = makeProgram(VS, FS_upsampleAdd);
+    programs.bloomComposite = makeProgram(VS, FS_bloomComposite);
+    programs.ca = makeProgram(VS, FS_ca);
+    programs.clarity = makeProgram(VS, FS_clarity);
+    programs.copy = makeProgram(VS, FS_copy);
+    programs.grainFinal = makeProgram(VS, FS_grainFinal);
+  }
+  function bindFSQ(prog){
+    gl.useProgram(prog);
+    const loc = gl.getAttribLocation(prog, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const resLoc = gl.getUniformLocation(prog, 'uResolution');
+    if (resLoc) gl.uniform2f(resLoc, canvas.width, canvas.height);
+  }
+  function draw(prog, texBindings, targetFbo, extra=(p)=>{}){
+    bindFSQ(prog);
+    let unit=0;
+    for (const [name, tex] of Object.entries(texBindings || {})){
+      const loc = gl.getUniformLocation(prog, name);
+      gl.activeTexture(gl['TEXTURE'+unit]);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(loc, unit);
+      unit++;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo ? targetFbo.fbo : null);
+    extra(prog);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  // ---------- Render targets ----------
+  let rtA, rtB;
+  let rtH_A, rtH_B; // half
+  let rtQ_A, rtQ_B; // quarter
+  let rtE_A, rtE_B; // eighth
+  function ensureTargets(){
+    function re(rt,W,H){ if(!rt || rt.w!==W || rt.h!==H) return createFBO(W,H); return rt; }
+    const cw = canvas.width|0, ch = canvas.height|0;
+    rtA = re(rtA, cw, ch);
+    rtB = re(rtB, cw, ch);
+    rtH_A = re(rtH_A, (cw>>1)||1, (ch>>1)||1);
+    rtH_B = re(rtH_B, (cw>>1)||1, (ch>>1)||1);
+    rtQ_A = re(rtQ_A, (cw>>2)||1, (ch>>2)||1);
+    rtQ_B = re(rtQ_B, (cw>>2)||1, (ch>>2)||1);
+    rtE_A = re(rtE_A, (cw>>3)||1, (ch>>3)||1);
+    rtE_B = re(rtE_B, (cw>>3)||1, (ch>>3)||1);
+  }
+
+  // ---------- Image load ----------
+  fileIn.addEventListener('change', e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const img=new Image();
+    img.onload=()=>{
+      state.img=img; dropHelp.style.display='none';
+      resizeToFit(img.naturalWidth, img.naturalHeight);
+      if (state.imgTex) gl.deleteTexture(state.imgTex);
+      state.imgTex=createTexture(img.naturalWidth, img.naturalHeight);
+      gl.bindTexture(gl.TEXTURE_2D, state.imgTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+      state.needsRender=true; renderFrame(0);
+    };
+    img.src=URL.createObjectURL(file);
+  });
+  function resizeToFit(w,h){
+    const wrap=document.querySelector('.canvas-wrap');
+    const maxW=wrap.clientWidth, maxH=wrap.clientHeight;
+    const scale=Math.min(maxW/w, maxH/h, 1.0);
+    setSize(Math.round(w*scale), Math.round(h*scale));
+    ensureTargets();
+  }
+
+  // Drag & drop
+  (function(){
+    const wrap=document.querySelector('.canvas-wrap');
+    wrap.addEventListener('dragover', e=>e.preventDefault());
+    wrap.addEventListener('drop', e=>{
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f){ fileIn.files=e.dataTransfer.files; fileIn.dispatchEvent(new Event('change')); }
+    });
+  })();
+
+  // ---------- Render loop ----------
+  let lastTime=0;
+  function renderFrame(t){
+    if (!gl) return;
+    const time = t*0.001;
+    if (!state.needsRender && Math.abs(time-lastTime) < 1/60) { requestAnimationFrame(renderFrame); return; }
+    lastTime = time;
+
+    if (!state.imgTex){
+      gl.clearColor(0.05,0.06,0.08,1); gl.clear(gl.COLOR_BUFFER_BIT);
+      requestAnimationFrame(renderFrame); return;
+    }
+    ensureTargets();
+
+    const px = [1/canvas.width, 1/canvas.height];
+
+    // "Before": show original with correct gamma
+    if (state.showingBefore){
+      // pre -> rtA (linear), then grainFinal (uGrain=0) to screen to apply sRGB curve
+      draw(programs.pre, {uTex:state.imgTex}, rtA, p=>gl.uniform1f(gl.getUniformLocation(p,'uEV'), 0.0));
+      draw(programs.grainFinal, {uTex:rtA.tex}, null, p=>{
+        gl.uniform1f(gl.getUniformLocation(p,'uGrain'), 0.0);
+        gl.uniform1f(gl.getUniformLocation(p,'uShadowBoost'), state.grainShadowBoost);
+        gl.uniform1f(gl.getUniformLocation(p,'uTime'), lastTime);
+      });
+      state.needsRender=false; requestAnimationFrame(renderFrame); return;
+    }
+
+    // 0) Pre exposure -> rtA
+    draw(programs.pre, {uTex: state.imgTex}, rtA, p=>gl.uniform1f(gl.getUniformLocation(p,'uEV'), state.ev));
+
+    // 1) Flash -> rtB
+    draw(programs.flash, {uTex: rtA.tex}, rtB, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
+    });
+
+    // BLOOM PYRAMID (pre-tone)
+    // 1. Bright pass to HALF
+    draw(programs.bright, {uTex: rtB.tex}, rtH_A, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uThreshold'), state.bloomThreshold);
+      gl.uniform1f(gl.getUniformLocation(p,'uWarm'), state.bloomWarm);
+    });
+    // 2. Downsample HALF -> QUARTER
+    draw(programs.downsample, {uTex: rtH_A.tex}, rtQ_A, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtH_A.w, 1/rtH_A.h);
+    });
+    // 3. Downsample QUARTER -> EIGHTH
+    draw(programs.downsample, {uTex: rtQ_A.tex}, rtE_A, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtQ_A.w, 1/rtQ_A.h);
+    });
+    // 4. Blur each level (radius scaled)
+    // EIGHTH
+    draw(programs.blur, {uTex: rtE_A.tex}, rtE_B, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtE_A.w, 0.0);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.60);
+    });
+    draw(programs.blur, {uTex: rtE_B.tex}, rtE_A, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtE_B.h);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.60);
+    });
+    // QUARTER
+    draw(programs.blur, {uTex: rtQ_A.tex}, rtQ_B, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtQ_A.w, 0.0);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.80);
+    });
+    draw(programs.blur, {uTex: rtQ_B.tex}, rtQ_A, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtQ_B.h);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.80);
+    });
+    // HALF
+    draw(programs.blur, {uTex: rtH_A.tex}, rtH_B, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtH_A.w, 0.0);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius);
+    });
+    draw(programs.blur, {uTex: rtH_B.tex}, rtH_A, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtH_B.h);
+      gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius);
+    });
+    // 5. Upsample-add: EIGHTH -> QUARTER
+    draw(programs.upsampleAdd, {uLow: rtE_A.tex, uHigh: rtQ_A.tex}, rtQ_B, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uAdd'), 1.0);
+    });
+    // QUARTER -> HALF (final bloom tex = rtH_B)
+    draw(programs.upsampleAdd, {uLow: rtQ_B.tex, uHigh: rtH_A.tex}, rtH_B, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uAdd'), 1.0);
+    });
+
+    // 2) Tone -> rtA
+    draw(programs.tone, {uTex: rtB.tex}, rtA, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uScurve'), state.scurve);
+      gl.uniform1f(gl.getUniformLocation(p,'uBlacks'), state.blacks);
+      gl.uniform1f(gl.getUniformLocation(p,'uKnee'), state.knee);
+    });
+
+    // 3) Split toning -> rtB
+    draw(programs.split, {uTex: rtA.tex}, rtB, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uShadowCool'), state.shadowCool);
+      gl.uniform1f(gl.getUniformLocation(p,'uHighlightWarm'), state.highlightWarm);
+    });
+
+    // 3b) Film-y casts -> rtA
+    draw(programs.cast, {uTex: rtB.tex}, rtA, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uGreenShadows'), state.greenShadows);
+      gl.uniform1f(gl.getUniformLocation(p,'uMagentaMids'),  state.magentaMids);
+    });
+
+    // 4) Vignette -> rtB
+    draw(programs.vignette, {uTex: rtA.tex}, rtB, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uVStrength'), state.vignette);
+      gl.uniform1f(gl.getUniformLocation(p,'uVPower'), state.vignettePower);
+    });
+
+    // 5) Composite bloom (HALF-res texture) onto base -> rtA
+    draw(programs.bloomComposite, {uBase: rtB.tex, uBloom: rtH_B.tex}, rtA, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uIntensity'), state.bloomIntensity);
+      gl.uniform1f(gl.getUniformLocation(p,'uHalation'), state.halation);
+    });
+
+    // 6) Clarity (optional) -> rtB
+    if (state.clarity > 0.001){
+      draw(programs.clarity, {uTex: rtA.tex}, rtB, p=>{
+        gl.uniform2f(gl.getUniformLocation(p,'uPx'), px[0], px[1]);
+        gl.uniform1f(gl.getUniformLocation(p,'uAmount'), state.clarity);
+      });
+    } else {
+      draw(programs.copy, {uTex: rtA.tex}, rtB);
+    }
+
+    // 7) CA -> rtA
+    draw(programs.ca, {uTex: rtB.tex}, rtA, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uPx'), px[0], px[1]);
+      gl.uniform1f(gl.getUniformLocation(p,'uCA'), state.ca);
+    });
+
+    // 8) Grain + gamma to screen
+    draw(programs.grainFinal, {uTex: rtA.tex}, null, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uGrain'), state.grain);
+      gl.uniform1f(gl.getUniformLocation(p,'uShadowBoost'), state.grainShadowBoost);
+      gl.uniform1f(gl.getUniformLocation(p,'uTime'), lastTime);
+    });
+
+    state.needsRender=false;
+    requestAnimationFrame(renderFrame);
+  }
+
+  // Boot / resize
+  initGL();
+  setSize(960,540);
+  ensureTargets();
+  requestAnimationFrame(renderFrame);
+
+  let roScheduled=false;
+  new ResizeObserver(()=>{
+    if (roScheduled) return; roScheduled=true;
+    requestAnimationFrame(()=>{
+      roScheduled=false;
+      if (state.img) resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
+      else setSize(document.querySelector('.canvas-wrap').clientWidth, 480);
+      state.needsRender=true;
+    });
+  }).observe(document.querySelector('.canvas-wrap'));
+
+  window.addEventListener('orientationchange', ()=>{
+    setTimeout(()=>{
+      if (state.img) resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
+      else setSize(document.querySelector('.canvas-wrap').clientWidth, 480);
+      state.needsRender=true;
+    }, 100);
+  });
+
+  // Pointer on canvas (flash center quick set)
+  canvas.addEventListener('mousedown', e=>{
+    if (!state.img) return;
+    setFlashFromEvent(e); state.draggingFlash=true;
+  });
+  window.addEventListener('mousemove', e=>{ if (state.draggingFlash) setFlashFromEvent(e); });
+  window.addEventListener('mouseup', ()=>{ state.draggingFlash=false; });
+  function setFlashFromEvent(e){
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.clientX-rect.left)/rect.width, y=(e.clientY-rect.top)/rect.height;
+    if (e.shiftKey) state.flashCenterX=x; else { state.flashCenterX=x; state.flashCenterY=y; }
+    const pad=document.getElementById('position-pad'), handle=document.getElementById('position-handle');
+    if (pad && handle){
+      const r=pad.getBoundingClientRect();
+      handle.style.left=(state.flashCenterX*(r.width-12))+'px';
+      handle.style.top=(state.flashCenterY*(r.height-12))+'px';
+    }
+    state.needsRender=true;
+  }
+
+  function exportImage(){
+    if(!gl) return;
+    renderFrame(0);
+    const url = canvas.toDataURL('image/png');
+    const a=document.createElement('a'); a.href=url; a.download='disposable-night.png'; a.click();
+  }
+})();
+</script>
 </body>
 </html>
