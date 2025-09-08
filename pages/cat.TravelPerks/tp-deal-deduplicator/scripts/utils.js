@@ -1,27 +1,277 @@
 // utils.js — parsing, normalization, extraction helpers
 
-// ---------- Vendor parsing ----------
+// ---------- Canonical suppliers and aliases (restored, production-safe) ----------
+const knownSuppliers = [
+  "Abercrombie & Kent",
+  "Adventures by Disney",
+  "African Travel",
+  "Ama Waterways",
+  "American Airline Vacations",
+  "American Cruise Line",
+  "Aulani, A Disney Resort & Spa",
+  "Avalon Waterways",
+  "Azamara",
+  "Beaches",
+  "BlueSky Tours",
+  "Breathless",
+  "Carnival",
+  "Celebrity Cruises",
+  "CIE Tours",
+  "Club Med",
+  "Collette",
+  "CroisiEurope",
+  "Crystal Cruises",
+  "Cunard",
+  "Delta Vacations",
+  "Disney Cruise Line",
+  "Disneyland",
+  "DisneyWorld",
+  "Dreams",
+  "El Dorado Spa Resorts & Hotels",
+  "Emerald Cruises",
+  "Excellence Resorts",
+  "Explora Journeys",
+  "Four Seasons Yachts",
+  "Funjet",
+  "G Adventures",
+  "Globus Journeys",
+  "Great Safaris",
+  "Hard Rock Hotels",
+  "Holland America Line",
+  "Hurtigruten",
+  "Iberostar Hotels & Resorts",
+  "Karisma Hotels & Resorts",
+  "Lindblad Expeditions & National Geographic",
+  "MSC Cruises",
+  "Norwegian",
+  "Oceania Cruises",
+  "Outrigger Hotels & Resorts",
+  "Palace Resorts",
+  "Paul Gauguin Cruises",
+  "Ponant",
+  "Princess",
+  "Project Expedition",
+  "Regent Seven Seas Cruises",
+  "Ritz-Carlton Yacht Collection",
+  "RIU Hotels & Resorts",
+  "Riverside Cruises",
+  "Riviera River Cruises",
+  "Rocky Mountaineer",
+  "Royal Caribbean",
+  "Sandals",
+  "Scenic Eclipse Ocean Voyages",
+  "Scenic River",
+  "Seabourn",
+  "Secrets",
+  "Shore Excursions Group",
+  "Silversea",
+  "Southwest Vacations",
+  "Star Clippers",
+  "Tauck Cruises",
+  "Tauck Tours",
+  "TourSales.com",
+  "Trafalgar",
+  "UnCruise Adventures",
+  "Uniworld",
+  "United Vacations",
+  "Viking Ocean",
+  "Viking River",
+  "Viator",
+  "Virgin Voyages",
+  "Villas of Distinction",
+  "Windstar",
+  "Zoëtry Wellness & Spa Resorts",
+  // include any canonical not in the original list but referenced by aliases
+  "Atlas Ocean Voyages"
+];
+
+const aliasMappingRaw = {
+  "american airlines vacations": "American Airline Vacations",
+  "american airline vacations": "American Airline Vacations",
+  "american airlnes vacations": "American Airline Vacations",
+  "royal": "Royal Caribbean",
+  "rccl": "Royal Caribbean",
+  "rcc": "Royal Caribbean",
+  "rci": "Royal Caribbean",
+  "royal caribbean": "Royal Caribbean",
+  "norwegian": "Norwegian",
+  "norwegian cruise": "Norwegian",
+  "norwegian cruise line": "Norwegian",
+  "ncl": "Norwegian",
+  "disney cruise": "Disney Cruise Line",
+  "disney cruises": "Disney Cruise Line",
+  "disney cruise line": "Disney Cruise Line",
+  "celebrity": "Celebrity Cruises",
+  "celebrity cruises": "Celebrity Cruises",
+  "virgin": "Virgin Voyages",
+  "virgin voyages": "Virgin Voyages",
+  "virgin cruise": "Virgin Voyages",
+  "holland": "Holland America Line",
+  "holland america": "Holland America Line",
+  "holland america line": "Holland America Line",
+  "hal": "Holland America Line",
+  "princess": "Princess",
+  "princess cruises": "Princess",
+  "carnival": "Carnival",
+  "carnival cruise": "Carnival",
+  "carnival cruises": "Carnival",
+  "msc": "MSC Cruises",
+  "msc cruises": "MSC Cruises",
+  "viking": "Viking Ocean",
+  "viking ocean": "Viking Ocean",
+  "american cruise": "American Cruise Line",
+  "american cruise line": "American Cruise Line",
+  "atlas": "Atlas Ocean Voyages",
+  "atlas ocean": "Atlas Ocean Voyages",
+  "atlas ocean voyages": "Atlas Ocean Voyages",
+  "azamara": "Azamara",
+  "crystal": "Crystal Cruises",
+  "crystal cruises": "Crystal Cruises",
+  "cunard": "Cunard",
+  "cunard cruises": "Cunard",
+  "emerald": "Emerald Cruises",
+  "emerald cruises": "Emerald Cruises",
+  "explora": "Explora Journeys",
+  "explora journeys": "Explora Journeys",
+  "four seasons": "Four Seasons Yachts",
+  "four seasons yachts": "Four Seasons Yachts",
+  "four seasons yacht": "Four Seasons Yachts",
+  "funjet": "Funjet",
+  "fun jet": "Funjet",
+  "oceania": "Oceania Cruises",
+  "oceania cruises": "Oceania Cruises",
+  "paul gauguin": "Paul Gauguin Cruises",
+  "paul gauguin cruises": "Paul Gauguin Cruises",
+  "ponant": "Ponant",
+  "ponant cruises": "Ponant",
+  "regent": "Regent Seven Seas Cruises",
+  "regent seven seas": "Regent Seven Seas Cruises",
+  "seven seas": "Regent Seven Seas Cruises",
+  "ritz-carlton": "Ritz-Carlton Yacht Collection",
+  "ritz carlton": "Ritz-Carlton Yacht Collection",
+  "ritz-carlton yacht": "Ritz-Carlton Yacht Collection",
+  "seabourn": "Seabourn",
+  "seabourn cruises": "Seabourn",
+  "silversea": "Silversea",
+  "silversea cruises": "Silversea",
+  "star clippers": "Star Clippers",
+  "star clipper": "Star Clippers",
+  "tauck": "Tauck Cruises",
+  "tauck cruises": "Tauck Cruises",
+  "windstar": "Windstar",
+  "viking river": "Viking River",
+  "viking river cruises": "Viking River",
+  "avalon": "Avalon Waterways",
+  "avalon waterways": "Avalon Waterways",
+  "ama": "Ama Waterways",
+  "ama waterways": "Ama Waterways",
+  "croisieurope": "CroisiEurope",
+  "croisi europe": "CroisiEurope",
+  "croisi-europe": "CroisiEurope",
+  "riverside": "Riverside Cruises",
+  "riverside cruises": "Riverside Cruises",
+  "riviera": "Riviera River Cruises",
+  "riviera river": "Riviera River Cruises",
+  "riviera river cruises": "Riviera River Cruises",
+  "tauck tours": "Tauck Tours",
+  "tauck tour": "Tauck Tours",
+  "uniworld": "Uniworld",
+  "uniworld cruises": "Uniworld",
+  "scenic river": "Scenic River",
+  "lindblad": "Lindblad Expeditions & National Geographic",
+  "lindblad expeditions": "Lindblad Expeditions & National Geographic",
+  "national geographic": "Lindblad Expeditions & National Geographic",
+  "hurtigruten": "Hurtigruten",
+  "hurtigruten cruises": "Hurtigruten",
+  "adventures by disney": "Adventures by Disney",
+  "disneyland": "Disneyland",
+  "disney land": "Disneyland",
+  "disneyworld": "DisneyWorld",
+  "disney world": "DisneyWorld",
+  "aulani": "Aulani, A Disney Resort & Spa",
+  "a disney resort": "Aulani, A Disney Resort & Spa",
+  "aulani, a disney resort & spa": "Aulani, A Disney Resort & Spa",
+  "sandals": "Sandals",
+  "beaches": "Beaches",
+  "breathless": "Breathless",
+  "club med": "Club Med",
+  "clubmed": "Club Med",
+  "el dorado": "El Dorado Spa Resorts & Hotels",
+  "el dorado spa": "El Dorado Spa Resorts & Hotels",
+  "dreams": "Dreams",
+  "dreams resorts": "Dreams",
+  "excellence": "Excellence Resorts",
+  "excellence resorts": "Excellence Resorts",
+  "hard rock": "Hard Rock Hotels",
+  "hard rock hotels": "Hard Rock Hotels",
+  "iberostar": "Iberostar Hotels & Resorts",
+  "iberostar hotels": "Iberostar Hotels & Resorts",
+  "karisma": "Karisma Hotels & Resorts",
+  "outrigger": "Outrigger Hotels & Resorts",
+  "outrigger hotels": "Outrigger Hotels & Resorts",
+  "palace": "Palace Resorts",
+  "palace resorts": "Palace Resorts",
+  "riu": "RIU Hotels & Resorts",
+  "riu hotels": "RIU Hotels & Resorts",
+  "secrets": "Secrets",
+  "delta": "Delta Vacations",
+  "delta vacations": "Delta Vacations",
+  "southwest": "Southwest Vacations",
+  "southwest vacations": "Southwest Vacations",
+  "united": "United Vacations",
+  "united vacations": "United Vacations",
+  "villas": "Villas of Distinction",
+  "villas of distinction": "Villas of Distinction",
+  "zoëtry": "Zoëtry Wellness & Spa Resorts",
+  "zoeetry": "Zoëtry Wellness & Spa Resorts",
+  "bluesky": "BlueSky Tours",
+  "blue sky tours": "BlueSky Tours",
+  "cie": "CIE Tours",
+  "cie tours": "CIE Tours",
+  "collette": "Collette",
+  "great safaris": "Great Safaris",
+  "project expedition": "Project Expedition",
+  "project expeditions": "Project Expedition",
+  "shore excursions": "Shore Excursions Group",
+  "shore excursions group": "Shore Excursions Group",
+  "toursales": "TourSales.com",
+  "tour sales": "TourSales.com",
+  "trafalgar": "Trafalgar"
+};
+
+// Lower-case alias keys once for robust, case-insensitive lookups
+const aliasMapping = {};
+for (const k in aliasMappingRaw) { aliasMapping[k.toLowerCase()] = aliasMappingRaw[k]; }
+
+// ---------- Vendor parsing & normalization ----------
+function _basicNormalizeVendor(raw){
+  return String(raw||"")
+    .trim()
+    .replace(/\s+/g,' ')
+    .replace(/[.:]+$/,'') // trailing colon/dot
+    .toLowerCase();
+}
+
 function cleanVendorName(name) {
   if (!name) return "";
-  const s = String(name).trim().replace(/\s+/g,' ');
-  // canonicalize common aliases (small, focused set; extend as needed)
-  const lower = s.toLowerCase();
-  const aliases = {
-    "rci": "Royal Caribbean",
-    "royal": "Royal Caribbean",
-    "royal caribbean international": "Royal Caribbean",
-    "ncl": "Norwegian",
-    "norwegian cruise line": "Norwegian",
-    "disney cruise": "Disney Cruise Line",
-    "disney cruises": "Disney Cruise Line",
-    "celebrity": "Celebrity Cruises",
-    "virgin": "Virgin Voyages",
-    "american cruise lines": "American Cruise Line",
-    "american cruise line": "American Cruise Line"
-  };
-  if (aliases[lower]) return aliases[lower];
-  // Title-case basic
-  return s.replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1));
+  const lower = _basicNormalizeVendor(name);
+
+  // direct alias hit
+  if (aliasMapping[lower]) return aliasMapping[lower];
+
+  // exact match against knownSuppliers (case-insensitive)
+  for (const s of knownSuppliers){
+    if (lower === s.toLowerCase()) return s;
+  }
+
+  // soft contains match against canonical list (safer than global fuzzy)
+  for (const s of knownSuppliers){
+    const canon = s.toLowerCase();
+    if (lower.includes(canon) || canon.includes(lower)) return s;
+  }
+
+  // fall back to simple Title Case of original
+  return String(name).trim().replace(/\s+/g,' ').replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1));
 }
 
 // ---------- HQ parser ----------
@@ -80,20 +330,12 @@ function parseMDY(m, d, y){
 function extractAllDatesWithInfo(text){
   const t = String(text||"");
   const out = [];
-  // 09/30/2025 or 9-30-25
-  t.replace(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g, (_,m,d,y)=>{
-    out.push(parseMDY(m,d,y)); return "";
-  });
-  // 2025-09-30
-  t.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_,y,m,d)=>{
-    out.push(parseMDY(m,d,y)); return "";
-  });
-  // Sep 30, 2025
+  t.replace(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g, (_,m,d,y)=>{ out.push(parseMDY(m,d,y)); return ""; });
+  t.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_,y,m,d)=>{ out.push(parseMDY(m,d,y)); return ""; });
   t.replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2}),\s*(\d{2,4})\b/gi, (m,mon,d,y)=>{
     const monthMap = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
     out.push(parseMDY(monthMap[mon.toLowerCase()], d, y)); return "";
   });
-  // De-duplicate by ymd
   const uniq = {}; const res = [];
   for (const it of out) if (!uniq[it.ymd]) { uniq[it.ymd]=1; res.push(it); }
   return res;
@@ -102,7 +344,6 @@ function extractAllDatesWithInfo(text){
 function extractNormalizedExpiry(text){
   const dates = extractAllDatesWithInfo(text);
   if (!dates.length) return null;
-  // choose the last date in the text (common "ends MM/DD")
   return dates[dates.length-1];
 }
 
@@ -121,7 +362,7 @@ function formatDate(d){
   return `${monthNames[m-1]} ${pad2(day)}, ${y}`;
 }
 
-// ---------- Number extraction ----------
+// ---------- Money / numeric extraction (robust thousands) ----------
 function extractMoneyValues(text){
   const vals = [];
   const MONEY_NUM = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)';
@@ -144,7 +385,7 @@ function extractMoneyValues(text){
 
 function extractPercentageValues(text){
   const vals = [];
-  String(text||"").replace(/(\d+)\s*%/g, (_,n)=>{ vals.push(Number(n)); return ""; });
+  String(text||"").replace(/(\d+)\s*%/g, (_,n)=>{ vals.append?vals.append(Number(n)):vals.push(Number(n)); return ""; });
   String(text||"").replace(/(\d+)\s*percent\b/gi, (_,n)=>{ vals.push(Number(n)); return ""; });
   return [...new Set(vals)].sort((a,b)=>a-b);
 }
@@ -152,18 +393,8 @@ function extractPercentageValues(text){
 function extractSpecialNumericAll(text){
   const t = String(text||"").toLowerCase();
   const out = [];
-  // 2nd / 3rd / 4th guest
-  t.replace(/\b(1st|2nd|3rd|4th)\b/g, (m)=>{
-    const map = { "1st":1, "2nd":2, "3rd":3, "4th":4 };
-    out.push(map[m]);
-    return "";
-  });
-  t.replace(/\b(first|second|third|fourth)\b/g, (m)=>{
-    const map = { first:1, second:2, third:3, fourth:4 };
-    out.push(map[m]);
-    return "";
-  });
-  // "X for Y" or "buy X get Y"
+  t.replace(/\b(1st|2nd|3rd|4th)\b/g, (m)=>{ const map = { "1st":1, "2nd":2, "3rd":3, "4th":4 }; out.push(map[m]); return ""; });
+  t.replace(/\b(first|second|third|fourth)\b/g, (m)=>{ const map = { first:1, second:2, third:3, fourth:4 }; out.push(map[m]); return ""; });
   t.replace(/buy\s+(\d+)\s+get\s+(\d+)/g, (_,a,b)=>{ out.push(Number(a), Number(b)); return ""; });
   t.replace(/(\d+)\s*for\s*\$?\s*(\d+)/g, (_,a,b)=>{ out.push(Number(a), Number(b)); return ""; });
   return [...new Set(out)].sort((a,b)=>a-b);
@@ -178,15 +409,13 @@ const STOP = new Set(("and or the a an of on to in for with by at from up as per
 
 function normalizeForKeywords(text){
   const lower = String(text||"").toLowerCase();
-  // remove money and percentages
   const noMoney = lower.replace(/\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g,"");
   const noPct = noMoney.replace(/\d+\s*%|\d+\s*percent/g,"");
   const clean = noPct.replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
-  // normalize ordinals
   return clean.replace(/\b2nd\b/g,"second").replace(/\b3rd\b/g,"third").replace(/\b4th\b/g,"fourth");
 }
 
-function extractNormalizedKeywords(text, opts){
+function extractNormalizedKeywords(text){
   const s = normalizeForKeywords(text);
   const parts = s.split(/\s+/).filter(w => w && !STOP.has(w));
   return [...new Set(parts)];
@@ -199,10 +428,11 @@ function keywordSetOverlap(set1, set2){
   return out;
 }
 
-// ---------- Flags ----------
 function exclusiveFlag(hqText, jsText){ return /\bexclusive\b/i.test(String(jsText||"")) && !/\bexclusive\b/i.test(String(hqText||"")); }
 
-// Expose helpers for other modules (no module system here)
+// Expose helpers
+window.knownSuppliers = knownSuppliers;
+window.cleanVendorName = cleanVendorName;
 window.parseHQDeals = parseHQDeals;
 window.parseJSONDeals = parseJSONDeals;
 window.extractNormalizedExpiry = extractNormalizedExpiry;
