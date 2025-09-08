@@ -35,11 +35,6 @@ function strictMatch(hqDeal, jsonDeal){
   const spJS = extractSpecialNumericAll(jsAll);
   if (spHQ.length && spJS.length && !arraysEqual(spHQ, spJS)) return false;
 
-  // Categories / keywords share at least one real word
-  const kwHQ = extractNormalizedKeywords(hqDeal.text);
-  const kwJS = extractNormalizedKeywords(jsAll);
-  if (!(kwHQ.length && kwJS.length && keywordSetOverlap(kwHQ, kwJS).length)) return false;
-
   // Date exact match (or JSON has no date)
   if (jsonDeal.expiryDate){
     const hq = extractNormalizedExpiry(hqDeal.text);
@@ -47,6 +42,7 @@ function strictMatch(hqDeal, jsonDeal){
     if (!(hq && js && hq.ymd === js.ymd)) return false;
   }
   return true;
+}
 }
 
 // Main scoring function
@@ -146,7 +142,7 @@ function compareDealScore(hqDeal, jsonDeal){
   if (numbersEqual && commonKW.length){
     score += 25; reasons.push("Synergy bonus: numeric+keyword (+25)");
   }
-  if (numbersEqual && hqExp && jsExp && hqExp.ymd===jsExp.ymd && commonKW.length){
+  if (numbersEqual && hqExp && jsExp && hqExp.ymd===jsExp.ymd){
     score += 60; reasons.push("All-match synergy (+60)");
     flags.highConfidence = true;
   }

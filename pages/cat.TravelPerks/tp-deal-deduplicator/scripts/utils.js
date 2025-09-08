@@ -117,7 +117,7 @@ const aliasMappingRaw = {
   "carnival cruises": "Carnival",
   "msc": "MSC Cruises",
   "msc cruises": "MSC Cruises",
-  "viking": "Viking Ocean",
+
   "viking ocean": "Viking Ocean",
   "american cruise": "American Cruise Line",
   "american cruise line": "American Cruise Line",
