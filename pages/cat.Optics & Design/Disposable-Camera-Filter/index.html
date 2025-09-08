@@ -31,26 +31,294 @@
 </header>
 
 <div id="app">
-  <div class="canvas-wrap">
-    <canvas id="glcanvas"></canvas>
-    <div class="drop" id="drophelp">
-      <div>
-        <strong>Drop an image</strong> or click Open Image.<br/>
-        <span class="interaction-hint">Tip: tap/drag to move the <em>flash center</em> (hold = horizontal).</span>
+  <!-- Desktop sidebar -->
+  <div class="desktop-controls">
+    <div class="control-section">
+      <h3>Flash Controls</h3>
+      <div class="flash-pair">
+        <div class="flash-strength-dial">
+          <label>Flash Strength</label>
+          <x-knob id="flash-knob" min="0" max="1.5" step="0.01" style="--size:55px; --track-w:2; --handle-r:5;"></x-knob>
+          <span class="dial-value" id="flash-knob-value">1.00</span>
+        </div>
+        <div class="flash-position-2d">
+          <label>Flash Position</label>
+          <div class="position-pad" id="position-pad">
+            <div class="position-handle" id="position-handle"></div>
+          </div>
+        </div>
+      </div>
+      <div class="standard-control">
+        <label>Flash Falloff</label>
+        <input type="range" id="falloff-slider" min="1" max="8" step="0.01" value="4.50">
+        <span class="control-value">4.50</span>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h3>Exposure & Tone</h3>
+      <div class="exposure-control">
+        <label>Exposure (EV)</label>
+        <div class="ev-slider">
+          <input type="range" id="ev-slider" min="-1.0" max="0.5" step="0.01" value="-0.40">
+          <div class="ev-marks">
+            <span>-1</span><span>-0.5</span><span>0</span><span>+0.5</span>
+          </div>
+        </div>
+        <span class="control-value">-0.40</span>
+      </div>
+      <div class="tone-controls">
+        <div class="dual-slider">
+          <label>Black Crush</label>
+          <input type="range" id="blacks-slider" min="0" max="0.15" step="0.001" value="0.06">
+          <span class="control-value">0.06</span>
+        </div>
+        <div class="dual-slider">
+          <label>Highlight Knee</label>
+          <input type="range" id="knee-slider" min="0" max="0.25" step="0.001" value="0.12">
+          <span class="control-value">0.12</span>
+        </div>
+        <div class="dual-slider">
+          <label>S-curve</label>
+          <input type="range" id="scurve-slider" min="0" max="1" step="0.01" value="0.60">
+          <span class="control-value">0.60</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h3>Split Toning</h3>
+      <div class="color-controls">
+        <div class="color-control">
+          <label>Shadow Cool</label>
+          <input type="range" id="shadow-cool-slider" min="0" max="1" step="0.01" value="0.35">
+          <span class="control-value">0.35</span>
+        </div>
+        <div class="color-control">
+          <label>Highlight Warm</label>
+          <input type="range" id="highlight-warm-slider" min="0" max="1" step="0.01" value="0.35">
+          <span class="control-value">0.35</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h3>Effects</h3>
+      <div class="bloom-controls">
+        <div class="standard-control">
+          <label>Bloom Threshold</label>
+          <input type="range" id="bloom-threshold-slider" min="0.5" max="1" step="0.001" value="0.80">
+          <span class="control-value">0.80</span>
+        </div>
+        <div class="standard-control">
+          <label>Bloom Radius</label>
+          <input type="range" id="bloom-radius-slider" min="1" max="30" step="0.1" value="14.0">
+          <span class="control-value">14.0</span>
+        </div>
+        <div class="standard-control">
+          <label>Bloom Intensity</label>
+          <input type="range" id="bloom-intensity-slider" min="0" max="1" step="0.01" value="0.50">
+          <span class="control-value">0.50</span>
+        </div>
+        <div class="standard-control">
+          <label>Bloom Warmth</label>
+          <input type="range" id="bloom-warm-slider" min="0" max="1" step="0.01" value="0.30">
+          <span class="control-value">0.30</span>
+        </div>
+      </div>
+      <div class="vignette-controls">
+        <div class="standard-control">
+          <label>Vignette Strength</label>
+          <input type="range" id="vignette-slider" min="0" max="0.5" step="0.001" value="0.18">
+          <span class="control-value">0.18</span>
+        </div>
+        <div class="standard-control">
+          <label>Vignette Power</label>
+          <input type="range" id="vignette-power-slider" min="1" max="5" step="0.01" value="2.5">
+          <span class="control-value">2.5</span>
+        </div>
+      </div>
+      <div class="optics-controls">
+        <div class="standard-control">
+          <label>Chromatic Aberration</label>
+          <input type="range" id="ca-slider" min="0" max="2" step="0.01" value="1.00">
+          <span class="control-value">1.00</span>
+        </div>
+        <div class="standard-control">
+          <label>Clarity</label>
+          <input type="range" id="clarity-slider" min="0" max="0.3" step="0.01" value="0.00">
+          <span class="control-value">0.00</span>
+        </div>
+        <div class="standard-control">
+          <label>Grain Amount</label>
+          <input type="range" id="grain-slider" min="0" max="0.08" step="0.001" value="0.025">
+          <span class="control-value">0.025</span>
+        </div>
       </div>
     </div>
   </div>
-  
-  <div class="controls-container">
-    <button class="controls-toggle" id="controls-toggle">
-      <span class="toggle-text">Show Controls</span>
-      <span class="toggle-icon">▲</span>
-    </button>
-    <div class="controls" id="controls"></div>
+
+  <!-- Canvas area -->
+  <div class="canvas-container">
+    <div class="canvas-wrap">
+      <canvas id="glcanvas"></canvas>
+      <div class="canvas-controls">
+        <button class="zoom-btn" id="zoom-fit">Fit</button>
+        <button class="zoom-btn" id="zoom-100">100%</button>
+        <button class="compare-btn" id="compare">Before/After</button>
+      </div>
+      <div class="drop" id="drophelp">
+        <div>
+          <strong>Drop an image</strong> or click Open<br/>
+          <span class="interaction-hint">Tap/drag to move flash center</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile tabs -->
+  <div class="mobile-tabs">
+    <button class="tab-btn active" data-tab="flash">Flash</button>
+    <button class="tab-btn" data-tab="tone">Tone</button>
+    <button class="tab-btn" data-tab="effects">Effects</button>
+    <button class="tab-btn" data-tab="settings">Settings</button>
+  </div>
+
+  <!-- Mobile controls -->
+  <div class="mobile-controls">
+    <div class="tab-content active" id="tab-flash">
+      <div class="mobile-flash-controls">
+        <div class="mobile-slider">
+          <label>Flash Strength</label>
+          <input type="range" id="mobile-flash-strength" min="0" max="1.5" step="0.01" value="1.00">
+          <span class="control-value">1.00</span>
+        </div>
+        <div class="mobile-position">
+          <label>Flash Position</label>
+          <div class="mobile-position-grid">
+            <button class="pos-preset" data-pos="0.2,0.3">Top Left</button>
+            <button class="pos-preset" data-pos="0.5,0.3">Top Center</button>
+            <button class="pos-preset" data-pos="0.8,0.3">Top Right</button>
+            <button class="pos-preset" data-pos="0.2,0.5">Center Left</button>
+            <button class="pos-preset active" data-pos="0.5,0.46">Center</button>
+            <button class="pos-preset" data-pos="0.8,0.5">Center Right</button>
+          </div>
+        </div>
+        <div class="mobile-slider">
+          <label>Falloff</label>
+          <input type="range" id="mobile-falloff" min="1" max="8" step="0.01" value="4.50">
+          <span class="control-value">4.50</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-tone">
+      <div class="mobile-tone-controls">
+        <div class="mobile-slider">
+          <label>Exposure (EV)</label>
+          <input type="range" id="mobile-ev" min="-1.0" max="0.5" step="0.01" value="-0.40">
+          <span class="control-value">-0.40</span>
+        </div>
+        <div class="mobile-slider">
+          <label>S-curve</label>
+          <input type="range" id="mobile-scurve" min="0" max="1" step="0.01" value="0.60">
+          <span class="control-value">0.60</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Black Crush</label>
+          <input type="range" id="mobile-blacks" min="0" max="0.15" step="0.001" value="0.06">
+          <span class="control-value">0.06</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Highlight Knee</label>
+          <input type="range" id="mobile-knee" min="0" max="0.25" step="0.001" value="0.12">
+          <span class="control-value">0.12</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-effects">
+      <div class="mobile-effects-controls">
+        <div class="mobile-slider">
+          <label>Bloom Intensity</label>
+          <input type="range" id="mobile-bloom-intensity" min="0" max="1" step="0.01" value="0.50">
+          <span class="control-value">0.50</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Vignette</label>
+          <input type="range" id="mobile-vignette" min="0" max="0.5" step="0.001" value="0.18">
+          <span class="control-value">0.18</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Grain</label>
+          <input type="range" id="mobile-grain" min="0" max="0.08" step="0.001" value="0.025">
+          <span class="control-value">0.025</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-settings">
+      <div class="mobile-settings-controls">
+        <button class="mobile-btn" id="mobile-reset">Reset All</button>
+        <button class="mobile-btn" id="mobile-export">Export PNG</button>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+class XKnob extends HTMLElement{
+  static get observedAttributes(){return["value","min","max","step","disabled"]}
+  constructor(){
+    super();
+    this._y=null;
+    this.attachShadow({mode:"open"}).innerHTML=`<style>:host{--accent:#ff6a2e;--panel:#171b23;--bg:#0f1318;--size:110px;--track-w:2;--handle-r:6;display:inline-block}.wrap{background:transparent;border:none;padding:0;display:inline-flex;place-items:center}.knob{width:var(--size);height:var(--size);outline:0;cursor:grab;position:relative}.knob:active{cursor:grabbing}svg{width:100%;height:100%;display:block}.base{stroke:rgba(255,106,46,.18);fill:none;stroke-width:var(--track-w);stroke-linecap:round}.prog{stroke:var(--accent);fill:none;stroke-width:var(--track-w);stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(255,106,46,.35))}.handle{fill:var(--accent);filter:drop-shadow(0 0 8px rgba(255,106,46,.35))}.knob:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(255,106,46,.45) inset}:host([disabled]) .knob{opacity:.55;cursor:not-allowed}</style><div class="wrap"><div class="knob" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><svg viewBox="0 0 100 100" aria-hidden="true"><path class="base" d=""/><path class="prog" d=""/><circle class="handle" r="var(--handle-r)" cx="0" cy="0"/></svg></div></div>`;
+    this.$k=this.shadowRoot.querySelector(".knob");
+    this.$base=this.shadowRoot.querySelector(".base");
+    this.$prog=this.shadowRoot.querySelector(".prog");
+    this.$handle=this.shadowRoot.querySelector(".handle");
+    this._min=0;
+    this._max=1;
+    this._step=0.01;
+    this._value=0.5;
+    this._start=-135;
+    this._sweep=270;
+    this._r=42
+  }
+  connectedCallback(){
+    this._upgrade("value");
+    this._upgrade("min");
+    this._upgrade("max");
+    this._upgrade("step");
+    this._clampSet(this._value,false);
+    this.$k.addEventListener("pointerdown",e=>{if(this.disabled)return;this.$k.setPointerCapture(e.pointerId);this._y=e.clientY});
+    addEventListener("pointermove",e=>{if(this._y==null||this.disabled)return;const dy=e.clientY-this._y;this._y=e.clientY;const span=Math.max(20,180);const delta=-(dy/span)*(this._max-this._min);this._clampSet(this._value+this._quantize(delta),true)});
+    addEventListener("pointerup",()=>{if(this._y==null)return;this._y=null;this.dispatchEvent(new Event("change"))});
+    this.$k.addEventListener("wheel",e=>{if(this.disabled)return;e.preventDefault();const dir=e.deltaY<0?1:-1;this._clampSet(this._value+this._step*dir,true);this.dispatchEvent(new Event("change"))},{passive:false});
+    this.$k.addEventListener("keydown",e=>{if(this.disabled)return;const big=(this._max-this._min)/10;let d=0;if(e.key==="ArrowUp"||e.key==="ArrowRight")d=this._step;else if(e.key==="ArrowDown"||e.key==="ArrowLeft")d=-this._step;else if(e.key==="PageUp")d=big;else if(e.key==="PageDown")d=-big;else if(e.key==="Home"){this._clampSet(this._min,true);this.dispatchEvent(new Event("change"));return}else if(e.key==="End"){this._clampSet(this._max,true);this.dispatchEvent(new Event("change"));return}if(d){e.preventDefault();this._clampSet(this._value+d,true);this.dispatchEvent(new Event("change"))}});
+    this.$k.addEventListener("dblclick",()=>{if(this.disabled)return;const dv=this.hasAttribute("default-value")?Number(this.getAttribute("default-value")):(this._min+this._max)/2;this._clampSet(dv,true);this.dispatchEvent(new Event("change"))})
+  }
+  get value(){return this._value}
+  set value(v){this._clampSet(Number(v),false)}
+  get min(){return this._min}
+  set min(v){this._min=Number(v);this._clampSet(this._value,false)}
+  get max(){return this._max}
+  set max(v){this._max=Number(v);this._clampSet(this._value,false)}
+  get step(){return this._step}
+  set step(v){this._step=Math.max(0.0001,Number(v))}
+  get disabled(){return this.hasAttribute("disabled")}
+  set disabled(v){v?this.setAttribute("disabled",""):this.removeAttribute("disabled")}
+  attributeChangedCallback(n,_,val){if(n==="disabled")return;const num=Number(val);if(n==="value")this.value=num;if(n==="min")this.min=num;if(n==="max")this.max=num;if(n==="step")this.step=num}
+  _upgrade(p){if(this.hasOwnProperty(p)){const v=this[p];delete this[p];this[p]=v}}
+  _quantize(v){const s=this._step;return Math.round(v/s)*s}
+  _clampSet(v,fire){const nv=Math.min(this._max,Math.max(this._min,this._quantize(v)));this._value=nv;this.setAttribute("value",String(nv));this.$k.setAttribute("aria-valuemin",this._min);this.$k.setAttribute("aria-valuemax",this._max);this.$k.setAttribute("aria-valuenow",nv);this._render();if(fire)this.dispatchEvent(new Event("input"))}
+  _render(){const t=(this._value-this._min)/((this._max-this._min)||1);const a0=this._start,a1=this._start+this._sweep,a=a0+t*(a1-a0);const baseD=this._arcPath(50,50,this._r,a0,a1);const progD=this._arcPath(50,50,this._r,a0,a);this.$base.setAttribute("d",baseD);this.$prog.setAttribute("d",progD);const [hx,hy]=this._polar(50,50,this._r,a);this.$handle.setAttribute("cx",hx);this.$handle.setAttribute("cy",hy)}
+  _polar(cx,cy,r,deg){const rad=(deg-90)*Math.PI/180;return[cx+r*Math.cos(rad),cy+r*Math.sin(rad)]}
+  _arcPath(cx,cy,r,start,end){const s=this._polar(cx,cy,r,start),e=this._polar(cx,cy,r,end);const large=(end-start)%360>180?1:0;return`M ${s[0]} ${s[1]} A ${r} ${r} 0 ${large} 1 ${e[0]} ${e[1]}`}
+}
+customElements.define("x-knob",XKnob);
+</script>
 
 <script type="module" src="script.js"></script>
 </body>
 </html>
-

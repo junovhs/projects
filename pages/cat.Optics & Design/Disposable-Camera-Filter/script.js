@@ -28,6 +28,10 @@
     grainShadowBoost: 0.70,
     needsRender: true,
     draggingFlash: false,
+    zoom: 1.0,
+    panX: 0,
+    panY: 0,
+    showingBefore: false,
   };
 
   const presetDefs = {
@@ -57,114 +61,308 @@
     }
   };
 
-  // ---------- UI ----------
-  const controls = document.getElementById('controls');
-  const controlsToggle = document.getElementById('controls-toggle');
-  
-  // Mobile controls toggle
-  controlsToggle.addEventListener('click', () => {
-    const isCollapsed = controls.classList.contains('collapsed');
-    controls.classList.toggle('collapsed');
-    controlsToggle.classList.toggle('collapsed');
-    
-    const toggleText = controlsToggle.querySelector('.toggle-text');
-    toggleText.textContent = isCollapsed ? 'Hide' : 'Show';
+  // ---------- Mobile tab system ----------
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.dataset.tab;
+      
+      // Update tab buttons
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Update tab content
+      tabContents.forEach(content => {
+        content.classList.remove('active');
+        if (content.id === `tab-${targetTab}`) {
+          content.classList.add('active');
+        }
+      });
+    });
   });
 
-  // Initially hide controls on mobile
-  if (window.innerWidth < 1024) {
-    controls.classList.add('collapsed');
-    controlsToggle.classList.add('collapsed');
-  }
-
-  const rows = [
-    ['Exposure (ambient EV)', 'ev', -1.0, 0.5, 0.01],
-    ['Flash strength', 'flashStrength', 0, 1.5, 0.01],
-    ['Flash falloff', 'flashFalloff', 1, 8, 0.01],
-    ['Flash center X', 'flashCenterX', 0, 1, 0.001],
-    ['Flash center Y', 'flashCenterY', 0, 1, 0.001],
-    ['Tone S-curve', 'scurve', 0, 1, 0.01],
-    ['Black crush', 'blacks', 0, 0.15, 0.001],
-    ['Highlight knee', 'knee', 0, 0.25, 0.001],
-    ['Shadow cool', 'shadowCool', 0, 1, 0.01],
-    ['Highlight warmth', 'highlightWarm', 0, 1, 0.01],
-    ['Bloom threshold', 'bloomThreshold', 0.5, 1, 0.001],
-    ['Bloom radius (px)', 'bloomRadius', 1, 30, 0.1],
-    ['Bloom intensity', 'bloomIntensity', 0, 1, 0.01],
-    ['Bloom warmth', 'bloomWarm', 0, 1, 0.01],
-    ['Vignette strength', 'vignette', 0, 0.5, 0.001],
-    ['Vignette power', 'vignettePower', 1, 5, 0.01],
-    ['Chromatic aberration (px)', 'ca', 0, 2, 0.01],
-    ['Clarity (unsharp)', 'clarity', 0, 0.3, 0.01],
-    ['Grain amount', 'grain', 0, 0.08, 0.001],
-  ];
-
-  function addGroup(title, fields) {
-    const g = document.createElement('div');
-    g.className = 'group';
-    g.innerHTML = `<h3>${title}</h3>`;
-    fields.forEach(f => g.appendChild(f));
-    controls.appendChild(g);
-    return g;
-  }
-
-  function makeRow(label, key, min, max, step) {
-    const wrap = document.createElement('div');
-    wrap.className = 'row';
-    const id = 'sl_' + key;
-    wrap.innerHTML = `
-      <div>
-        <label for="${id}">${label}</label>
-        <input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${state[key]}"/>
-      </div>
-      <input id="nm_${id}" type="number" min="${min}" max="${max}" step="${step}" value="${state[key]}"/>
-    `;
-    const sl = wrap.querySelector('input[type=range]');
-    const nm = wrap.querySelector('input[type=number]');
+  // ---------- Control bindings ----------
+  function setupControlBinding(desktopId, mobileId, stateKey, updateCallback) {
+    const desktopControl = document.getElementById(desktopId);
+    const mobileControl = document.getElementById(mobileId);
     
-    function upd(v) {
-      const num = Number(v);
-      state[key] = num;
-      sl.value = '' + num;
-      nm.value = '' + num;
+    function updateValue(value) {
+      state[stateKey] = parseFloat(value);
+      if (desktopControl) {
+        desktopControl.value = value;
+        const valueDisplay = desktopControl.parentElement.querySelector('.control-value');
+        if (valueDisplay) valueDisplay.textContent = parseFloat(value).toFixed(3);
+      }
+      if (mobileControl) {
+        mobileControl.value = value;
+        const valueDisplay = mobileControl.parentElement.querySelector('.control-value');
+        if (valueDisplay) valueDisplay.textContent = parseFloat(value).toFixed(3);
+      }
+      if (updateCallback) updateCallback(value);
       state.needsRender = true;
     }
     
-    sl.addEventListener('input', e => upd(e.target.value));
-    nm.addEventListener('input', e => upd(e.target.value));
-    return wrap;
+    if (desktopControl) {
+      desktopControl.addEventListener('input', e => updateValue(e.target.value));
+    }
+    if (mobileControl) {
+      mobileControl.addEventListener('input', e => updateValue(e.target.value));
+    }
+    
+    return updateValue;
   }
 
-  const gFlash = addGroup('Flash / Exposure', [makeRow(...rows[0]), makeRow(...rows[1]), makeRow(...rows[2]), makeRow(...rows[3]), makeRow(...rows[4])]);
-  const gTone = addGroup('Tone', [makeRow(...rows[5]), makeRow(...rows[6]), makeRow(...rows[7])]);
-  const gColor = addGroup('Split-Toning', [makeRow(...rows[8]), makeRow(...rows[9])]);
-  const gBloom = addGroup('Bloom / Halation', [makeRow(...rows[10]), makeRow(...rows[11]), makeRow(...rows[12]), makeRow(...rows[13])]);
-  const gVig = addGroup('Vignette', [makeRow(...rows[14]), makeRow(...rows[15])]);
-  const gOpt = addGroup('Optics & Texture', [makeRow(...rows[16]), makeRow(...rows[17]), makeRow(...rows[18])]);
-  
-  const tip = document.createElement('div');
-  tip.className = 'fine';
-  tip.textContent = 'Tip: Tap/drag on the image to position the flash. Hold for horizontal-only movement.';
-  gFlash.appendChild(tip);
+  // Setup control bindings
+  const updateEV = setupControlBinding('ev-slider', 'mobile-ev', 'ev');
+  const updateFalloff = setupControlBinding('falloff-slider', 'mobile-falloff', 'flashFalloff');
+  const updateScurve = setupControlBinding('scurve-slider', 'mobile-scurve', 'scurve');
+  const updateBlacks = setupControlBinding('blacks-slider', 'mobile-blacks', 'blacks');
+  const updateKnee = setupControlBinding('knee-slider', 'mobile-knee', 'knee');
+  const updateShadowCool = setupControlBinding('shadow-cool-slider', null, 'shadowCool');
+  const updateHighlightWarm = setupControlBinding('highlight-warm-slider', null, 'highlightWarm');
+  const updateBloomThreshold = setupControlBinding('bloom-threshold-slider', null, 'bloomThreshold');
+  const updateBloomRadius = setupControlBinding('bloom-radius-slider', null, 'bloomRadius');
+  const updateBloomIntensity = setupControlBinding('bloom-intensity-slider', 'mobile-bloom-intensity', 'bloomIntensity');
+  const updateBloomWarm = setupControlBinding('bloom-warm-slider', null, 'bloomWarm');
+  const updateVignette = setupControlBinding('vignette-slider', 'mobile-vignette', 'vignette');
+  const updateVignettePower = setupControlBinding('vignette-power-slider', null, 'vignettePower');
+  const updateCA = setupControlBinding('ca-slider', null, 'ca');
+  const updateClarity = setupControlBinding('clarity-slider', null, 'clarity');
+  const updateGrain = setupControlBinding('grain-slider', 'mobile-grain', 'grain');
 
-  // File input and controls
+  // Wire desktop x-knob and mobile slider to flashStrength
+  const flashKnob = document.getElementById('flash-knob');
+  const mobileFlashStrengthSlider = document.getElementById('mobile-flash-strength');
+
+  function updateFlashStrength(value) {
+    const v = parseFloat(value);
+    state.flashStrength = v;
+    state.needsRender = true;
+    
+    if (flashKnob) {
+      flashKnob.value = v;
+      const vSpan = document.getElementById('flash-knob-value');
+      if (vSpan) vSpan.textContent = v.toFixed(2);
+    }
+    if (mobileFlashStrengthSlider) {
+      mobileFlashStrengthSlider.value = v;
+      const valueDisplay = mobileFlashStrengthSlider.parentElement.querySelector('.control-value');
+      if (valueDisplay) valueDisplay.textContent = v.toFixed(2);
+    }
+  }
+
+  if (flashKnob) {
+    flashKnob.min = 0; flashKnob.max = 1.5; flashKnob.step = 0.01; flashKnob.value = state.flashStrength;
+    flashKnob.addEventListener('input', e => updateFlashStrength(e.currentTarget.value));
+    flashKnob.addEventListener('change', e => updateFlashStrength(e.currentTarget.value));
+    updateFlashStrength(state.flashStrength);
+  }
+
+  if(mobileFlashStrengthSlider) {
+    mobileFlashStrengthSlider.addEventListener('input', e => updateFlashStrength(e.target.value));
+  }
+
+  // 2D position pad
+  function setup2DPad() {
+    const pad = document.getElementById('position-pad');
+    const handle = document.getElementById('position-handle');
+    if (!pad || !handle) return;
+    
+    let isDragging = false;
+    
+    function updatePosition(x, y) {
+      state.flashCenterX = Math.max(0, Math.min(1, x));
+      state.flashCenterY = Math.max(0, Math.min(1, y));
+      
+      const padRect = pad.getBoundingClientRect();
+      const handleX = state.flashCenterX * (padRect.width - 12);
+      const handleY = state.flashCenterY * (padRect.height - 12);
+      
+      handle.style.left = handleX + 'px';
+      handle.style.top = handleY + 'px';
+      
+      state.needsRender = true;
+    }
+    
+    function handlePointerEvent(e) {
+      const rect = pad.getBoundingClientRect();
+      const x = ((e.clientX || e.touches[0].clientX) - rect.left) / rect.width;
+      const y = ((e.clientY || e.touches[0].clientY) - rect.top) / rect.height;
+      updatePosition(x, y);
+    }
+    
+    pad.addEventListener('mousedown', e => {
+      isDragging = true;
+      handlePointerEvent(e);
+    });
+    
+    pad.addEventListener('touchstart', e => {
+      isDragging = true;
+      handlePointerEvent(e);
+    });
+    
+    window.addEventListener('mousemove', e => {
+      if (isDragging) handlePointerEvent(e);
+    });
+    
+    window.addEventListener('touchmove', e => {
+      if (isDragging) handlePointerEvent(e);
+    });
+    
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('touchend', () => isDragging = false);
+    
+    // Initialize position
+    updatePosition(state.flashCenterX, state.flashCenterY);
+  }
+  
+  setup2DPad();
+
+  // Mobile position presets
+  const posPresets = document.querySelectorAll('.pos-preset');
+  posPresets.forEach(preset => {
+    preset.addEventListener('click', () => {
+      const [x, y] = preset.dataset.pos.split(',').map(parseFloat);
+      state.flashCenterX = x;
+      state.flashCenterY = y;
+      
+      // Update active state
+      posPresets.forEach(p => p.classList.remove('active'));
+      preset.classList.add('active');
+      
+      // Update 2D pad if on desktop
+      const handle = document.getElementById('position-handle');
+      if (handle) {
+        const pad = document.getElementById('position-pad');
+        const padRect = pad.getBoundingClientRect();
+        handle.style.left = (x * (padRect.width - 12)) + 'px';
+        handle.style.top = (y * (padRect.height - 12)) + 'px';
+      }
+      
+      state.needsRender = true;
+    });
+  });
+
+  // ---------- Canvas controls ----------
+  document.getElementById('zoom-fit')?.addEventListener('click', () => {
+    state.zoom = 1.0;
+    state.panX = 0;
+    state.panY = 0;
+    if (state.img) resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
+  });
+
+  document.getElementById('zoom-100')?.addEventListener('click', () => {
+    state.zoom = 1.0;
+    state.panX = 0;
+    state.panY = 0;
+    if (state.img) setSize(state.img.naturalWidth, state.img.naturalHeight);
+  });
+
+  let compareTimeout;
+  document.getElementById('compare')?.addEventListener('mousedown', () => {
+    state.showingBefore = true;
+    state.needsRender = true;
+  });
+
+  document.getElementById('compare')?.addEventListener('mouseup', () => {
+    state.showingBefore = false;
+    state.needsRender = true;
+  });
+
+  document.getElementById('compare')?.addEventListener('touchstart', () => {
+    state.showingBefore = true;
+    state.needsRender = true;
+  });
+
+  document.getElementById('compare')?.addEventListener('touchend', () => {
+    state.showingBefore = false;
+    state.needsRender = true;
+  });
+
+  // ---------- File input and controls ----------
   const fileIn = document.getElementById('file');
   document.getElementById('open').onclick = () => fileIn.click();
-  document.getElementById('reset').onclick = () => {
+  
+  function resetControls() {
     Object.assign(state, defaultState());
-    applyUIFromState();
+    
+    // Update all UI elements
+    updateEV(state.ev);
+    updateFalloff(state.flashFalloff);
+    updateScurve(state.scurve);
+    updateBlacks(state.blacks);
+    updateKnee(state.knee);
+    updateShadowCool(state.shadowCool);
+    updateHighlightWarm(state.highlightWarm);
+    updateBloomThreshold(state.bloomThreshold);
+    updateBloomRadius(state.bloomRadius);
+    updateBloomIntensity(state.bloomIntensity);
+    updateBloomWarm(state.bloomWarm);
+    updateVignette(state.vignette);
+    updateVignettePower(state.vignettePower);
+    updateCA(state.ca);
+    updateClarity(state.clarity);
+    updateGrain(state.grain);
+    
+    // Update position controls
+    const handle = document.getElementById('position-handle');
+    if (handle) {
+      handle.style.left = '50%';
+      handle.style.top = '46%';
+    }
+    
+    // Update mobile position presets
+    posPresets.forEach(p => {
+      p.classList.toggle('active', p.dataset.pos === '0.5,0.46');
+    });
+    
+    // Update flash strength
+    updateFlashStrength(state.flashStrength);
+    
     state.needsRender = true;
-  };
+  }
+
+  document.getElementById('reset').onclick = resetControls;
+  document.getElementById('mobile-reset')?.addEventListener('click', resetControls);
+  
   document.getElementById('preset').onchange = e => {
     const p = presetDefs[e.target.value];
     if (p) {
       Object.assign(state, p);
-      applyUIFromState();
+      
+      // Update all controls with new values
+      Object.keys(p).forEach(key => {
+        if (key === 'flashStrength') {
+          updateFlashStrength(p[key]);
+        } else if (key === 'ev') updateEV(p[key]);
+        else if (key === 'flashFalloff') updateFalloff(p[key]);
+        else if (key === 'scurve') updateScurve(p[key]);
+        else if (key === 'blacks') updateBlacks(p[key]);
+        else if (key === 'knee') updateKnee(p[key]);
+        else if (key === 'shadowCool') updateShadowCool(p[key]);
+        else if (key === 'highlightWarm') updateHighlightWarm(p[key]);
+        else if (key === 'bloomThreshold') updateBloomThreshold(p[key]);
+        else if (key === 'bloomRadius') updateBloomRadius(p[key]);
+        else if (key === 'bloomIntensity') updateBloomIntensity(p[key]);
+        else if (key === 'bloomWarm') updateBloomWarm(p[key]);
+        else if (key === 'vignette') updateVignette(p[key]);
+        else if (key === 'vignettePower') updateVignettePower(p[key]);
+        else if (key === 'ca') updateCA(p[key]);
+        else if (key === 'clarity') updateClarity(p[key]);
+        else if (key === 'grain') updateGrain(p[key]);
+      });
+      
+      // Update flash strength
+      updateFlashStrength(p.flashStrength ?? state.flashStrength);
+      
       state.needsRender = true;
     }
     e.target.value = '';
   };
-  document.getElementById('export').onclick = () => {
+  
+  function exportImage() {
     if (!gl) return;
     renderFrame(0);
     const url = canvas.toDataURL('image/png');
@@ -172,7 +370,10 @@
     a.href = url;
     a.download = 'disposable-night.png';
     a.click();
-  };
+  }
+
+  document.getElementById('export').onclick = exportImage;
+  document.getElementById('mobile-export')?.addEventListener('click', exportImage);
 
   function defaultState() {
     return {
@@ -181,16 +382,6 @@
       bloomThreshold: 0.80, bloomRadius: 14.0, bloomIntensity: 0.50, bloomWarm: 0.30,
       vignette: 0.18, vignettePower: 2.5, ca: 1.00, clarity: 0.00, grain: 0.025, grainShadowBoost: 0.70
     };
-  }
-
-  function applyUIFromState() {
-    for (const [, k] of rows.map(([l, k]) => [l, k])) {
-      const id = 'sl_' + k;
-      const r = document.getElementById(id);
-      const n = document.getElementById('nm_' + id);
-      if (r) r.value = state[k];
-      if (n) n.value = state[k];
-    }
   }
 
   // ---------- WebGL ----------
@@ -355,9 +546,8 @@
       vec2 stepv = uTexel * max(uRadius, 1.0);
       s += texture2D(uTex, v_uv).rgb * w[0];
       for(int i=1;i<5;i++){
-        vec2 d = stepv * float(i);
-        s += texture2D(uTex, v_uv + d).rgb * w[i];
-        s += texture2D(uTex, v_uv - d).rgb * w[i];
+        s += texture2D(uTex, v_uv + stepv * float(i)).rgb * w[i];
+        s += texture2D(uTex, v_uv - stepv * float(i)).rgb * w[i];
       }
       gl_FragColor = vec4(s,1.0);
     }`;
@@ -397,9 +587,8 @@
       float w[5]; w[0]=0.227027; w[1]=0.1945946; w[2]=0.1216216; w[3]=0.054054; w[4]=0.016216;
       s += texture2D(uTex, uv).rgb * w[0];
       for(int i=1;i<5;i++){
-        vec2 d = uPx * float(i);
-        s += texture2D(uTex, uv + d).rgb * w[i];
-        s += texture2D(uTex, uv - d).rgb * w[i];
+        s += texture2D(uTex, uv + uPx * float(i)).rgb * w[i];
+        s += texture2D(uTex, uv - uPx * float(i)).rgb * w[i];
       }
       return s;
     }
@@ -624,7 +813,15 @@
       state.flashCenterY = y;
     }
     
-    applyUIFromState();
+    // Update 2D pad
+    const handle = document.getElementById('position-handle');
+    if (handle) {
+      const pad = document.getElementById('position-pad');
+      const padRect = pad.getBoundingClientRect();
+      handle.style.left = (state.flashCenterX * (padRect.width - 12)) + 'px';
+      handle.style.top = (state.flashCenterY * (padRect.height - 12)) + 'px';
+    }
+    
     state.needsRender = true;
   }
 
@@ -641,7 +838,15 @@
       state.flashCenterY = y;
     }
     
-    applyUIFromState();
+    // Update 2D pad
+    const handle = document.getElementById('position-handle');
+    if (handle) {
+      const pad = document.getElementById('position-pad');
+      const padRect = pad.getBoundingClientRect();
+      handle.style.left = (state.flashCenterX * (padRect.width - 12)) + 'px';
+      handle.style.top = (state.flashCenterY * (padRect.height - 12)) + 'px';
+    }
+    
     state.needsRender = true;
   }
 
@@ -665,6 +870,16 @@
     ensureTargets();
 
     const px = [1 / canvas.width, 1 / canvas.height];
+
+    // If showing before, skip processing
+    if (state.showingBefore) {
+      draw(programs.pre, { uTex: state.imgTex }, null, (p) => {
+        gl.uniform1f(gl.getUniformLocation(p, 'uEV'), 0); // No exposure adjustment for "before"
+      });
+      state.needsRender = false;
+      requestAnimationFrame(renderFrame);
+      return;
+    }
 
     // 0) Pre exposure
     draw(programs.pre, { uTex: state.imgTex }, rtA, (p) => {
@@ -748,16 +963,22 @@
   initGL();
   setSize(960, 540);
   ensureTargets();
-  applyUIFromState();
   requestAnimationFrame(renderFrame);
   
+  // Throttled ResizeObserver to avoid resize write/read loops
+  let roScheduled = false;
   new ResizeObserver(() => {
-    if (state.img) {
-      resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
-    } else {
-      setSize(document.querySelector('.canvas-wrap').clientWidth, 480);
-    }
-    state.needsRender = true;
+    if (roScheduled) return;
+    roScheduled = true;
+    requestAnimationFrame(() => {
+      roScheduled = false;
+      if (state.img) {
+        resizeToFit(state.img.naturalWidth, state.img.naturalHeight);
+      } else {
+        setSize(document.querySelector('.canvas-wrap').clientWidth, 480);
+      }
+      state.needsRender = true;
+    });
   }).observe(document.querySelector('.canvas-wrap'));
 
   // Handle orientation changes on mobile
@@ -772,4 +993,3 @@
     }, 100);
   });
 })();
-
