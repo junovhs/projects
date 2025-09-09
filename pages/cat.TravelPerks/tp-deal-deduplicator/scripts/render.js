@@ -1,367 +1,278 @@
-// render.js — UI rendering for matches & non-matches
-// Expects window.performMatching(...) (from match.js) and the parsers (from utils.js)
+/* render.js — safe, id-flexible, and crash-resistant */
 
-// ---------------- UI helpers ----------------
-function $(...ids) {
-  for (const id of ids) {
-    const el = document.getElementById(id);
-    if (el) return el;
-  }
-  return null;
+/* -------------------- Utilities -------------------- */
+
+function $(id) {
+  return document.getElementById(id);
 }
 
-function formatISODate(iso) {
-  if (!iso) return "N/A";
-  // iso is "YYYY-MM-DD"
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-function makeBadge(text, variant = "neutral", title = "") {
-  const span = document.createElement("span");
-  span.className = `tp-badge tp-${variant}`;
-  if (title) span.title = title;
-  span.textContent = text;
-  return span;
-}
-
-function makeReasonEye(reasons = []) {
-  const btn = document.createElement("span");
-  btn.className = "tp-eye";
-  btn.textContent = "👁️";
-  if (reasons && reasons.length) {
-    btn.title = "Why:\n" + reasons.join("\n");
-  } else {
-    btn.title = "No details.";
-  }
-  return btn;
+function _getContainer(primaryId, ...aliases) {
+  return $(primaryId) || aliases.map((id) => $(id)).find(Boolean) || null;
 }
 
 function clearNode(node) {
+  // Null guard fixes: "Cannot read properties of null (reading 'firstChild')"
+  if (!node) return;
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 
-function row(label, value) {
-  const div = document.createElement("div");
-  div.className = "tp-row";
-  const l = document.createElement("div");
-  l.className = "tp-row-label";
-  l.textContent = label;
-  const v = document.createElement("div");
-  v.className = "tp-row-value";
-  v.textContent = value;
-  div.appendChild(l);
-  div.appendChild(v);
-  return div;
-}
-
-function dealHeader(hqDeal, isPerfect) {
-  const wrap = document.createElement("div");
-  wrap.className = "tp-deal-header";
-  const strong = document.createElement("strong");
-  strong.textContent = (isPerfect ? "PERFECT MATCH " : "") + (hqDeal.vendor ? `${hqDeal.vendor}:` : "");
-  wrap.appendChild(strong);
-  return wrap;
-}
-
-function checkmark(ok) { return ok ? "✓" : "×"; }
-
-// ---------------- Item renderers ----------------
-function renderMatchedItem({ hqDeal, jsonDeal, score, reasons, flags, perfect }) {
-  const card = document.createElement("div");
-  card.className = "tp-card tp-card--match";
-
-  // Header
-  const hdr = dealHeader(hqDeal, perfect);
-  // Triaging chips: Vendor / Numbers / Date
-  const chips = document.createElement("div");
-  chips.className = "tp-chips";
-  chips.appendChild(makeBadge(`Vendor ${checkmark(true)}`, "good"));
-  chips.appendChild(makeBadge(`Numbers ${checkmark(!flags.numberFlag)}`, !flags.numberFlag ? "good" : "bad",
-    flags.numberFlag ? "Numbers conflicted earlier" : "Numbers look consistent"));
-  chips.appendChild(makeBadge(`Date ${checkmark(!flags.dateFlag)}`, !flags.dateFlag ? "good" : "warn",
-    flags.dateFlag ? "Some date(s) differ beyond tolerance" : "Dates look consistent"));
-
-  hdr.appendChild(chips);
-  card.appendChild(hdr);
-
-  // HQ body
-  const left = document.createElement("div");
-  left.className = "tp-col tp-col--left";
-  left.appendChild(row("HQ Title", hqDeal.title));
-  left.appendChild(row("Start", formatISODate(hqDeal.startDate)));
-  left.appendChild(row("End", formatISODate(hqDeal.expiryDate)));
-  if (hqDeal.ongoing) left.appendChild(makeBadge("Ongoing", "info"));
-
-  // JSON body
-  const right = document.createElement("div");
-  right.className = "tp-col tp-col--right";
-  right.appendChild(row("Vendor", jsonDeal.vendor || "N/A"));
-  right.appendChild(row("Expiry", formatISODate(jsonDeal.expiryDate)));
-  right.appendChild(row("Title", jsonDeal.title || "—"));
-  right.appendChild(row("Listing", jsonDeal.shopListing || "—"));
-  if (jsonDeal.startDate) right.appendChild(row("Start", formatISODate(jsonDeal.startDate)));
-  if (jsonDeal.ongoing) right.appendChild(makeBadge("Ongoing", "info"));
-
-  const cols = document.createElement("div");
-  cols.className = "tp-cols";
-  cols.appendChild(left);
-  cols.appendChild(right);
-
-  card.appendChild(cols);
-
-  // Footer: score + eye
-  const foot = document.createElement("div");
-  foot.className = "tp-foot";
-  foot.appendChild(makeBadge(`Score ${perfect ? "999" : String(score)}`, perfect ? "good" : "neutral"));
-  foot.appendChild(makeReasonEye(reasons));
-  card.appendChild(foot);
-
-  return card;
-}
-
-function renderNonMatchedItem({ hqDeal, closestJson, score, reasons, flags }) {
-  const card = document.createElement("div");
-  card.className = "tp-card tp-card--nomatch";
-
-  // Header & chips (use flags if present)
-  const hdr = dealHeader(hqDeal, false);
-  const chips = document.createElement("div");
-  chips.className = "tp-chips";
-  chips.appendChild(makeBadge(`Vendor ${checkmark(!!flags?.vendor)}`, flags?.vendor ? "good" : "bad"));
-  chips.appendChild(makeBadge(`Numbers ${checkmark(!flags?.numberFlag)}`, !flags?.numberFlag ? "neutral" : "bad"));
-  chips.appendChild(makeBadge(`Date ${checkmark(!flags?.dateFlag)}`, !flags?.dateFlag ? "neutral" : "warn"));
-  hdr.appendChild(chips);
-  card.appendChild(hdr);
-
-  // HQ side
-  const left = document.createElement("div");
-  left.className = "tp-col tp-col--left";
-  left.appendChild(row("HQ Title", hqDeal.title));
-  left.appendChild(row("Start", formatISODate(hqDeal.startDate)));
-  left.appendChild(row("End", formatISODate(hqDeal.expiryDate)));
-  if (hqDeal.ongoing) left.appendChild(makeBadge("Ongoing", "info"));
-
-  const cols = document.createElement("div");
-  cols.className = "tp-cols";
-  cols.appendChild(left);
-
-  // Closest JSON candidate (if any)
-  const right = document.createElement("div");
-  right.className = "tp-col tp-col--right";
-  if (closestJson) {
-    right.appendChild(row("Closest Vendor", closestJson.vendor || "N/A"));
-    right.appendChild(row("Expiry", formatISODate(closestJson.expiryDate)));
-    if (closestJson.startDate) right.appendChild(row("Start", formatISODate(closestJson.startDate)));
-    if (closestJson.ongoing) right.appendChild(makeBadge("Ongoing", "info"));
-    right.appendChild(row("Title", closestJson.title || "—"));
-    right.appendChild(row("Listing", closestJson.shopListing || "—"));
-  } else {
-    right.appendChild(row("Closest JSON", "None with matching vendor"));
+function _asText(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  try {
+    return String(v);
+  } catch {
+    return "";
   }
-  cols.appendChild(right);
-
-  card.appendChild(cols);
-
-  // reasons / score
-  const foot = document.createElement("div");
-  foot.className = "tp-foot";
-  foot.appendChild(makeBadge(`Closest score ${String(score)}`, "neutral"));
-  foot.appendChild(makeReasonEye(reasons));
-  card.appendChild(foot);
-
-  return card;
 }
 
-// ---------------- Bulk renderers ----------------
+function _normalizeStr(s) {
+  return _asText(s).toLowerCase();
+}
+
+function _textMatches(query, str) {
+  const q = _normalizeStr(query).trim();
+  if (!q) return true; // empty query matches everything
+  const hay = _normalizeStr(str);
+  return hay.includes(q);
+}
+
+function _create(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class" || k === "className") el.className = v;
+    else if (k === "dataset" && v && typeof v === "object") {
+      Object.entries(v).forEach(([dk, dv]) => (el.dataset[dk] = dv));
+    } else if (k in el) {
+      try {
+        el[k] = v;
+      } catch {
+        el.setAttribute(k, v);
+      }
+    } else {
+      el.setAttribute(k, v);
+    }
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    if (Array.isArray(c)) c.forEach((cc) => el.appendChild(_node(cc)));
+    else el.appendChild(_node(c));
+  }
+  return el;
+}
+
+function _node(x) {
+  if (x == null) return document.createTextNode("");
+  return x instanceof Node ? x : document.createTextNode(_asText(x));
+}
+
+/* -------------------- Rendering helpers -------------------- */
+
+function _dealRow(label, value) {
+  return _create(
+    "div",
+    { class: "tp-row", style: "display:flex; gap:.5rem; margin:.125rem 0;" },
+    _create("div", { class: "tp-k", style: "min-width:7rem; font-weight:600;" }, label),
+    _create("div", { class: "tp-v" }, value || "—")
+  );
+}
+
+function _renderMatchedCard(item) {
+  const hq = item?.hqDeal || {};
+  const js = item?.jsonDeal || {};
+  return _create(
+    "div",
+    {
+      class:
+        "tp-card matched",
+      style:
+        "border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:8px 0; box-shadow:0 1px 2px rgba(0,0,0,.04);",
+    },
+    _create(
+      "div",
+      { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem" },
+      _create("div", { style: "font-size:1rem; font-weight:700;" }, hq.title || js.title || "Matched Deal"),
+      _create(
+        "div",
+        { style: "font-size:.75rem; opacity:.7" },
+        "matched"
+      )
+    ),
+    _dealRow("HQ Title", hq.title),
+    _dealRow("HQ Vendor", hq.vendor),
+    _dealRow("JSON Title", js.title),
+    _dealRow("JSON Vendor", js.shopListing || js.vendor),
+    (hq.url || js.url)
+      ? _dealRow(
+          "Link",
+          _create("a", { href: hq.url || js.url, target: "_blank", rel: "noopener noreferrer" }, hq.url || js.url)
+        )
+      : null
+  );
+}
+
+function _renderNonMatchedCard(item) {
+  const hq = item?.hqDeal || {};
+  const cj = item?.closestJson || {};
+  return _create(
+    "div",
+    {
+      class:
+        "tp-card nonmatched",
+      style:
+        "border:1px solid #f3f4f6; border-radius:12px; padding:12px; margin:8px 0; background:#fafafa;",
+    },
+    _create(
+      "div",
+      { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem" },
+      _create("div", { style: "font-size:1rem; font-weight:700;" }, hq.title || "Unmatched HQ Deal"),
+      _create("div", { style: "font-size:.75rem; opacity:.7" }, "unmatched")
+    ),
+    _dealRow("HQ Title", hq.title),
+    _dealRow("HQ Vendor", hq.vendor),
+    cj && (cj.title || cj.shopListing)
+      ? _dealRow("Closest JSON", `${cj.title || ""}${cj.title && cj.shopListing ? " · " : ""}${cj.shopListing || ""}`)
+      : _dealRow("Closest JSON", "—"),
+    (hq.url || cj.url)
+      ? _dealRow(
+          "Link",
+          _create("a", { href: hq.url || cj.url, target: "_blank", rel: "noopener noreferrer" }, hq.url || cj.url)
+        )
+      : null
+  );
+}
+
+/* -------------------- Core list renderers -------------------- */
+
 function renderMatchedList(container, items) {
-  clearNode(container);
-  if (!items || !items.length) {
-    const p = document.createElement("p");
-    p.textContent = "No matched deals.";
-    container.appendChild(p);
+  if (!container) {
+    console.warn("[renderMatchedList] Missing container (#matched / #matchedDealsContainer). Nothing to render.");
     return;
   }
-  for (const it of items) container.appendChild(renderMatchedItem(it));
+  clearNode(container);
+
+  if (!Array.isArray(items) || items.length === 0) {
+    container.appendChild(_create("div", { style: "opacity:.7; padding:8px 0" }, "No matched deals."));
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  items.forEach((it) => frag.appendChild(_renderMatchedCard(it)));
+  container.appendChild(frag);
 }
 
 function renderNonMatchedList(container, items) {
-  clearNode(container);
-  if (!items || !items.length) {
-    const p = document.createElement("p");
-    p.textContent = "No non-matched deals.";
-    container.appendChild(p);
+  if (!container) {
+    console.warn("[renderNonMatchedList] Missing container (#nonMatched / #nonMatchedDealsContainer). Nothing to render.");
     return;
   }
-  for (const it of items) container.appendChild(renderNonMatchedItem(it));
+  clearNode(container);
+
+  if (!Array.isArray(items) || items.length === 0) {
+    container.appendChild(_create("div", { style: "opacity:.7; padding:8px 0" }, "No unmatched deals."));
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  items.forEach((it) => frag.appendChild(_renderNonMatchedCard(it)));
+  container.appendChild(frag);
 }
 
-// ---------------- Results & wiring ----------------
-function renderCounts(matchedCnt, nonMatchedCnt) {
-  const mc = $("matchedCount", "matched-count", "matched_count");
-  const nc = $("nonMatchedCount", "nonmatched-count", "non_matched_count");
-  if (mc) mc.textContent = String(matchedCnt);
-  if (nc) nc.textContent = String(nonMatchedCnt);
-}
-
-function renderResults(result) {
-  const matchedList = $("matched", "matched-list", "matched_container");
-  const nonMatchedList = $("nonMatched", "nonmatched-list", "non_matched_container");
-
-  if (matchedList) renderMatchedList(matchedList, result.matched || []);
-  if (nonMatchedList) renderNonMatchedList(nonMatchedList, result.nonMatched || []);
-  renderCounts((result.matched || []).length, (result.nonMatched || []).length);
-}
-
-// ---------------- Copy non-matched helper (optional) ----------------
-function copyNonMatchedToClipboard(result) {
-  const arr = (result?.nonMatched || []).map(x => {
-    const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
-    return `${v}${x.hqDeal?.title || ""}`;
-  });
-  const text = arr.join("\n");
-  if (!text) return;
-  navigator.clipboard.writeText(text).catch(() => {});
-}
-
- // ---------------- Expose ----------------
- window.renderResults = renderResults;
- window.renderMatchedList = renderMatchedList;
- window.renderNonMatchedList = renderNonMatchedList;
-
- // --- Back-compat shims for app.js ---
- function _textMatches(q, s) {
-   return String(s || "").toLowerCase().includes(q);
- }
-
- function renderMatchedDeals() {
-   const q = (document.getElementById("matchedFilter")?.value || "").trim().toLowerCase();
-   const container = document.getElementById("matched");
-   const items = (window.matchedDeals || []).filter(it =>
-     !q ||
-     _textMatches(q, it.hqDeal?.title) ||
-     _textMatches(q, it.hqDeal?.vendor) ||
-     _textMatches(q, it.jsonDeal?.title) ||
-     _textMatches(q, it.jsonDeal?.shopListing)
-   );
-   renderMatchedList(container, items);
- }
-
- function renderNonMatchedDeals() {
-   const q = (document.getElementById("nonMatchedFilter")?.value || "").trim().toLowerCase();
-   const container = document.getElementById("nonMatched");
-   const items = (window.nonMatchedDeals || []).filter(it =>
-     !q ||
-     _textMatches(q, it.hqDeal?.title) ||
-     _textMatches(q, it.hqDeal?.vendor) ||
-     _textMatches(q, it.closestJson?.title) ||
-     _textMatches(q, it.closestJson?.shopListing)
-   );
-   renderNonMatchedList(container, items);
- }
-
- function renderAll() {
-   renderMatchedDeals();
-   renderNonMatchedDeals();
-   const mc = document.getElementById("matchedCount");
-   const nc = document.getElementById("nonMatchedCount");
-   if (mc) mc.textContent = String((window.matchedDeals || []).length);
-   if (nc) nc.textContent = String((window.nonMatchedDeals || []).length);
- }
-
- function copyNonMatchedToClipboard() {
-   const arr = (window.nonMatchedDeals || []).map(x => {
-     const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
-     return `${v}${x.hqDeal?.title || ""}`;
-   });
-   const text = arr.join("\n");
-   if (!text) return;
-   navigator.clipboard.writeText(text).catch(() => {});
- }
-
- // expose for app.js listeners
- window.renderAll = renderAll;
- window.renderMatchedDeals = renderMatchedDeals;
- window.renderNonMatchedDeals = renderNonMatchedDeals;
- window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
-
-
-/* ---------------- Tiny CSS recommendations (optional)
-.tp-card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 10px 0; }
-.tp-card--match { background: #f9fffb; }
-.tp-card--nomatch { background: #fff9f9; }
-.tp-deal-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
-.tp-chips { display:flex; gap:6px; flex-wrap:wrap; }
-.tp-badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid transparent; }
-.tp-good { background:#e8f7ee; border-color:#bfe8cf; }
-.tp-warn { background:#fff7e6; border-color:#ffe1a5; }
-.tp-bad  { background:#ffefef; border-color:#ffd0d0; }
-.tp-info { background:#eef4ff; border-color:#d6e2ff; }
-.tp-cols { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
-.tp-row { display:grid; grid-template-columns: 100px 1fr; gap:8px; font-size:14px; }
-.tp-row-label { color:#666; }
-.tp-eye { margin-left:auto; cursor:help; }
-.tp-foot { display:flex; align-items:center; gap:8px; margin-top:8px; }
-@media (max-width: 720px) {
-  .tp-cols { grid-template-columns: 1fr; }
-}
-*/ 
-// --- Back-compat shims for app.js ---
-// expects global matchedDeals / nonMatchedDeals and #matchedFilter, #nonMatchedFilter inputs.
-
-function _textMatches(q, s) {
-  return String(s || "").toLowerCase().includes(q);
-}
+/* -------------------- Top-level renderers -------------------- */
 
 function renderMatchedDeals() {
-  const q = (document.getElementById("matchedFilter")?.value || "").trim().toLowerCase();
-  const container = document.getElementById("matched");
-  const items = (window.matchedDeals || []).filter(it =>
-    !q ||
-    _textMatches(q, it.hqDeal?.title) ||
-    _textMatches(q, it.hqDeal?.vendor) ||
-    _textMatches(q, it.jsonDeal?.title) ||
-    _textMatches(q, it.jsonDeal?.shopListing)
-  );
+  // Read optional filter input if present
+  const filterInput = $("matchedFilter");
+  const q = _asText(filterInput?.value).trim().toLowerCase();
+
+  // Allow either legacy or new IDs
+  const container = _getContainer("matched", "matchedDealsContainer");
+
+  const items = (window.matchedDeals || []).filter((it) => {
+    if (!q) return true;
+    const hq = it?.hqDeal || {};
+    const js = it?.jsonDeal || {};
+    return (
+      _textMatches(q, hq.title) ||
+      _textMatches(q, hq.vendor) ||
+      _textMatches(q, js.title) ||
+      _textMatches(q, js.shopListing) ||
+      _textMatches(q, js.vendor)
+    );
+  });
+
   renderMatchedList(container, items);
 }
 
 function renderNonMatchedDeals() {
-  const q = (document.getElementById("nonMatchedFilter")?.value || "").trim().toLowerCase();
-  const container = document.getElementById("nonMatched");
-  const items = (window.nonMatchedDeals || []).filter(it =>
-    !q ||
-    _textMatches(q, it.hqDeal?.title) ||
-    _textMatches(q, it.hqDeal?.vendor) ||
-    _textMatches(q, it.closestJson?.title) ||
-    _textMatches(q, it.closestJson?.shopListing)
-  );
+  const filterInput = $("nonMatchedFilter");
+  const q = _asText(filterInput?.value).trim().toLowerCase();
+
+  const container = _getContainer("nonMatched", "nonMatchedDealsContainer");
+
+  const items = (window.nonMatchedDeals || []).filter((it) => {
+    if (!q) return true;
+    const hq = it?.hqDeal || {};
+    const cj = it?.closestJson || {};
+    return (
+      _textMatches(q, hq.title) ||
+      _textMatches(q, hq.vendor) ||
+      _textMatches(q, cj.title) ||
+      _textMatches(q, cj.shopListing) ||
+      _textMatches(q, cj.vendor)
+    );
+  });
+
   renderNonMatchedList(container, items);
 }
 
 function renderAll() {
-  // Re-render both lists + counts
   renderMatchedDeals();
   renderNonMatchedDeals();
-  const mc = document.getElementById("matchedCount");
-  const nc = document.getElementById("nonMatchedCount");
-  if (mc) mc.textContent = String((window.matchedDeals || []).length);
-  if (nc) nc.textContent = String((window.nonMatchedDeals || []).length);
 }
 
-function copyNonMatchedToClipboard() {
-  const arr = (window.nonMatchedDeals || []).map(x => {
-    const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
-    return `${v}${x.hqDeal?.title || ""}`;
-  });
-  const text = arr.join("\n");
-  if (!text) return;
-  navigator.clipboard.writeText(text).catch(() => {});
+/**
+ * Optional convenience: if your compare step produces an object like:
+ *   { matchedDeals: [...], nonMatchedDeals: [...] }
+ * you can call renderResults(result) to set globals and render once.
+ */
+function renderResults(result) {
+  if (!result || typeof result !== "object") {
+    console.warn("[renderResults] No result object provided.");
+    return;
+  }
+  if (Array.isArray(result.matchedDeals)) window.matchedDeals = result.matchedDeals;
+  if (Array.isArray(result.nonMatchedDeals)) window.nonMatchedDeals = result.nonMatchedDeals;
+  renderAll();
 }
 
-// expose for app.js listeners
-window.renderAll = renderAll;
+/* -------------------- Expose API on window -------------------- */
+
+window.clearNode = clearNode;
+window.renderMatchedList = renderMatchedList;
+window.renderNonMatchedList = renderNonMatchedList;
 window.renderMatchedDeals = renderMatchedDeals;
 window.renderNonMatchedDeals = renderNonMatchedDeals;
-window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
+window.renderAll = renderAll;
+window.renderResults = renderResults;
+
+/* -------------------- Nice-to-haves (non-breaking) -------------------- */
+
+// If filter inputs exist, re-render on input for snappy filtering
+["matchedFilter", "nonMatchedFilter"].forEach((id) => {
+  const el = $(id);
+  if (el && typeof el.addEventListener === "function") {
+    el.addEventListener("input", () => {
+      if (id === "matchedFilter") renderMatchedDeals();
+      else renderNonMatchedDeals();
+    });
+  }
+});
+
+// Soft warning if expected containers are truly missing (helps debugging)
+(function sanityCheckContainers() {
+  const m = _getContainer("matched", "matchedDealsContainer");
+  const n = _getContainer("nonMatched", "nonMatchedDealsContainer");
+  if (!m) console.warn('Expected a container with id="matched" or id="matchedDealsContainer".');
+  if (!n) console.warn('Expected a container with id="nonMatched" or id="nonMatchedDealsContainer".');
+})();
