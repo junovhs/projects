@@ -43,8 +43,6 @@ function strictMatch(hqDeal, jsonDeal){
   }
   return true;
 }
-}
-
 // Main scoring function
 function compareDealScore(hqDeal, jsonDeal){
   if (!jsonDeal) return { score: 0, reasons: ["Missing JSON deal"], flags:{} };
