@@ -1,253 +1,289 @@
-/* render.js — safe, id-flexible, and crash-resistant */
+/* render.js — colorful cards + live counts, null-safe, CSS-injected */
+
+/* -------------------- One-time CSS injection -------------------- */
+(function ensureStyles() {
+  if (document.getElementById("tp-deal-styles")) return;
+  const css = `
+  .tp-card{border:1px solid #e5e7eb;border-radius:14px;padding:12px 12px 12px 0;margin:10px 0;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .tp-rail{width:6px;border-top-left-radius:14px;border-bottom-left-radius:14px;align-self:stretch}
+  .tp-rail.green{background:linear-gradient(180deg,#22c55e,#16a34a)}
+  .tp-rail.amber{background:linear-gradient(180deg,#f59e0b,#d97706)}
+  .tp-rail.blue{background:linear-gradient(180deg,#3b82f6,#2563eb)}
+  .tp-body{padding-left:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tp-left{display:flex;flex-direction:column;gap:8px}
+  .tp-right{display:flex;flex-direction:column;gap:8px}
+  .tp-title{font-weight:800;font-size:1rem;line-height:1.2;margin-bottom:4px}
+  .tp-chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:2px}
+  .tp-chip{font-size:.72rem;font-weight:700;border-radius:999px;padding:4px 8px;border:1px solid transparent;display:inline-flex;gap:6px;align-items:center}
+  .tp-chip.perfect{background:#e8fff2;color:#065f46;border-color:#a7f3d0}
+  .tp-chip.exclusive{background:#eff6ff;color:#1e3a8a;border-color:#bfdbfe}
+  .tp-chip.issue{background:#fff7ed;color:#7c2d12;border-color:#fed7aa}
+  .tp-mini{font-size:.68rem;border-radius:8px;padding:2px 6px;border:1px solid transparent}
+  .tp-mini.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+  .tp-mini.meh{background:#fefce8;border-color:#fde68a;color:#713f12}
+  .tp-mini.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+  .tp-subcard{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px}
+  .tp-k{min-width:6.5rem;font-weight:700;color:#475569}
+  .tp-row{display:flex;gap:.5rem;margin:.1rem 0}
+  .tp-right .tp-subcard .tp-row{margin:.15rem 0}
+  .tp-count{display:inline-flex;min-width:26px;height:26px;padding:0 8px;border-radius:999px;align-items:center;justify-content:center;background:#eef2ff;color:#1e3a8a;font-weight:800}
+  .tp-badgeScore{min-width:34px;height:34px;border-radius:10px;background:#fffbeb;color:#92400e;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid #fde68a}
+  .tp-leftline{display:flex;gap:10px;align-items:center}
+  .tp-check{width:24px;height:24px;border-radius:999px;background:#e8fff2;border:1px solid #a7f3d0;display:flex;align-items:center;justify-content:center}
+  .tp-check::after{content:"✓";font-weight:900;color:#065f46}
+  .tp-muted{opacity:.7}
+  `;
+  const style = document.createElement("style");
+  style.id = "tp-deal-styles";
+  style.appendChild(document.createTextNode(css));
+  document.head.appendChild(style);
+})();
 
 /* -------------------- Utilities -------------------- */
-
-function $(id) {
-  return document.getElementById(id);
-}
+function $(id){ return document.getElementById(id); }
 
 function _getContainer(primaryId, ...aliases) {
   return $(primaryId) || aliases.map((id) => $(id)).find(Boolean) || null;
 }
 
-function clearNode(node) {
-  // Null guard fixes: "Cannot read properties of null (reading 'firstChild')"
-  if (!node) return;
-  while (node.firstChild) node.removeChild(node.firstChild);
-}
+function clearNode(node){ if(!node) return; while(node.firstChild) node.removeChild(node.firstChild); }
 
-function _asText(v) {
-  if (v == null) return "";
-  if (typeof v === "string") return v;
-  try {
-    return String(v);
-  } catch {
-    return "";
-  }
-}
+function _asText(v){ if(v==null) return ""; try{return String(v);}catch{return "";} }
+function _norm(s){ return _asText(s).toLowerCase(); }
+function _textMatches(q,str){ q=_norm(q).trim(); if(!q) return true; return _norm(str).includes(q); }
 
-function _normalizeStr(s) {
-  return _asText(s).toLowerCase();
-}
-
-function _textMatches(query, str) {
-  const q = _normalizeStr(query).trim();
-  if (!q) return true; // empty query matches everything
-  const hay = _normalizeStr(str);
-  return hay.includes(q);
-}
-
-function _create(tag, attrs = {}, ...children) {
+function _create(tag, attrs = {}, ...children){
   const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === "class" || k === "className") el.className = v;
-    else if (k === "dataset" && v && typeof v === "object") {
-      Object.entries(v).forEach(([dk, dv]) => (el.dataset[dk] = dv));
-    } else if (k in el) {
-      try {
-        el[k] = v;
-      } catch {
-        el.setAttribute(k, v);
-      }
-    } else {
-      el.setAttribute(k, v);
-    }
+  for(const [k,v] of Object.entries(attrs||{})){
+    if(k==="class"||k==="className") el.className=v;
+    else if(k==="dataset"&&v&&typeof v==="object") Object.entries(v).forEach(([dk,dv])=>el.dataset[dk]=dv);
+    else if(k in el){ try{ el[k]=v; }catch{ el.setAttribute(k,v); } }
+    else el.setAttribute(k,v);
   }
-  for (const c of children) {
-    if (c == null) continue;
-    if (Array.isArray(c)) c.forEach((cc) => el.appendChild(_node(cc)));
+  for(const c of children){
+    if(c==null) continue;
+    if(Array.isArray(c)) c.forEach(cc=>el.appendChild(_node(cc)));
     else el.appendChild(_node(c));
   }
   return el;
 }
+function _node(x){ return x instanceof Node ? x : document.createTextNode(_asText(x)); }
 
-function _node(x) {
-  if (x == null) return document.createTextNode("");
-  return x instanceof Node ? x : document.createTextNode(_asText(x));
+/* -------------------- Count helpers -------------------- */
+function _setCount(kind, n){
+  const id = kind==="matched" ? "matchedCount" : "nonMatchedCount";
+  const el = $(id) || document.querySelector(`[data-count="${kind}"]`);
+  if (el) { el.textContent = n; return; }
+
+  // Fallback: prepend a tiny header with count if none exists
+  const container = _getContainer(kind==="matched" ? "matched" : "nonMatched",
+                                  kind==="matched" ? "matchedDealsContainer" : "nonMatchedDealsContainer");
+  if (!container) return;
+  const first = container.firstElementChild;
+  const header = _create("div", { style:"display:flex;align-items:center;gap:8px;margin:4px 2px 8px 2px" },
+    _create("div", { style:"font-size:1.05rem;font-weight:800" }, kind==="matched" ? "Matched Deals" : "Unmatched Deals"),
+    _create("span", { class:"tp-count", dataset:{autoinsert:"1"} }, n)
+  );
+  if (!first || first.dataset?.autoinsert!=="1") container.insertBefore(header, first || null);
+  else first.querySelector(".tp-count").textContent = n;
 }
 
-/* -------------------- Rendering helpers -------------------- */
+/* -------------------- Tiny status helpers (robust to missing fields) -------------------- */
+function _flags(item){
+  const f = item?.flags || {};
+  // Accepts booleans or "ok"/"meh"/"bad". Soft defaults.
+  const norm = (x)=> x===true||x==="ok" ? "ok" : (x==="bad"||x===false ? "bad" : (x==="meh" ? "meh" : null));
+  return {
+    vendor: norm(f.vendor),
+    numbers: norm(f.numbers),
+    date: norm(f.date)
+  };
+}
+function _status(item){
+  // Prefer explicit status; otherwise infer "perfect" if all flags ok
+  const s = (item?.status || "").toLowerCase();
+  if (s) return s; 
+  const fl = _flags(item);
+  return (fl.vendor==="ok" && fl.numbers==="ok" && fl.date==="ok") ? "perfect" : "synergy";
+}
+function _railColor(item){
+  const st = _status(item);
+  if (st==="perfect") return "green";
+  if (item?.score != null) return "amber";
+  return "blue";
+}
+
+/* -------------------- Rendering primitives -------------------- */
+function _mini(label, kind){ return _create("span", { class:`tp-mini ${kind||"meh"}` }, label); }
+function _chip(text, kind){ return _create("span", { class:`tp-chip ${kind||""}` }, text); }
 
 function _dealRow(label, value) {
-  return _create(
-    "div",
-    { class: "tp-row", style: "display:flex; gap:.5rem; margin:.125rem 0;" },
-    _create("div", { class: "tp-k", style: "min-width:7rem; font-weight:600;" }, label),
-    _create("div", { class: "tp-v" }, value || "—")
+  return _create("div", { class:"tp-row" },
+    _create("div", { class:"tp-k" }, label),
+    _create("div", null, value || "—")
   );
 }
 
-function _renderMatchedCard(item) {
+/* -------------------- Card renderers -------------------- */
+function _renderMatchedCard(item){
   const hq = item?.hqDeal || {};
   const js = item?.jsonDeal || {};
-  return _create(
-    "div",
-    {
-      class:
-        "tp-card matched",
-      style:
-        "border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:8px 0; box-shadow:0 1px 2px rgba(0,0,0,.04);",
-    },
-    _create(
-      "div",
-      { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem" },
-      _create("div", { style: "font-size:1rem; font-weight:700;" }, hq.title || js.title || "Matched Deal"),
-      _create(
-        "div",
-        { style: "font-size:.75rem; opacity:.7" },
-        "matched"
-      )
+
+  const fl = _flags(item);
+  const st = _status(item);
+  const rail = _railColor(item);
+
+  const title = hq.title || js.title || "Matched Deal";
+
+  const chips = [];
+  if (st==="perfect") chips.push(_chip("PERFECT MATCH","perfect"));
+  if (item?.badges?.length) item.badges.forEach(b => chips.push(_chip(b, "exclusive")));
+  if (item?.issues?.length) item.issues.forEach(b => chips.push(_chip(b, "issue")));
+
+  const minis = [
+    _mini(`Vendor ${fl.vendor==="ok"?"✓":fl.vendor==="bad"?"✕":"–"}`, fl.vendor||"meh"),
+    _mini(`Numbers ${fl.numbers==="ok"?"✓":fl.numbers==="bad"?"✕":"–"}`, fl.numbers||"meh"),
+    _mini(`Date ${fl.date==="ok"?"✓":fl.date==="bad"?"✕":"–"}`, fl.date||"meh"),
+  ];
+
+  const leftRail = _create("div", { class:`tp-rail ${rail}` });
+  const leftColumn = _create("div", { class:"tp-left" },
+    _create("div", { class:"tp-leftline" },
+      (st==="perfect" ? _create("div", { class:"tp-check"}) :
+        (item?.score!=null ? _create("div", { class:"tp-badgeScore" }, _asText(item.score)) :
+          _create("div", { class:"tp-badgeScore tp-muted" }, "•"))),
+      _create("div", { class:"tp-title" }, title)
     ),
-    _dealRow("HQ Title", hq.title),
-    _dealRow("HQ Vendor", hq.vendor),
-    _dealRow("JSON Title", js.title),
-    _dealRow("JSON Vendor", js.shopListing || js.vendor),
-    (hq.url || js.url)
-      ? _dealRow(
-          "Link",
-          _create("a", { href: hq.url || js.url, target: "_blank", rel: "noopener noreferrer" }, hq.url || js.url)
-        )
-      : null
+    _create("div", { class:"tp-chiprow" }, chips, minis)
   );
+
+  const rightColumn = _create("div", { class:"tp-right" },
+    _create("div", { class:"tp-subcard" },
+      _dealRow("Vendor:", js.vendor || js.shopListing || "—"),
+      _dealRow("Expiry:", js.expiry || js.exp || js.endDate || "N/A"),
+      _dealRow("Title:", js.title || "—"),
+      _dealRow("Listing:", js.shopListing || js.description || "—")
+    ),
+    _create("div", { class:"tp-subcard" },
+      _dealRow("Vendor:", hq.vendor || "—"),
+      _dealRow("Expiry:", hq.expiry || hq.exp || hq.endDate || "N/A"),
+      _dealRow("Title:", hq.title || "—"),
+      hq.url ? _dealRow("Link:", _create("a", { href:hq.url, target:"_blank", rel:"noopener noreferrer" }, hq.url)) : null
+    )
+  );
+
+  const body = _create("div", { class:"tp-body" }, leftColumn, rightColumn);
+
+  return _create("div", { class:"tp-card" }, leftRail, body);
 }
 
-function _renderNonMatchedCard(item) {
+function _renderNonMatchedCard(item){
   const hq = item?.hqDeal || {};
   const cj = item?.closestJson || {};
-  return _create(
-    "div",
-    {
-      class:
-        "tp-card nonmatched",
-      style:
-        "border:1px solid #f3f4f6; border-radius:12px; padding:12px; margin:8px 0; background:#fafafa;",
-    },
-    _create(
-      "div",
-      { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem" },
-      _create("div", { style: "font-size:1rem; font-weight:700;" }, hq.title || "Unmatched HQ Deal"),
-      _create("div", { style: "font-size:.75rem; opacity:.7" }, "unmatched")
+  const rail = "blue";
+  const title = hq.title || "Unmatched HQ Deal";
+
+  const left = _create("div", { class:"tp-left" },
+    _create("div", { class:"tp-leftline" },
+      _create("div", { class:"tp-badgeScore tp-muted" }, "•"),
+      _create("div", { class:"tp-title" }, title)
     ),
-    _dealRow("HQ Title", hq.title),
-    _dealRow("HQ Vendor", hq.vendor),
-    cj && (cj.title || cj.shopListing)
-      ? _dealRow("Closest JSON", `${cj.title || ""}${cj.title && cj.shopListing ? " · " : ""}${cj.shopListing || ""}`)
-      : _dealRow("Closest JSON", "—"),
-    (hq.url || cj.url)
-      ? _dealRow(
-          "Link",
-          _create("a", { href: hq.url || cj.url, target: "_blank", rel: "noopener noreferrer" }, hq.url || cj.url)
-        )
-      : null
+    _create("div", { class:"tp-chiprow" },
+      _chip("NEEDS ATTENTION","issue"),
+      _mini("No JSON match","bad")
+    )
   );
+
+  const right = _create("div", { class:"tp-right" },
+    _create("div", { class:"tp-subcard" },
+      _dealRow("HQ Vendor:", hq.vendor || "—"),
+      _dealRow("HQ Title:", hq.title || "—"),
+      hq.url ? _dealRow("Link:", _create("a", { href:hq.url, target:"_blank", rel:"noopener noreferrer" }, hq.url)) : null
+    ),
+    (cj && (cj.title||cj.shopListing)) ? _create("div", { class:"tp-subcard" },
+      _dealRow("Closest JSON:", `${cj.title || ""}${cj.title && cj.shopListing ? " · " : ""}${cj.shopListing || ""}`),
+      _dealRow("Vendor:", cj.vendor || cj.shopListing || "—")
+    ) : null
+  );
+
+  return _create("div", { class:"tp-card" }, _create("div",{class:`tp-rail ${rail}`}), _create("div",{class:"tp-body"}, left, right));
 }
 
-/* -------------------- Core list renderers -------------------- */
-
-function renderMatchedList(container, items) {
-  if (!container) {
-    console.warn("[renderMatchedList] Missing container (#matched / #matchedDealsContainer). Nothing to render.");
-    return;
-  }
+/* -------------------- List renderers -------------------- */
+function renderMatchedList(container, items){
+  if(!container){ console.warn("[renderMatchedList] Missing container"); return; }
   clearNode(container);
 
-  if (!Array.isArray(items) || items.length === 0) {
-    container.appendChild(_create("div", { style: "opacity:.7; padding:8px 0" }, "No matched deals."));
+  // Count badge
+  _setCount("matched", Array.isArray(items) ? items.length : 0);
+
+  if (!Array.isArray(items) || items.length===0){
+    container.appendChild(_create("div", { class:"tp-muted", style:"padding:8px 0" }, "No matched deals."));
     return;
   }
 
   const frag = document.createDocumentFragment();
-  items.forEach((it) => frag.appendChild(_renderMatchedCard(it)));
+  items.forEach(it => frag.appendChild(_renderMatchedCard(it)));
   container.appendChild(frag);
 }
 
-function renderNonMatchedList(container, items) {
-  if (!container) {
-    console.warn("[renderNonMatchedList] Missing container (#nonMatched / #nonMatchedDealsContainer). Nothing to render.");
-    return;
-  }
+function renderNonMatchedList(container, items){
+  if(!container){ console.warn("[renderNonMatchedList] Missing container"); return; }
   clearNode(container);
 
-  if (!Array.isArray(items) || items.length === 0) {
-    container.appendChild(_create("div", { style: "opacity:.7; padding:8px 0" }, "No unmatched deals."));
+  _setCount("nonMatched", Array.isArray(items) ? items.length : 0);
+
+  if (!Array.isArray(items) || items.length===0){
+    container.appendChild(_create("div", { class:"tp-muted", style:"padding:8px 0" }, "No unmatched deals."));
     return;
   }
 
   const frag = document.createDocumentFragment();
-  items.forEach((it) => frag.appendChild(_renderNonMatchedCard(it)));
+  items.forEach(it => frag.appendChild(_renderNonMatchedCard(it)));
   container.appendChild(frag);
 }
 
-/* -------------------- Top-level renderers -------------------- */
+/* -------------------- Top-level API -------------------- */
+function _filterValue(id){ return _asText($(id)?.value).trim().toLowerCase(); }
 
-function renderMatchedDeals() {
-  // Read optional filter input if present
-  const filterInput = $("matchedFilter");
-  const q = _asText(filterInput?.value).trim().toLowerCase();
+function renderMatchedDeals(){
+  const q = _filterValue("matchedFilter");
+  const container = _getContainer("matched","matchedDealsContainer");
 
-  // Allow either legacy or new IDs
-  const container = _getContainer("matched", "matchedDealsContainer");
-
-  const items = (window.matchedDeals || []).filter((it) => {
-    if (!q) return true;
-    const hq = it?.hqDeal || {};
-    const js = it?.jsonDeal || {};
-    return (
-      _textMatches(q, hq.title) ||
-      _textMatches(q, hq.vendor) ||
-      _textMatches(q, js.title) ||
-      _textMatches(q, js.shopListing) ||
-      _textMatches(q, js.vendor)
-    );
+  const items = (window.matchedDeals || []).filter((it)=>{
+    if(!q) return true;
+    const hq = it?.hqDeal || {}, js = it?.jsonDeal || {};
+    return _textMatches(q, hq.title) || _textMatches(q, hq.vendor) ||
+           _textMatches(q, js.title) || _textMatches(q, js.shopListing) || _textMatches(q, js.vendor);
   });
 
   renderMatchedList(container, items);
 }
 
-function renderNonMatchedDeals() {
-  const filterInput = $("nonMatchedFilter");
-  const q = _asText(filterInput?.value).trim().toLowerCase();
+function renderNonMatchedDeals(){
+  const q = _filterValue("nonMatchedFilter");
+  const container = _getContainer("nonMatched","nonMatchedDealsContainer");
 
-  const container = _getContainer("nonMatched", "nonMatchedDealsContainer");
-
-  const items = (window.nonMatchedDeals || []).filter((it) => {
-    if (!q) return true;
-    const hq = it?.hqDeal || {};
-    const cj = it?.closestJson || {};
-    return (
-      _textMatches(q, hq.title) ||
-      _textMatches(q, hq.vendor) ||
-      _textMatches(q, cj.title) ||
-      _textMatches(q, cj.shopListing) ||
-      _textMatches(q, cj.vendor)
-    );
+  const items = (window.nonMatchedDeals || []).filter((it)=>{
+    if(!q) return true;
+    const hq = it?.hqDeal || {}, cj = it?.closestJson || {};
+    return _textMatches(q, hq.title) || _textMatches(q, hq.vendor) ||
+           _textMatches(q, cj.title) || _textMatches(q, cj.shopListing) || _textMatches(q, cj.vendor);
   });
 
   renderNonMatchedList(container, items);
 }
 
-function renderAll() {
-  renderMatchedDeals();
-  renderNonMatchedDeals();
-}
+function renderAll(){ renderMatchedDeals(); renderNonMatchedDeals(); }
 
-/**
- * Optional convenience: if your compare step produces an object like:
- *   { matchedDeals: [...], nonMatchedDeals: [...] }
- * you can call renderResults(result) to set globals and render once.
- */
-function renderResults(result) {
-  if (!result || typeof result !== "object") {
-    console.warn("[renderResults] No result object provided.");
-    return;
-  }
-  if (Array.isArray(result.matchedDeals)) window.matchedDeals = result.matchedDeals;
-  if (Array.isArray(result.nonMatchedDeals)) window.nonMatchedDeals = result.nonMatchedDeals;
+function renderResults(result){
+  if(!result || typeof result!=="object"){ console.warn("[renderResults] No result object"); return; }
+  if(Array.isArray(result.matchedDeals)) window.matchedDeals = result.matchedDeals;
+  if(Array.isArray(result.nonMatchedDeals)) window.nonMatchedDeals = result.nonMatchedDeals;
   renderAll();
 }
 
-/* -------------------- Expose API on window -------------------- */
-
+/* -------------------- Expose globals -------------------- */
 window.clearNode = clearNode;
 window.renderMatchedList = renderMatchedList;
 window.renderNonMatchedList = renderNonMatchedList;
@@ -256,23 +292,10 @@ window.renderNonMatchedDeals = renderNonMatchedDeals;
 window.renderAll = renderAll;
 window.renderResults = renderResults;
 
-/* -------------------- Nice-to-haves (non-breaking) -------------------- */
-
-// If filter inputs exist, re-render on input for snappy filtering
-["matchedFilter", "nonMatchedFilter"].forEach((id) => {
-  const el = $(id);
-  if (el && typeof el.addEventListener === "function") {
-    el.addEventListener("input", () => {
-      if (id === "matchedFilter") renderMatchedDeals();
-      else renderNonMatchedDeals();
-    });
+/* -------------------- QoL: live filter re-render -------------------- */
+["matchedFilter","nonMatchedFilter"].forEach(id=>{
+  const el=$(id);
+  if(el && typeof el.addEventListener==="function"){
+    el.addEventListener("input", ()=> id==="matchedFilter" ? renderMatchedDeals() : renderNonMatchedDeals());
   }
 });
-
-// Soft warning if expected containers are truly missing (helps debugging)
-(function sanityCheckContainers() {
-  const m = _getContainer("matched", "matchedDealsContainer");
-  const n = _getContainer("nonMatched", "nonMatchedDealsContainer");
-  if (!m) console.warn('Expected a container with id="matched" or id="matchedDealsContainer".');
-  if (!n) console.warn('Expected a container with id="nonMatched" or id="nonMatchedDealsContainer".');
-})();
