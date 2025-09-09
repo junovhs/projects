@@ -305,7 +305,7 @@ function parseJSONDeals(text) {
   try {
     const arr = JSON.parse(text || "[]");
     return (Array.isArray(arr)?arr:[]).map(o => ({
-      vendor: cleanVendorName(o.vendor||""),
+      vendor: cleanVendorName(o.vendor || o.shopOverline || ""),  // ← add shopOverline fallback
       title: String(o.title||"").trim(),
       shopListing: String(o.shopListing||o.listing||"").trim(),
       expiryDate: o.expiryDate || o.expiry || null
