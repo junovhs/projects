@@ -259,9 +259,9 @@ function compareDealScore(hqDeal, jsonDeal) {
 }
 
 // -------------------- Orchestration --------------------
-function performMatching(hqText, jsonText, threshold = 120) {
-  const hqDeals = parseHQDeals(hqText);
-  const jsDeals = parseJSONDeals(jsonText);
+function performMatching(hqInput, jsonInput, threshold = 120) {
+  const hqDeals = Array.isArray(hqInput) ? hqInput : parseHQDeals(hqInput);
+  const jsDeals = Array.isArray(jsonInput) ? jsonInput : parseJSONDeals(jsonInput);
 
   const matched = [];
   const nonMatched = [];

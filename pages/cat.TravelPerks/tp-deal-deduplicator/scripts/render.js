@@ -225,11 +225,67 @@ function copyNonMatchedToClipboard(result) {
   navigator.clipboard.writeText(text).catch(() => {});
 }
 
-// ---------------- Expose ----------------
-window.renderResults = renderResults;
-window.renderMatchedList = renderMatchedList;
-window.renderNonMatchedList = renderNonMatchedList;
-window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
+ // ---------------- Expose ----------------
+ window.renderResults = renderResults;
+ window.renderMatchedList = renderMatchedList;
+ window.renderNonMatchedList = renderNonMatchedList;
+
+ // --- Back-compat shims for app.js ---
+ function _textMatches(q, s) {
+   return String(s || "").toLowerCase().includes(q);
+ }
+
+ function renderMatchedDeals() {
+   const q = (document.getElementById("matchedFilter")?.value || "").trim().toLowerCase();
+   const container = document.getElementById("matched");
+   const items = (window.matchedDeals || []).filter(it =>
+     !q ||
+     _textMatches(q, it.hqDeal?.title) ||
+     _textMatches(q, it.hqDeal?.vendor) ||
+     _textMatches(q, it.jsonDeal?.title) ||
+     _textMatches(q, it.jsonDeal?.shopListing)
+   );
+   renderMatchedList(container, items);
+ }
+
+ function renderNonMatchedDeals() {
+   const q = (document.getElementById("nonMatchedFilter")?.value || "").trim().toLowerCase();
+   const container = document.getElementById("nonMatched");
+   const items = (window.nonMatchedDeals || []).filter(it =>
+     !q ||
+     _textMatches(q, it.hqDeal?.title) ||
+     _textMatches(q, it.hqDeal?.vendor) ||
+     _textMatches(q, it.closestJson?.title) ||
+     _textMatches(q, it.closestJson?.shopListing)
+   );
+   renderNonMatchedList(container, items);
+ }
+
+ function renderAll() {
+   renderMatchedDeals();
+   renderNonMatchedDeals();
+   const mc = document.getElementById("matchedCount");
+   const nc = document.getElementById("nonMatchedCount");
+   if (mc) mc.textContent = String((window.matchedDeals || []).length);
+   if (nc) nc.textContent = String((window.nonMatchedDeals || []).length);
+ }
+
+ function copyNonMatchedToClipboard() {
+   const arr = (window.nonMatchedDeals || []).map(x => {
+     const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
+     return `${v}${x.hqDeal?.title || ""}`;
+   });
+   const text = arr.join("\n");
+   if (!text) return;
+   navigator.clipboard.writeText(text).catch(() => {});
+ }
+
+ // expose for app.js listeners
+ window.renderAll = renderAll;
+ window.renderMatchedDeals = renderMatchedDeals;
+ window.renderNonMatchedDeals = renderNonMatchedDeals;
+ window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
+
 
 /* ---------------- Tiny CSS recommendations (optional)
 .tp-card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 10px 0; }
@@ -251,3 +307,61 @@ window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
   .tp-cols { grid-template-columns: 1fr; }
 }
 */ 
+// --- Back-compat shims for app.js ---
+// expects global matchedDeals / nonMatchedDeals and #matchedFilter, #nonMatchedFilter inputs.
+
+function _textMatches(q, s) {
+  return String(s || "").toLowerCase().includes(q);
+}
+
+function renderMatchedDeals() {
+  const q = (document.getElementById("matchedFilter")?.value || "").trim().toLowerCase();
+  const container = document.getElementById("matched");
+  const items = (window.matchedDeals || []).filter(it =>
+    !q ||
+    _textMatches(q, it.hqDeal?.title) ||
+    _textMatches(q, it.hqDeal?.vendor) ||
+    _textMatches(q, it.jsonDeal?.title) ||
+    _textMatches(q, it.jsonDeal?.shopListing)
+  );
+  renderMatchedList(container, items);
+}
+
+function renderNonMatchedDeals() {
+  const q = (document.getElementById("nonMatchedFilter")?.value || "").trim().toLowerCase();
+  const container = document.getElementById("nonMatched");
+  const items = (window.nonMatchedDeals || []).filter(it =>
+    !q ||
+    _textMatches(q, it.hqDeal?.title) ||
+    _textMatches(q, it.hqDeal?.vendor) ||
+    _textMatches(q, it.closestJson?.title) ||
+    _textMatches(q, it.closestJson?.shopListing)
+  );
+  renderNonMatchedList(container, items);
+}
+
+function renderAll() {
+  // Re-render both lists + counts
+  renderMatchedDeals();
+  renderNonMatchedDeals();
+  const mc = document.getElementById("matchedCount");
+  const nc = document.getElementById("nonMatchedCount");
+  if (mc) mc.textContent = String((window.matchedDeals || []).length);
+  if (nc) nc.textContent = String((window.nonMatchedDeals || []).length);
+}
+
+function copyNonMatchedToClipboard() {
+  const arr = (window.nonMatchedDeals || []).map(x => {
+    const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
+    return `${v}${x.hqDeal?.title || ""}`;
+  });
+  const text = arr.join("\n");
+  if (!text) return;
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// expose for app.js listeners
+window.renderAll = renderAll;
+window.renderMatchedDeals = renderMatchedDeals;
+window.renderNonMatchedDeals = renderNonMatchedDeals;
+window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
