@@ -1,176 +1,253 @@
-// render.js — UI
+// render.js — UI rendering for matches & non-matches
+// Expects window.performMatching(...) (from match.js) and the parsers (from utils.js)
 
-function highlightText(text){
-  let r = String(text||"").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  r = r.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g,'<span class="expiry-date">$1</span>');
-  r = r.replace(/(\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
-  r = r.replace(/(\d+\s*%|\d+\s*percent)/gi,'<span class="percentage-value">$1</span>');
-  return r;
-}
-const highlightTextJSON = highlightText;
-
-function filterDeals(deals, searchText){
-  if (!searchText) return deals;
-  const terms = searchText.toLowerCase().split(/\s+/).filter(Boolean);
-  return deals.filter(m => terms.every(t => (m.hqDeal.vendor + " " + m.hqDeal.text).toLowerCase().includes(t)));
-}
-function filterNonMatched(deals, searchText){
-  if (!searchText) return deals;
-  const terms = searchText.toLowerCase().split(/\s+/).filter(Boolean);
-  return deals.filter(d => terms.every(t => (d.vendor + " " + d.text).toLowerCase().includes(t)));
-}
-
-function renderMatchedDeals(){
-  const container = document.getElementById("matchedDealsContainer");
-  const fb = document.getElementById("matchedFilter").value.trim();
-  const list = filterDeals(matchedDeals, fb);
-  document.getElementById("matchedCount").textContent = matchedDeals.length;
-  container.innerHTML = list.length ? "" : "<div class='no-matches'>No matched deals found.</div>";
-
-  list.forEach(match => {
-    const res = match.jsonDeal ? compareDealScore(match.hqDeal, match.jsonDeal) : {score: match.score||0, reasons: match.reasons||[], flags:{}, numbersEqual:false, dateFlag:false, dateDiffDays:null, commonKW:[]};
-    const row = document.createElement("div");
-    row.className = res.dateFlag ? "matched-deal possible-date-change" : "matched-deal";
-
-    // Score badge
-    const scoreDiv = document.createElement("div");
-    scoreDiv.className = "match-score";
-    scoreDiv.textContent = match.isStrictMatch ? "✓" : match.score;
-    if (match.isStrictMatch){
-      scoreDiv.style.backgroundColor = "#2ecc71"; scoreDiv.style.color = "#083";
-      scoreDiv.title = "Perfect Match";
-    }
-
-    // Left (HQ) with triage chips
-    const left = document.createElement("div"); left.className = "deal-info";
-
-    // Chips: Vendor / Numbers / Date
-    const triage = document.createElement("div"); triage.className = "triage-row";
-    const chipV = document.createElement("span"); chipV.className = "chip ok"; chipV.textContent = "Vendor ✓";
-    const chipN = document.createElement("span");
-    if (res.numbersEqual) { chipN.className="chip ok"; chipN.textContent="Numbers ✓"; }
-    else if (res.flags && res.flags.numericOneSided) { chipN.className="chip warn"; chipN.textContent="Numbers –"; }
-    else { chipN.className="chip bad"; chipN.textContent="Numbers ×"; }
-    const chipD = document.createElement("span");
-    if (!res.dateFlag) { chipD.className="chip ok"; chipD.textContent="Date ✓"; }
-    else if (res.dateDiffDays != null && res.dateDiffDays <= 5) { chipD.className="chip warn"; chipD.textContent="Date ±5"; }
-    else { chipD.className="chip bad"; chipD.textContent="Date ×"; }
-    triage.appendChild(chipV); triage.appendChild(chipN); triage.appendChild(chipD);
-
-    // Flags
-    if (match.isStrictMatch){
-      const s = document.createElement("span"); s.className="date-flag"; s.style.background="#d5f5e3"; s.style.color="#1e7d4f"; s.textContent="PERFECT MATCH"; left.appendChild(s);
-    } else if (res.numbersEqual && res.commonKW && res.commonKW.length){
-      const s = document.createElement("span"); s.className="date-flag"; s.textContent="SYNERGY"; left.appendChild(s);
-    }
-    if (res.dateFlag){
-      const s = document.createElement("span"); s.className="date-flag"; s.textContent = (res.dateDiffDays<=5) ? "POSSIBLE DATE CHANGE" : "DATE MISMATCH"; left.appendChild(s);
-    }
-    if (res.flags && res.flags.exclusiveFlag){
-      const s = document.createElement("span"); s.className="exclusive-flag"; s.textContent="Exclusive listed on JSON"; left.appendChild(s);
-    }
-
-    left.innerHTML += `<span class="deal-vendor">${match.hqDeal.vendor}:</span> `;
-    left.appendChild(triage);
-
-    // HQ text with date re-render to show raw+display
-    let rendered = match.hqDeal.text.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g, m => {
-      return `<span class="expiry-date">${m}</span>`;
-    });
-    rendered = rendered.replace(/(\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g,'<span class="price-value">$1</span>');
-    rendered = rendered.replace(/(\d+\s*%|\d+\s*percent)/gi,'<span class="percentage-value">$1</span>');
-    left.innerHTML += rendered;
-
-    // Right JSON block
-    const right = document.createElement("div"); right.className = "json-match";
-    if (match.jsonDeal){
-      right.innerHTML = `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>
-      <strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate ? formatDate(new Date(match.jsonDeal.expiryDate)) : "N/A"}</span><br>
-      <strong>Title:</strong> ${highlightTextJSON(match.jsonDeal.title)}<br>
-      <strong>Listing:</strong> ${highlightTextJSON(match.jsonDeal.shopListing)}`;
-    } else {
-      right.textContent = "No JSON deal chosen for this row.";
-    }
-
-    // Tooltip with reasons
-    const tooltip = document.createElement("div"); tooltip.className="tooltip"; tooltip.innerHTML="👁️";
-    const tip = document.createElement("span"); tip.className="tooltiptext"; tip.innerHTML = (match.reasons||res.reasons||[]).join("<br>");
-    tooltip.appendChild(tip);
-
-    // Move to non-matched
-    const btn = document.createElement("button"); btn.textContent="👎"; btn.title="Move to non‑matched";
-    btn.addEventListener("click", ()=>{
-      const i = matchedDeals.indexOf(match);
-      if (i>=0){ matchedDeals.splice(i,1); nonMatchedDeals.push(match.hqDeal); renderAll(); }
-    });
-
-    [scoreDiv,left,right,tooltip,btn].forEach(el => row.appendChild(el));
-    container.appendChild(row);
-  });
-}
-
-function renderNonMatchedDeals(){
-  const container = document.getElementById("nonMatchedDealsContainer");
-  const fb = document.getElementById("nonMatchedFilter").value.trim();
-  const list = filterNonMatched(nonMatchedDeals, fb);
-  document.getElementById("nonMatchedCount").textContent = nonMatchedDeals.length;
-  container.innerHTML = list.length ? "" : "<div class='no-matches'>No non‑matched deals.</div>";
-
-  list.forEach(d => {
-    const row = document.createElement("div");
-    row.className = "non-matched-deal";
-    const score = document.createElement("div"); score.className="match-score"; score.textContent = "–";
-    const left = document.createElement("div"); left.className="deal-info";
-    left.innerHTML = `<span class="deal-vendor">${d.vendor}:</span> ${highlightText(d.text)}`;
-
-    const right = document.createElement("div"); right.className="json-match";
-    const close = findClosestMatch(d, _lastJSONDeals, _lastThreshold);
-    right.innerHTML = close ? `<div><strong>Closest JSON (below threshold):</strong></div>
-      <div><strong>Vendor:</strong> ${close.jsonDeal.vendor}</div>
-      <div><strong>Title:</strong> ${highlightTextJSON(close.jsonDeal.title)}</div>
-      <div><strong>Listing:</strong> ${highlightTextJSON(close.jsonDeal.shopListing)}</div>
-      <div><strong>Why:</strong> ${close.reasons.join("<br>")}</div>` : "No decent candidate below the threshold.";
-
-    const tooltip = document.createElement("div"); tooltip.className="tooltip"; tooltip.innerHTML="👁️";
-    const tip = document.createElement("span"); tip.className="tooltiptext"; tip.textContent = d.original||d.text;
-    tooltip.appendChild(tip);
-
-    const btn = document.createElement("button"); btn.textContent="➕"; btn.title="Promote to matched (will not lock to JSON)";
-    btn.addEventListener("click", ()=>{
-      matchedDeals.push({ hqDeal: d, jsonDeal: close?close.jsonDeal:{vendor:d.vendor,title:"",shopListing:"",expiryDate:null}, score: close?close.score:0, reasons: close?close.reasons:[], jsonIndex: -1, isStrictMatch:false });
-      const idx = nonMatchedDeals.indexOf(d);
-      if (idx>=0) nonMatchedDeals.splice(idx,1);
-      renderAll();
-    });
-
-    [score,left,right,tooltip,btn].forEach(el => row.appendChild(el));
-    container.appendChild(row);
-  });
-}
-
-function copyNonMatchedToClipboard(){
-  const groups = {};
-  nonMatchedDeals.forEach(d => {
-    groups[d.vendor] = groups[d.vendor] || [];
-    groups[d.vendor].push(d.original || `d\t${d.text}`);
-  });
-  let out = "";
-  for (const v in groups){
-    out += `v\t${v}:\n` + groups[v].map(line => line + "\n").join("");
+// ---------------- UI helpers ----------------
+function $(...ids) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) return el;
   }
-  navigator.clipboard.writeText(out).then(
-    ()=>alert("Copied!"),
-    ()=>alert("Copy failed")
-  );
+  return null;
 }
 
-function renderAll(){
-  renderMatchedDeals();
-  renderNonMatchedDeals();
+function formatISODate(iso) {
+  if (!iso) return "N/A";
+  // iso is "YYYY-MM-DD"
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-// expose UI fns used by app.js
-window.renderAll = renderAll;
-window.renderMatchedDeals = renderMatchedDeals;
-window.renderNonMatchedDeals = renderNonMatchedDeals;
+function makeBadge(text, variant = "neutral", title = "") {
+  const span = document.createElement("span");
+  span.className = `tp-badge tp-${variant}`;
+  if (title) span.title = title;
+  span.textContent = text;
+  return span;
+}
+
+function makeReasonEye(reasons = []) {
+  const btn = document.createElement("span");
+  btn.className = "tp-eye";
+  btn.textContent = "👁️";
+  if (reasons && reasons.length) {
+    btn.title = "Why:\n" + reasons.join("\n");
+  } else {
+    btn.title = "No details.";
+  }
+  return btn;
+}
+
+function clearNode(node) {
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
+
+function row(label, value) {
+  const div = document.createElement("div");
+  div.className = "tp-row";
+  const l = document.createElement("div");
+  l.className = "tp-row-label";
+  l.textContent = label;
+  const v = document.createElement("div");
+  v.className = "tp-row-value";
+  v.textContent = value;
+  div.appendChild(l);
+  div.appendChild(v);
+  return div;
+}
+
+function dealHeader(hqDeal, isPerfect) {
+  const wrap = document.createElement("div");
+  wrap.className = "tp-deal-header";
+  const strong = document.createElement("strong");
+  strong.textContent = (isPerfect ? "PERFECT MATCH " : "") + (hqDeal.vendor ? `${hqDeal.vendor}:` : "");
+  wrap.appendChild(strong);
+  return wrap;
+}
+
+function checkmark(ok) { return ok ? "✓" : "×"; }
+
+// ---------------- Item renderers ----------------
+function renderMatchedItem({ hqDeal, jsonDeal, score, reasons, flags, perfect }) {
+  const card = document.createElement("div");
+  card.className = "tp-card tp-card--match";
+
+  // Header
+  const hdr = dealHeader(hqDeal, perfect);
+  // Triaging chips: Vendor / Numbers / Date
+  const chips = document.createElement("div");
+  chips.className = "tp-chips";
+  chips.appendChild(makeBadge(`Vendor ${checkmark(true)}`, "good"));
+  chips.appendChild(makeBadge(`Numbers ${checkmark(!flags.numberFlag)}`, !flags.numberFlag ? "good" : "bad",
+    flags.numberFlag ? "Numbers conflicted earlier" : "Numbers look consistent"));
+  chips.appendChild(makeBadge(`Date ${checkmark(!flags.dateFlag)}`, !flags.dateFlag ? "good" : "warn",
+    flags.dateFlag ? "Some date(s) differ beyond tolerance" : "Dates look consistent"));
+
+  hdr.appendChild(chips);
+  card.appendChild(hdr);
+
+  // HQ body
+  const left = document.createElement("div");
+  left.className = "tp-col tp-col--left";
+  left.appendChild(row("HQ Title", hqDeal.title));
+  left.appendChild(row("Start", formatISODate(hqDeal.startDate)));
+  left.appendChild(row("End", formatISODate(hqDeal.expiryDate)));
+  if (hqDeal.ongoing) left.appendChild(makeBadge("Ongoing", "info"));
+
+  // JSON body
+  const right = document.createElement("div");
+  right.className = "tp-col tp-col--right";
+  right.appendChild(row("Vendor", jsonDeal.vendor || "N/A"));
+  right.appendChild(row("Expiry", formatISODate(jsonDeal.expiryDate)));
+  right.appendChild(row("Title", jsonDeal.title || "—"));
+  right.appendChild(row("Listing", jsonDeal.shopListing || "—"));
+  if (jsonDeal.startDate) right.appendChild(row("Start", formatISODate(jsonDeal.startDate)));
+  if (jsonDeal.ongoing) right.appendChild(makeBadge("Ongoing", "info"));
+
+  const cols = document.createElement("div");
+  cols.className = "tp-cols";
+  cols.appendChild(left);
+  cols.appendChild(right);
+
+  card.appendChild(cols);
+
+  // Footer: score + eye
+  const foot = document.createElement("div");
+  foot.className = "tp-foot";
+  foot.appendChild(makeBadge(`Score ${perfect ? "999" : String(score)}`, perfect ? "good" : "neutral"));
+  foot.appendChild(makeReasonEye(reasons));
+  card.appendChild(foot);
+
+  return card;
+}
+
+function renderNonMatchedItem({ hqDeal, closestJson, score, reasons, flags }) {
+  const card = document.createElement("div");
+  card.className = "tp-card tp-card--nomatch";
+
+  // Header & chips (use flags if present)
+  const hdr = dealHeader(hqDeal, false);
+  const chips = document.createElement("div");
+  chips.className = "tp-chips";
+  chips.appendChild(makeBadge(`Vendor ${checkmark(!!flags?.vendor)}`, flags?.vendor ? "good" : "bad"));
+  chips.appendChild(makeBadge(`Numbers ${checkmark(!flags?.numberFlag)}`, !flags?.numberFlag ? "neutral" : "bad"));
+  chips.appendChild(makeBadge(`Date ${checkmark(!flags?.dateFlag)}`, !flags?.dateFlag ? "neutral" : "warn"));
+  hdr.appendChild(chips);
+  card.appendChild(hdr);
+
+  // HQ side
+  const left = document.createElement("div");
+  left.className = "tp-col tp-col--left";
+  left.appendChild(row("HQ Title", hqDeal.title));
+  left.appendChild(row("Start", formatISODate(hqDeal.startDate)));
+  left.appendChild(row("End", formatISODate(hqDeal.expiryDate)));
+  if (hqDeal.ongoing) left.appendChild(makeBadge("Ongoing", "info"));
+
+  const cols = document.createElement("div");
+  cols.className = "tp-cols";
+  cols.appendChild(left);
+
+  // Closest JSON candidate (if any)
+  const right = document.createElement("div");
+  right.className = "tp-col tp-col--right";
+  if (closestJson) {
+    right.appendChild(row("Closest Vendor", closestJson.vendor || "N/A"));
+    right.appendChild(row("Expiry", formatISODate(closestJson.expiryDate)));
+    if (closestJson.startDate) right.appendChild(row("Start", formatISODate(closestJson.startDate)));
+    if (closestJson.ongoing) right.appendChild(makeBadge("Ongoing", "info"));
+    right.appendChild(row("Title", closestJson.title || "—"));
+    right.appendChild(row("Listing", closestJson.shopListing || "—"));
+  } else {
+    right.appendChild(row("Closest JSON", "None with matching vendor"));
+  }
+  cols.appendChild(right);
+
+  card.appendChild(cols);
+
+  // reasons / score
+  const foot = document.createElement("div");
+  foot.className = "tp-foot";
+  foot.appendChild(makeBadge(`Closest score ${String(score)}`, "neutral"));
+  foot.appendChild(makeReasonEye(reasons));
+  card.appendChild(foot);
+
+  return card;
+}
+
+// ---------------- Bulk renderers ----------------
+function renderMatchedList(container, items) {
+  clearNode(container);
+  if (!items || !items.length) {
+    const p = document.createElement("p");
+    p.textContent = "No matched deals.";
+    container.appendChild(p);
+    return;
+  }
+  for (const it of items) container.appendChild(renderMatchedItem(it));
+}
+
+function renderNonMatchedList(container, items) {
+  clearNode(container);
+  if (!items || !items.length) {
+    const p = document.createElement("p");
+    p.textContent = "No non-matched deals.";
+    container.appendChild(p);
+    return;
+  }
+  for (const it of items) container.appendChild(renderNonMatchedItem(it));
+}
+
+// ---------------- Results & wiring ----------------
+function renderCounts(matchedCnt, nonMatchedCnt) {
+  const mc = $("matchedCount", "matched-count", "matched_count");
+  const nc = $("nonMatchedCount", "nonmatched-count", "non_matched_count");
+  if (mc) mc.textContent = String(matchedCnt);
+  if (nc) nc.textContent = String(nonMatchedCnt);
+}
+
+function renderResults(result) {
+  const matchedList = $("matched", "matched-list", "matched_container");
+  const nonMatchedList = $("nonMatched", "nonmatched-list", "non_matched_container");
+
+  if (matchedList) renderMatchedList(matchedList, result.matched || []);
+  if (nonMatchedList) renderNonMatchedList(nonMatchedList, result.nonMatched || []);
+  renderCounts((result.matched || []).length, (result.nonMatched || []).length);
+}
+
+// ---------------- Copy non-matched helper (optional) ----------------
+function copyNonMatchedToClipboard(result) {
+  const arr = (result?.nonMatched || []).map(x => {
+    const v = x.hqDeal?.vendor ? `${x.hqDeal.vendor}: ` : "";
+    return `${v}${x.hqDeal?.title || ""}`;
+  });
+  const text = arr.join("\n");
+  if (!text) return;
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// ---------------- Expose ----------------
+window.renderResults = renderResults;
+window.renderMatchedList = renderMatchedList;
+window.renderNonMatchedList = renderNonMatchedList;
 window.copyNonMatchedToClipboard = copyNonMatchedToClipboard;
+
+/* ---------------- Tiny CSS recommendations (optional)
+.tp-card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 10px 0; }
+.tp-card--match { background: #f9fffb; }
+.tp-card--nomatch { background: #fff9f9; }
+.tp-deal-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+.tp-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.tp-badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid transparent; }
+.tp-good { background:#e8f7ee; border-color:#bfe8cf; }
+.tp-warn { background:#fff7e6; border-color:#ffe1a5; }
+.tp-bad  { background:#ffefef; border-color:#ffd0d0; }
+.tp-info { background:#eef4ff; border-color:#d6e2ff; }
+.tp-cols { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+.tp-row { display:grid; grid-template-columns: 100px 1fr; gap:8px; font-size:14px; }
+.tp-row-label { color:#666; }
+.tp-eye { margin-left:auto; cursor:help; }
+.tp-foot { display:flex; align-items:center; gap:8px; margin-top:8px; }
+@media (max-width: 720px) {
+  .tp-cols { grid-template-columns: 1fr; }
+}
+*/ 

@@ -239,212 +239,397 @@ const aliasMappingRaw = {
   "trafalgar": "Trafalgar"
 };
 
-// Lower-case alias keys once for robust, case-insensitive lookups
-const aliasMapping = {};
-for (const k in aliasMappingRaw) { aliasMapping[k.toLowerCase()] = aliasMappingRaw[k]; }
+// ----------------------- DO NOT EDIT BLOCK ABOVE -----------------------
 
-// ---------- Vendor parsing & normalization ----------
-function _basicNormalizeVendor(raw){
-  return String(raw||"")
-    .trim()
-    .replace(/\s+/g,' ')
-    .replace(/[.:]+$/,'') // trailing colon/dot
-    .toLowerCase();
+// ---------- Text & vendor normalization ----------
+const _WS = /\s+/g;
+const _TRAILING_COLON = /\s*:\s*$/;
+const _DIACRITICS = /[\u0300-\u036f]/g;
+
+function normalizeWhitespace(s) {
+  return String(s || "").replace(_WS, " ").trim();
 }
 
-function cleanVendorName(name) {
-  if (!name) return "";
-  const lower = _basicNormalizeVendor(name);
-
-  // direct alias hit
-  if (aliasMapping[lower]) return aliasMapping[lower];
-
-  // exact match against knownSuppliers (case-insensitive)
-  for (const s of knownSuppliers){
-    if (lower === s.toLowerCase()) return s;
-  }
-
-  // soft contains match against canonical list (safer than global fuzzy)
-  for (const s of knownSuppliers){
-    const canon = s.toLowerCase();
-    if (lower.includes(canon) || canon.includes(lower)) return s;
-  }
-
-  // fall back to simple Title Case of original
-  return String(name).trim().replace(/\s+/g,' ').replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1));
+// Remove diacritics, lowercase, collapse spaces, strip punctuation to aid matching
+function _lcFold(s) {
+  return normalizeWhitespace(
+    String(s || "")
+      .normalize("NFD")
+      .replace(_DIACRITICS, "")
+      .toLowerCase()
+  );
 }
 
-// ---------- HQ parser ----------
-function parseHQDeals(text) {
-  const lines = String(text||"").split(/\r?\n/);
+// Build a lowercased alias map for fast lookup
+const _aliasMap = (() => {
+  const m = new Map();
+  Object.keys(aliasMappingRaw).forEach(k => m.set(_lcFold(k), aliasMappingRaw[k]));
+  return m;
+})();
+
+// Lowercased canonical variants to allow exact-insensitive matching
+const _canonByLC = (() => {
+  const m = new Map();
+  knownSuppliers.forEach(c => m.set(_lcFold(c), c));
+  return m;
+})();
+
+// Heuristic cleanup to catch things like "Carnival Cruise Line"
+function _heuristicVendorCanonical(ns) {
+  // Specific patterns: "* cruise line(s)?" → try to map root brand
+  if (ns.includes("carnival")) return "Carnival";
+  if (ns.includes("royal caribbean")) return "Royal Caribbean";
+  if (ns.includes("msc")) return "MSC Cruises";
+  if (ns.includes("celebrity")) return "Celebrity Cruises";
+  if (ns.includes("princess")) return "Princess";
+  if (ns.includes("holland america")) return "Holland America Line";
+  if (ns.includes("norwegian")) return "Norwegian";
+  // If it contains the exact lowercase of a known supplier token, prefer that
+  for (const canon of knownSuppliers) {
+    const c = _lcFold(canon);
+    if (ns.includes(c)) return canon;
+  }
+  return "";
+}
+
+function cleanVendorName(vendorRaw) {
+  const raw = normalizeWhitespace(String(vendorRaw || "").replace(_TRAILING_COLON, ""));
+  if (!raw) return "";
+
+  // 1) Direct canon exact-insensitive
+  const rawLC = _lcFold(raw);
+  if (_canonByLC.has(rawLC)) return _canonByLC.get(rawLC);
+
+  // 2) Alias lookup
+  if (_aliasMap.has(rawLC)) return _aliasMap.get(rawLC);
+
+  // 3) Strip generic suffixes and try again
+  let ns = rawLC
+    .replace(/\b(cruise(?:s)?|cruise line(?:s)?|yachts?|hotels?|resorts?)\b/g, "")
+    .replace(/[^\p{L}\p{N} ]/gu, " ")
+    .replace(_WS, " ")
+    .trim();
+
+  if (_aliasMap.has(ns)) return _aliasMap.get(ns);
+  if (_canonByLC.has(ns)) return _canonByLC.get(ns);
+
+  // 4) Heuristic fallback
+  const guess = _heuristicVendorCanonical(ns);
+  if (guess) return guess;
+
+  return raw; // last resort: return original, so UI still displays something
+}
+
+// ---------- Numeric extraction ----------
+const _MONEY_RE = /\$[\s]*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\.[0-9]{2})?/g; // $1,234 or $50
+const _PCT_RE = /(\d{1,3})(?:\s*)%(?![\w])/g; // 10%, 75%
+const _NUM_RE = /\b\d+(?:,\d{3})*(?:\.\d+)?\b/g;
+
+function extractMoney(text) {
   const out = [];
-  let currentVendor = null;
+  const s = String(text || "");
+  let m;
+  while ((m = _MONEY_RE.exec(s)) !== null) {
+    const val = Number(m[1].replace(/,/g, ""));
+    if (!Number.isNaN(val)) out.push(val);
+  }
+  return out;
+}
 
-  const vendorRe = /^\s*v(?:endor)?\s*[:\-]?\s*(.+?)(?:\s*:)?\s*$/i;
-  const dealRe   = /^\s*(?:d|ed)\s*[:\-]?\s*(.+?)\s*$/i;
+function extractPercentages(text) {
+  const out = [];
+  const s = String(text || "");
+  let m;
+  while ((m = _PCT_RE.exec(s)) !== null) {
+    const val = Number(m[1]);
+    if (!Number.isNaN(val)) out.push(val);
+  }
+  return out;
+}
 
-  for (const raw of lines) {
-    const trimmed = raw.trim();
-    if (!trimmed) continue;
+function extractNumbers(text) {
+  const out = [];
+  const s = String(text || "");
+  let m;
+  while ((m = _NUM_RE.exec(s)) !== null) {
+    const val = Number(m[0].replace(/,/g, ""));
+    if (!Number.isNaN(val)) out.push(val);
+  }
+  return out;
+}
 
-    let m = vendorRe.exec(trimmed);
-    if (m) { currentVendor = cleanVendorName(m[1]); continue; }
+// ---------- Ongoing / Exclusive flags ----------
+const _ONGOING_RE = /\b(on\s?-?\s?going|ongoing)\b/i;
+const _EXCL_RE = /\b(exclusive|covert|secret)\b/i;
 
-    m = dealRe.exec(trimmed);
-    if (m && currentVendor) {
-      const text = m[1].trim();
-      out.push({ vendor: currentVendor, text, original: raw });
+function detectOngoing(text) {
+  return _ONGOING_RE.test(String(text || ""));
+}
+
+function detectExclusive(text) {
+  return _EXCL_RE.test(String(text || ""));
+}
+
+// ---------- Date parsing (single + range) ----------
+const _MON = {
+  jan:1, january:1, feb:2, february:2, mar:3, march:3, apr:4, april:4,
+  may:5, jun:6, june:6, jul:7, july:7, aug:8, august:8,
+  sep:9, sept:9, september:9, oct:10, october:10, nov:11, november:11, dec:12, december:12
+};
+const _RANGE_SEP = /\s*(?:to|through|thru|until|til|’til|–|—|-)\s*/i;
+
+function normalizeYY(yy) {
+  yy = Number(yy);
+  return yy < 80 ? 2000 + yy : 1900 + yy;
+}
+function toISODate(y, m, d) {
+  if (!y || !m || !d) return null;
+  const pad = n => String(n).padStart(2, "0");
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+function parseSingleDateToken(token, fallbackYear) {
+  if (!token) return { y:null, m:null, d:null };
+  let t = String(token)
+    .replace(/[()]/g, " ")
+    .replace(/,/, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // yyyy-mm-dd or yyyy/mm/dd or yyyy.mm.dd
+  let mISO = t.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (mISO) {
+    const [_, y, m, d] = mISO.map(Number);
+    return { y, m, d };
+  }
+
+  // mm/dd[/yy|yyyy] OR mm.dd[.yy|yyyy]
+  let mNum = t.match(/^(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?$/);
+  if (mNum) {
+    let m = Number(mNum[1]), d = Number(mNum[2]);
+    let y = mNum[3] ? Number(mNum[3]) : (fallbackYear || null);
+    if (y && y < 100) y = normalizeYY(y);
+    return { y, m, d };
+  }
+
+  // MonthName d[ yy|yyyy]
+  let mName = t.match(/^([A-Za-z]+)\s+(\d{1,2})(?:\s+(\d{2,4}))?$/);
+  if (mName) {
+    let mon = _MON[mName[1].toLowerCase()];
+    if (!mon) return { y:null, m:null, d:null };
+    let d = Number(mName[2]);
+    let y = mName[3] ? Number(mName[3]) : (fallbackYear || null);
+    if (y && y < 100) y = normalizeYY(y);
+    return { y, m:mon, d };
+  }
+
+  return { y:null, m:null, d:null };
+}
+
+function parseDateRangeFromText(text, now = new Date()) {
+  if (!text) return { startDate: null, endDate: null, ongoing: false, raw: "" };
+  const raw = String(text);
+
+  // ongoing?
+  const ongoing = _ONGOING_RE.test(raw);
+
+  const normalized = raw
+    .replace(/[—–]/g, "-")
+    .replace(/\b(?:to|through|thru|until|til|’til)\b/gi, "-")
+    .replace(/\s+/g, " ");
+
+  // Prefer explicit "Ends ..." if found (for listings that say "Ends 10/29")
+  let endsMatch = normalized.match(/\bEnds?\s+([A-Za-z]+\s+\d{1,2}(?:\s+\d{2,4})?|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\b/i);
+
+  const tokenRe = /(?:\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?|[A-Za-z]+\s+\d{1,2}(?:\s+\d{2,4})?)/;
+  const rangeRe = new RegExp(`(${tokenRe.source})${_RANGE_SEP.source}(${tokenRe.source})`, "i");
+  let rangeMatch = normalized.match(rangeRe);
+
+  if (rangeMatch) {
+    let [, a, b] = rangeMatch;
+
+    const bParts = parseSingleDateToken(b);
+    const aParts = parseSingleDateToken(a, bParts.y || now.getFullYear());
+
+    // infer years
+    let endY = bParts.y ?? aParts.y ?? now.getFullYear();
+    let startY = aParts.y ?? endY;
+
+    // Cross-year: "12/20 - 1/10/2026" => start 2025
+    if (aParts.m && bParts.m && (aParts.y == null || bParts.y != null)) {
+      if (aParts.y == null && bParts.y != null && aParts.m > bParts.m) {
+        startY = endY - 1;
+      }
+    }
+
+    const startDate = (aParts.m && aParts.d) ? toISODate(startY, aParts.m, aParts.d) : null;
+    const endDate   = (bParts.m && bParts.d) ? toISODate(endY, bParts.m, bParts.d)   : null;
+
+    return { startDate, endDate, ongoing, raw };
+  }
+
+  if (endsMatch) {
+    const b = endsMatch[1];
+    const bParts = parseSingleDateToken(b, now.getFullYear());
+    const endY = bParts.y ?? now.getFullYear();
+    const endDate = (bParts.m && bParts.d) ? toISODate(endY, bParts.m, bParts.d) : null;
+    return { startDate: null, endDate, ongoing, raw };
+  }
+
+  const single = normalized.match(tokenRe);
+  if (single) {
+    const bParts = parseSingleDateToken(single[0], now.getFullYear());
+    const endY = bParts.y ?? now.getFullYear();
+    const endDate = (bParts.m && bParts.d) ? toISODate(endY, bParts.m, bParts.d) : null;
+    return { startDate: null, endDate, ongoing, raw };
+  }
+
+  return { startDate: null, endDate: null, ongoing, raw };
+}
+
+// ---------- Parsing HQ / JSON ----------
+
+// HQ format:
+// v  Vendor Name:
+// d  Deal text...
+// ed Exclusive deal text...
+const _VENDOR_RE = /^\s*v\s+(.+?)\s*:?\s*$/i;
+const _DEAL_RE = /^\s*d\s+(.+?)\s*$/i;
+const _EXCL_DEAL_RE = /^\s*ed\s+(.+?)\s*$/i;
+
+function _buildDealBase(vendorCanon, text, isExclusive, source) {
+  const dr = parseDateRangeFromText(text);
+  const money = extractMoney(text);
+  const pcts = extractPercentages(text);
+  const nums = extractNumbers(text);
+  return {
+    vendor: vendorCanon,
+    title: String(text || "").trim(),
+    shopListing: "",
+    startDate: dr.startDate || null,
+    expiryDate: dr.endDate || null,
+    ongoing: dr.ongoing || false,
+    exclusive: !!(isExclusive || detectExclusive(text)),
+    moneyValues: money,
+    percents: pcts,
+    numbers: nums,
+    source: source || "hq",
+    raw: text
+  };
+}
+
+function parseHQDeals(text) {
+  const out = [];
+  const lines = String(text || "").split(/\r?\n/);
+  let currentVendor = "";
+
+  for (const line of lines) {
+    if (!line || !line.trim()) continue;
+
+    const mV = line.match(_VENDOR_RE);
+    if (mV) {
+      currentVendor = cleanVendorName(mV[1]);
+      continue;
+    }
+
+    const mED = line.match(_EXCL_DEAL_RE);
+    if (mED) {
+      if (!currentVendor) continue; // cannot place deal without vendor context
+      out.push(_buildDealBase(currentVendor, mED[1], true, "hq"));
+      continue;
+    }
+
+    const mD = line.match(_DEAL_RE);
+    if (mD) {
+      if (!currentVendor) continue;
+      out.push(_buildDealBase(currentVendor, mD[1], false, "hq"));
       continue;
     }
   }
+
   return out;
 }
 
-// ---------- JSON parser ----------
 function parseJSONDeals(text) {
-  try {
-    const arr = JSON.parse(text || "[]");
-    return (Array.isArray(arr)?arr:[]).map(o => ({
-      vendor: cleanVendorName(o.vendor || o.shopOverline || ""),  // ← add shopOverline fallback
-      title: String(o.title||"").trim(),
-      shopListing: String(o.shopListing||o.listing||"").trim(),
-      expiryDate: o.expiryDate || o.expiry || null
-    }));
-  } catch(e) {
-    alert("Invalid JSON");
-    return [];
-  }
-}
+  let arr;
+  try { arr = JSON.parse(text || "[]"); }
+  catch(e) { alert("Invalid JSON"); return []; }
 
-// ---------- Date helpers ----------
-function pad2(n){ return String(n).padStart(2,"0"); }
-
-function parseMDY(m, d, y){
-  y = String(y);
-  if (y.length===2) y = (Number(y)>=70 ? "19" : "20") + y;
-  const yNum = Number(y), mNum = Number(m), dNum = Number(d);
-  const dateObj = new Date(Date.UTC(yNum, mNum-1, dNum));
-  return { ymd: `${yNum}-${pad2(mNum)}-${pad2(dNum)}`, dateObj, display: formatDate(dateObj) };
-}
-
-function extractAllDatesWithInfo(text){
-  const t = String(text||"");
+  const items = (Array.isArray(arr) ? arr : []);
   const out = [];
-  t.replace(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g, (_,m,d,y)=>{ out.push(parseMDY(m,d,y)); return ""; });
-  t.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_,y,m,d)=>{ out.push(parseMDY(m,d,y)); return ""; });
-  t.replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2}),\s*(\d{2,4})\b/gi, (m,mon,d,y)=>{
-    const monthMap = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
-    out.push(parseMDY(monthMap[mon.toLowerCase()], d, y)); return "";
-  });
-  const uniq = {}; const res = [];
-  for (const it of out) if (!uniq[it.ymd]) { uniq[it.ymd]=1; res.push(it); }
-  return res;
-}
 
-function extractNormalizedExpiry(text){
-  const dates = extractAllDatesWithInfo(text);
-  if (!dates.length) return null;
-  return dates[dates.length-1];
-}
+  for (const o of items) {
+    const vendorCanon = cleanVendorName(o.vendor || o.shopOverline || "");
 
-function normalizeJSONExpiry(expiryStr){
-  if (!expiryStr) return null;
-  const d = new Date(expiryStr);
-  if (isNaN(d.getTime())) return null;
-  const y = d.getUTCFullYear(), m = d.getUTCMonth()+1, day = d.getUTCDate();
-  const dateObj = new Date(Date.UTC(y, m-1, day));
-  return { ymd: `${y}-${pad2(m)}-${pad2(day)}`, dateObj, display: formatDate(dateObj) };
-}
+    const title = String(o.title || "").trim();
+    const listing = String(o.shopListing || o.listing || "").trim();
 
-function formatDate(d){
-  const y = d.getUTCFullYear(), m = d.getUTCMonth()+1, day = d.getUTCDate();
-  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${monthNames[m-1]} ${pad2(day)}, ${y}`;
-}
-
-// ---------- Money / numeric extraction (robust thousands) ----------
-function extractMoneyValues(text){
-  const vals = [];
-  const MONEY_NUM = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)';
-  const DEC = '(?:\\.\\d+)?';
-  const rx = [
-    new RegExp('\\$\\s*(' + MONEY_NUM + ')' + DEC, 'gi'),
-    new RegExp('(' + MONEY_NUM + ')' + DEC + '\\s*(usd|dollars?)', 'gi'),
-    new RegExp('(' + MONEY_NUM + ')' + DEC + '\\s*(€|eur|euro|euros)', 'gi'),
-    new RegExp('(€)\\s*(' + MONEY_NUM + ')' + DEC, 'gi'),
-  ];
-  for (let i=0;i<rx.length;i++){
-    let m; while ((m = rx[i].exec(text)) !== null){
-      const raw = (i===3 ? m[2] : m[1]);
-      const num = parseFloat(String(raw).replace(/,/g,''));
-      if (!Number.isNaN(num)) vals.push(num);
+    // Prefer explicit expiryDate if it looks ISO
+    let explicitEnd = null;
+    if (o.expiryDate) {
+      const iso = String(o.expiryDate).slice(0,10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) explicitEnd = iso;
+    } else if (o.expiry) {
+      const iso = String(o.expiry).slice(0,10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) explicitEnd = iso;
     }
+
+    // Parse any dates from combined text (title + listing + potentially shown expiry)
+    const blob = [title, listing, explicitEnd].filter(Boolean).join(" ");
+    const dr = parseDateRangeFromText(blob);
+
+    const startDate = dr.startDate || null;
+    const expiryDate = explicitEnd || dr.endDate || null;
+    const ongoing = dr.ongoing || detectOngoing(title) || detectOngoing(listing);
+
+    const money = extractMoney(title + " " + listing);
+    const pcts = extractPercentages(title + " " + listing);
+    const nums = extractNumbers(title + " " + listing);
+
+    out.push({
+      vendor: vendorCanon,
+      title,
+      shopListing: listing,
+      startDate,
+      expiryDate,
+      ongoing,
+      exclusive: detectExclusive(title) || detectExclusive(listing),
+      moneyValues: money,
+      percents: pcts,
+      numbers: nums,
+      source: "json",
+      raw: { title, listing }
+    });
   }
-  return [...new Set(vals)].sort((a,b)=>a-b);
-}
 
-function extractPercentageValues(text){
-  const vals = [];
-  String(text||"").replace(/(\d+)\s*%/g, (_,n)=>{ vals.append?vals.append(Number(n)):vals.push(Number(n)); return ""; });
-  String(text||"").replace(/(\d+)\s*percent\b/gi, (_,n)=>{ vals.push(Number(n)); return ""; });
-  return [...new Set(vals)].sort((a,b)=>a-b);
-}
-
-function extractSpecialNumericAll(text){
-  const t = String(text||"").toLowerCase();
-  const out = [];
-  t.replace(/\b(1st|2nd|3rd|4th)\b/g, (m)=>{ const map = { "1st":1, "2nd":2, "3rd":3, "4th":4 }; out.push(map[m]); return ""; });
-  t.replace(/\b(first|second|third|fourth)\b/g, (m)=>{ const map = { first:1, second:2, third:3, fourth:4 }; out.push(map[m]); return ""; });
-  t.replace(/buy\s+(\d+)\s+get\s+(\d+)/g, (_,a,b)=>{ out.push(Number(a), Number(b)); return ""; });
-  t.replace(/(\d+)\s*for\s*\$?\s*(\d+)/g, (_,a,b)=>{ out.push(Number(a), Number(b)); return ""; });
-  return [...new Set(out)].sort((a,b)=>a-b);
-}
-
-function hasOBC(text){ return /\bonboard\s*credit\b|\bobc\b/i.test(text||""); }
-function hasGratuity(text){ return /\bgratuities?\b|\bpre[-\s]?paid gratuities\b|\bppg\b/i.test(text||""); }
-function hasKids(text){ return /\bkids?\b|\bchild\b|\bchildren\b|\b3rd guest\b|\b4th guest\b/i.test(text||""); }
-
-// ---------- Keyword normalization ----------
-const STOP = new Set(("and or the a an of on to in for with by at from up as per your our their his her its is are be this that those these get take make offer save bonus limited time instant discount deposit balcony suite oceanview guest voyage sailing cruise cruises amenity ends exclusive select departures select").split(/\s+/));
-
-function normalizeForKeywords(text){
-  const lower = String(text||"").toLowerCase();
-  const noMoney = lower.replace(/\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g,"");
-  const noPct = noMoney.replace(/\d+\s*%|\d+\s*percent/g,"");
-  const clean = noPct.replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
-  return clean.replace(/\b2nd\b/g,"second").replace(/\b3rd\b/g,"third").replace(/\b4th\b/g,"fourth");
-}
-
-function extractNormalizedKeywords(text){
-  const s = normalizeForKeywords(text);
-  const parts = s.split(/\s+/).filter(w => w && !STOP.has(w));
-  return [...new Set(parts)];
-}
-
-function keywordSetOverlap(set1, set2){
-  const s2 = new Set(set2);
-  const out = [];
-  for (const w of set1){ if (s2.has(w)) out.push(w); }
   return out;
 }
 
-function exclusiveFlag(hqText, jsText){ return /\bexclusive\b/i.test(String(jsText||"")) && !/\bexclusive\b/i.test(String(hqText||"")); }
+// ---------- General text helpers ----------
+function normalizeText(s) {
+  return normalizeWhitespace(
+    String(s || "")
+      .replace(/[^\S\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
 
-// Expose helpers
+// ---------- Exports to global (non-module environment) ----------
 window.knownSuppliers = knownSuppliers;
+window.aliasMappingRaw = aliasMappingRaw;
+
 window.cleanVendorName = cleanVendorName;
 window.parseHQDeals = parseHQDeals;
 window.parseJSONDeals = parseJSONDeals;
-window.extractNormalizedExpiry = extractNormalizedExpiry;
-window.normalizeJSONExpiry = normalizeJSONExpiry;
-window.extractMoneyValues = extractMoneyValues;
-window.extractPercentageValues = extractPercentageValues;
-window.extractSpecialNumericAll = extractSpecialNumericAll;
-window.hasOBC = hasOBC;
-window.hasGratuity = hasGratuity;
-window.hasKids = hasKids;
-window.extractAllDatesWithInfo = extractAllDatesWithInfo;
-window.extractNormalizedKeywords = extractNormalizedKeywords;
-window.keywordSetOverlap = keywordSetOverlap;
-window.exclusiveFlag = exclusiveFlag;
-window.formatDate = formatDate;
+
+window.extractMoney = extractMoney;
+window.extractPercentages = extractPercentages;
+window.extractNumbers = extractNumbers;
+
+window.detectOngoing = detectOngoing;
+window.detectExclusive = detectExclusive;
+
+window.parseDateRangeFromText = parseDateRangeFromText;
+window.normalizeText = normalizeText;
+window.normalizeWhitespace = normalizeWhitespace;
