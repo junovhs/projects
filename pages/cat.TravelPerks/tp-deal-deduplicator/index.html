@@ -1,56 +1,2028 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Deal Deduplicator</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8">
+  <title>Deal Matcher</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 20px;
+      color: #333;
+      line-height: 1.6;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2 {
+      color: #2c3e50;
+    }
+
+    h1 {
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 20px;
+      font-family: 'Courier New', monospace;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      transition: border 0.3s;
+    }
+
+    textarea:focus {
+      border-color: #3498db;
+      outline: none;
+      box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    }
+
+    button {
+      padding: 8px 15px;
+      cursor: pointer;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background 0.3s;
+      margin: 5px;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    .action-button {
+      margin-right: 10px;
+    }
+
+    .control-bar {
+      margin: 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .threshold-control {
+      display: flex;
+      align-items: center;
+    }
+
+    .threshold-control label {
+      margin-right: 10px;
+      font-weight: 600;
+    }
+
+    .threshold-control input {
+      width: 60px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    .matched-deal,
+    .non-matched-deal {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      background-color: #f8f9fa;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: background-color 0.3s;
+    }
+
+    .matched-deal:hover,
+    .non-matched-deal:hover {
+      background-color: #e9f7fe;
+    }
+
+    .matched-deal {
+      border-left: 4px solid #2ecc71;
+    }
+
+    .matched-deal.possible-date-change {
+      border-left: 4px solid orange !important;
+      background-color: #fff8e1;
+    }
+
+    .non-matched-deal {
+      border-left: 4px solid #e74c3c;
+      align-items: center;
+    }
+
+    .deal-info {
+      flex: 1;
+    }
+
+    .deal-vendor {
+      font-weight: bold;
+      color: #3498db;
+    }
+
+    .match-score {
+      background-color: #f39c12;
+      color: white;
+      font-weight: bold;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+    }
+
+    .json-match {
+      flex: 1;
+      background-color: #f1f8e9;
+      padding: 12px;
+      margin-left: 15px;
+      font-size: 0.95em;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .expiry-date {
+      background-color: #ffe0b2;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .hq-date-mismatch {
+      color: #985c04;
+      background: #ffe0b2;
+      border-radius: 0.35em;
+      border-bottom: 1.5px dotted orange;
+      padding: 0 4px;
+    }
+
+    .hq-date-mismatch small {
+      color: #d8870f;
+    }
+
+    .price-value {
+      background-color: #e8f5e9;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .percentage-value {
+      background-color: #e3f2fd;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .keyword {
+      background-color: #ede7f6;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin: 0 2px;
+      font-size: 0.9em;
+    }
+
+    .keyword-flag {
+      background-color: #e1bee7;
+      color: #6a1b9a;
+      padding: 2px 5px;
+      border-radius: 2px;
+      font-size: 0.93em;
+      margin: 1px 2px;
+      font-weight: 600;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      margin-left: 10px;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 250px;
+      background-color: #555;
+      color: #fff;
+      text-align: left;
+      border-radius: 6px;
+      padding: 10px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -125px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 0.9em;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      line-height: 1.4;
+    }
+
+    .tooltip .tooltiptext::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: #555 transparent transparent transparent;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .section {
+      margin-bottom: 30px;
+      padding: 15px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .section h2 {
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .section h2 .count-badge {
+      background-color: #3498db;
+      color: white;
+      font-size: 0.7em;
+      padding: 3px 8px;
+      border-radius: 20px;
+      margin-left: 10px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .search-filter {
+      margin-bottom: 15px;
+    }
+
+    .search-filter input {
+      padding: 8px;
+      width: 300px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .help-text {
+      background-color: #f8f9fa;
+      padding: 10px 15px;
+      border-left: 3px solid #3498db;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .no-matches {
+      padding: 20px;
+      text-align: center;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+
+    .date-flag {
+      background-color: #ff980012;
+      border-bottom: 2px dotted orange;
+      color: #d35400;
+      font-size: 0.96em;
+      padding: 2px 6px 2px 4px;
+      border-radius: 3px;
+      margin-right: 6px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      display: inline-block;
+      vertical-align:baseline;
+    }
+
+    .exclusive-flag {
+      background: linear-gradient(90deg,#fceabb 30%,#f8b500 88%);
+      color: #b24b00;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-right: 6px;
+      font-weight: 700;
+      font-size: 0.92em;
+      letter-spacing: 0.05em;
+      display: inline-block;
+    }
+
+    .money-match {
+      background-color: #dff6e1;
+      font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+      .matched-deal, .non-matched-deal {
+        flex-direction: column;
+      }
+  
+      .json-match {
+        margin-left: 0;
+        margin-top: 10px;
+      }
+      .date-flag,.exclusive-flag {margin-bottom:5px;}
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>Deal Deduplicator</h1>
+    <h1>Deal Matcher</h1>
     <div class="help-text">
       Paste your HQ deals (vendor lines start with <code>v</code> and deal lines with <code>d</code> or <code>ed</code>)
-      in the first box and the JSON export from your site in the second box. Then click <b>Compare Deals</b>.
+      in the first box and the JSON export from your site in the second box. Then click "Compare Deals."
     </div>
-
     <div class="section">
       <h2>HQ Deals</h2>
       <textarea id="hqDeals" placeholder="Example:
-v	Holland America Line:
-d	Early Booking: Save up to $7000 on 2027 Voyages: Ends Sep 30, 2025"></textarea>
+v Carnival:
+d Early Saver-Reduced Deposit & Up to $50 OBC (PEM/OB7): 03/31/2025
+ed  More=Merrier Sale-Save up to $125 per room & $25 NRD (PHY): 03/24/2025-03/29/2025
+d 72 Hour Sale-Great Guarantee Rates (P3P): 03/25/2025-03/27/2025
+"></textarea>
+      <h2>JSON Deals</h2>
+      <textarea id="jsonDeals" placeholder='Example:
+[
+{
+"shopOverline": "Carnival",
+"expiryDate": "2025-03-31T16:00:00-07:00",
+"title": "Early Saver-Reduced Deposit & Up to $50 OBC (PEM/OB7): 03/31/2025",
+"shopListing": "More=Merrier Sale-Save up to $125 per room & $25 NRD (PHY): 03/24/2025-03/29/2025"
+}
+]'></textarea>
+      <div class="control-bar">
+        <div class="threshold-control">
+          <label for="matchThreshold">Match Threshold:</label>
+          <input type="number" id="matchThreshold" value="80" min="0" max="400" step="10">
+          <div class="tooltip">ℹ️
+            <span class="tooltiptext">
+              Adjust the minimum score required for a match. Higher values are more strict.
+              <br>• 0-70: Very loose matching
+              <br>• 80-100: Default threshold
+              <br>• 150+: Stricter matching
+              <br>• 200+: Very strict matching
+            </span>
+          </div>
+        </div>
+        <button id="compareButton">Compare Deals</button>
+      </div>
     </div>
 
-    <div class="section">
-      <h2>JSON Export</h2>
-      <textarea id="jsonDeals" placeholder='Paste JSON array, e.g.:
-[{"vendor":"Holland America Line","title":"Early Booking: Save up to $7000 on 2027 Voyages","shopListing":"Book early for 2027 and receive up to $7000 in savings. Ends 9/30.","expiryDate":"2025-09-30"}]'></textarea>
-    </div>
-
-    <div class="section controls">
-      <label>Match threshold: <input id="matchThreshold" type="number" value="120" min="0" max="500"/></label>
-      <button id="compareButton">Compare Deals</button>
-    </div>
-
+    <!-- Results Section -->
     <div class="section">
       <h2>Matched Deals <span class="count-badge" id="matchedCount">0</span></h2>
-      <input id="matchedFilter" placeholder="Filter matched..."/>
+      <div class="search-filter">
+        <input type="text" id="matchedFilter" placeholder="Filter matched deals...">
+      </div>
       <div id="matchedDealsContainer"></div>
     </div>
 
     <div class="section">
-      <h2>Non‑Matched Deals <span class="count-badge" id="nonMatchedCount">0</span></h2>
-      <input id="nonMatchedFilter" placeholder="Filter non‑matched..."/>
+      <h2>Non-Matched Deals <span class="count-badge" id="nonMatchedCount">0</span></h2>
+      <div class="search-filter">
+        <input type="text" id="nonMatchedFilter" placeholder="Filter non-matched deals...">
+      </div>
       <div id="nonMatchedDealsContainer"></div>
       <div class="actions">
-        <button id="copyButton">Copy Non‑Matched Deals to Clipboard</button>
+        <button id="copyButton">Copy Non-Matched Deals to Clipboard</button>
       </div>
     </div>
   </div>
+  <script>
+    // === Supplier Mapping Placeholders ===
+    // The complete list of known suppliers (from your provided list)
+    const knownSuppliers = [
+      "Abercrombie & Kent",
+      "Adventures by Disney",
+      "African Travel",
+      "Ama Waterways",
+      "American Airline Vacations",
+      "American Cruise Line",
+      "Aulani, A Disney Resort & Spa",
+      "Avalon Waterways",
+      "Azamara",
+      "Beaches",
+      "BlueSky Tours",
+      "Breathless",
+      "Carnival",
+      "Celebrity Cruises",
+      "CIE Tours",
+      "Club Med",
+      "Collette",
+      "CroisiEurope",
+      "Crystal Cruises",
+      "Cunard",
+      "Delta Vacations",
+      "Disney Cruise Line",
+      "Disneyland",
+      "DisneyWorld",
+      "Dreams",
+      "El Dorado Spa Resorts & Hotels",
+      "Emerald Cruises",
+      "Excellence Resorts",
+      "Explora Journeys",
+      "Four Seasons Yachts",
+      "Funjet",
+      "G Adventures",
+      "Globus Journeys",
+      "Great Safaris",
+      "Hard Rock Hotels",
+      "Holland America Line",
+      "Hurtigruten",
+      "Iberostar Hotels & Resorts",
+      "Karisma Hotels & Resorts",
+      "Lindblad Expeditions & National Geographic",
+      "MSC Cruises",
+      "Norwegian",
+      "Oceania Cruises",
+      "Outrigger Hotels & Resorts",
+      "Palace Resorts",
+      "Paul Gauguin Cruises",
+      "Ponant",
+      "Princess",
+      "Project Expedition",
+      "Regent Seven Seas Cruises",
+      "Ritz-Carlton Yacht Collection",
+      "RIU Hotels & Resorts",
+      "Riverside Cruises",
+      "Riviera River Cruises",
+      "Rocky Mountaineer",
+      "Royal Caribbean",
+      "Sandals",
+      "Scenic Eclipse Ocean Voyages",
+      "Scenic River",
+      "Seabourn",
+      "Secrets",
+      "Shore Excursions Group",
+      "Silversea",
+      "Southwest Vacations",
+      "Star Clippers",
+      "Tauck Cruises",
+      "Tauck Tours",
+      "TourSales.com",
+      "Trafalgar",
+      "UnCruise Adventures",
+      "Uniworld",
+      "United Vacations",
+      "Viking Ocean",
+      "Viking River",
+      "Viator",
+      "Virgin Voyages",
+      "Villas of Distinction",
+      "Windstar",
+      "Zoëtry Wellness & Spa Resorts"
+    ];
+    const aliasMapping = {
+      // American Airline Vacations
+      "american airlines vacations": "American Airline Vacations",
+      "american airline vacations": "American Airline Vacations",
+      "american airlnes vacations": "American Airline Vacations",
+      // Royal Caribbean
+      "royal": "Royal Caribbean",
+      "rccL": "Royal Caribbean",
+      "rcc": "Royal Caribbean",
+      "royal caribbean": "Royal Caribbean",
+      // Norwegian
+      "norwegian": "Norwegian",
+      "norwegian cruise": "Norwegian",
+      "norwegian cruise line": "Norwegian",
+      "ncl": "Norwegian",
+      // Disney Cruise Line
+      "disney cruise": "Disney Cruise Line",
+      "disney cruises": "Disney Cruise Line",
+      "disney cruise line": "Disney Cruise Line",
+      // Celebrity Cruises
+      "celebrity": "Celebrity Cruises",
+      "celebrity cruises": "Celebrity Cruises",
+      // Virgin Voyages
+      "virgin": "Virgin Voyages",
+      "virgin voyages": "Virgin Voyages",
+      "virgin cruise": "Virgin Voyages",
+      // Holland America Line
+      "holland": "Holland America Line",
+      "holland america": "Holland America Line",
+      "holland america line": "Holland America Line",
+      // Princess
+      "princess": "Princess",
+      "princess cruises": "Princess",
+      // Carnival
+      "carnival": "Carnival",
+      "carnival cruise": "Carnival",
+      "carnival cruises": "Carnival",
+      // MSC Cruises
+      "msc": "MSC Cruises",
+      "msc cruises": "MSC Cruises",
+      // Viking Ocean
+      "viking": "Viking Ocean",
+      "viking ocean": "Viking Ocean",
+      // American Cruise Line
+      "american cruise": "American Cruise Line",
+      "american cruise line": "American Cruise Line",
+      // Atlas Ocean Voyages
+      "atlas": "Atlas Ocean Voyages",
+      "atlas ocean": "Atlas Ocean Voyages",
+      "atlas ocean voyages": "Atlas Ocean Voyages",
+      // Azamara
+      "azamara": "Azamara",
+      // Crystal Cruises
+      "crystal": "Crystal Cruises",
+      "crystal cruises": "Crystal Cruises",
+      // Cunard
+      "cunard": "Cunard",
+      "cunard cruises": "Cunard",
+      // Emerald Cruises
+      "emerald": "Emerald Cruises",
+      "emerald cruises": "Emerald Cruises",
+      // Explora Journeys
+      "explora": "Explora Journeys",
+      "explora journeys": "Explora Journeys",
+      // Four Seasons Yachts
+      "four seasons": "Four Seasons Yachts",
+      "four seasons yachts": "Four Seasons Yachts",
+      "four seasons yacht": "Four Seasons Yachts",
+      // Funjet
+      "funjet": "Funjet",
+      "fun jet": "Funjet",
+      // Oceania Cruises
+      "oceania": "Oceania Cruises",
+      "oceania cruises": "Oceania Cruises",
+      // Paul Gauguin Cruises
+      "paul gauguin": "Paul Gauguin Cruises",
+      "paul gauguin cruises": "Paul Gauguin Cruises",
+      // Ponant
+      "ponant": "Ponant",
+      "ponant cruises": "Ponant",
+      // Regent Seven Seas Cruises
+      "regent": "Regent Seven Seas Cruises",
+      "regent seven seas": "Regent Seven Seas Cruises",
+      "seven seas": "Regent Seven Seas Cruises",
+      // Ritz-Carlton Yacht Collection
+      "ritz-carlton": "Ritz-Carlton Yacht Collection",
+      "ritz carlton": "Ritz-Carlton Yacht Collection",
+      "ritz-carlton yacht": "Ritz-Carlton Yacht Collection",
+      // Seabourn
+      "seabourn": "Seabourn",
+      "seabourn cruises": "Seabourn",
+      // Silversea
+      "silversea": "Silversea",
+      "silversea cruises": "Silversea",
+      // Star Clippers
+      "star clippers": "Star Clippers",
+      "star clipper": "Star Clippers",
+      // Tauck Cruises
+      "tauck": "Tauck Cruises",
+      "tauck cruises": "Tauck Cruises",
+      // Windstar
+      "windstar": "Windstar",
+      // Viking River
+      "viking river": "Viking River",
+      "viking river cruises": "Viking River",
+      // Avalon Waterways
+      "avalon": "Avalon Waterways",
+      "avalon waterways": "Avalon Waterways",
+      // Ama Waterways
+      "ama": "Ama Waterways",
+      "ama waterways": "Ama Waterways",
+      // CroisiEurope
+      "croisieurope": "CroisiEurope",
+      "croisi europe": "CroisiEurope",
+      "croisi-europe": "CroisiEurope",
+      // Riverside Cruises
+      "riverside": "Riverside Cruises",
+      "riverside cruises": "Riverside Cruises",
+      // Riviera River Cruises
+      "riviera": "Riviera River Cruises",
+      "riviera river": "Riviera River Cruises",
+      "riviera river cruises": "Riviera River Cruises",
+      // Tauck Tours
+      "tauck tours": "Tauck Tours",
+      "tauck tour": "Tauck Tours",
+      // Uniworld
+      "uniworld": "Uniworld",
+      "uniworld cruises": "Uniworld",
+      // Scenic River
+      "scenic river": "Scenic River",
+      // Lindblad Expeditions & National Geographic
+      "lindblad": "Lindblad Expeditions & National Geographic",
+      "lindblad expeditions": "Lindblad Expeditions & National Geographic",
+      "national geographic": "Lindblad Expeditions & National Geographic",
+      // Hurtigruten
+      "hurtigruten": "Hurtigruten",
+      "hurtigruten cruises": "Hurtigruten",
+      // Adventures by Disney
+      "adventures by disney": "Adventures by Disney",
+      // Disneyland
+      "disneyland": "Disneyland",
+      "disney land": "Disneyland",
+      // DisneyWorld
+      "disneyworld": "DisneyWorld",
+      "disney world": "DisneyWorld",
+      // Aulani, A Disney Resort & Spa
+      "aulani": "Aulani, A Disney Resort & Spa",
+      "a disney resort": "Aulani, A Disney Resort & Spa",
+      "aulani, a disney resort & spa": "Aulani, A Disney Resort & Spa",
+      // Sandals
+      "sandals": "Sandals",
+      // Beaches
+      "beaches": "Beaches",
+      // Breathless
+      "breathless": "Breathless",
+      // Club Med
+      "club med": "Club Med",
+      "clubmed": "Club Med",
+      // El Dorado Spa Resorts & Hotels
+      "el dorado": "El Dorado Spa Resorts & Hotels",
+      "el dorado spa": "El Dorado Spa Resorts & Hotels",
+      // Dreams
+      "dreams": "Dreams",
+      "dreams resorts": "Dreams",
+      // Excellence Resorts
+      "excellence": "Excellence Resorts",
+      "excellence resorts": "Excellence Resorts",
+      // Hard Rock Hotels
+      "hard rock": "Hard Rock Hotels",
+      "hard rock hotels": "Hard Rock Hotels",
+      // Iberostar Hotels & Resorts
+      "iberostar": "Iberostar Hotels & Resorts",
+      "iberostar hotels": "Iberostar Hotels & Resorts",
+      // Karisma Hotels & Resorts
+      "karisma": "Karisma Hotels & Resorts",
+      // Outrigger Hotels & Resorts
+      "outrigger": "Outrigger Hotels & Resorts",
+      "outrigger hotels": "Outrigger Hotels & Resorts",
+      // Palace Resorts
+      "palace": "Palace Resorts",
+      "palace resorts": "Palace Resorts",
+      // RIU Hotels & Resorts
+      "riu": "RIU Hotels & Resorts",
+      "riu hotels": "RIU Hotels & Resorts",
+      // Secrets
+      "secrets": "Secrets",
+      // Delta Vacations
+      "delta": "Delta Vacations",
+      "delta vacations": "Delta Vacations",
+      // Southwest Vacations
+      "southwest": "Southwest Vacations",
+      "southwest vacations": "Southwest Vacations",
+      // United Vacations
+      "united": "United Vacations",
+      "united vacations": "United Vacations",
+      // Villas of Distinction
+      "villas": "Villas of Distinction",
+      "villas of distinction": "Villas of Distinction",
+      // Zoëtry Wellness & Spa Resorts
+      "zoëtry": "Zoëtry Wellness & Spa Resorts",
+      "zoeetry": "Zoëtry Wellness & Spa Resorts",
+      // BlueSky Tours
+      "bluesky": "BlueSky Tours",
+      "blue sky tours": "BlueSky Tours",
+      // CIE Tours
+      "cie": "CIE Tours",
+      "cie tours": "CIE Tours",
+      // Collette
+      "collette": "Collette"
+    };
 
-  <script src="scripts/utils.js"></script>
-  <script src="scripts/match.js"></script>
-  <script src="scripts/render.js"></script>
-  <script src="scripts/app.js"></script>
+    // Returns canonical vendor name
+    function getCanonicalVendor(vendor) {
+      const vendorLower = vendor.trim().toLowerCase();
+      if (aliasMapping[vendorLower]) {
+        return aliasMapping[vendorLower];
+      }
+      for (const supplier of knownSuppliers) {
+        if (supplier.toLowerCase() === vendorLower) {
+          return supplier;
+        }
+      }
+      return vendor;
+    }
+
+    // Parse HQ deals text into an array of objects { vendor, text, original }
+    function parseHQDeals(text) {
+      const lines = text.split('\n');
+      const deals = [];
+      let currentVendor = "";
+      lines.forEach(line => {
+        let trimmed = line.trim();
+        if (!trimmed) return;
+        if (trimmed.toLowerCase().startsWith("v")) {
+          // Update current vendor using the canonical name.
+          currentVendor = getCanonicalVendor(trimmed.substring(1).replace(":", "").trim());
+        } else if (trimmed.toLowerCase().startsWith("d") || trimmed.toLowerCase().startsWith("ed")) {
+          // Store the original line along with parsed deal text.
+          let marker = trimmed.toLowerCase().startsWith("ed") ? "ed" : "d";
+          let dealText = marker === "ed" ? trimmed.substring(2).trim() : trimmed.substring(1).trim();
+          deals.push({
+            vendor: currentVendor,
+            text: dealText,
+            original: trimmed // preserve the full original line (including "d" or "ed")
+          });
+        }
+      });
+      return deals;
+    }
+
+    // Parse JSON deals into an array of objects with needed fields.
+    function parseJSONDeals(jsonText) {
+      try {
+        const jsonData = JSON.parse(jsonText);
+        return jsonData.map(item => ({
+          vendor: getCanonicalVendor(item.shopOverline || ""),
+          expiryDate: item.expiryDate, // ISO string
+          title: item.title || "",
+          shopListing: item.shopListing || ""
+        }));
+      } catch (e) {
+        alert("Invalid JSON input.");
+        return [];
+      }
+    }
+
+    // Extract all normalized dates from a string as YYYY-MM-DD (returns [{raw, display, ymd, Date obj}])
+    function extractAllDatesWithInfo(text) {
+      const dates = [];
+      // ISO YYYY-MM-DD
+      const isoRegex = /(\d{4})-(\d{2})-(\d{2})/g;
+      let match;
+      while ((match = isoRegex.exec(text)) !== null) {
+        let ymd = `${match[1]}-${match[2]}-${match[3]}`;
+        let dObj = new Date(ymd);
+        if (!isNaN(dObj.getTime()))
+          dates.push({raw: match[0], display: formatDate(dObj), ymd, dateObj: dObj});
+      }
+      // MM/DD/YY(YY) or MM-DD-YY(YY)
+      const usRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/g;
+      while ((match = usRegex.exec(text)) !== null) {
+        let year = match[3];
+        if (year.length === 2) year = "20"+year;
+        let dObj = new Date(`${match[1]}/${match[2]}/${year}`);
+        if (!isNaN(dObj.getTime())) {
+          let mm = String(match[1]).padStart(2,'0'), dd= String(match[2]).padStart(2,'0');
+          let ymd = `${year}-${mm}-${dd}`;
+          dates.push({raw: match[0], display: formatDate(dObj), ymd, dateObj: dObj});
+        }
+      }
+      return dates;
+    }
+
+    // Choose last date (latest) out of parsed results
+    function selectLatestDate(dates) {
+      if (!dates.length) return null;
+      return dates.reduce((latest, d) => (!latest||d.dateObj>latest.dateObj)?d:latest, null);
+    }
+
+    // Returns {ymd, dateObj, display, original} for the latest date found
+    function extractNormalizedExpiry(text) {
+      const dates = extractAllDatesWithInfo(text);
+      const latest = selectLatestDate(dates);
+      if (!latest) return null;
+      return {
+        ...latest
+      };
+    }
+
+    // Normalize expiry from JSON ISO, return {ymd, dateObj, display, original}
+    function normalizeJSONExpiry(dateStr) {
+      if (!dateStr) return null;
+      let dObj = new Date(dateStr);
+      if (isNaN(dObj.getTime())) return null;
+      let mm = String(dObj.getMonth()+1).padStart(2,'0');
+      let dd = String(dObj.getDate()).padStart(2,'0');
+      let year = dObj.getFullYear();
+      let ymd = `${year}-${mm}-${dd}`;
+      return {ymd, dateObj: dObj, display: formatDate(dObj), original: dateStr};
+    }
+
+    // Format a date for display (M/D/YYYY)
+    function formatDate(dateObj) {
+      if (!dateObj) return "N/A";
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${months[dateObj.getMonth()]} ${dateObj.getDate()}, ${dateObj.getFullYear()}`;
+    }
+
+    // --- Synonym Dictionaries ---
+    // For keyword normalization and scoring equivalence
+    const keywordSynonyms = {
+      // synonyms group: all lowercase
+      "opaque": ["covert", "secret", "hidden"],
+      "covert": ["opaque", "secret", "hidden"],
+      "secret": ["opaque", "covert", "hidden"],
+      "hidden": ["opaque", "covert", "secret"],
+
+      "free": ["complimentary", "complementary", "compliment", "gratis"],
+      "complimentary": ["free", "complementary", "compliment", "gratis"],
+      "complementary": ["free", "complimentary", "compliment", "gratis"],  // typo-variant
+      "compliment": ["free", "complimentary", "complementary", "gratis"],
+
+      // half off equivalence group
+      "half off": ["50% off", "50% reduced", "50% discount", "50 percent off", "50 percent reduced", "50 percent discount"],
+      "50% off": ["half off", "50% reduced", "50% discount", "50 percent off", "50 percent reduced", "50 percent discount"],
+      "50% reduced": ["half off", "50% off", "50% discount", "50 percent off", "50 percent reduced", "50 percent discount"],
+      "50% discount": ["half off", "50% off", "50% reduced", "50 percent off", "50 percent reduced", "50 percent discount"],
+      "50 percent off": ["half off", "50% off", "50% reduced", "50% discount", "50 percent reduced", "50 percent discount"],
+      "50 percent discount": ["half off", "50% off", "50% reduced", "50% discount", "50 percent off", "50 percent reduced"],
+      "50 percent reduced": ["half off", "50% off", "50% reduced", "50% discount", "50 percent off", "50 percent discount"],
+    };
+
+    // Words we treat as canonical, so "half off" is normalized same as "50% off"
+    function normalizeKeyword(word) {
+      const w = word.trim().toLowerCase();
+      for (let canon in keywordSynonyms) {
+        const set = [canon, ...keywordSynonyms[canon]];
+        if (set.some(s => w === s)) return canon; // map to canonical
+      }
+      // try to recognize "50% off type" and normalize as "half off"
+      if (
+        /(^|[\s\-])50(\s*%|\s*percent)\s*(off|reduced|discount)/.test(w)
+        || w === "50%"
+        || w === "50 percent"
+      ) return "half off";
+      if (["complimentary", "complementary", "gratis", "compliment"].includes(w)) return "free";
+      return w;
+    }
+
+    // For matching, for any word, return synonyms (including itself)
+    function synonymsFor(word) {
+      const w = word.toLowerCase();
+      if (keywordSynonyms[w]) {
+        return [w, ...keywordSynonyms[w]].map(String);
+      }
+      // If we have a canonical for this, include only canonical
+      const canon = normalizeKeyword(word);
+      if (canon !== w) return [canon];
+      return [w];
+    }
+
+    // Common multi-word phrases to prioritize in extraction
+    const commonPhrases = [
+      "up to",
+      "spring into",
+      "fall into",
+      "summer into",
+      "winter into",
+      "half off",
+      "early saver",
+      "wave season",
+      "limited time",
+      "flash sale",
+      "on sale",
+      "exclusive offer",
+      "special offer",
+      "limited offer",
+      "book now",
+      "for free",
+      "no charge",
+      "no cost",
+      "reduced deposit",
+      "best price",
+      "best offer",
+      "kids sail",
+      "kids cruise",
+      "kids fly",
+      "free gratuities",
+      "onboard credit",
+      "on board credit",
+      "per person",
+      "per guest",
+      "per cabin",
+      "per stateroom",
+      "per room",
+      "pre paid gratuities",
+      "pre-paid gratuities",
+      "last minute",
+      "save up"
+    ];
+
+    // --- Extract keywords with synonyms and proper normalization ---
+    function extractNormalizedKeywords(text, {noExclusive=false} = {}) {
+      let t = text.toLowerCase();
+
+      // Synonym normalization rules for 2nd, 3rd etc as the prompt described
+      Object.entries(specialWordReplacements).forEach(([k,v])=>{
+        t = t.replace(new RegExp("\\b"+k+"\\b",'g'),v);
+      });
+      // 24/48 hour phrase always as key "24hour" etc.
+      t = t.replace(/(24|48)[\s\-]?(hour|hr)[\s\-]?sale/gi, (m, n, unit) => `${n}${unit}sale`);
+      t = t.replace(/(24|48)[\s\-]?(hour|hr)/gi, (m, n, unit)=>`${n}${unit}`);
+
+      // Replace complimentary/complementary/compliment/gratis with "free" for normalization
+      t = t.replace(/\b(complimentary|complementary|compliment|gratis)\b/g, "free");
+
+      // Normalize "50% reduced"/"reduced by 50%" etc to "half off"
+      t = t.replace(/(50\s*%|50\s*percent)\s*(off|reduced|discount)/g, "half off");
+      t = t.replace(/half[\s\-]?off/g, "half off");
+
+      // IMPORTANT: Remove monetary values before extracting keywords
+      t = t.replace(/\$\s*\d{1,3}(,\d{3})*(\.\d+)?/g, ' ');
+      
+      // Remove percentage values that aren't part of specific phrases like "half off"
+      // Don't remove the ones we already normalized
+      if (!t.includes("half off")) {
+        t = t.replace(/\d+\s*%/g, ' ');
+        t = t.replace(/\d+\s*percent/gi, ' ');
+      }
+
+      // Remove punctuation except % and $
+      t = t.replace(/[^a-z0-9\s]/g, ' ');
+
+      // Split into words
+      const words = t.split(/\s+/).filter(w => w.length > 1);
+      let ngrams = [];
+      let usedIndices = new Set(); // Track which word indices have been used in phrases
+      
+      // First pass: Check for common phrases and mark their indices as used
+      for (let i = 0; i < words.length - 1; i++) {
+        const possiblePhrases = [];
+        
+        // Check for 2-word phrases
+        if (i + 1 < words.length) {
+          possiblePhrases.push(words[i] + " " + words[i+1]);
+        }
+        
+        // Check for 3-word phrases
+        if (i + 2 < words.length) {
+          possiblePhrases.push(words[i] + " " + words[i+1] + " " + words[i+2]);
+        }
+        
+        for (const phrase of possiblePhrases) {
+          if (commonPhrases.includes(phrase.toLowerCase())) {
+            const normalized = normalizeKeyword(phrase);
+            if (normalized && normalized.length > 1) {
+              ngrams.push(normalized);
+              // Mark the indices as used
+              if (phrase.split(/\s+/).length === 2) {
+                usedIndices.add(i);
+                usedIndices.add(i+1);
+              } else if (phrase.split(/\s+/).length === 3) {
+                usedIndices.add(i);
+                usedIndices.add(i+1);
+                usedIndices.add(i+2);
+              }
+            }
+          }
+        }
+      }
+      
+      // Second pass: Extract bi-grams not caught in common phrases
+      for (let i = 0; i < words.length - 1; i++) {
+        if (usedIndices.has(i) || usedIndices.has(i+1)) continue; // Skip if already used in a phrase
+        
+        let bi = normalizeKeyword(words[i] + " " + words[i+1]);
+        if (bi && bi.length > 1) {
+          ngrams.push(bi);
+          usedIndices.add(i);
+          usedIndices.add(i+1);
+        }
+      }
+      
+      // Third pass: Extract single words that weren't part of phrases
+      for (let i = 0; i < words.length; i++) {
+        if (usedIndices.has(i)) continue; // Skip if already used in a phrase
+        
+        let single = words[i].trim();
+        if (!single) continue;
+        
+        // Don't include "exclusive" (for matching exclusion detection, not as a keyword)
+        if (noExclusive && single === "exclusive") continue;
+        
+        // Skip numeric values entirely - they should be handled by dedicated extractors
+        if (/^\d+$/.test(single)) continue;
+        
+        let normalized = normalizeKeyword(single);
+        if (normalized && normalized.length > 1) {
+          ngrams.push(normalized);
+        }
+      }
+      
+      // Uniquify the results
+      let out = [];
+      let seen = {};
+      for (let kw of ngrams) {
+        if (!seen[kw] && kw.length > 1) {
+          seen[kw] = 1;
+          out.push(kw);
+        }
+      }
+      
+      // Remove "exclusive" only if requested
+      if (noExclusive) out = out.filter(w => w !== "exclusive");
+      
+      return out;
+    }
+
+    // --- Keyword set overlap using synonyms ---
+    function keywordSetOverlap(arr1, arr2) {
+      let set1 = arr1;
+      let set2 = arr2;
+      let usedIdx2 = new Set();
+      let matches = [];
+      for (let i = 0; i < set1.length; i++) {
+        let kw = set1[i];
+        let foundMatch = false;
+        for (let j = 0; j < set2.length; j++) {
+          if (usedIdx2.has(j)) continue;
+          // synonym match
+          const syn1 = synonymsFor(kw), syn2 = synonymsFor(set2[j]);
+          if (syn1.some(x => syn2.includes(x))) {
+            matches.push(syn1[0]);
+            usedIdx2.add(j);
+            foundMatch = true;
+            break;
+          }
+        }
+      }
+      // Uniquify
+      return [...new Set(matches)];
+    }
+
+    // --- Enhanced Percentage Matching ---
+    // For percentage matching: recognize 10%, 10 %, 10percent/percent, ten percent, etc.
+    function extractPercentageValues(text) {
+      const vals = [];
+      let match;
+      // Numeric percent: 10%, 10 %
+      const percentNum = /(\d+)\s*%/g;
+      while ((match = percentNum.exec(text)) !== null) {
+        vals.push(parseInt(match[1]));
+      }
+      // 10 percent (loose spacing)
+      const percentWord = /(\d+)\s*percent/gi;
+      while ((match = percentWord.exec(text)) !== null) {
+        vals.push(parseInt(match[1]));
+      }
+      return vals;
+    }
+
+    // --- Enhanced Money Matching ---
+    // normalize $1,000 as 1000, catch $ 1,000, $2000, etc.
+    function extractMoneyValues(text) {
+      const vals = [];
+      let match;
+      // UPDATED REGEX: consistent with requirement and highlight logic
+      const moneyReg = /\$\s*([\d,]+(?:\.\d+)?)/g;
+      while ((match = moneyReg.exec(text)) !== null) {
+        // Extract the captured numeric part
+        const capturedString = match[1];
+        // Remove all commas before parsing
+        const cleanString = capturedString.replace(/,/g, '');
+        // Parse to float
+        const value = parseFloat(cleanString);
+        if (!isNaN(value)) {
+          vals.push(value);
+        }
+      }
+      // DEBUG: Show what is being extracted!
+      console.log('Extracting Money - Input:', text, 'Output:', vals);
+      // Return unique values to prevent duplication issues
+      return [...new Set(vals)].sort((a, b) => a - b);
+    }
+
+    // --- Improved Money Matching Logic ---
+    // Check if two arrays of money values have significant overlap
+    function moneyValuesOverlap(arr1, arr2) {
+      // DEBUG: Show arrays being compared!
+      console.log('Comparing Money - HQ:', arr1, 'JSON:', arr2);
+      // Convert to strings with 2 decimal places to handle floating point comparison correctly
+      const set1 = new Set(arr1.map(v => v.toFixed(2)));
+      const set2 = new Set(arr2.map(v => v.toFixed(2)));
+      
+      // Find intersection
+      const intersection = [...set1].filter(x => set2.has(x));
+      
+      // Calculate the degree of overlap
+      if (intersection.length === 0) return { match: false, values: [] , complete: false};
+      
+      // If there's at least one match, return those matches
+      return { 
+        match: intersection.length > 0, 
+        values: intersection.map(x => parseFloat(x)),
+        complete: intersection.length === set1.size && intersection.length === set2.size
+      };
+    }
+
+    // --- Synonym Match Helper ---
+    function arrHasSynonym(arr1, arr2) {
+      for (let kw of arr1) {
+        for (let kw2 of arr2) {
+          if (synonymsFor(kw).some(s => synonymsFor(kw2).includes(s))) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // --- Opaque deal detection for synonym match ---
+    function hasOpaqueSynonym(text1, text2) {
+      // If either includes ["opaque", "covert", "secret", "hidden"], they should match so long as synonym is present
+      const opaqueSet = ["opaque", "covert", "secret", "hidden"];
+      let t1 = text1.toLowerCase(), t2 = text2.toLowerCase();
+      return opaqueSet.some(word =>
+        t1.includes(word) && opaqueSet.some(w2 => t2.includes(w2))
+      );
+    }
+
+    // --- Half-off detection via synonyms/percentages ---
+    function isHalfOffDeal(text) {
+      const t = text.toLowerCase();
+      // 50 percent off/reduced/discount
+      if (/(50\s*%|50\s*percent)\s*(off|reduced|discount)/.test(t)) return true;
+      if (t.includes("half off")) return true;
+      return false;
+    }
+
+    // --- Updated Has Functions for Features/Synonyms ---
+    function hasGratuity(text) {
+      const lower = text.toLowerCase();
+      const gratuityTerms = [
+        "pre paid gratuities", "pre-paid gratuities", "prepaid gratuities",
+        "free gratuities", "free grat", "gratuities", "ppg"
+      ];
+      return gratuityTerms.some(term => lower.includes(term));
+    }
+    function hasOBC(text) {
+      const lower = text.toLowerCase();
+      const obcTerms = ["onboard credit", "on board credit", "obc", "on-board credit"];
+      return obcTerms.some(term => lower.includes(term));
+    }
+    function hasKids(text) {
+      const lower = text.toLowerCase();
+      const kidTerms = [" kid ", " kids ", " child ", " children ", "3rd guest", "third guest", "4th guest", "fourth guest"];
+      return kidTerms.some(term => lower.includes(term)) || /\b(kid|kids|child|children)\b/.test(lower);
+    }
+
+    // ---- NEW: Special Numeric Phrase Extraction ----
+    function extractSpecialNumericAll(text) {
+      const out = [];
+      // Ignore '2nd' or '3rd', they are ordinal markers (e.g., "2nd guest" is not "for 2")
+      const ignoreWords = /\b(\d{1,2})(st|nd|rd|th)\b/gi;
+      text = text.replace(ignoreWords, ''); // Remove ordinal markers from text
+
+      // "for 2", "for two", etc.
+      let match;
+      const forNumRegex = /for\s+(two|three|four|five|six|seven|eight|nine|\d+)/gi;
+      const wordToNumber = {
+        "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9
+      };
+      while((match = forNumRegex.exec(text)) !== null) {
+        let val = match[1];
+        if (wordToNumber[val.toLowerCase()]) val = wordToNumber[val.toLowerCase()];
+        out.push(Number(val));
+      }
+
+      // "buy X get Y"
+      const buyGetRegex = /buy\s+(\d+)\s+get\s+(\d+)/gi;
+      while((match = buyGetRegex.exec(text)) !== null) {
+        out.push(Number(match[1]), Number(match[2]));
+      }
+
+      // "x for $y" style
+      const xForYRegex = /(\d+)\s*for\s*[$]?\s*(\d+)/gi;
+      while((match = xForYRegex.exec(text)) !== null) {
+        out.push(Number(match[1]), Number(match[2]));
+      }
+
+      // Uniquify and sort
+      return [...new Set(out)].sort((a,b)=>a-b);
+    }
+
+    // --- EXCLUSIVE HIGHLIGHT LOGIC ---
+    function exclusiveFlag(hqText, jsText) {
+      let hqHas = /\bexclusive\b/i.test(hqText);
+      let jsHas = /\bexclusive\b/i.test(jsText);
+      return jsHas && !hqHas;
+    }
+
+    // --- SPECIAL REPLACEMENT for 2nd = second and handling 24/48 hour sales ---
+    // Map for normalization
+    const specialWordReplacements = {
+      "2nd": "second",
+      "3rd": "third",
+      "4th": "fourth",
+      "1st": "first",
+      "nd": "",
+      "rd": "",
+      "th": "",
+      "st": "",
+    };
+
+    // --- Main ENHANCED MATCHING LOGIC ---
+    function compareDealScore(hqDeal, jsonDeal) {
+      // Always define moneyOverlap at top to avoid ReferenceError!
+      let moneyOverlap = { match: false, values: [], complete: false };
+
+      // 0. Vendor check prerequisite (no score!)
+      if (hqDeal.vendor !== jsonDeal.vendor) {
+        return {score: 0, reasons: ["Vendor mismatch"], flags: {}, moneyOverlap};
+      }
+      
+      let reasons = [];
+      let score = 0;
+      let flags = {};
+      reasons.push(`Vendor: ${hqDeal.vendor} (required)`);
+
+      // --- Normalize main values ---
+      const jsAllText = `${jsonDeal.title} ${jsonDeal.shopListing}`.trim();
+
+      // Early money extraction for monetary presence rule
+      let hqMoney = extractMoneyValues(hqDeal.text);
+      let jsMoney = extractMoneyValues(jsAllText);
+      
+      // NEW: Mandatory monetary presence rule
+      const hqHasMoney = hqMoney.length > 0;
+      const jsHasMoney = jsMoney.length > 0;
+      
+      if (hqHasMoney !== jsHasMoney) {
+        return {
+          score: 0, 
+          reasons: ['Monetary value presence mismatch (Required: $ amount must be present in both or neither)'], 
+          flags: {},
+          moneyOverlap
+        };
+      }
+
+      // Date normalization
+      const hqExp = extractNormalizedExpiry(hqDeal.text);
+      const jsExp = normalizeJSONExpiry(jsonDeal.expiryDate);
+
+      // Percentages and special numbers
+      let hqPerc = extractPercentageValues(hqDeal.text);
+      let jsPerc = extractPercentageValues(jsAllText);
+      let hqSpecials = extractSpecialNumericAll(hqDeal.text);
+      let jsSpecials = extractSpecialNumericAll(jsAllText);
+      
+      // DEBUG: Add console logs to diagnose percentage comparison issues
+      console.log('Comparing Percents - HQ:', hqPerc, 'JSON:', jsPerc, 'HQ Text:', hqDeal.text, 'JSON Text:', jsAllText);
+      
+      function arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        let aSorted = a.slice().sort(), bSorted = b.slice().sort();
+        for (let i = 0; i < aSorted.length; i++) 
+          if (aSorted[i] !== bSorted[i]) return false;
+        return true;
+      }
+
+      let percentMatch = false, moneyMatch = false, specialMatch = false, nSynergy = false;
+
+      // Special Numeric match, like for 2, etc.
+      if (hqSpecials.length || jsSpecials.length){
+        if (arraysEqual(hqSpecials, jsSpecials)) {
+          score += 60; specialMatch = true;
+          reasons.push('Special numeric phrase match: ' + hqSpecials.join(', ') + ' (+60)');
+        }
+      }
+
+      // Percent match, robust: "10%", "10 %", "10 percent" (handled in extraction)
+      if (hqPerc.length || jsPerc.length) {
+        if (arraysEqual(hqPerc, jsPerc)) {
+          score += 60; percentMatch = true;
+          reasons.push('Percentage value match: ' + hqPerc.join('%, ') + '% (+60)');
+        } else if (hqPerc.length && jsPerc.length) {
+          reasons.push('Percentage mismatch (values differ or duplicate counts do not match)');
+        }
+      }
+
+      // Money match with improved logic
+      moneyOverlap = moneyValuesOverlap(hqMoney, jsMoney);
+      if (hqMoney.length || jsMoney.length) {
+        if (!moneyOverlap.match) {
+          // If there are money values but NO meaningful overlap, this is a dealbreaker
+          return {
+            score: 0,
+            reasons: [`Money value mismatch: HQ [${hqMoney.join(', ')}] vs JSON [${jsMoney.join(', ')}]`],
+            flags: {},
+            moneyOverlap
+          };
+        } else if (moneyOverlap.match) {
+          // Only award full points if ALL values match on both sides
+          if (moneyOverlap.complete) {
+            score += 60;
+            moneyMatch = true;
+            reasons.push('Money match: $' + moneyOverlap.values.join(', $') + ' (+60)');
+          } else {
+            // Partial match - still good but not perfect
+            score += 40;
+            moneyMatch = true;
+            reasons.push('Partial money match: $' + moneyOverlap.values.join(', $') + 
+                         ' (Some values appear in one text but not the other) (+40)');
+          }
+        }
+      }
+
+      // Explicit synonym matches for "half off"/"50% off", etc.
+      let hqHalfOff = isHalfOffDeal(hqDeal.text) || false;
+      let jsHalfOff = isHalfOffDeal(jsAllText) || false;
+      if (hqHalfOff && jsHalfOff) {
+        score += 60;
+        percentMatch = true; // This is an equivalence match!
+        reasons.push('"Half off" (50% off) match (+60)');
+      }
+
+      // Opaque/Cover/Secret/Hidden match: must be synonyms in both places
+      let hqOpaque = /opaque|covert|secret|hidden/i.test(hqDeal.text);
+      let jsOpaque = /opaque|covert|secret|hidden/i.test(jsAllText);
+      if (hqOpaque && jsOpaque && hasOpaqueSynonym(hqDeal.text, jsAllText)) {
+        score += 40;
+        reasons.push('Opaque/Cover/Secret/Hidden (synonym group) present on both sides (+40)');
+      }
+
+      // Keyword matching, using synonym grouping, excluding "exclusive"
+      let kwsHQ = extractNormalizedKeywords(hqDeal.text, {noExclusive:true});
+      let kwsJS = extractNormalizedKeywords(jsAllText, {noExclusive:true});
+      // This ensures e.g. "free" matches "complementary", "half off" matches "50% off"
+      let commonKWSyn = keywordSetOverlap(kwsHQ, kwsJS);
+      if (commonKWSyn.length>=1) {
+        let perKw = 15;
+        score += perKw * commonKWSyn.length;
+        reasons.push(
+          `${commonKWSyn.length} keyword${commonKWSyn.length>1?"s":""} match (${commonKWSyn.map(w=>`<span class="keyword-flag">${w}</span>`).join(" ")}, +${perKw*commonKWSyn.length})`
+        );
+      }
+
+      // 24/48 hour sale phrase as non-number keyword
+      const kw24hHQ = /\b(24|48)[\s\-]?(hour|hr)\b/i.test(hqDeal.text);
+      const kw24hJS = /\b(24|48)[\s\-]?(hour|hr)\b/i.test(jsAllText);
+      if (kw24hHQ && kw24hJS) {
+        score += 16;
+        reasons.push('Matched "24/48 hour" sale keyword (+16)');
+      }
+
+      // Synergy: Any numeric value (money or percent) + any keyword match = +25 (slight boost)
+      if ((percentMatch||moneyMatch) && commonKWSyn.length>=1) {
+        nSynergy = true;
+        score += 25;
+        reasons.push('<span class="orange" style="color:orange;font-weight:bold;">Synergy bonus: numeric/value + keyword (+25)</span>');
+      }
+
+      // Date logic
+      let matchedDate = false, dateFlag = false, dateDiffDays = null;
+      let dateInfo = "";
+      if (hqExp && jsExp) {
+        let diff = Math.abs(hqExp.dateObj - jsExp.dateObj) / (1000*60*60*24);
+        diff = Math.round(diff);
+        dateDiffDays = diff;
+        if (hqExp.ymd === jsExp.ymd) {
+          score += 50; matchedDate = true;
+          dateInfo = 'Exact date match: '+hqExp.display+ ' (+50)';
+        } else if (diff <= 5) {
+          // Matching dates must be exact; if not exact even within 5 days, we do not match
+          dateFlag = true;
+          flags.dateFlag = true;
+          reasons.push('<strong class="orange">⚠️ Date mismatch (within 5 days)</strong>');
+          dateInfo = `Date within 5 days (${hqExp.display} vs ${jsExp.display})`;
+          // This match should NOT be accepted: immediately reject this as non-match.
+          return {
+            score: 0,
+            reasons: [`Date mismatch (within 5 days): ${hqExp.display} vs ${jsExp.display}`],
+            flags: { dateFlag: true },
+            moneyOverlap
+          };
+        } else {
+          // Strong mismatch, date is too far. Reject as non-match!
+          dateFlag = true;
+          flags.dateFlag = true;
+          reasons.push('<strong class="orange">⚠️ Date mismatch</strong>');
+          dateInfo = `Date mismatch: ${hqExp.display} (HQ) vs ${jsExp.display} (JSON)`;
+          return {
+            score: 0,
+            reasons: [`Date mismatch: ${hqExp.display} (HQ) vs ${jsExp.display} (JSON)`],
+            flags: { dateFlag: true },
+            moneyOverlap
+          };
+        }
+        reasons.push(dateInfo);
+      }
+      // If one deal has a date and the other doesn't, also treat as a mismatch/non-match
+      if ((hqExp && !jsExp) || (!hqExp && jsExp)) {
+        return {
+          score: 0,
+          reasons: ["Date presence mismatch: Only one of the deals has a date."],
+          flags: { dateFlag: true },
+          moneyOverlap
+        };
+      }
+
+      // Bonus: if we have BOTH exact monetary/percentage match AND exact date AND at least 1 matched keyword
+      if ((percentMatch||moneyMatch) && hqExp && jsExp && hqExp.ymd===jsExp.ymd && commonKWSyn.length) {
+        score += 60;
+        reasons.push('<b style="color:orange">Synergy: value/date/keyword all match! (+60)</b>');
+        flags.highConfidence = true;
+      }
+
+      // Check for gratuity, OBC, kids (fully synonym-matched as-is)
+      let hqGrat = hasGratuity(hqDeal.text);
+      let jsGrat = hasGratuity(jsAllText);
+      if (hqGrat && jsGrat) { score += 35; reasons.push("Gratuities present (+35)"); }
+      else if (hqGrat || jsGrat) {
+        reasons.push("Gratuity mention only on one side (-15)");
+        score -= 15;
+      }
+      let hqOBC = hasOBC(hqDeal.text);
+      let jsOBC = hasOBC(jsAllText);
+      if (hqOBC && jsOBC) { score += 35; reasons.push("OBC present (+35)"); }
+      else if (hqOBC || jsOBC) { reasons.push("OBC mention only on one side (-15)"); score -= 15; }
+      let hqKids = hasKids(hqDeal.text);
+      let jsKids = hasKids(jsAllText);
+      if (hqKids && jsKids) { score += 35; reasons.push("Kids/child present (+35)"); }
+      else if (hqKids || jsKids) { reasons.push("Kids/child only on one side (-10)"); score -= 10; }
+
+      // *** "exclusive" handling: NOT a keyword, but flag if JSON has it but HQ doesn't ***
+      flags.exclusiveFlag = exclusiveFlag(hqDeal.text, jsAllText);
+
+      // Bounded score
+      score = Math.max(0, Math.min(score, 510));
+      return {
+        score, 
+        reasons, 
+        flags,
+        hqExp, 
+        jsExp,
+        commonKW: commonKWSyn,
+        nSynergy, 
+        percentMatch, 
+        moneyMatch, 
+        dateFlag, 
+        dateDiffDays,
+        hqMoney,
+        jsMoney,
+        moneyOverlap
+      };
+    }
+
+    // --- Create a function for highlightJsonWithMatches using correct regex ---
+    function highlightJsonWithMatches(text, matchRes) {
+      // First escape HTML
+      let result = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+        
+      // Highlight dates
+      result = result.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g, 
+        '<span class="expiry-date">$1</span>');
+        
+      // Highlight money values with correct regex and "money-match" class
+      result = result.replace(/\$\s*([\d,]+(?:\.\d+)?)/g, function(full, grp1) {
+        // Extract numeric value
+        const numValue = parseFloat(grp1.replace(/,/g, ''));
+        // Check if this value is in the overlap set
+        const isMatched =
+          matchRes && matchRes.moneyOverlap && 
+          matchRes.moneyOverlap.match && 
+          matchRes.moneyOverlap.values && 
+          matchRes.moneyOverlap.values.includes(numValue);
+        if (isMatched) {
+          return `<span class="price-value money-match">\$${grp1}</span>`;
+        } else {
+          return `<span class="price-value">\$${grp1}</span>`;
+        }
+      });
+        
+      // Highlight percentages
+      result = result.replace(/(\d+\s*%|\d+\s*percent)/gi,
+        '<span class="percentage-value">$1</span>');
+        
+      return result;
+    }
+
+    // Highlight numeric values and dates in text
+    function highlightText(text) {
+      // First escape HTML
+      let result = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      
+      // Highlight dates MM/DD/YYYY or YYYY-MM-DD
+      result = result.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g, 
+        '<span class="expiry-date">$1</span>');
+      
+      // Highlight money values with the CONSISTENT (correct) REGEX
+      // Use /\$\s*([\d,]+(?:\.\d+)?)/g!
+      result = result.replace(/\$\s*([\d,]+(?:\.\d+)?)/g, 
+        '<span class="price-value">\$${"$1"}</span>');
+      
+      // Highlight percentages
+      result = result.replace(/(\d+\s*%|\d+\s*percent)/gi, 
+        '<span class="percentage-value">$1</span>');
+      
+      return result;
+    }
+
+    function highlightTextJSON(text) {
+      // First escape HTML
+      let result = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      // Dates
+      result = result.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g,
+        '<span class="expiry-date">$1</span>');
+      // Money values (corrected REGEX)
+      result = result.replace(/\$\s*([\d,]+(?:\.\d+)?)/g,
+        '<span class="price-value">\$${"$1"}</span>');
+      // Percentages
+      result = result.replace(/(\d+\s*%|\d+\s*percent)/gi,
+        '<span class="percentage-value">$1</span>');
+      return result;
+    }
+
+    // Global arrays
+    let matchedDeals = []; // Array of { hqDeal, jsonDeal, score, jsonIndex, reasons }
+    let nonMatchedDeals = []; // Array of HQ deals
+
+    // Rendering tweaks for new flags
+    function renderMatchedDeals() {
+      const container = document.getElementById("matchedDealsContainer");
+      const filter = document.getElementById("matchedFilter")?.value?.trim() ?? "";
+      const filteredDeals = filterDeals(matchedDeals, filter);
+
+      // Sort filteredDeals by score from lowest to highest
+      filteredDeals.sort((a, b) => a.score - b.score);
+
+      container.innerHTML = "";
+      document.getElementById("matchedCount").textContent = matchedDeals.length;
+
+      if (filteredDeals.length === 0) {
+        container.innerHTML = "<div class='no-matches'>No matched deals found.</div>";
+        return;
+      }
+
+      filteredDeals.forEach((matchObj, index) => {
+        const match = matchObj;
+        const row = document.createElement("div");
+
+        // Get additional matching info for flag rendering by rerunning score
+        const matchRes = match.jsonDeal
+          ? compareDealScore(match.hqDeal, match.jsonDeal)
+          : {flags:{}, hqExp:null, jsExp:null, moneyOverlap:{ match: false, values: [], complete: false }};
+
+        // Highlight container if it's a possible date change
+        if (matchRes.dateFlag) row.className = "matched-deal possible-date-change";
+        else row.className = "matched-deal";
+
+        // Score badge
+        const scoreDiv = document.createElement("div");
+        scoreDiv.className = "match-score";
+        scoreDiv.textContent = match.score;
+        scoreDiv.title = "Match score";
+
+        // --- HQ column ---
+        const leftCol = document.createElement("div");
+        leftCol.className = "deal-info";
+
+        // Keyword synergy flag
+        if (matchRes.nSynergy && (matchRes.percentMatch || matchRes.moneyMatch)) {
+          const div = document.createElement("span");
+          div.className="date-flag"; div.textContent = "SYNERGY";
+          leftCol.appendChild(div);
+        }
+        // Date change flag
+        if (matchRes.dateFlag) {
+          const div = document.createElement("span");
+          div.className="date-flag";
+          div.textContent =
+            matchRes.dateDiffDays && matchRes.dateDiffDays<=5
+            ?  "POSSIBLE DATE CHANGE"
+            : "DATE MISMATCH";
+          leftCol.appendChild(div);
+        }
+
+        // Exclusive flag highlight
+        if (matchRes.flags.exclusiveFlag) {
+          const div = document.createElement("span");
+          div.className="exclusive-flag";
+          div.textContent = "Exclusive listed on JSON";
+          leftCol.appendChild(div);
+        }
+
+        // Vendor
+        const vendorSpan = document.createElement("span");
+        vendorSpan.className = "deal-vendor";
+        vendorSpan.textContent = match.hqDeal.vendor;
+        leftCol.appendChild(vendorSpan);
+        leftCol.appendChild(document.createTextNode(": "));
+
+        // HQ deal text
+        // Replace all dates with normalized, original display, flag mismatch in orange if dateFlag
+        let base = match.hqDeal.text;
+
+        // Build a map: {rawDateString: {display,raw,ymd,dateObj}}
+        const allDates = extractAllDatesWithInfo(base);
+        let dateFinals = {};
+        allDates.forEach(d=>{
+          dateFinals[d.raw]=d;
+        });
+
+        // Replace each date with normalized + original and orange if it's the main expiry date (compared)
+        let rendered = base.replace(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})/g, (m) => {
+          const info = dateFinals[m];
+          if (!info) return m;
+          if (matchRes.dateFlag && matchRes.hqExp && info.ymd===matchRes.hqExp.ymd) {
+            // It's main expiry: flag orange for mismatch/change
+            return `<span class="hq-date-mismatch">${info.display}<br><small>(${info.raw})</small></span>`;
+          } else {
+            return `<span class="expiry-date">${info.display}<br><small style="color:#aaa;">(${info.raw})</small></span>`;
+          }
+        });
+        
+        // Show matched keywords inline as .keyword-flag for fun
+        (matchRes.commonKW||[]).forEach(kw=>{
+          rendered = rendered.replace(new RegExp(`\\b(${kw})\\b`, 'gi'),
+            `<span class="keyword-flag">$1</span>`);
+        });
+        
+        // Money highlight with special class if it's a matching money value (use correct regex!)
+        rendered = rendered.replace(/\$\s*([\d,]+(?:\.\d+)?)/g, function(full, grp1) {
+          // Extract numeric value
+          const numValue = parseFloat(grp1.replace(/,/g, ''));
+          // Check if this value is in the overlap set
+          const isMatched =
+            matchRes && matchRes.moneyOverlap &&
+            matchRes.moneyOverlap.match &&
+            matchRes.moneyOverlap.values &&
+            matchRes.moneyOverlap.values.includes(numValue);
+          if (isMatched) {
+            return `<span class="price-value money-match">\$${grp1}</span>`;
+          } else {
+            return `<span class="price-value">\$${grp1}</span>`;
+          }
+        });
+        
+        // Percentages
+        rendered = rendered.replace(/(\d+\s*%|\d+\s*percent)/gi, 
+            '<span class="percentage-value">$1</span>');
+        leftCol.innerHTML += rendered;
+
+        // --- JSON column ---
+        const rightCol = document.createElement("div");
+        rightCol.className = "json-match";
+        if (match.jsonDeal) {
+          const jsonDetails = document.createElement("div");
+          let title = match.jsonDeal.title || "";
+          let listing = match.jsonDeal.shopListing || "";
+          jsonDetails.innerHTML =
+            `<strong>Vendor:</strong> ${match.jsonDeal.vendor}<br>` +
+            `<strong>Expiry:</strong> <span class="expiry-date">${match.jsonDeal.expiryDate ? formatDate(new Date(match.jsonDeal.expiryDate)):"N/A"}</span><br>` +
+            `<strong>Title:</strong> ${highlightJsonWithMatches(title, matchRes)}<br>` +
+            `<strong>Listing:</strong> ${highlightJsonWithMatches(listing, matchRes)}`;
+          if (matchRes.flags.exclusiveFlag)
+            jsonDetails.innerHTML += `<div style="margin-top:4px;"><span class="exclusive-flag">EXCLUSIVE</span><span style="font-size:0.93em;">Present in JSON only</span></div>`;
+          rightCol.appendChild(jsonDetails);
+        } else {
+          rightCol.textContent = "No JSON match details.";
+        }
+
+        // Match reasons tooltip
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        tooltip.innerHTML = "👁️";
+        const tooltipText = document.createElement("span");
+        tooltipText.className = "tooltiptext";
+        tooltipText.innerHTML = match.reasons
+          ? match.reasons.join("<br>")
+          : "[No match reasons available]";
+        tooltip.appendChild(tooltipText);
+
+        // Move to non-matched button
+        const btn = document.createElement("button");
+        btn.innerHTML = "👎";
+        btn.title = "Move to non-matched";
+        btn.addEventListener("click", function() {
+          matchedDeals.splice(matchedDeals.indexOf(match), 1);
+          nonMatchedDeals.push(match.hqDeal);
+          renderAll();
+        });
+
+        row.appendChild(scoreDiv);
+        row.appendChild(leftCol);
+        row.appendChild(rightCol);
+        row.appendChild(tooltip);
+        row.appendChild(btn);
+
+        container.appendChild(row);
+      });
+    }
+
+    function renderNonMatchedDeals() {
+      const container = document.getElementById("nonMatchedDealsContainer");
+      const filter = document.getElementById("nonMatchedFilter").value.trim();
+      const filteredDeals = filterNonMatched(nonMatchedDeals, filter);
+
+      container.innerHTML = "";
+      document.getElementById("nonMatchedCount").textContent = nonMatchedDeals.length;
+
+      if (filteredDeals.length === 0) {
+        container.innerHTML = "<div class='no-matches'>No non-matched deals found.</div>";
+        return;
+      }
+
+      filteredDeals.forEach((deal, index) => {
+        const row = document.createElement("div");
+        row.className = "non-matched-deal";
+
+        // -- Find the nearest (best) jsonDeal for this deal --
+        const nearest = findClosestMatch(deal, _lastJSONDeals, _lastThreshold);
+
+        const info = document.createElement("div");
+        info.className = "deal-info";
+
+        const vendorSpan = document.createElement("span");
+        vendorSpan.className = "deal-vendor";
+        vendorSpan.textContent = deal.vendor;
+
+        info.appendChild(vendorSpan);
+        info.appendChild(document.createTextNode(": "));
+
+        const dealTextSpan = document.createElement("span");
+        dealTextSpan.innerHTML = highlightText(deal.text);
+        info.appendChild(dealTextSpan);
+
+        // --- Tooltip for nearest match, if found ---
+        if (nearest) {
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.innerHTML = "👁️";
+          const tooltipText = document.createElement("span");
+          tooltipText.className = "tooltiptext";
+          let reasonText = "";
+          if (nearest.reasons && nearest.reasons.length) {
+            reasonText =
+              `<strong>Best Possible Match (Score: ${nearest.score}):</strong><br>` +
+              `<span style="color:#3498db"><b>Vendor:</b> ${nearest.jsonDeal.vendor}</span><br>` +
+              (nearest.jsonDeal.expiryDate
+                ? `<b>Expiry:</b> <span class="expiry-date">${formatDate(new Date(nearest.jsonDeal.expiryDate))}</span><br>`
+                : "") +
+              `<b>Title:</b> ${highlightTextJSON(nearest.jsonDeal.title)}<br>` +
+              `<b>Listing:</b> ${highlightTextJSON(nearest.jsonDeal.shopListing)}<br>` +
+              `<hr style="border:none;border-top:1px solid #eee;margin:5px 0;">` +
+              nearest.reasons.map(r=>`• ${r}`).join("<br>");
+          } else {
+            reasonText = "No near-match info.";
+          }
+          tooltipText.innerHTML = reasonText;
+          tooltip.appendChild(tooltipText);
+          info.appendChild(tooltip);
+        }
+
+        const btn = document.createElement("button");
+        btn.innerHTML = "👍";
+        btn.title = "Move to matched";
+        btn.addEventListener("click", function() {
+          nonMatchedDeals.splice(nonMatchedDeals.indexOf(deal), 1);
+          matchedDeals.push({
+            hqDeal: deal,
+            jsonDeal: null,
+            score: 0,
+            jsonIndex: null,
+            reasons: ["Manually matched"]
+          });
+          renderAll();
+        });
+
+        row.appendChild(info);
+        row.appendChild(btn);
+        container.appendChild(row);
+      });
+    }
+
+    function renderAll() {
+      renderMatchedDeals();
+      renderNonMatchedDeals();
+    }
+    
+    // Copy non-matched deals to clipboard in the original format
+    function copyNonMatchedToClipboard() {
+      // Group by vendor
+      const groups = {};
+      nonMatchedDeals.forEach(deal => {
+        if (!groups[deal.vendor]) {
+          groups[deal.vendor] = [];
+        }
+        groups[deal.vendor].push(deal.original);
+      });
+      
+      let output = "";
+      for (const vendor in groups) {
+        output += "v\t" + vendor + ":\n";
+        groups[vendor].forEach(dealLine => {
+          output += dealLine + "\n";
+        });
+      }
+      
+      navigator.clipboard.writeText(output).then(() => {
+        alert("Non-matched deals copied to clipboard!");
+      }, () => {
+        alert("Failed to copy to clipboard.");
+      });
+    }
+    
+    // Event listeners
+    document.getElementById("compareButton").addEventListener("click", function() {
+      const hqText = document.getElementById("hqDeals").value;
+      const jsonText = document.getElementById("jsonDeals").value;
+      const threshold = parseInt(document.getElementById("matchThreshold").value);
+      
+      const hqDeals = parseHQDeals(hqText);
+      const jsonDeals = parseJSONDeals(jsonText);
+      
+      matchedDeals = [];
+      nonMatchedDeals = [];
+      
+      const result = performMatching(hqDeals, jsonDeals, threshold);
+      matchedDeals = result.matched;
+      nonMatchedDeals = result.nonMatched;
+      
+      renderAll();
+    });
+    
+    document.getElementById("copyButton").addEventListener("click", copyNonMatchedToClipboard);
+    
+    document.getElementById("matchedFilter").addEventListener("input", renderMatchedDeals);
+    document.getElementById("nonMatchedFilter").addEventListener("input", renderNonMatchedDeals);
+
+    let _lastHQDeals = [], _lastJSONDeals = [], _lastThreshold = 150;
+
+    function performMatching(hqDeals, jsonDeals, threshold) {
+      _lastHQDeals = hqDeals;
+      _lastJSONDeals = jsonDeals;
+      _lastThreshold = threshold;
+
+      const candidateMatches = []; // { hqDeal, jsonDeal, score, jsonIndex, reasons }
+      const nonMatched = [];
+
+      hqDeals.forEach(hqDeal => {
+        let bestScore = 0;
+        let bestCandidate = null;
+        let bestJsonIndex = null;
+        let bestReasons = [];
+        let bestMatchRes = null;
+
+        jsonDeals.forEach((jsonDeal, j) => {
+          const matchRes = compareDealScore(hqDeal, jsonDeal);
+          const score = matchRes.score;
+          const reasons = matchRes.reasons;
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = jsonDeal;
+            bestJsonIndex = j;
+            bestReasons = reasons;
+            bestMatchRes = matchRes;
+          }
+        });
+
+        // Only match if it's fully allowed (no fatal mismatches)
+        // If the top candidate has a fatal reason (present in reasons) or is a money/date mismatch (score==0)
+        // then treat as non-match
+        let fatal = false;
+        if (bestMatchRes) {
+          // If money value mismatch or presence mismatch
+          if (
+            bestMatchRes.reasons &&
+            (
+              bestMatchRes.reasons.some(reason =>
+                reason.includes("Monetary value presence mismatch") ||
+                reason.includes("Money value mismatch") ||
+                reason.includes("Date mismatch")
+              )
+              // Also block all matches with score 0 (in case)
+              || bestMatchRes.score === 0
+            )
+          ) {
+            fatal = true;
+          }
+        }
+
+        if (!fatal && bestScore >= threshold) {
+          candidateMatches.push({
+            hqDeal: hqDeal,
+            jsonDeal: bestCandidate,
+            score: bestScore,
+            jsonIndex: bestJsonIndex,
+            reasons: bestReasons
+          });
+        } else {
+          nonMatched.push(hqDeal);
+        }
+      });
+
+      // Enforce unique assignment with highest scores
+      const uniqueMatches = {};
+      candidateMatches.forEach(candidate => {
+        const idx = candidate.jsonIndex;
+        if (!uniqueMatches.hasOwnProperty(idx) || candidate.score > uniqueMatches[idx].score) {
+          uniqueMatches[idx] = candidate;
+        }
+      });
+
+      candidateMatches.forEach(candidate => {
+        if (uniqueMatches[candidate.jsonIndex] !== candidate) {
+          nonMatched.push(candidate.hqDeal);
+        }
+      });
+
+      const matched = Object.values(uniqueMatches);
+      return {
+        matched,
+        nonMatched
+      };
+    }
+
+    function findClosestMatch(hqDeal, jsonDeals, minThreshold) {
+      let bestScore = 0;
+      let bestCandidate = null;
+      let bestJsonIndex = null;
+      let bestReasons = [];
+      jsonDeals.forEach((jsonDeal, j) => {
+        const { score, reasons } = compareDealScore(hqDeal, jsonDeal);
+        if (score > bestScore) {
+          bestScore = score;
+          bestCandidate = jsonDeal;
+          bestJsonIndex = j;
+          bestReasons = reasons;
+        }
+      });
+      if (bestScore > 0 && bestScore < minThreshold) {
+        return {
+          jsonDeal: bestCandidate,
+          score: bestScore,
+          reasons: bestReasons
+        };
+      }
+      return null;
+    }
+
+    function hasGratuity(text) {
+      const lower = text.toLowerCase();
+      const gratuityTerms = [
+        "pre paid gratuities", "pre-paid gratuities", "prepaid gratuities",
+        "free gratuities", "free grat", "gratuities", "ppg"
+      ];
+      return gratuityTerms.some(term => lower.includes(term));
+    }
+
+    function hasOBC(text) {
+      const lower = text.toLowerCase();
+      const obcTerms = ["onboard credit", "on board credit", "obc", "on-board credit"];
+      return obcTerms.some(term => lower.includes(term));
+    }
+
+    function hasKids(text) {
+      const lower = text.toLowerCase();
+      const kidTerms = [" kid ", " kids ", " child ", " children ", "3rd guest", "third guest", "4th guest", "fourth guest"];
+      return kidTerms.some(term => lower.includes(term)) || /\b(kid|kids|child|children)\b/.test(lower);
+    }
+
+    function filterDeals(deals, searchText) {
+      if (!searchText) return deals;
+      
+      const terms = searchText.toLowerCase().split(/\s+/);
+      return deals.filter(deal => {
+        const text = (deal.hqDeal.vendor + " " + deal.hqDeal.text).toLowerCase();
+        return terms.every(term => text.includes(term));
+      });
+    }
+    
+    function filterNonMatched(deals, searchText) {
+      if (!searchText) return deals;
+      
+      const terms = searchText.toLowerCase().split(/\s+/);
+      return deals.filter(deal => {
+        const text = (deal.vendor + " " + deal.text).toLowerCase();
+        return terms.every(term => text.includes(term));
+      });
+    }
+  </script>
 </body>
 </html>
