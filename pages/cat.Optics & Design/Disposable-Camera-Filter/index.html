@@ -230,6 +230,12 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="blacks-slider" min="0" max="0.15" step="0.001" value="0.06">
           <span class="control-value">0.06</span>
         </div>
+        <!-- NEW: Lifted Blacks -->
+        <div class="dual-slider">
+          <label>Lifted Blacks</label>
+          <input type="range" id="lift-slider" min="0" max="0.15" step="0.001" value="0.00">
+          <span class="control-value">0.00</span>
+        </div>
         <div class="dual-slider">
           <label>Highlight Knee</label>
           <input type="range" id="knee-slider" min="0" max="0.25" step="0.001" value="0.12">
@@ -317,6 +323,17 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
         </div>
       </div>
       <div class="optics-controls">
+        <!-- NEW: Motion blur controls -->
+        <div class="standard-control">
+          <label>Motion Blur (px)</label>
+          <input type="range" id="mb-slider" min="0" max="30" step="0.1" value="0.0">
+          <span class="control-value">0.0</span>
+        </div>
+        <div class="standard-control">
+          <label>Motion Angle (°)</label>
+          <input type="range" id="mb-angle-slider" min="0" max="180" step="1" value="0">
+          <span class="control-value">0</span>
+        </div>
         <div class="standard-control">
           <label>Chromatic Aberration</label>
           <input type="range" id="ca-slider" min="0" max="2" step="0.01" value="1.00">
@@ -407,6 +424,12 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="mobile-blacks" min="0" max="0.15" step="0.001" value="0.06">
           <span class="control-value">0.06</span>
         </div>
+        <!-- NEW: Lifted Blacks (mobile) -->
+        <div class="mobile-slider">
+          <label>Lifted Blacks</label>
+          <input type="range" id="mobile-lift" min="0" max="0.15" step="0.001" value="0.00">
+          <span class="control-value">0.00</span>
+        </div>
         <div class="mobile-slider">
           <label>Highlight Knee</label>
           <input type="range" id="mobile-knee" min="0" max="0.25" step="0.001" value="0.12">
@@ -442,6 +465,17 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="mobile-grain" min="0" max="0.08" step="0.001" value="0.025">
           <span class="control-value">0.025</span>
         </div>
+        <!-- NEW: Motion blur (mobile) -->
+        <div class="mobile-slider">
+          <label>Motion Blur (px)</label>
+          <input type="range" id="mobile-mb" min="0" max="30" step="0.1" value="0.0">
+          <span class="control-value">0.0</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Motion Angle (°)</label>
+          <input type="range" id="mobile-mb-angle" min="0" max="180" step="1" value="0">
+          <span class="control-value">0</span>
+        </div>
       </div>
     </div>
 
@@ -454,7 +488,6 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
   </div>
 </div>
 
-<!-- Knob web component -->
 <!-- Knob web component (fixed) -->
 <script>
 class XKnob extends HTMLElement{
@@ -594,7 +627,6 @@ svg{width:100%;height:100%;display:block}
 customElements.define("x-knob",XKnob);
 </script>
 
-
 <!-- Main app -->
 <script type="module">
 (function () {
@@ -608,6 +640,7 @@ customElements.define("x-knob",XKnob);
     ev: -0.40,
     flashStrength: 1.00, flashFalloff: 4.50, flashCenterX: 0.50, flashCenterY: 0.46,
     scurve: 0.60, blacks: 0.06, knee: 0.12,
+    blackLift: 0.00,           // NEW: 0..0.15
     shadowCool: 0.35, highlightWarm: 0.35,
 
     // Bloom stack (boosted)
@@ -627,6 +660,10 @@ customElements.define("x-knob",XKnob);
     vignette: 0.18, vignettePower: 2.5,
     ca: 1.00, clarity: 0.00,
     grain: 0.025, grainShadowBoost: 0.70,
+
+    // NEW: Motion blur
+    motionBlur: 0.0,         // length in pixels (0..30)
+    motionAngle: 0.0,        // degrees (0..180)
 
     // App
     needsRender: true, draggingFlash: false,
@@ -687,6 +724,7 @@ customElements.define("x-knob",XKnob);
   const updateFalloff = setupControlBinding('falloff-slider','mobile-falloff','flashFalloff');
   const updateScurve = setupControlBinding('scurve-slider','mobile-scurve','scurve');
   const updateBlacks = setupControlBinding('blacks-slider','mobile-blacks','blacks');
+  const updateLift = setupControlBinding('lift-slider','mobile-lift','blackLift');                 // NEW
   const updateKnee = setupControlBinding('knee-slider','mobile-knee','knee');
   const updateShadowCool = setupControlBinding('shadow-cool-slider', null, 'shadowCool');
   const updateHighlightWarm = setupControlBinding('highlight-warm-slider', null, 'highlightWarm');
@@ -702,6 +740,8 @@ customElements.define("x-knob",XKnob);
   const updateCA = setupControlBinding('ca-slider', null, 'ca');
   const updateClarity = setupControlBinding('clarity-slider', null, 'clarity');
   const updateGrain = setupControlBinding('grain-slider', 'mobile-grain', 'grain');
+  const updateMB = setupControlBinding('mb-slider','mobile-mb','motionBlur');                      // NEW
+  const updateMBAngleDeg = setupControlBinding('mb-angle-slider','mobile-mb-angle','motionAngle'); // NEW
 
   // Flash strength knob + mobile slider
   const flashKnob = document.getElementById('flash-knob');
@@ -789,19 +829,21 @@ customElements.define("x-knob",XKnob);
   function defaultState(){
     return {
       ev:-0.40, flashStrength:1.00, flashFalloff:4.50, flashCenterX:0.50, flashCenterY:0.46,
-      scurve:0.60, blacks:0.06, knee:0.12, shadowCool:0.35, highlightWarm:0.35,
+      scurve:0.60, blacks:0.06, knee:0.12, blackLift:0.00, shadowCool:0.35, highlightWarm:0.35,
       bloomThreshold:0.62, bloomRadius:28.0, bloomIntensity:1.10, bloomWarm:0.45,
       halation:0.80, greenShadows:0.55, magentaMids:0.30,
-      vignette:0.18, vignettePower:2.5, ca:1.00, clarity:0.00, grain:0.025, grainShadowBoost:0.70
+      vignette:0.18, vignettePower:2.5, ca:1.00, clarity:0.00, grain:0.025, grainShadowBoost:0.70,
+      motionBlur:0.0, motionAngle:0.0
     };
   }
   function resetControls(){
     Object.assign(state, defaultState());
-    updateEV(state.ev); updateFalloff(state.flashFalloff); updateScurve(state.scurve); updateBlacks(state.blacks); updateKnee(state.knee);
+    updateEV(state.ev); updateFalloff(state.flashFalloff); updateScurve(state.scurve); updateBlacks(state.blacks); updateLift(state.blackLift); updateKnee(state.knee);
     updateShadowCool(state.shadowCool); updateHighlightWarm(state.highlightWarm);
     updateBloomThreshold(state.bloomThreshold); updateBloomRadius(state.bloomRadius); updateBloomIntensity(state.bloomIntensity); updateBloomWarm(state.bloomWarm);
     updateHalation(state.halation); updateGreenShadows(state.greenShadows); updateMagentaMids(state.magentaMids);
     updateVignette(state.vignette); updateVignettePower(state.vignettePower); updateCA(state.ca); updateClarity(state.clarity); updateGrain(state.grain);
+    updateMB(state.motionBlur); updateMBAngleDeg(state.motionAngle);
     const handle=document.getElementById('position-handle'); if (handle){ handle.style.left='50%'; handle.style.top='46%'; }
     posPresets.forEach(p=>p.classList.toggle('active', p.dataset.pos==='0.5,0.46'));
     updateFlashStrength(state.flashStrength);
@@ -820,6 +862,7 @@ customElements.define("x-knob",XKnob);
         else if (k==='flashFalloff') updateFalloff(p[k]);
         else if (k==='scurve') updateScurve(p[k]);
         else if (k==='blacks') updateBlacks(p[k]);
+        else if (k==='blackLift') updateLift(p[k]);              // NEW
         else if (k==='knee') updateKnee(p[k]);
         else if (k==='shadowCool') updateShadowCool(p[k]);
         else if (k==='highlightWarm') updateHighlightWarm(p[k]);
@@ -835,6 +878,8 @@ customElements.define("x-knob",XKnob);
         else if (k==='ca') updateCA(p[k]);
         else if (k==='clarity') updateClarity(p[k]);
         else if (k==='grain') updateGrain(p[k]);
+        else if (k==='motionBlur') updateMB(p[k]);               // NEW
+        else if (k==='motionAngle') updateMBAngleDeg(p[k]);      // NEW
       });
       updateFlashStrength(p.flashStrength ?? state.flashStrength);
       state.needsRender=true;
@@ -922,14 +967,36 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(c,1.0);
     }
   `;
+  /* NEW: Analog motion blur (uniform linear PSF along constant-velocity path) */
+  const FS_motion = COMMON + `
+    uniform sampler2D uTex;
+    uniform vec2  uPx;       // 1/width, 1/height (in framebuffer space)
+    uniform float uAmount;   // blur length in pixels
+    uniform float uAngle;    // radians
+    void main(){
+      vec2 dir = vec2(cos(uAngle), sin(uAngle));
+      const int SAMPLES = 24; // temporal samples across exposure
+      vec3 acc = vec3(0.0);
+      for (int i=0; i<SAMPLES; ++i){
+        float u = (float(i) / float(SAMPLES - 1)) - 0.5;  // [-0.5, 0.5]
+        vec2 off = dir * uAmount * u * uPx;               // pixels -> UV
+        acc += texture2D(uTex, v_uv + off).rgb;
+      }
+      gl_FragColor = vec4(acc / float(SAMPLES), 1.0);
+    }
+  `;
   const FS_tone = COMMON + `
-    uniform sampler2D uTex; uniform float uScurve, uBlacks, uKnee;
+    uniform sampler2D uTex; uniform float uScurve, uBlacks, uKnee, uLift; // NEW uLift
     vec3 sCurve(vec3 x){ return mix(x, x*x*(3.0-2.0*x), uScurve); }
     vec3 blackCrush(vec3 x){ return max(vec3(0.0), x - uBlacks) / (1.0 - uBlacks + 1e-6); }
+    vec3 blackLift(vec3 x){ return x * (1.0 - uLift) + vec3(uLift); }     // NEW
     vec3 shoulder(vec3 x){ return 1.0 - pow(1.0 - x, vec3(1.0 + 5.0*uKnee)); }
     void main(){
       vec3 c = texture2D(uTex, v_uv).rgb;
-      c = sCurve(c); c = blackCrush(c); c = shoulder(c);
+      c = sCurve(c);
+      c = blackCrush(c);
+      c = blackLift(c);   // NEW: raise floor after crush
+      c = shoulder(c);
       gl_FragColor = vec4(c,1.0);
     }
   `;
@@ -940,8 +1007,8 @@ customElements.define("x-knob",XKnob);
       float Y = luma(c);
       float wSh = smoothstep(0.7, 0.2, Y);
       float wHi = smoothstep(0.5, 0.9, Y);
-      vec3 shTint = mix(vec3(1.0), vec3(0.95, 1.08, 1.15), uShadowCool);   // stronger cool
-      vec3 hiTint = mix(vec3(1.0), vec3(1.15, 1.00, 0.90), uHighlightWarm); // warmer highs
+      vec3 shTint = mix(vec3(1.0), vec3(0.95, 1.08, 1.15), uShadowCool);
+      vec3 hiTint = mix(vec3(1.0), vec3(1.15, 1.00, 0.90), uHighlightWarm);
       c *= mix(vec3(1.0), shTint, wSh);
       c *= mix(vec3(1.0), hiTint, wHi);
       gl_FragColor = vec4(c,1.0);
@@ -952,9 +1019,8 @@ customElements.define("x-knob",XKnob);
     void main(){
       vec3 c = texture2D(uTex, v_uv).rgb;
       float Y = luma(c);
-      float wS = 1.0 - smoothstep(0.18, 0.55, Y); // heavier in shadows
+      float wS = 1.0 - smoothstep(0.18, 0.55, Y);
       float wM = smoothstep(0.20, 0.60, Y) * (1.0 - smoothstep(0.60, 0.90, Y));
-      // Stronger casts
       c *= mix(vec3(1.0), vec3(0.80, 1.25, 0.82), uGreenShadows * wS);
       c *= mix(vec3(1.0), vec3(1.22, 0.80, 1.22), uMagentaMids  * wM);
       gl_FragColor = vec4(c,1.0);
@@ -980,7 +1046,6 @@ customElements.define("x-knob",XKnob);
       float m = clamp((Y - uThreshold)/max(1e-5, 1.0 - uThreshold), 0.0, 1.0);
       vec3 bloom = c * m;
       bloom *= warmTint(uWarm);
-      // Extra punch so sliders clearly "do something"
       bloom *= 1.5;
       gl_FragColor = vec4(bloom,1.0);
     }
@@ -1032,7 +1097,6 @@ customElements.define("x-knob",XKnob);
       vec3 base  = texture2D(uBase,  v_uv).rgb;
       vec3 bloom = texture2D(uBloom, v_uv).rgb;
       vec3 outc = screen(base, bloom * uIntensity);
-      // Amplified red-biased halation (independent of intensity for visibility)
       vec3 hal = bloom * (uHalation * 2.2) * vec3(1.0, 0.22, 0.07);
       outc += hal;
       gl_FragColor = vec4(outc,1.0);
@@ -1097,9 +1161,9 @@ customElements.define("x-knob",XKnob);
   const programs = {};
   function makeProgram(vsSrc, fsSrc){
     const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs,vsSrc); gl.compileShader(vs);
-    if(!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vs));
+    if(!gl.getShaderParameter(vs, gl.COMPLETE_STATUS) && !gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vs));
     const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs,fsSrc); gl.compileShader(fs);
-    if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
+    if(!gl.getShaderParameter(fs, gl.COMPLETE_STATUS) && !gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
     const prog = gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
     if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
     return prog;
@@ -1107,6 +1171,7 @@ customElements.define("x-knob",XKnob);
   function buildPrograms(){
     programs.pre = makeProgram(VS, FS_pre);
     programs.flash = makeProgram(VS, FS_flash);
+    programs.motion = makeProgram(VS, FS_motion);           // NEW
     programs.tone = makeProgram(VS, FS_tone);
     programs.split = makeProgram(VS, FS_split);
     programs.cast = makeProgram(VS, FS_cast);
@@ -1229,12 +1294,33 @@ customElements.define("x-knob",XKnob);
     // 0) Pre exposure -> rtA
     draw(programs.pre, {uTex: state.imgTex}, rtA, p=>gl.uniform1f(gl.getUniformLocation(p,'uEV'), state.ev));
 
-    // 1) Flash -> rtB
-    draw(programs.flash, {uTex: rtA.tex}, rtB, p=>{
-      gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
-      gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
-      gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
-    });
+    // 0b) Analog motion blur (capture-time) -> optional
+    let baseTex = rtA.tex;
+    if (state.motionBlur > 0.001){
+      draw(programs.motion, {uTex: rtA.tex}, rtB, p=>{
+        gl.uniform2f(gl.getUniformLocation(p,'uPx'), 1.0/canvas.width, 1.0/canvas.height);
+        gl.uniform1f(gl.getUniformLocation(p,'uAmount'), state.motionBlur);
+        gl.uniform1f(gl.getUniformLocation(p,'uAngle'), state.motionAngle * 3.141592653589793 / 180.0);
+      });
+      baseTex = rtB.tex;
+    }
+
+    // 1) Flash -> ensure result ends in rtB for downstream
+    if (baseTex === rtB.tex){
+      // Avoid R/W same target: write to A then copy to B
+      draw(programs.flash, {uTex: baseTex}, rtA, p=>{
+        gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
+        gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
+        gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
+      });
+      draw(programs.copy, {uTex: rtA.tex}, rtB);
+    } else {
+      draw(programs.flash, {uTex: baseTex}, rtB, p=>{
+        gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
+        gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
+        gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
+      });
+    }
 
     // BLOOM PYRAMID (pre-tone)
     // 1. Bright pass to HALF
@@ -1292,6 +1378,7 @@ customElements.define("x-knob",XKnob);
       gl.uniform1f(gl.getUniformLocation(p,'uScurve'), state.scurve);
       gl.uniform1f(gl.getUniformLocation(p,'uBlacks'), state.blacks);
       gl.uniform1f(gl.getUniformLocation(p,'uKnee'), state.knee);
+      gl.uniform1f(gl.getUniformLocation(p,'uLift'), state.blackLift); // NEW
     });
 
     // 3) Split toning -> rtB
