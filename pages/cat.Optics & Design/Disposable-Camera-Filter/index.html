@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Disposable Night — WebGL Flash Look (Boosted Bloom + Casts + Halation)</title>
+<title>Disposable Night — WebGL Flash Look (Analog Grain + Simple Motion)</title>
 <style>
 :root {
   --bg: #0f1115;
@@ -127,7 +127,7 @@ button:active, .file-input button:active { transform: scale(0.98); }
 .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: currentColor; }
 
 /* Mobile controls */
-.mobile-controls { background: var(--bg); flex-shrink: 0; border-top: 1px solid var(--border); height: 220px; overflow: hidden; }
+.mobile-controls { background: var(--bg); flex-shrink: 0; border-top: 1px solid var(--border); height: 240px; overflow: hidden; }
 .tab-content { display: none; padding: 16px; height: 100%; overflow-y: auto; }
 .tab-content.active { display: block; }
 .mobile-position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
@@ -230,7 +230,6 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="blacks-slider" min="0" max="0.15" step="0.001" value="0.06">
           <span class="control-value">0.06</span>
         </div>
-        <!-- NEW: Lifted Blacks -->
         <div class="dual-slider">
           <label>Lifted Blacks</label>
           <input type="range" id="lift-slider" min="0" max="0.15" step="0.001" value="0.00">
@@ -323,17 +322,6 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
         </div>
       </div>
       <div class="optics-controls">
-        <!-- NEW: Motion blur controls -->
-        <div class="standard-control">
-          <label>Motion Blur (px)</label>
-          <input type="range" id="mb-slider" min="0" max="30" step="0.1" value="0.0">
-          <span class="control-value">0.0</span>
-        </div>
-        <div class="standard-control">
-          <label>Motion Angle (°)</label>
-          <input type="range" id="mb-angle-slider" min="0" max="180" step="1" value="0">
-          <span class="control-value">0</span>
-        </div>
         <div class="standard-control">
           <label>Chromatic Aberration</label>
           <input type="range" id="ca-slider" min="0" max="2" step="0.01" value="1.00">
@@ -344,12 +332,60 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="clarity-slider" min="0" max="0.3" step="0.01" value="0.00">
           <span class="control-value">0.00</span>
         </div>
-        <div class="standard-control">
-          <label>Grain Amount</label>
-          <input type="range" id="grain-slider" min="0" max="0.08" step="0.001" value="0.025">
-          <span class="control-value">0.025</span>
-        </div>
       </div>
+    </div>
+
+    <!-- NEW: Film Grain (Analog) -->
+    <div class="control-section">
+      <h3>Film Grain (Analog)</h3>
+      <div class="standard-control">
+        <label>Film Speed (ASA)</label>
+        <input type="range" id="grain-asa" min="50" max="3200" step="50" value="800">
+        <span class="control-value">800</span>
+      </div>
+      <div class="standard-control">
+        <label>Develop (Push/Pull)</label>
+        <input type="range" id="grain-develop" min="-2" max="2" step="0.1" value="0">
+        <span class="control-value">0.0</span>
+      </div>
+      <div class="standard-control">
+        <label>Stock Type</label>
+        <input type="range" id="grain-stock" min="0" max="1" step="0.01" value="0.6">
+        <span class="control-value">0.60</span>
+      </div>
+      <div class="standard-control">
+        <label>Color Grain</label>
+        <input type="range" id="grain-chroma" min="0" max="1" step="0.01" value="0.6">
+        <span class="control-value">0.60</span>
+      </div>
+      <div class="standard-control">
+        <label>Print Size</label>
+        <input type="range" id="grain-magnify" min="0.5" max="3" step="0.01" value="1.00">
+        <span class="control-value">1.00</span>
+      </div>
+    </div>
+
+    <!-- NEW: Simple Motion (3 sliders total) -->
+    <div class="control-section">
+      <h3>Shutter / Motion</h3>
+      <div class="standard-control">
+        <label>Shutter Drag</label>
+        <input type="range" id="drag-slider" min="0" max="1" step="0.01" value="0.00">
+        <span class="control-value">0.00</span>
+      </div>
+      <div class="standard-control">
+        <label>Trail Direction (°)</label>
+        <input type="range" id="direction-slider" min="0" max="180" step="1" value="0">
+        <span class="control-value">0</span>
+      </div>
+      <div class="standard-control">
+        <label>Flash Balance</label>
+        <input type="range" id="flash-balance-slider" min="0" max="1" step="0.01" value="0.75">
+        <span class="control-value">0.75</span>
+      </div>
+      <small style="color:#9aa3b2;display:block;margin-top:6px">
+        Tip: drag on the image to move the flash center.
+      </small>
     </div>
   </div>
 
@@ -376,7 +412,7 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
     <button class="tab-btn active" data-tab="flash">Flash</button>
     <button class="tab-btn" data-tab="tone">Tone</button>
     <button class="tab-btn" data-tab="effects">Effects</button>
-    <button class="tab-btn" data-tab="settings">Settings</button>
+    <button class="tab-btn" data-tab="motion">Motion</button>
   </div>
 
   <!-- Mobile controls -->
@@ -424,7 +460,6 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="mobile-blacks" min="0" max="0.15" step="0.001" value="0.06">
           <span class="control-value">0.06</span>
         </div>
-        <!-- NEW: Lifted Blacks (mobile) -->
         <div class="mobile-slider">
           <label>Lifted Blacks</label>
           <input type="range" id="mobile-lift" min="0" max="0.15" step="0.001" value="0.00">
@@ -460,38 +495,36 @@ button:disabled:hover { background: #1f2634; border-color: var(--border); transf
           <input type="range" id="mobile-vignette" min="0" max="0.5" step="0.001" value="0.18">
           <span class="control-value">0.18</span>
         </div>
-        <div class="mobile-slider">
-          <label>Grain</label>
-          <input type="range" id="mobile-grain" min="0" max="0.08" step="0.001" value="0.025">
-          <span class="control-value">0.025</span>
-        </div>
-        <!-- NEW: Motion blur (mobile) -->
-        <div class="mobile-slider">
-          <label>Motion Blur (px)</label>
-          <input type="range" id="mobile-mb" min="0" max="30" step="0.1" value="0.0">
-          <span class="control-value">0.0</span>
-        </div>
-        <div class="mobile-slider">
-          <label>Motion Angle (°)</label>
-          <input type="range" id="mobile-mb-angle" min="0" max="180" step="1" value="0">
-          <span class="control-value">0</span>
-        </div>
       </div>
     </div>
 
-    <div class="tab-content" id="tab-settings">
-      <div class="mobile-settings-controls">
-        <button class="mobile-btn" id="mobile-reset">Reset All</button>
-        <button class="mobile-btn" id="mobile-export">Export PNG</button>
+    <!-- NEW: Mobile Motion (3 sliders) -->
+    <div class="tab-content" id="tab-motion">
+      <div class="mobile-effects-controls">
+        <div class="mobile-slider">
+          <label>Shutter Drag</label>
+          <input type="range" id="mobile-drag" min="0" max="1" step="0.01" value="0.00">
+          <span class="control-value">0.00</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Trail Direction (°)</label>
+          <input type="range" id="mobile-direction" min="0" max="180" step="1" value="0">
+          <span class="control-value">0</span>
+        </div>
+        <div class="mobile-slider">
+          <label>Flash Balance</label>
+          <input type="range" id="mobile-flash-balance" min="0" max="1" step="0.01" value="0.75">
+          <span class="control-value">0.75</span>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Knob web component (fixed) -->
+<!-- Knob web component -->
 <script>
 class XKnob extends HTMLElement{
-  static get observedAttributes(){return["value","min","max","step","disabled"];}
+  static get observedAttributes(){return["value","min","max","step","disabled"]; }
   constructor(){
     super();
     this._y=null;
@@ -546,7 +579,6 @@ svg{width:100%;height:100%;display:block}
       this.$k.setPointerCapture(e.pointerId);
       this._y=e.clientY;
     });
-    // bind to the knob itself (fix)
     this.$k.addEventListener("pointermove", onMove);
     this.$k.addEventListener("pointerup", onUp);
     this.$k.addEventListener("lostpointercapture", onUp);
@@ -640,30 +672,35 @@ customElements.define("x-knob",XKnob);
     ev: -0.40,
     flashStrength: 1.00, flashFalloff: 4.50, flashCenterX: 0.50, flashCenterY: 0.46,
     scurve: 0.60, blacks: 0.06, knee: 0.12,
-    blackLift: 0.00,           // NEW: 0..0.15
+    blackLift: 0.00,
     shadowCool: 0.35, highlightWarm: 0.35,
 
-    // Bloom stack (boosted)
-    bloomThreshold: 0.62,
-    bloomRadius: 28.0,       // "radius" controls blur spacing
-    bloomIntensity: 1.10,    // 0..3 (post-composite)
-    bloomWarm: 0.45,         // warmth applied to bloom energy
+    // Bloom stack
+    bloomThreshold: 0.62, bloomRadius: 28.0, bloomIntensity: 1.10, bloomWarm: 0.45,
 
-    // Halation (amplified)
-    halation: 0.80,          // 0..2 added red-biased bloom
+    // Halation
+    halation: 0.80,
 
-    // Film-y casts (stronger)
-    greenShadows: 0.55,
-    magentaMids: 0.30,
+    // Film-y casts
+    greenShadows: 0.55, magentaMids: 0.30,
 
     // Other effects
     vignette: 0.18, vignettePower: 2.5,
     ca: 1.00, clarity: 0.00,
-    grain: 0.025, grainShadowBoost: 0.70,
 
-    // NEW: Motion blur
-    motionBlur: 0.0,         // length in pixels (0..30)
-    motionAngle: 0.0,        // degrees (0..180)
+    // NEW: Analog grain params
+    grainASA: 800,          // 50..3200
+    grainDevelop: 0.0,      // -2..+2
+    grainStock: 0.6,        // 0..1 (0=T-grain, 1=cubic)
+    grainChroma: 0.6,       // 0..1
+    grainMagnify: 1.0,      // 0.5..3
+    grainShadowBoost: 0.70, // used internally
+    grainAnimate: 0.2,      // subtle drift, fixed (no UI)
+
+    // NEW: Simple motion (3 controls)
+    drag: 0.00,             // 0..1 (maps to blur length & wiggle)
+    direction: 0.0,         // degrees 0..180
+    flashBalance: 0.75,     // 0 ambient trails .. 1 sharp flash
 
     // App
     needsRender: true, draggingFlash: false,
@@ -676,22 +713,30 @@ customElements.define("x-knob",XKnob);
       scurve:0.58, blacks:0.06, knee:0.12, shadowCool:0.32, highlightWarm:0.35,
       bloomThreshold:0.60, bloomRadius:30, bloomIntensity:1.20, bloomWarm:0.42, halation:0.9,
       greenShadows:0.50, magentaMids:0.28,
-      vignette:0.18, vignettePower:2.4, ca:1.0, clarity:0.05, grain:0.028 },
+      vignette:0.18, vignettePower:2.4, ca:1.0, clarity:0.05,
+      grainASA:1200, grainDevelop:0.6, grainStock:0.7, grainChroma:0.65, grainMagnify:1.2,
+      drag:0.25, direction:10, flashBalance:0.8 },
     kids: { ev:-0.30, flashStrength:1.05, flashFalloff:3.6,
       scurve:0.65, blacks:0.05, knee:0.15, shadowCool:0.20, highlightWarm:0.40,
       bloomThreshold:0.64, bloomRadius:34, bloomIntensity:1.45, bloomWarm:0.48, halation:0.8,
       greenShadows:0.38, magentaMids:0.38,
-      vignette:0.12, vignettePower:2.2, ca:0.9, clarity:0.06, grain:0.02 },
+      vignette:0.12, vignettePower:2.2, ca:0.9, clarity:0.06,
+      grainASA:800, grainDevelop:0.2, grainStock:0.6, grainChroma:0.6, grainMagnify:1.0,
+      drag:0.15, direction:0, flashBalance:0.85 },
     skate: { ev:-0.52, flashStrength:0.75, flashFalloff:5.8,
       scurve:0.48, blacks:0.08, knee:0.10, shadowCool:0.45, highlightWarm:0.25,
       bloomThreshold:0.68, bloomRadius:24, bloomIntensity:0.95, bloomWarm:0.30, halation:1.1,
       greenShadows:0.60, magentaMids:0.22,
-      vignette:0.22, vignettePower:2.8, ca:1.1, clarity:0.00, grain:0.035 },
+      vignette:0.22, vignettePower:2.8, ca:1.1, clarity:0.00,
+      grainASA:1600, grainDevelop:0.8, grainStock:0.8, grainChroma:0.7, grainMagnify:1.4,
+      drag:0.35, direction:25, flashBalance:0.7 },
     club: { ev:-0.38, flashStrength:1.10, flashFalloff:4.0,
       scurve:0.62, blacks:0.06, knee:0.16, shadowCool:0.30, highlightWarm:0.40,
       bloomThreshold:0.58, bloomRadius:40, bloomIntensity:1.80, bloomWarm:0.55, halation:1.2,
       greenShadows:0.46, magentaMids:0.36,
-      vignette:0.16, vignettePower:2.3, ca:0.8, clarity:0.07, grain:0.026 }
+      vignette:0.16, vignettePower:2.3, ca:0.8, clarity:0.07,
+      grainASA:1000, grainDevelop:0.5, grainStock:0.65, grainChroma:0.7, grainMagnify:1.3,
+      drag:0.28, direction:0, flashBalance:0.85 }
   };
 
   // ---------- Mobile tabs ----------
@@ -706,13 +751,13 @@ customElements.define("x-knob",XKnob);
 
   // ---------- Controls binding ----------
   function setupControlBinding(desktopId, mobileId, key, onChange){
-    const d = document.getElementById(desktopId);
+    const d = desktopId ? document.getElementById(desktopId) : null;
     const m = mobileId ? document.getElementById(mobileId) : null;
     const setValue = (val) => {
       const v = parseFloat(val);
       state[key] = v;
-      if (d) { d.value = v; const s=d.parentElement.querySelector('.control-value'); if(s) s.textContent = v.toFixed( (d.step && d.step<0.01)?3:2 ); }
-      if (m) { m.value = v; const s=m.parentElement.querySelector('.control-value'); if(s) s.textContent = v.toFixed( (m.step && m.step<0.01)?3:2 ); }
+      if (d) { d.value = v; const s=d.parentElement.querySelector('.control-value'); if(s) s.textContent = fmt(v, d.step); }
+      if (m) { m.value = v; const s=m.parentElement.querySelector('.control-value'); if(s) s.textContent = fmt(v, m.step); }
       onChange && onChange(v);
       state.needsRender = true;
     };
@@ -720,11 +765,13 @@ customElements.define("x-knob",XKnob);
     m && m.addEventListener('input', e=>setValue(e.target.value));
     return setValue;
   }
+  const fmt = (v, step)=> (step && step<0.01) ? v.toFixed(3) : (step && step>=1 ? Math.round(v).toString() : v.toFixed(2));
+
   const updateEV = setupControlBinding('ev-slider','mobile-ev','ev');
   const updateFalloff = setupControlBinding('falloff-slider','mobile-falloff','flashFalloff');
   const updateScurve = setupControlBinding('scurve-slider','mobile-scurve','scurve');
   const updateBlacks = setupControlBinding('blacks-slider','mobile-blacks','blacks');
-  const updateLift = setupControlBinding('lift-slider','mobile-lift','blackLift');                 // NEW
+  const updateLift = setupControlBinding('lift-slider','mobile-lift','blackLift');
   const updateKnee = setupControlBinding('knee-slider','mobile-knee','knee');
   const updateShadowCool = setupControlBinding('shadow-cool-slider', null, 'shadowCool');
   const updateHighlightWarm = setupControlBinding('highlight-warm-slider', null, 'highlightWarm');
@@ -739,9 +786,18 @@ customElements.define("x-knob",XKnob);
   const updateVignettePower = setupControlBinding('vignette-power-slider', null, 'vignettePower');
   const updateCA = setupControlBinding('ca-slider', null, 'ca');
   const updateClarity = setupControlBinding('clarity-slider', null, 'clarity');
-  const updateGrain = setupControlBinding('grain-slider', 'mobile-grain', 'grain');
-  const updateMB = setupControlBinding('mb-slider','mobile-mb','motionBlur');                      // NEW
-  const updateMBAngleDeg = setupControlBinding('mb-angle-slider','mobile-mb-angle','motionAngle'); // NEW
+
+  // NEW: Grain bindings
+  const updateGrainASA      = setupControlBinding('grain-asa', null, 'grainASA');
+  const updateGrainDevelop  = setupControlBinding('grain-develop', null, 'grainDevelop');
+  const updateGrainStock    = setupControlBinding('grain-stock', null, 'grainStock');
+  const updateGrainChroma   = setupControlBinding('grain-chroma', null, 'grainChroma');
+  const updateGrainMagnify  = setupControlBinding('grain-magnify', null, 'grainMagnify');
+
+  // NEW: Simple motion bindings (3 sliders)
+  const updateDrag          = setupControlBinding('drag-slider','mobile-drag','drag');
+  const updateDirectionDeg  = setupControlBinding('direction-slider','mobile-direction','direction');
+  const updateFlashBalance  = setupControlBinding('flash-balance-slider','mobile-flash-balance','flashBalance');
 
   // Flash strength knob + mobile slider
   const flashKnob = document.getElementById('flash-knob');
@@ -824,7 +880,6 @@ customElements.define("x-knob",XKnob);
   const fileIn = document.getElementById('file');
   document.getElementById('open').onclick = ()=>fileIn.click();
   document.getElementById('export').onclick = exportImage;
-  document.getElementById('mobile-export')?.addEventListener('click', exportImage);
 
   function defaultState(){
     return {
@@ -832,55 +887,62 @@ customElements.define("x-knob",XKnob);
       scurve:0.60, blacks:0.06, knee:0.12, blackLift:0.00, shadowCool:0.35, highlightWarm:0.35,
       bloomThreshold:0.62, bloomRadius:28.0, bloomIntensity:1.10, bloomWarm:0.45,
       halation:0.80, greenShadows:0.55, magentaMids:0.30,
-      vignette:0.18, vignettePower:2.5, ca:1.00, clarity:0.00, grain:0.025, grainShadowBoost:0.70,
-      motionBlur:0.0, motionAngle:0.0
+      vignette:0.18, vignettePower:2.5, ca:1.00, clarity:0.00,
+      grainASA:800, grainDevelop:0.0, grainStock:0.6, grainChroma:0.6, grainMagnify:1.0,
+      drag:0.00, direction:0.0, flashBalance:0.75
     };
   }
   function resetControls(){
-    Object.assign(state, defaultState());
+    const d = defaultState();
+    Object.assign(state, d);
     updateEV(state.ev); updateFalloff(state.flashFalloff); updateScurve(state.scurve); updateBlacks(state.blacks); updateLift(state.blackLift); updateKnee(state.knee);
     updateShadowCool(state.shadowCool); updateHighlightWarm(state.highlightWarm);
     updateBloomThreshold(state.bloomThreshold); updateBloomRadius(state.bloomRadius); updateBloomIntensity(state.bloomIntensity); updateBloomWarm(state.bloomWarm);
     updateHalation(state.halation); updateGreenShadows(state.greenShadows); updateMagentaMids(state.magentaMids);
-    updateVignette(state.vignette); updateVignettePower(state.vignettePower); updateCA(state.ca); updateClarity(state.clarity); updateGrain(state.grain);
-    updateMB(state.motionBlur); updateMBAngleDeg(state.motionAngle);
+    updateVignette(state.vignette); updateVignettePower(state.vignettePower); updateCA(state.ca); updateClarity(state.clarity);
+    updateGrainASA(state.grainASA); updateGrainDevelop(state.grainDevelop); updateGrainStock(state.grainStock); updateGrainChroma(state.grainChroma); updateGrainMagnify(state.grainMagnify);
+    updateDrag(state.drag); updateDirectionDeg(state.direction); updateFlashBalance(state.flashBalance);
     const handle=document.getElementById('position-handle'); if (handle){ handle.style.left='50%'; handle.style.top='46%'; }
     posPresets.forEach(p=>p.classList.toggle('active', p.dataset.pos==='0.5,0.46'));
     updateFlashStrength(state.flashStrength);
     state.needsRender=true;
   }
   document.getElementById('reset').onclick=resetControls;
-  document.getElementById('mobile-reset')?.addEventListener('click', resetControls);
 
   document.getElementById('preset').onchange = e=>{
     const p = presetDefs[e.target.value];
     if (p){
       Object.assign(state, p);
-      Object.keys(p).forEach(k=>{
-        if (k==='flashStrength') updateFlashStrength(p[k]);
-        else if (k==='ev') updateEV(p[k]);
-        else if (k==='flashFalloff') updateFalloff(p[k]);
-        else if (k==='scurve') updateScurve(p[k]);
-        else if (k==='blacks') updateBlacks(p[k]);
-        else if (k==='blackLift') updateLift(p[k]);              // NEW
-        else if (k==='knee') updateKnee(p[k]);
-        else if (k==='shadowCool') updateShadowCool(p[k]);
-        else if (k==='highlightWarm') updateHighlightWarm(p[k]);
-        else if (k==='bloomThreshold') updateBloomThreshold(p[k]);
-        else if (k==='bloomRadius') updateBloomRadius(p[k]);
-        else if (k==='bloomIntensity') updateBloomIntensity(p[k]);
-        else if (k==='bloomWarm') updateBloomWarm(p[k]);
-        else if (k==='halation') updateHalation(p[k]);
-        else if (k==='greenShadows') updateGreenShadows(p[k]);
-        else if (k==='magentaMids') updateMagentaMids(p[k]);
-        else if (k==='vignette') updateVignette(p[k]);
-        else if (k==='vignettePower') updateVignettePower(p[k]);
-        else if (k==='ca') updateCA(p[k]);
-        else if (k==='clarity') updateClarity(p[k]);
-        else if (k==='grain') updateGrain(p[k]);
-        else if (k==='motionBlur') updateMB(p[k]);               // NEW
-        else if (k==='motionAngle') updateMBAngleDeg(p[k]);      // NEW
-      });
+      for (const [k,v] of Object.entries(p)){
+        if (k==='flashStrength') updateFlashStrength(v);
+        else if (k==='ev') updateEV(v);
+        else if (k==='flashFalloff') updateFalloff(v);
+        else if (k==='scurve') updateScurve(v);
+        else if (k==='blacks') updateBlacks(v);
+        else if (k==='blackLift') updateLift(v);
+        else if (k==='knee') updateKnee(v);
+        else if (k==='shadowCool') updateShadowCool(v);
+        else if (k==='highlightWarm') updateHighlightWarm(v);
+        else if (k==='bloomThreshold') updateBloomThreshold(v);
+        else if (k==='bloomRadius') updateBloomRadius(v);
+        else if (k==='bloomIntensity') updateBloomIntensity(v);
+        else if (k==='bloomWarm') updateBloomWarm(v);
+        else if (k==='halation') updateHalation(v);
+        else if (k==='greenShadows') updateGreenShadows(v);
+        else if (k==='magentaMids') updateMagentaMids(v);
+        else if (k==='vignette') updateVignette(v);
+        else if (k==='vignettePower') updateVignettePower(v);
+        else if (k==='ca') updateCA(v);
+        else if (k==='clarity') updateClarity(v);
+        else if (k==='grainASA') updateGrainASA(v);
+        else if (k==='grainDevelop') updateGrainDevelop(v);
+        else if (k==='grainStock') updateGrainStock(v);
+        else if (k==='grainChroma') updateGrainChroma(v);
+        else if (k==='grainMagnify') updateGrainMagnify(v);
+        else if (k==='drag') updateDrag(v);
+        else if (k==='direction') updateDirectionDeg(v);
+        else if (k==='flashBalance') updateFlashBalance(v);
+      }
       updateFlashStrength(p.flashStrength ?? state.flashStrength);
       state.needsRender=true;
     }
@@ -955,6 +1017,10 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(c,1.0);
     }
   `;
+  const FS_gamma = COMMON + `
+    uniform sampler2D uTex;
+    void main(){ gl_FragColor = vec4(toSRGB(texture2D(uTex, v_uv).rgb), 1.0); }
+  `;
   const FS_flash = COMMON + `
     uniform sampler2D uTex;
     uniform vec2 uFlashCenter;
@@ -967,35 +1033,63 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(c,1.0);
     }
   `;
-  /* NEW: Analog motion blur (uniform linear PSF along constant-velocity path) */
-  const FS_motion = COMMON + `
+
+  // NEW: path-based motion blur with subtle wiggle (amount drives both)
+  const FS_motionPath = COMMON + `
     uniform sampler2D uTex;
-    uniform vec2  uPx;       // 1/width, 1/height (in framebuffer space)
-    uniform float uAmount;   // blur length in pixels
-    uniform float uAngle;    // radians
+    uniform vec2  uPx;      // 1/width, 1/height
+    uniform float uLenPx;   // derived from "drag"
+    uniform vec2  uDir;     // normalized direction
+    uniform float uWiggle;  // 0..1 increases path wobble
+
+    vec2 wig(float t){
+      float w1 = sin(6.28318*(1.7*t) + 1.3);
+      float w2 = sin(6.28318*(3.2*t) + 5.1);
+      return uWiggle * 0.35 * vec2(w1, w2);
+    }
     void main(){
-      vec2 dir = vec2(cos(uAngle), sin(uAngle));
-      const int SAMPLES = 24; // temporal samples across exposure
+      const int SAMPLES = 24;
       vec3 acc = vec3(0.0);
       for (int i=0; i<SAMPLES; ++i){
-        float u = (float(i) / float(SAMPLES - 1)) - 0.5;  // [-0.5, 0.5]
-        vec2 off = dir * uAmount * u * uPx;               // pixels -> UV
+        float t = float(i) / float(SAMPLES - 1);   // [0..1]
+        float u = t - 0.5;                          // [-0.5..0.5]
+        vec2 path = uDir * u + wig(t);
+        vec2 off  = path * (uLenPx) * uPx;         // pixels -> UV
         acc += texture2D(uTex, v_uv + off).rgb;
       }
       gl_FragColor = vec4(acc / float(SAMPLES), 1.0);
     }
   `;
+
+  // NEW: flash-aware composite (blend sharp+flash with blurred ambient)
+  const FS_flashComposite = COMMON + `
+    uniform sampler2D uSharp;  // pre + flash
+    uniform sampler2D uBlur;   // pre + motion
+    uniform vec2  uFlashCenter;
+    uniform float uFlashFalloff;
+    uniform float uFlashBalance; // 0..1
+    void main(){
+      vec2 ac = vec2(uResolution.x/uResolution.y, 1.0);
+      float r = length((v_uv - uFlashCenter) * ac);
+      float mask = 1.0 / (1.0 + pow(uFlashFalloff * r, 2.0));
+      float w = clamp(uFlashBalance * mask, 0.0, 1.0);
+      vec3 sharp = texture2D(uSharp, v_uv).rgb;
+      vec3 blur  = texture2D(uBlur,  v_uv).rgb;
+      gl_FragColor = vec4(mix(blur, sharp, w), 1.0);
+    }
+  `;
+
   const FS_tone = COMMON + `
-    uniform sampler2D uTex; uniform float uScurve, uBlacks, uKnee, uLift; // NEW uLift
+    uniform sampler2D uTex; uniform float uScurve, uBlacks, uKnee, uLift;
     vec3 sCurve(vec3 x){ return mix(x, x*x*(3.0-2.0*x), uScurve); }
     vec3 blackCrush(vec3 x){ return max(vec3(0.0), x - uBlacks) / (1.0 - uBlacks + 1e-6); }
-    vec3 blackLift(vec3 x){ return x * (1.0 - uLift) + vec3(uLift); }     // NEW
+    vec3 blackLift(vec3 x){ return x * (1.0 - uLift) + vec3(uLift); }
     vec3 shoulder(vec3 x){ return 1.0 - pow(1.0 - x, vec3(1.0 + 5.0*uKnee)); }
     void main(){
       vec3 c = texture2D(uTex, v_uv).rgb;
       c = sCurve(c);
       c = blackCrush(c);
-      c = blackLift(c);   // NEW: raise floor after crush
+      c = blackLift(c);
       c = shoulder(c);
       gl_FragColor = vec4(c,1.0);
     }
@@ -1036,7 +1130,6 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(c,1.0);
     }
   `;
-  // Bright-pass (normalized) — keep only energy above threshold, with warmth
   const FS_bright = COMMON + `
     uniform sampler2D uTex; uniform float uThreshold, uWarm;
     vec3 warmTint(float a){ return mix(vec3(1.0), vec3(1.10, 1.00, 0.88), a); }
@@ -1050,7 +1143,6 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(bloom,1.0);
     }
   `;
-  // Separable blur
   const FS_blur = COMMON + `
     uniform sampler2D uTex; uniform vec2 uTexel; uniform float uRadius;
     void main(){
@@ -1065,7 +1157,6 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(s,1.0);
     }
   `;
-  // Downsample box 2x
   const FS_downsample = COMMON + `
     uniform sampler2D uTex; uniform vec2 uTexel;
     void main(){
@@ -1077,7 +1168,6 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(s * 0.25, 1.0);
     }
   `;
-  // Upsample & add
   const FS_upsampleAdd = COMMON + `
     uniform sampler2D uLow;  // lower-res
     uniform sampler2D uHigh; // same-res as target
@@ -1088,7 +1178,6 @@ customElements.define("x-knob",XKnob);
       gl_FragColor = vec4(high + low * uAdd, 1.0);
     }
   `;
-  // Bloom composite with halation
   const FS_bloomComposite = COMMON + `
     uniform sampler2D uBase, uBloom;
     uniform float uIntensity, uHalation;
@@ -1137,22 +1226,69 @@ customElements.define("x-knob",XKnob);
     }
   `;
   const FS_copy = COMMON + `uniform sampler2D uTex; void main(){ gl_FragColor=vec4(texture2D(uTex,v_uv).rgb,1.0); }`;
-  const FS_grainFinal = COMMON + `
-    uniform sampler2D uTex; uniform float uGrain, uShadowBoost, uTime;
+
+  // NEW: Analog grain final pass (adds grain + gamma)
+  const FS_grainAnalog = COMMON + `
+    uniform sampler2D uTex;
+    uniform float uASA;          // 50..3200
+    uniform float uDevelop;      // -2..+2
+    uniform float uStock;        // 0..1 (0=T-grain, 1=cubic)
+    uniform float uChroma;       // 0..1
+    uniform float uMagnify;      // 0.5..3
+    uniform float uShadowBoost;  // 0..1
+    uniform float uAnimate;      // 0..1
+    uniform float uTime;
+
     float hash12(vec2 p){
       vec3 p3 = fract(vec3(p.xyx) * 0.1031);
       p3 += dot(p3, p3.yzx + 33.33);
       return fract((p3.x + p3.y) * p3.z);
     }
+    float vnoise(vec2 p){
+      vec2 i=floor(p), f=fract(p);
+      float a=hash12(i);
+      float b=hash12(i+vec2(1,0));
+      float c=hash12(i+vec2(0,1));
+      float d=hash12(i+vec2(1,1));
+      vec2 u=f*f*(3.0-2.0*f);
+      return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+    }
+    float fbm(vec2 p){
+      float s=0.0, amp=0.5;
+      for(int i=0;i<4;i++){ s+=amp*vnoise(p); p*=2.0; amp*=0.5; }
+      return s;
+    }
+    mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+
     void main(){
-      vec3 c = texture2D(uTex, v_uv).rgb;
+      vec3 c = texture2D(uTex, v_uv).rgb; // linear
       float Y = luma(c);
-      vec2 ip = floor(v_uv * uResolution);
-      float n  = hash12(ip) * 2.0 - 1.0;
-      float n2 = hash12(ip + 17.0) * 2.0 - 1.0;
-      float white = (n + n2) * 0.5;
-      float amt = uGrain * (0.5 + uShadowBoost * (1.0 - Y));
-      c += white * amt;
+
+      float asaN = clamp( (log2(uASA) - log2(50.0)) / (log2(3200.0) - log2(50.0)), 0.0, 1.0);
+      float cellPx = mix(0.6, 3.2, asaN) * uMagnify;
+      float baseAmp = mix(0.006, 0.040, asaN);
+
+      float aniso = mix(0.55, 1.0, uStock);
+      mat2 A = rot(1.13) * mat2(1.0, 0.0, 0.0, aniso);
+
+      vec2 uvG = (v_uv * uResolution) / cellPx;
+      uvG = A * uvG + uAnimate * uTime * vec2(12.7, -9.3);
+
+      float devN = clamp((uDevelop + 2.0)/4.0, 0.0, 1.0);
+      float clump = fbm(uvG * mix(0.35, 0.9, devN));
+      float clumpGain = mix(0.9, 1.8, devN);
+
+      float gL = fbm(uvG) - 0.5;
+      vec3  gC = vec3(fbm(uvG+vec2(17.2, 3.1)),
+                      fbm(uvG+vec2(-9.7,11.4)),
+                      fbm(uvG+vec2(6.3,-21.7))) - 0.5;
+      float couple = 0.65;
+      vec3 g = mix(vec3(gL), mix(vec3(gL), gC, 1.0 - couple), uChroma);
+
+      float shadowTerm = pow(1.0 - Y, mix(1.0, 2.2, uShadowBoost));
+      float amt = baseAmp * clumpGain * (0.55 + uShadowBoost * shadowTerm);
+
+      c += g * amt;
       c = toSRGB(clamp(c, 0.0, 1.0));
       gl_FragColor = vec4(c,1.0);
     }
@@ -1161,17 +1297,19 @@ customElements.define("x-knob",XKnob);
   const programs = {};
   function makeProgram(vsSrc, fsSrc){
     const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs,vsSrc); gl.compileShader(vs);
-    if(!gl.getShaderParameter(vs, gl.COMPLETE_STATUS) && !gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vs));
+    if(!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(vs));
     const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs,fsSrc); gl.compileShader(fs);
-    if(!gl.getShaderParameter(fs, gl.COMPLETE_STATUS) && !gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
+    if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(fs));
     const prog = gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
     if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
     return prog;
   }
   function buildPrograms(){
     programs.pre = makeProgram(VS, FS_pre);
+    programs.gamma = makeProgram(VS, FS_gamma);
     programs.flash = makeProgram(VS, FS_flash);
-    programs.motion = makeProgram(VS, FS_motion);           // NEW
+    programs.motionPath = makeProgram(VS, FS_motionPath);
+    programs.flashComposite = makeProgram(VS, FS_flashComposite);
     programs.tone = makeProgram(VS, FS_tone);
     programs.split = makeProgram(VS, FS_split);
     programs.cast = makeProgram(VS, FS_cast);
@@ -1184,7 +1322,7 @@ customElements.define("x-knob",XKnob);
     programs.ca = makeProgram(VS, FS_ca);
     programs.clarity = makeProgram(VS, FS_clarity);
     programs.copy = makeProgram(VS, FS_copy);
-    programs.grainFinal = makeProgram(VS, FS_grainFinal);
+    programs.grain = makeProgram(VS, FS_grainAnalog);
   }
   function bindFSQ(prog){
     gl.useProgram(prog);
@@ -1279,65 +1417,61 @@ customElements.define("x-knob",XKnob);
 
     const px = [1/canvas.width, 1/canvas.height];
 
-    // "Before": show original with correct gamma
+    // "Before": show original with sRGB
     if (state.showingBefore){
-      // pre -> rtA (linear), then grainFinal (uGrain=0) to screen to apply sRGB curve
       draw(programs.pre, {uTex:state.imgTex}, rtA, p=>gl.uniform1f(gl.getUniformLocation(p,'uEV'), 0.0));
-      draw(programs.grainFinal, {uTex:rtA.tex}, null, p=>{
-        gl.uniform1f(gl.getUniformLocation(p,'uGrain'), 0.0);
-        gl.uniform1f(gl.getUniformLocation(p,'uShadowBoost'), state.grainShadowBoost);
-        gl.uniform1f(gl.getUniformLocation(p,'uTime'), lastTime);
-      });
+      draw(programs.gamma, {uTex:rtA.tex}, null);
       state.needsRender=false; requestAnimationFrame(renderFrame); return;
     }
 
-    // 0) Pre exposure -> rtA
+    // 0) Pre exposure -> rtA (linear)
     draw(programs.pre, {uTex: state.imgTex}, rtA, p=>gl.uniform1f(gl.getUniformLocation(p,'uEV'), state.ev));
 
-    // 0b) Analog motion blur (capture-time) -> optional
-    let baseTex = rtA.tex;
-    if (state.motionBlur > 0.001){
-      draw(programs.motion, {uTex: rtA.tex}, rtB, p=>{
-        gl.uniform2f(gl.getUniformLocation(p,'uPx'), 1.0/canvas.width, 1.0/canvas.height);
-        gl.uniform1f(gl.getUniformLocation(p,'uAmount'), state.motionBlur);
-        gl.uniform1f(gl.getUniformLocation(p,'uAngle'), state.motionAngle * 3.141592653589793 / 180.0);
+    // 1) Ambient motion (path blur) from pre (rtA) -> rtB OR copy
+    let ambientTex = rtA.tex;
+    if (state.drag > 0.001){
+      const maxPx = 30.0;                       // internal scale
+      const lenPx = state.drag * maxPx;
+      const wiggle = state.drag * 0.5;          // more drag => more wobble
+      const ang = state.direction * Math.PI/180.0;
+      draw(programs.motionPath, {uTex: rtA.tex}, rtB, p=>{
+        gl.uniform2f(gl.getUniformLocation(p,'uPx'), px[0], px[1]);
+        gl.uniform1f(gl.getUniformLocation(p,'uLenPx'), lenPx);
+        gl.uniform2f(gl.getUniformLocation(p,'uDir'), Math.cos(ang), Math.sin(ang));
+        gl.uniform1f(gl.getUniformLocation(p,'uWiggle'), wiggle);
       });
-      baseTex = rtB.tex;
-    }
-
-    // 1) Flash -> ensure result ends in rtB for downstream
-    if (baseTex === rtB.tex){
-      // Avoid R/W same target: write to A then copy to B
-      draw(programs.flash, {uTex: baseTex}, rtA, p=>{
-        gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
-        gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
-        gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
-      });
-      draw(programs.copy, {uTex: rtA.tex}, rtB);
+      ambientTex = rtB.tex;
     } else {
-      draw(programs.flash, {uTex: baseTex}, rtB, p=>{
-        gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
-        gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
-        gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
-      });
+      draw(programs.copy, {uTex: rtA.tex}, rtB);
+      ambientTex = rtB.tex;
     }
 
-    // BLOOM PYRAMID (pre-tone)
-    // 1. Bright pass to HALF
+    // 2) Sharp with flash from pre (rtA) -> rtA
+    draw(programs.flash, {uTex: rtA.tex}, rtA, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashStrength'), state.flashStrength);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
+    });
+    const sharpTex = rtA.tex;
+
+    // 3) Flash-aware composite -> rtB (linear)
+    draw(programs.flashComposite, {uSharp: sharpTex, uBlur: ambientTex}, rtB, p=>{
+      gl.uniform2f(gl.getUniformLocation(p,'uFlashCenter'), state.flashCenterX, 1.0 - state.flashCenterY);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashFalloff'), state.flashFalloff);
+      gl.uniform1f(gl.getUniformLocation(p,'uFlashBalance'), state.flashBalance);
+    });
+
+    // BLOOM PYRAMID
     draw(programs.bright, {uTex: rtB.tex}, rtH_A, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uThreshold'), state.bloomThreshold);
       gl.uniform1f(gl.getUniformLocation(p,'uWarm'), state.bloomWarm);
     });
-    // 2. Downsample HALF -> QUARTER
     draw(programs.downsample, {uTex: rtH_A.tex}, rtQ_A, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtH_A.w, 1/rtH_A.h);
     });
-    // 3. Downsample QUARTER -> EIGHTH
     draw(programs.downsample, {uTex: rtQ_A.tex}, rtE_A, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtQ_A.w, 1/rtQ_A.h);
     });
-    // 4. Blur each level (radius scaled)
-    // EIGHTH
     draw(programs.blur, {uTex: rtE_A.tex}, rtE_B, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtE_A.w, 0.0);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.60);
@@ -1346,7 +1480,6 @@ customElements.define("x-knob",XKnob);
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtE_B.h);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.60);
     });
-    // QUARTER
     draw(programs.blur, {uTex: rtQ_A.tex}, rtQ_B, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtQ_A.w, 0.0);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.80);
@@ -1355,7 +1488,6 @@ customElements.define("x-knob",XKnob);
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtQ_B.h);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius*0.80);
     });
-    // HALF
     draw(programs.blur, {uTex: rtH_A.tex}, rtH_B, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 1/rtH_A.w, 0.0);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius);
@@ -1364,48 +1496,46 @@ customElements.define("x-knob",XKnob);
       gl.uniform2f(gl.getUniformLocation(p,'uTexel'), 0.0, 1/rtH_B.h);
       gl.uniform1f(gl.getUniformLocation(p,'uRadius'), state.bloomRadius);
     });
-    // 5. Upsample-add: EIGHTH -> QUARTER
     draw(programs.upsampleAdd, {uLow: rtE_A.tex, uHigh: rtQ_A.tex}, rtQ_B, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uAdd'), 1.0);
     });
-    // QUARTER -> HALF (final bloom tex = rtH_B)
     draw(programs.upsampleAdd, {uLow: rtQ_B.tex, uHigh: rtH_A.tex}, rtH_B, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uAdd'), 1.0);
     });
 
-    // 2) Tone -> rtA
+    // 4) Tone -> rtA
     draw(programs.tone, {uTex: rtB.tex}, rtA, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uScurve'), state.scurve);
       gl.uniform1f(gl.getUniformLocation(p,'uBlacks'), state.blacks);
       gl.uniform1f(gl.getUniformLocation(p,'uKnee'), state.knee);
-      gl.uniform1f(gl.getUniformLocation(p,'uLift'), state.blackLift); // NEW
+      gl.uniform1f(gl.getUniformLocation(p,'uLift'), state.blackLift);
     });
 
-    // 3) Split toning -> rtB
+    // 5) Split toning -> rtB
     draw(programs.split, {uTex: rtA.tex}, rtB, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uShadowCool'), state.shadowCool);
       gl.uniform1f(gl.getUniformLocation(p,'uHighlightWarm'), state.highlightWarm);
     });
 
-    // 3b) Film-y casts -> rtA
+    // 6) Film-y casts -> rtA
     draw(programs.cast, {uTex: rtB.tex}, rtA, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uGreenShadows'), state.greenShadows);
       gl.uniform1f(gl.getUniformLocation(p,'uMagentaMids'),  state.magentaMids);
     });
 
-    // 4) Vignette -> rtB
+    // 7) Vignette -> rtB
     draw(programs.vignette, {uTex: rtA.tex}, rtB, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uVStrength'), state.vignette);
       gl.uniform1f(gl.getUniformLocation(p,'uVPower'), state.vignettePower);
     });
 
-    // 5) Composite bloom (HALF-res texture) onto base -> rtA
+    // 8) Composite bloom onto base -> rtA
     draw(programs.bloomComposite, {uBase: rtB.tex, uBloom: rtH_B.tex}, rtA, p=>{
       gl.uniform1f(gl.getUniformLocation(p,'uIntensity'), state.bloomIntensity);
       gl.uniform1f(gl.getUniformLocation(p,'uHalation'), state.halation);
     });
 
-    // 6) Clarity (optional) -> rtB
+    // 9) Clarity (optional) -> rtB
     if (state.clarity > 0.001){
       draw(programs.clarity, {uTex: rtA.tex}, rtB, p=>{
         gl.uniform2f(gl.getUniformLocation(p,'uPx'), px[0], px[1]);
@@ -1415,17 +1545,22 @@ customElements.define("x-knob",XKnob);
       draw(programs.copy, {uTex: rtA.tex}, rtB);
     }
 
-    // 7) CA -> rtA
+    // 10) CA -> rtA
     draw(programs.ca, {uTex: rtB.tex}, rtA, p=>{
       gl.uniform2f(gl.getUniformLocation(p,'uPx'), px[0], px[1]);
       gl.uniform1f(gl.getUniformLocation(p,'uCA'), state.ca);
     });
 
-    // 8) Grain + gamma to screen
-    draw(programs.grainFinal, {uTex: rtA.tex}, null, p=>{
-      gl.uniform1f(gl.getUniformLocation(p,'uGrain'), state.grain);
+    // 11) Analog grain + gamma to screen
+    draw(programs.grain, {uTex: rtA.tex}, null, p=>{
+      gl.uniform1f(gl.getUniformLocation(p,'uASA'),         state.grainASA);
+      gl.uniform1f(gl.getUniformLocation(p,'uDevelop'),     state.grainDevelop);
+      gl.uniform1f(gl.getUniformLocation(p,'uStock'),       state.grainStock);
+      gl.uniform1f(gl.getUniformLocation(p,'uChroma'),      state.grainChroma);
+      gl.uniform1f(gl.getUniformLocation(p,'uMagnify'),     state.grainMagnify);
       gl.uniform1f(gl.getUniformLocation(p,'uShadowBoost'), state.grainShadowBoost);
-      gl.uniform1f(gl.getUniformLocation(p,'uTime'), lastTime);
+      gl.uniform1f(gl.getUniformLocation(p,'uAnimate'),     state.grainAnimate);
+      gl.uniform1f(gl.getUniformLocation(p,'uTime'),        lastTime);
     });
 
     state.needsRender=false;
