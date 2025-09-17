@@ -1,4 +1,4 @@
-// Disposable Night — v5 (no automation, safe highlights, progress overlay, flash X fixed)
+// Disposable Night — v5 (no automation, safe highlights, progress overlay, flash X fixed, ffmpeg.wasm export)
 
 const S = {
   mediaW:960, mediaH:540, dpr:Math.min(2, devicePixelRatio||1),
@@ -30,15 +30,9 @@ function layout(){
   const maxH   = 600;
   const aspect = S.mediaH / S.mediaW;
 
-  // Start with width cap
   let cssW = maxW;
   let cssH = cssW * aspect;
-
-  // Enforce height cap if needed
-  if (cssH > maxH){
-    cssH = maxH;
-    cssW = cssH / aspect;
-  }
+  if (cssH > maxH){ cssH = maxH; cssW = cssH / aspect; }
 
   CAN.style.width  = cssW + 'px';
   CAN.style.height = cssH + 'px';
@@ -132,12 +126,12 @@ function loadVideo(file){
 $('#play').onclick=()=>{ if(!S.isVideo) return; if(V.paused){ V.play(); $('#play').textContent='Pause'; } else { V.pause(); $('#play').textContent='Play'; } };
 $('#original').onclick=()=>{ S.showOriginal=!S.showOriginal; $('#original').classList.toggle('active',S.showOriginal); S.needsRender=true; };
 
-/* ---------- Export MP4 (Native res, perfect frame start/stop) + progress overlay ---------- */
+/* ---------- Export MP4 (ffmpeg.wasm, frame-perfect from canvas frames) + progress overlay ---------- */
 $('#export-mp4').onclick = async ()=>{
   if (!S.isVideo){ toast('Load a video first','err'); return; }
-  const fps = 30;
+  const {ffmpeg, fetchFile} = await getFFmpeg(); // loads if needed
 
-  // Switch canvas to native resolution for capture
+  // Switch canvas to native res for capture
   const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
   const prevW = CAN.width, prevH = CAN.height;
   CAN.style.width  = S.mediaW + 'px';
@@ -147,52 +141,162 @@ $('#export-mp4').onclick = async ()=>{
   gl.viewport(0,0,CAN.width,CAN.height);
   ensureRTs(); S.needsRender = true;
 
-  // Prefer MP4/H.264; fall back to WebM
-  const stream = GL.canvas.captureStream(fps);
-  const want = ['video/mp4;codecs=h264','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
-  const mime = want.find(m => MediaRecorder.isTypeSupported(m)) || '';
-  const rec  = new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:100_000_000}:{videoBitsPerSecond:100_000_000});
-  const chunks=[]; rec.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
-
-  // Progress UI
   const ov=$('#overlay'), txt=$('#overlayText');
-  ov.classList.remove('hidden'); txt.textContent='Exporting… 0%';
+  ov.classList.remove('hidden'); txt.textContent='Export: grabbing frames… 0%';
 
-  // Prepare video for exact start: pause, seek to 0, upload first frame, THEN start recorder, THEN play
-  const wasLoop=V.loop, wasPaused=V.paused;
-  V.loop=false;
-  V.pause(); V.currentTime=0;
-  await new Promise(r=> V.addEventListener('seeked', r, {once:true}));
-
-  // Upload first frame explicitly so recorder starts on frame 0
-  gl.bindTexture(gl.TEXTURE_2D,S.tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
-  S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
-  await new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r))); // ensure it rendered
-
-  rec.start();                            // start recording BEFORE playback to avoid missing first frames
-  await V.play();                         // now play
-
+  // Grab every decoded frame deterministically (pause -> process -> resume)
+  let i = 0;
   const dur = Math.max(0.01, V.duration||1);
-  const progTimer = setInterval(()=>{ txt.textContent = `Exporting… ${Math.min(100, Math.round((V.currentTime/dur)*100))}%`; }, 100);
+  const wasLoop=V.loop, wasPaused=V.paused, prevRate=V.playbackRate;
+  V.loop=false; V.playbackRate = 1.0;
+  V.pause(); V.currentTime=0; await waitSeeked();
+  const pngOfCanvas = () => new Promise(r => CAN.toBlob(r, 'image/png'));
+  const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
 
-  // Stop exactly at end (no timer drift)
-  await new Promise(r=> V.addEventListener('ended', r, {once:true}));
-  rec.stop();
-  await new Promise(r=> rec.onstop=r);
-  clearInterval(progTimer); ov.classList.add('hidden');
+  const grabOne = async ()=>{
+    // upload current video frame into pipeline
+    gl.bindTexture(gl.TEXTURE_2D,S.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
+    S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
+    await raf2();
 
-  // Restore canvas size
+    // write PNG into ffmpeg FS
+    const blob = await pngOfCanvas();
+    const ab   = await blob.arrayBuffer();
+    const name = `f_${String(i).padStart(6,'0')}.png`;
+    ffmpeg.FS('writeFile', name, new Uint8Array(ab));
+    i++;
+    txt.textContent = `Export: grabbing frames… ${Math.round((V.currentTime/dur)*100)}%`;
+  };
+
+  // Loop through frames using rVFCB, pausing each time to avoid drops
+  await new Promise(async (resolve)=>{
+    const onFrame = async ()=>{
+      V.pause();
+      await grabOne();
+      if (V.ended || V.currentTime >= dur - 1e-4){ resolve(); return; }
+      await V.play();
+      S._vfcb = V.requestVideoFrameCallback(onFrame);
+    };
+    await V.play();
+    S._vfcb = V.requestVideoFrameCallback(onFrame);
+    V.addEventListener('ended', ()=>resolve(), {once:true});
+  });
+
+  // Encode with ffmpeg.wasm (prefer libx264 -> fall back to mpeg4 -> last resort VP9/WebM)
+  txt.textContent='Export: encoding…';
+  ffmpeg.setLogger(({message})=>{
+    const m = /frame=\s*(\d+)/.exec(message);
+    if (m){ const f=+m[1]; txt.textContent=`Export: encoding… frame ${f}`; }
+  });
+
+  let outName='export.mp4', outMime='video/mp4';
+  try{
+    await ffmpeg.run(
+      '-framerate','30','-i','f_%06d.png',
+      '-c:v','libx264','-pix_fmt','yuv420p','-crf','12','-preset','veryslow','-movflags','+faststart',
+      outName
+    );
+  } catch(e1){
+    try{
+      await ffmpeg.run(
+        '-framerate','30','-i','f_%06d.png',
+        '-c:v','mpeg4','-q:v','1','-movflags','+faststart',
+        outName
+      );
+    } catch(e2){
+      outName='export.webm'; outMime='video/webm';
+      await ffmpeg.run(
+        '-framerate','30','-i','f_%06d.png',
+        '-c:v','libvpx-vp9','-pix_fmt','yuv420p','-b:v','0','-crf','18',
+        outName
+      );
+    }
+  }
+
+  const data = ffmpeg.FS('readFile', outName);
+  download(new Blob([data.buffer], {type: outMime}), outName);
+
+  // Cleanup ffmpeg FS (frames + output)
+  for (let k=0;k<i;k++){ try{ ffmpeg.FS('unlink', `f_${String(k).padStart(6,'0')}.png`);}catch{} }
+  try{ ffmpeg.FS('unlink', outName);}catch{}
+
+  ov.classList.add('hidden');
+
+  // Restore preview size & video state
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW;  CAN.height = prevH;
   gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
+  V.loop=wasLoop; V.playbackRate=prevRate; if (wasPaused) V.pause();
+};
 
-  // Save
-  if (mime.startsWith('video/mp4')) download(new Blob(chunks,{type:mime}), 'export.mp4');
-  else download(new Blob(chunks,{type:mime||'video/webm'}), 'export.webm');
+/* ---------- Export PNG sequence (native res, frame-perfect) ---------- */
+$('#export-pngs').onclick = async ()=>{
+  if (!('showDirectoryPicker' in window)){
+    toast('Export PNGs needs Chrome/Edge (File System Access API).', 'err'); return;
+  }
+  const dir = await window.showDirectoryPicker({id:'dn-png-export'});
+  const ov=$('#overlay'), txt=$('#overlayText');
+  const savePNG = () => new Promise(r => CAN.toBlob(r, 'image/png'));
 
-  // Restore video state
-  V.loop=wasLoop; if (wasPaused) V.pause();
+  const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
+  const prevW = CAN.width, prevH = CAN.height;
+  CAN.style.width  = S.mediaW + 'px';
+  CAN.style.height = S.mediaH + 'px';
+  CAN.width  = S.mediaW;
+  CAN.height = S.mediaH;
+  gl.viewport(0,0,CAN.width,CAN.height);
+  ensureRTs(); S.needsRender = true;
+
+  ov.classList.remove('hidden'); txt.textContent='Exporting PNGs… 0%';
+
+  if (!S.isVideo){
+    await new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const blob = await savePNG();
+    const fh = await dir.getFileHandle('frame_000000.png',{create:true});
+    const w  = await fh.createWritable(); await w.write(blob); await w.close();
+  } else {
+    const dur = Math.max(0.01, V.duration||1);
+    const wasLoop=V.loop, wasPaused=V.paused; V.loop=false;
+    V.pause(); V.currentTime = 0; await waitSeeked();
+
+    const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+    let i=0;
+    await new Promise(async (resolve)=>{
+      const onFrame = async ()=>{
+        V.pause();
+        gl.bindTexture(gl.TEXTURE_2D,S.tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
+        S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
+        await raf2();
+
+        const blob = await savePNG();
+        const name = `frame_${String(i).padStart(6,'0')}.png`;
+        const fh   = await dir.getFileHandle(name,{create:true});
+        const w    = await fh.createWritable(); await w.write(blob); await w.close();
+        i++;
+        txt.textContent = `Exporting PNGs… ${Math.round((V.currentTime/dur)*100)}%`;
+
+        if (V.ended || V.currentTime >= dur - 1e-4){ resolve(); return; }
+        await V.play();
+        S._vfcb = V.requestVideoFrameCallback(onFrame);
+      };
+      await V.play();
+      S._vfcb = V.requestVideoFrameCallback(onFrame);
+      V.addEventListener('ended', ()=>resolve(), {once:true});
+    });
+
+    V.loop=wasLoop; if (wasPaused) V.pause();
+  }
+  ov.classList.add('hidden');
+
+  CAN.style.width = prevCssW; CAN.style.height = prevCssH;
+  CAN.width = prevW; CAN.height = prevH;
+  gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
+
+  toast('PNG sequence exported');
 };
 
 /* ---------- helpers ---------- */
@@ -201,6 +305,23 @@ function sliderToShutterSeconds(v){ const sMin=1/250, sMax=0.5; return Math.pow(
 function formatShutter(s){ return (s>=1) ? `${s.toFixed(1)}s` : `1/${Math.round(1/s)}`; }
 function shutterToPixels(shutterSeconds,shake01){ const sMin=1/250,sMax=0.5; const t=Math.log(shutterSeconds/sMin)/Math.log(sMax/sMin); const base=0.5+26.0*Math.pow(t,0.85); return base*(0.2+1.2*shake01); }
 function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+function waitSeeked(){ return new Promise(r=> V.addEventListener('seeked', r, {once:true})); }
+
+/* -- ffmpeg.wasm loader (multi-thread core) -- */
+let _ffmpegCache=null;
+async function getFFmpeg(){
+  if (_ffmpegCache) return _ffmpegCache;
+  // If script tag exists, window.FFmpeg is ready; otherwise you can inject it here if you want.
+  if (!window.FFmpeg) throw new Error('FFmpeg script tag missing. Add: <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>');
+  const { createFFmpeg, fetchFile } = window.FFmpeg;
+  const ffmpeg = createFFmpeg({
+    log: true,
+    corePath: 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/ffmpeg-core.js'
+  });
+  await ffmpeg.load();
+  _ffmpegCache = { ffmpeg, fetchFile };
+  return _ffmpegCache;
+}
 
 /* ---------- GL caps ---------- */
 const caps = (() => {
@@ -296,7 +417,6 @@ uniform sampler2D uTex; uniform float uSc,uBl,uKnee,uLift;
 vec3 s(vec3 x){ return mix(x, x*x*(3.0-2.0*x), uSc); }
 vec3 crush(vec3 x){ return max(vec3(0.0), x-uBl)/(1.0-uBl+1e-6); }
 vec3 lift(vec3 x){ return x*(1.0-uLift)+vec3(uLift); }
-// SAFE shoulder: clamp to [0,1] before pow to avoid NaNs when highlights exceed 1.0
 vec3 shoulder(vec3 x){ vec3 t = clamp(x, 0.0, 1.0); return 1.0 - pow(1.0 - t, vec3(1.0 + 5.0*uKnee)); }
 void main(){ vec3 c=texture2D(uTex,v_uv).rgb; c=s(c); c=crush(c); c=lift(c); c=shoulder(c); gl_FragColor=vec4(c,1.0); }`;
 const FS_SPLIT= COMMON+`uniform sampler2D uTex; uniform float uSh,uHi;
@@ -345,7 +465,6 @@ uniform sampler2D uTex; uniform vec2 uPx; uniform float uCA;
 void main(){
   vec2 ac=vec2(uRes.x/uRes.y,1.0);
   vec2 dir=normalize((v_uv-0.5)*ac);
-  // Guard: avoid NaNs if length(dir)==0 at the exact center
   dir=mix(vec2(1.0,0.0), dir, step(0.0001,length(dir)));
   vec2 d=dir*uPx*uCA; vec3 c;
   c.r=texture2D(uTex,v_uv+d).r; c.g=texture2D(uTex,v_uv).g; c.b=texture2D(uTex,v_uv-d).b;
@@ -369,10 +488,8 @@ void main(){
   vec3 g=mix(vec3(gL), mix(vec3(gL),gC,0.35), uChroma);
   float shadow=pow(max(0.0, 1.0 - Y), 1.0 + 1.2*uShadow);;
   float amp=base*gain*(0.55+uShadow*shadow);
-  // Clamp before/after sRGB to avoid invalid values
   vec3 outc = toSRGB(clamp(c + g*amp, 0.0, 16.0));
   outc = clamp(outc, 0.0, 1.0);
-  // Small ordered dither (optional)
   float n = fract(sin(dot(v_uv*uRes, vec2(12.9898,78.233))) * 43758.5453);
   outc += (uDither) * (n-0.5)/255.0;
   gl_FragColor=vec4(outc,1.0);
@@ -390,7 +507,6 @@ function render(t=performance.now()){
   if (!S.needsRender && (t-lastT)<(1000/60)){ requestAnimationFrame(render); return; }
   lastT=t;
 
-  // True identity path (exact "Original" output)
   const identity =
     Math.abs(S.ev) < 1e-6 &&
     S.flashStrength === 0 &&
@@ -421,7 +537,7 @@ function render(t=performance.now()){
     cur = rtB.tex;
   }
 
-  // Flash (mirror BOTH axes here so UI & canvas match image)
+  // Flash (mirror BOTH axes so UI & canvas match)
   const flashDst = (cur===rtA.tex) ? rtB : rtA;
   draw(P.flash,{uTex:cur},flashDst,p=>{
     gl.uniform2f(gl.getUniformLocation(p,'uCenter'), 1.0 - S.flashCenterX, 1.0 - S.flashCenterY);
@@ -430,10 +546,9 @@ function render(t=performance.now()){
   });
   cur = flashDst.tex;
 
-  // Bloom: bright pass
+  // Bloom: bright pass + pyramid
   const brightDst = (cur===rtA.tex) ? rtB : rtA;
   draw(P.bright,{uTex:cur},brightDst,p=>{ gl.uniform1f(gl.getUniformLocation(p,'uT'),S.bloomThreshold); gl.uniform1f(gl.getUniformLocation(p,'uWarm'),S.bloomWarm); });
-  // Downsample → blur → upsample
   draw(P.down,{uTex:brightDst.tex},rtH_A,p=> gl.uniform2f(gl.getUniformLocation(p,'uTexel'),1/brightDst.w,1/brightDst.h));
   draw(P.down,{uTex:rtH_A.tex},rtQ_A,p=> gl.uniform2f(gl.getUniformLocation(p,'uTexel'),1/rtH_A.w,1/rtH_A.h));
   draw(P.down,{uTex:rtQ_A.tex},rtE_A,p=> gl.uniform2f(gl.getUniformLocation(p,'uTexel'),1/rtQ_A.w,1/rtQ_A.h));
@@ -524,7 +639,11 @@ $('#reset').onclick=()=>{
     vignette:0.0, vignettePower:2.5, ca:0.0, clarity:0.0, shutterUI:0.0, shake:0.0, motionAngle:0.0,
     grainASA:800, grainDevelop:0.0, grainStock:0.0, grainChroma:0.0, grainMagnify:1.0
   });
-  ['ev','flashStrength','flashFalloff','scurve','blacks','blackLift','knee','shadowCool','highlightWarm','greenShadows','magentaMids','bloomThreshold','bloomRadius','bloomIntensity','bloomWarm','halation','vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify'].forEach(id=>{
+  [
+    'ev','flashStrength','flashFalloff','scurve','blacks','blackLift','knee','shadowCool','highlightWarm',
+    'greenShadows','magentaMids','bloomThreshold','bloomRadius','bloomIntensity','bloomWarm','halation',
+    'vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify'
+  ].forEach(id=>{
     const el=$('#'+id), lbl=$(`.val[data-for="${id}"]`); if(el&&lbl){ el.value=S[id]; lbl.textContent=(id==='motionAngle'?S[id].toFixed(0):fmt(S[id],el.step)); }
   });
   $('#shutterUI').value=S.shutterUI; $('#shutterLabel').textContent=formatShutter(sliderToShutterSeconds(S.shutterUI));
