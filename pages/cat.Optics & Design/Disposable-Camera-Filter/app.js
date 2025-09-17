@@ -23,17 +23,32 @@ if(!GL) alert('WebGL not supported');
 const gl = GL;
 const V  = $('#vid');
 
-/* ---------- layout: <=1200px, aspect preserved ---------- */
+/* ---------- layout: ≤1200w & ≤600h, aspect preserved ---------- */
 function layout(){
-  const avail = $('#viewport').clientWidth;
-  const cssW  = Math.min(1200, avail);
-  const cssH  = cssW * (S.mediaH / S.mediaW);
-  CAN.style.width = cssW+'px'; CAN.style.height = cssH+'px';
+  const availW = $('#viewport').clientWidth;
+  const maxW   = Math.min(1200, availW);
+  const maxH   = 600;
+  const aspect = S.mediaH / S.mediaW;
 
-  const W = Math.round(cssW * S.dpr), H = Math.round(cssH * S.dpr);
-  if (CAN.width!==W || CAN.height!==H){
-    CAN.width=W; CAN.height=H; gl.viewport(0,0,W,H);
-    ensureRTs(); S.needsRender=true;
+  // Start with width cap
+  let cssW = maxW;
+  let cssH = cssW * aspect;
+
+  // Enforce height cap if needed
+  if (cssH > maxH){
+    cssH = maxH;
+    cssW = cssH / aspect;
+  }
+
+  CAN.style.width  = cssW + 'px';
+  CAN.style.height = cssH + 'px';
+
+  const W = Math.round(cssW * S.dpr);
+  const H = Math.round(cssH * S.dpr);
+  if (CAN.width !== W || CAN.height !== H){
+    CAN.width = W; CAN.height = H;
+    gl.viewport(0,0,W,H);
+    ensureRTs(); S.needsRender = true;
   }
 }
 window.addEventListener('resize', layout);
