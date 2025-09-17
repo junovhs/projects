@@ -4,10 +4,10 @@ const S = {
   mediaW:960, mediaH:540, dpr:Math.min(2, devicePixelRatio||1),
   tex:null, isVideo:false, frameSeed:0,
 
-  ev:-0.40, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
+  ev:0.0,, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
   scurve:0.60, blacks:0.06, blackLift:0.00, knee:0.12,
   shadowCool:0.35, highlightWarm:0.35, greenShadows:0.35, magentaMids:0.30,
-  bloomThreshold:0.529, bloomRadius:48.9, bloomIntensity:1.69, bloomWarm:0.18, halation:1.22,
+  bloomThreshold:1.0, bloomRadius:48.9, bloomIntensity:1.69, bloomWarm:0.18, halation:1.22,
   vignette:0.18, vignettePower:2.5, ca:1.0, clarity:0.0,
   shutterUI:0.30, shake:0.30, motionAngle:0.0,
   grainASA:800, grainDevelop:0.0, grainStock:0.6, grainChroma:0.6, grainMagnify:1.0,
@@ -53,15 +53,18 @@ function bindRange(id,key){
 ].forEach(id=>bindRange(id,id));
 (()=>{ const el=$('#shutterUI'), lbl=$('#shutterLabel'); const set=v=>{ S.shutterUI=+v; lbl.textContent=formatShutter(sliderToShutterSeconds(S.shutterUI)); S.needsRender=true; }; el.addEventListener('input', e=>set(e.target.value)); set(S.shutterUI); })();
 
-/* ---------- flash pad (UI moves normally; shader receives mirrored X) ---------- */
+/* ---------- flash pad (drag; UI matches image) ---------- */
 (()=>{ const pad=$('#flashPad'), dot=$('#flashDot');
-  function showDot(){ const r=pad.getBoundingClientRect(); dot.style.left=(S.flashCenterX*r.width)+'px'; dot.style.top=(S.flashCenterY*r.height)+'px'; }
+  function showDot(){ const r=pad.getBoundingClientRect();
+    dot.style.left=((1.0-S.flashCenterX)*r.width)+'px';
+    dot.style.top =((1.0-S.flashCenterY)*r.height)+'px';
+  }
   function setFromPointer(e){
     const r=pad.getBoundingClientRect();
-    S.flashCenterX=((e.clientX||e.touches?.[0]?.clientX)-r.left)/r.width;
-    S.flashCenterY=((e.clientY||e.touches?.[0]?.clientY)-r.top)/r.height;
-    S.flashCenterX=Math.max(0,Math.min(1,S.flashCenterX));
-    S.flashCenterY=Math.max(0,Math.min(1,S.flashCenterY));
+    const fx=((e.clientX||e.touches?.[0]?.clientX)-r.left)/r.width;
+    const fy=((e.clientY||e.touches?.[0]?.clientY)-r.top )/r.height;
+    S.flashCenterX = 1.0 - Math.max(0,Math.min(1,fx));
+    S.flashCenterY = 1.0 - Math.max(0,Math.min(1,fy));
     showDot(); S.needsRender=true;
   }
   let drag=false; pad.addEventListener('mousedown', e=>{ drag=true; setFromPointer(e); });
@@ -114,36 +117,50 @@ function loadVideo(file){
 $('#play').onclick=()=>{ if(!S.isVideo) return; if(V.paused){ V.play(); $('#play').textContent='Pause'; } else { V.pause(); $('#play').textContent='Play'; } };
 $('#original').onclick=()=>{ S.showOriginal=!S.showOriginal; $('#original').classList.toggle('active',S.showOriginal); S.needsRender=true; };
 
-/* ---------- Export MP4 (Quick) + progress overlay ---------- */
+/* ---------- Export MP4 (Native res, high quality) + progress overlay ---------- */
 $('#export-mp4').onclick = async ()=>{
   if (!S.isVideo){ toast('Load a video first','err'); return; }
   const fps = 30;
+
+  // Remember current canvas size, then switch to the media's native resolution
+  const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
+  const prevW = CAN.width, prevH = CAN.height;
+  CAN.style.width  = S.mediaW + 'px';
+  CAN.style.height = S.mediaH + 'px';
+  CAN.width  = S.mediaW;
+  CAN.height = S.mediaH;
+  gl.viewport(0,0,CAN.width,CAN.height);
+  ensureRTs(); S.needsRender = true;
+
   const stream = GL.canvas.captureStream(fps);
-  const want = ['video/mp4;codecs=h264','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const want = ['video/webm;codecs=vp9','video/mp4;codecs=h264','video/webm;codecs=vp8','video/webm'];
   const mime = want.find(m => MediaRecorder.isTypeSupported(m)) || '';
-  const rec = new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:20_000_000}:{videoBitsPerSecond:20_000_000});
+  // Big bitrate so quality is preserved
+  const rec = new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:100_000_000}:{videoBitsPerSecond:100_000_000});
   const chunks=[]; rec.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
 
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Exporting… 0%';
   const dur = Math.max(0.01, V.duration||1);
-  let progTimer;
-
   const stopped = new Promise(r=> rec.onstop=r);
-  const paused=V.paused;
+  const wasPaused=V.paused;
+
   V.pause(); V.currentTime=0; await V.play();
-
   rec.start();
-  progTimer = setInterval(()=>{ txt.textContent = `Exporting… ${Math.min(100, Math.round((V.currentTime/dur)*100))}%`; }, 100);
+  const progTimer = setInterval(()=>{ txt.textContent = `Exporting… ${Math.min(100, Math.round((V.currentTime/dur)*100))}%`; }, 100);
 
-  await new Promise(r=> setTimeout(r, dur*1000 + 200));
-  rec.stop(); await stopped;
-  clearInterval(progTimer); ov.classList.add('hidden');
+  await new Promise(r=> setTimeout(r, dur*1000 + 250));
+  rec.stop(); await stopped; clearInterval(progTimer); ov.classList.add('hidden');
+
+  // Restore previous canvas size
+  CAN.style.width = prevCssW; CAN.style.height = prevCssH;
+  CAN.width = prevW;  CAN.height = prevH;
+  gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
 
   if (mime.startsWith('video/mp4')) download(new Blob(chunks,{type:mime}), 'export.mp4');
   else download(new Blob(chunks,{type:mime||'video/webm'}), 'export.webm');
 
-  if (paused) V.pause();
+  if (wasPaused) V.pause();
 };
 
 /* ---------- helpers ---------- */
@@ -341,7 +358,18 @@ function render(t=performance.now()){
   if (!S.needsRender && (t-lastT)<(1000/60)){ requestAnimationFrame(render); return; }
   lastT=t;
 
-  if (S.showOriginal){ draw(P.copy,{uTex:S.tex},null); S.needsRender=false; requestAnimationFrame(render); return; }
+  // True identity path (exact "Original" output)
+  const identity =
+    Math.abs(S.ev) < 1e-6 &&
+    S.flashStrength === 0 &&
+    S.scurve === 0 && S.blacks === 0 && S.blackLift === 0 && S.knee === 0 &&
+    S.shadowCool === 0 && S.highlightWarm === 0 && S.greenShadows === 0 && S.magentaMids === 0 &&
+    S.vignette === 0 && S.bloomIntensity === 0 && S.halation === 0 &&
+    S.clarity === 0 && S.ca === 0 &&
+    S.shake === 0 && S.motionAngle === 0 && S.shutterUI === 0 &&
+    S.grainDevelop === 0 && S.grainStock === 0 && S.grainChroma === 0 && S.grainMagnify === 1.0;
+
+  if (S.showOriginal || identity){ draw(P.copy,{uTex:S.tex},null); S.needsRender=false; requestAnimationFrame(render); return; }
 
   const pxX=1/CAN.width, pxY=1/CAN.height;
 
@@ -361,10 +389,10 @@ function render(t=performance.now()){
     cur = rtB.tex;
   }
 
-  // Flash (X mirrored here so UI matches image)
+  // Flash (mirror BOTH axes here so UI & canvas match image)
   const flashDst = (cur===rtA.tex) ? rtB : rtA;
   draw(P.flash,{uTex:cur},flashDst,p=>{
-    gl.uniform2f(gl.getUniformLocation(p,'uCenter'), 1.0 - S.flashCenterX, S.flashCenterY);
+    gl.uniform2f(gl.getUniformLocation(p,'uCenter'), 1.0 - S.flashCenterX, 1.0 - S.flashCenterY);
     gl.uniform1f(gl.getUniformLocation(p,'uStrength'), S.flashStrength);
     gl.uniform1f(gl.getUniformLocation(p,'uFall'), S.flashFalloff);
   });
@@ -437,19 +465,32 @@ function render(t=performance.now()){
 /* ---------- boot ---------- */
 layout(); ensureRTs(); requestAnimationFrame(render);
 
-/* click canvas to set flash */
-CAN.addEventListener('mousedown', e=>{
-  const r=CAN.getBoundingClientRect(); S.flashCenterX=(e.clientX-r.left)/r.width; S.flashCenterY=(e.clientY-r.top)/r.height; S.needsRender=true;
-});
+/* click+drag canvas to set flash (UI matches image) */
+(()=>{
+  let dragging=false;
+  const setFrom=(x,y)=>{
+    const r=CAN.getBoundingClientRect();
+    const fx=(x-r.left)/r.width, fy=(y-r.top)/r.height;
+    S.flashCenterX = 1.0 - Math.max(0,Math.min(1,fx));
+    S.flashCenterY = 1.0 - Math.max(0,Math.min(1,fy));
+    S.needsRender = true;
+  };
+  CAN.addEventListener('mousedown', e=>{ dragging=true; setFrom(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', e=>{ if(dragging) setFrom(e.clientX,e.clientY); });
+  window.addEventListener('mouseup',   ()=>{ dragging=false; });
+  CAN.addEventListener('touchstart', e=>{ dragging=true; const t=e.touches[0]; setFrom(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+  window.addEventListener('touchmove',  e=>{ if(dragging){ const t=e.touches[0]; setFrom(t.clientX,t.clientY); e.preventDefault(); } }, {passive:false});
+  window.addEventListener('touchend',   ()=>{ dragging=false; });
+})();
 
-/* reset everything */
+/* reset everything (TRUE identity) */
 $('#reset').onclick=()=>{
   Object.assign(S,{
-    ev:-0.40, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
-    scurve:0.60, blacks:0.06, blackLift:0.00, knee:0.12, shadowCool:0.35, highlightWarm:0.35,
-    greenShadows:0.35, magentaMids:0.30, bloomThreshold:0.529, bloomRadius:48.9, bloomIntensity:1.69, bloomWarm:0.18, halation:1.22,
-    vignette:0.18, vignettePower:2.5, ca:1.0, clarity:0.0, shutterUI:0.30, shake:0.30, motionAngle:0.0,
-    grainASA:800, grainDevelop:0.0, grainStock:0.6, grainChroma:0.6, grainMagnify:1.0
+    ev:0.0, flashStrength:0.0, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.50,
+    scurve:0.0, blacks:0.0, blackLift:0.0, knee:0.0, shadowCool:0.0, highlightWarm:0.0,
+    greenShadows:0.0, magentaMids:0.0, bloomThreshold:1.0, bloomRadius:48.9, bloomIntensity:0.0, bloomWarm:0.0, halation:0.0,
+    vignette:0.0, vignettePower:2.5, ca:0.0, clarity:0.0, shutterUI:0.0, shake:0.0, motionAngle:0.0,
+    grainASA:800, grainDevelop:0.0, grainStock:0.0, grainChroma:0.0, grainMagnify:1.0
   });
   ['ev','flashStrength','flashFalloff','scurve','blacks','blackLift','knee','shadowCool','highlightWarm','greenShadows','magentaMids','bloomThreshold','bloomRadius','bloomIntensity','bloomWarm','halation','vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify'].forEach(id=>{
     const el=$('#'+id), lbl=$(`.val[data-for="${id}"]`); if(el&&lbl){ el.value=S[id]; lbl.textContent=(id==='motionAngle'?S[id].toFixed(0):fmt(S[id],el.step)); }
