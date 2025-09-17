@@ -318,7 +318,7 @@ void main(){
   float dev=clamp((uDev+2.0)/4.0,0.0,1.0); float gain=mix(0.9,1.8,dev);
   float gL=fbm(uv)-0.5; vec3 gC=vec3(fbm(uv+vec2(17.2,3.1)), fbm(uv+vec2(-9.7,11.4)), fbm(uv+vec2(6.3,-21.7)))-0.5;
   vec3 g=mix(vec3(gL), mix(vec3(gL),gC,0.35), uChroma);
-  float shadow=pow(1.0-Y, 1.0+1.2*uShadow);
+  float shadow=pow(max(0.0, 1.0 - Y), 1.0 + 1.2*uShadow);;
   float amp=base*gain*(0.55+uShadow*shadow);
   // Clamp before/after sRGB to avoid invalid values
   vec3 outc = toSRGB(clamp(c + g*amp, 0.0, 16.0));
