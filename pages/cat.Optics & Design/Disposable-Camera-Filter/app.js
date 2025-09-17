@@ -4,7 +4,7 @@ const S = {
   mediaW:960, mediaH:540, dpr:Math.min(2, devicePixelRatio||1),
   tex:null, isVideo:false, frameSeed:0,
 
-  ev:0.0,, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
+  ev:0.0, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
   scurve:0.60, blacks:0.06, blackLift:0.00, knee:0.12,
   shadowCool:0.35, highlightWarm:0.35, greenShadows:0.35, magentaMids:0.30,
   bloomThreshold:1.0, bloomRadius:48.9, bloomIntensity:1.69, bloomWarm:0.18, halation:1.22,
