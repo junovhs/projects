@@ -117,12 +117,12 @@ function loadVideo(file){
 $('#play').onclick=()=>{ if(!S.isVideo) return; if(V.paused){ V.play(); $('#play').textContent='Pause'; } else { V.pause(); $('#play').textContent='Play'; } };
 $('#original').onclick=()=>{ S.showOriginal=!S.showOriginal; $('#original').classList.toggle('active',S.showOriginal); S.needsRender=true; };
 
-/* ---------- Export MP4 (Native res, high quality) + progress overlay ---------- */
+/* ---------- Export MP4 (Native res, perfect frame start/stop) + progress overlay ---------- */
 $('#export-mp4').onclick = async ()=>{
   if (!S.isVideo){ toast('Load a video first','err'); return; }
   const fps = 30;
 
-  // Remember current canvas size, then switch to the media's native resolution
+  // Switch canvas to native resolution for capture
   const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
   const prevW = CAN.width, prevH = CAN.height;
   CAN.style.width  = S.mediaW + 'px';
@@ -132,35 +132,52 @@ $('#export-mp4').onclick = async ()=>{
   gl.viewport(0,0,CAN.width,CAN.height);
   ensureRTs(); S.needsRender = true;
 
+  // Prefer MP4/H.264; fall back to WebM
   const stream = GL.canvas.captureStream(fps);
-  const want = ['video/webm;codecs=vp9','video/mp4;codecs=h264','video/webm;codecs=vp8','video/webm'];
+  const want = ['video/mp4;codecs=h264','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
   const mime = want.find(m => MediaRecorder.isTypeSupported(m)) || '';
-  // Big bitrate so quality is preserved
-  const rec = new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:100_000_000}:{videoBitsPerSecond:100_000_000});
+  const rec  = new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:100_000_000}:{videoBitsPerSecond:100_000_000});
   const chunks=[]; rec.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
 
+  // Progress UI
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Exporting… 0%';
-  const dur = Math.max(0.01, V.duration||1);
-  const stopped = new Promise(r=> rec.onstop=r);
-  const wasPaused=V.paused;
 
-  V.pause(); V.currentTime=0; await V.play();
-  rec.start();
+  // Prepare video for exact start: pause, seek to 0, upload first frame, THEN start recorder, THEN play
+  const wasLoop=V.loop, wasPaused=V.paused;
+  V.loop=false;
+  V.pause(); V.currentTime=0;
+  await new Promise(r=> V.addEventListener('seeked', r, {once:true}));
+
+  // Upload first frame explicitly so recorder starts on frame 0
+  gl.bindTexture(gl.TEXTURE_2D,S.tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
+  S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
+  await new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r))); // ensure it rendered
+
+  rec.start();                            // start recording BEFORE playback to avoid missing first frames
+  await V.play();                         // now play
+
+  const dur = Math.max(0.01, V.duration||1);
   const progTimer = setInterval(()=>{ txt.textContent = `Exporting… ${Math.min(100, Math.round((V.currentTime/dur)*100))}%`; }, 100);
 
-  await new Promise(r=> setTimeout(r, dur*1000 + 250));
-  rec.stop(); await stopped; clearInterval(progTimer); ov.classList.add('hidden');
+  // Stop exactly at end (no timer drift)
+  await new Promise(r=> V.addEventListener('ended', r, {once:true}));
+  rec.stop();
+  await new Promise(r=> rec.onstop=r);
+  clearInterval(progTimer); ov.classList.add('hidden');
 
-  // Restore previous canvas size
+  // Restore canvas size
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW;  CAN.height = prevH;
   gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
 
+  // Save
   if (mime.startsWith('video/mp4')) download(new Blob(chunks,{type:mime}), 'export.mp4');
   else download(new Blob(chunks,{type:mime||'video/webm'}), 'export.webm');
 
-  if (wasPaused) V.pause();
+  // Restore video state
+  V.loop=wasLoop; if (wasPaused) V.pause();
 };
 
 /* ---------- helpers ---------- */
