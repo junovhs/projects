@@ -8,13 +8,49 @@ const S = {
   mediaW:960, mediaH:540, dpr:Math.min(2, devicePixelRatio||1),
   tex:null, isVideo:false, frameSeed:0,
 
-  ev:0.0, flashStrength:1.50, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.46,
-  scurve:0.60, blacks:0.06, blackLift:0.00, knee:0.12,
-  shadowCool:0.35, highlightWarm:0.35, greenShadows:0.35, magentaMids:0.30,
-  bloomThreshold:1.0, bloomRadius:48.9, bloomIntensity:1.69, bloomWarm:0.18, halation:1.22,
-  vignette:0.18, vignettePower:2.5, ca:1.0, clarity:0.0,
-  shutterUI:0.30, shake:0.30, motionAngle:0.0,
-  grainASA:800, grainDevelop:0.0, grainStock:0.6, grainChroma:0.6, grainMagnify:1.0,
+  // Defaults (your look)
+  ev:0.00,
+  flashStrength:0.19,
+  flashFalloff:10.00,
+  flashCenterX:0.50,
+  flashCenterY:0.50,
+
+  scurve:0.18,
+  blacks:0.011,
+  blackLift:0.009,
+  knee:0.000,
+
+  shadowCool:0.00,
+  highlightWarm:0.00,
+  greenShadows:0.50,
+  magentaMids:0.31,
+
+  bloomThreshold:1.000,
+  bloomRadius:48.90,
+  bloomIntensity:0.00,
+  bloomWarm:0.00,
+  halation:0.00,
+
+  vignette:0.500,
+  vignettePower:2.50,
+  ca:0.59,
+  clarity:0.00,
+
+  // Shutter ≈ 1/89 -> slider ~0.214
+  shutterUI:0.214,
+  shake:0.18,
+  motionAngle:0,
+
+  grainASA:700,
+  grainDevelop:-2.00,
+  grainStock:1.00,
+  grainChroma:1.00,
+  grainMagnify:0.82,
+
+  // View state
+  viewMode:'fit',  // 'fit' | '1x'
+  panX:0,
+  panY:0,
 
   needsRender:true, showOriginal:false
 };
@@ -27,26 +63,65 @@ if(!GL) alert('WebGL not supported');
 const gl = GL;
 const V  = $('#vid');
 
-/* ---------- layout: ≤1200w & ≤600h, aspect preserved ---------- */
+/* ---------- layout: 70% window container + Fit/1:1 modes ---------- */
 function layout(){
-  const availW = $('#viewport').clientWidth;
-  const maxW   = Math.min(1200, availW);
-  const maxH   = 600;
-  const aspect = S.mediaH / S.mediaW;
+  const stage = document.querySelector('.stage');
+  const fullW = stage.clientWidth;
+  const fullH = stage.clientHeight;
 
-  let cssW = maxW;
-  let cssH = cssW * aspect;
-  if (cssH > maxH){ cssH = maxH; cssW = cssH / aspect; }
+  // container is 70% of available window area
+  const containerW = Math.max(50, Math.floor(window.innerWidth  * 0.70));
+  const containerH = Math.max(50, Math.floor(window.innerHeight * 0.70));
 
-  CAN.style.width  = cssW + 'px';
-  CAN.style.height = cssH + 'px';
+  const vp = document.getElementById('viewport');
+  vp.style.width  = containerW + 'px';
+  vp.style.height = containerH + 'px';
 
-  const W = Math.round(cssW * S.dpr);
-  const H = Math.round(cssH * S.dpr);
-  if ( CAN.width !== W || CAN.height !== H ){
-    CAN.width = W; CAN.height = H;
-    gl.viewport(0,0,W,H);
-    ensureRTs(); S.needsRender = true;
+  if (!S.mediaW || !S.mediaH){
+    CAN.style.width='0px'; CAN.style.height='0px';
+    return;
+  }
+
+  if (S.viewMode === 'fit'){
+    // scale to fit entirely within container
+    const scale = Math.min(containerW / S.mediaW, containerH / S.mediaH);
+    const cssW = Math.max(1, Math.round(S.mediaW * scale));
+    const cssH = Math.max(1, Math.round(S.mediaH * scale));
+
+    CAN.style.width  = cssW + 'px';
+    CAN.style.height = cssH + 'px';
+    CAN.style.left   = ((containerW - cssW)/2) + 'px';
+    CAN.style.top    = ((containerH - cssH)/2) + 'px';
+
+    const W = Math.round(cssW * S.dpr);
+    const H = Math.round(cssH * S.dpr);
+    if (CAN.width !== W || CAN.height !== H){
+      CAN.width = W; CAN.height = H;
+      gl.viewport(0,0,W,H);
+      ensureRTs(); S.needsRender = true;
+    }
+  } else { // '1x' (1 image pixel == 1 CSS pixel) with pan
+    if (CAN.width !== S.mediaW || CAN.height !== S.mediaH){
+      CAN.width = S.mediaW; CAN.height = S.mediaH;
+      gl.viewport(0,0,S.mediaW,S.mediaH);
+      ensureRTs(); S.needsRender = true;
+    }
+
+    CAN.style.width  = S.mediaW + 'px';
+    CAN.style.height = S.mediaH + 'px';
+
+    if (typeof S.panX !== 'number' || typeof S.panY !== 'number'){
+      S.panX = Math.round((containerW - S.mediaW)/2);
+      S.panY = Math.round((containerH - S.mediaH)/2);
+    }
+
+    const minX = Math.min(0, containerW - S.mediaW), maxX = Math.max(0, containerW - S.mediaW);
+    const minY = Math.min(0, containerH - S.mediaH), maxY = Math.max(0, containerH - S.mediaH);
+    S.panX = Math.max(minX, Math.min(maxX, S.panX));
+    S.panY = Math.max(minY, Math.min(maxY, S.panY));
+
+    CAN.style.left = S.panX + 'px';
+    CAN.style.top  = S.panY + 'px';
   }
 }
 window.addEventListener('resize', layout);
@@ -130,14 +205,41 @@ function loadVideo(file){
 $('#play').onclick=()=>{ if(!S.isVideo) return; if(V.paused){ V.play(); $('#play').textContent='Pause'; } else { V.pause(); $('#play').textContent='Play'; } };
 $('#original').onclick=()=>{ S.showOriginal=!S.showOriginal; $('#original').classList.toggle('active',S.showOriginal); S.needsRender=true; };
 
-/* ---------- Save single PNG (current canvas) ---------- */
+/* ---------- Save single PNG (current canvas) at native resolution ---------- */
 $('#save-png').onclick = async ()=>{
   if (!S.tex){ toast('Load an image or video first','err'); return; }
+
+  // Remember preview state
+  const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
+  const prevW = CAN.width, prevH = CAN.height;
+
+  // Switch to native
+  CAN.style.width  = S.mediaW + 'px';
+  CAN.style.height = S.mediaH + 'px';
+  CAN.width  = S.mediaW;
+  CAN.height = S.mediaH;
+  gl.viewport(0,0,CAN.width,CAN.height);
+  ensureRTs(); S.needsRender = true;
+
+  // If video, upload current frame
+  if (S.isVideo){
+    gl.bindTexture(gl.TEXTURE_2D,S.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,document.getElementById('vid'));
+    S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
+  }
+
   const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
-  await raf2(); // ensure the latest frame is drawn
+  await raf2(); // ensure the render is caught up
+
   const blob = await new Promise(r => CAN.toBlob(r, 'image/png'));
-  const name = S.isVideo ? 'frame_current.png' : 'image_processed.png';
-  download(blob, name);
+  download(blob, S.isVideo ? 'frame_current.png' : 'image_processed.png');
+
+  // Restore preview
+  CAN.style.width = prevCssW; CAN.style.height = prevCssH;
+  CAN.width = prevW; CAN.height = prevH;
+  gl.viewport(0,0,prevW,prevH);
+  ensureRTs(); S.needsRender = true;
 };
 
 /* ---------- Export MP4 (ffmpeg.wasm) + progress overlay ---------- */
@@ -325,15 +427,28 @@ function download(blob,name){
 }
 function waitSeeked(){ return new Promise(r=> V.addEventListener('seeked', r, {once:true})); }
 
-/* -- ffmpeg.wasm loader (single-thread core for broader mobile support) -- */
+
+/* -- ffmpeg.wasm loader (auto-injects script if missing; single-thread core) -- */
 let _ffmpegCache=null;
 async function getFFmpeg(){
   if (_ffmpegCache) return _ffmpegCache;
-  if (!window.FFmpeg) throw new Error('FFmpeg script tag missing. Add: <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>');
+
+  async function ensureScript(){
+    if (window.FFmpeg) return;
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js';
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error('Failed to load ffmpeg.min.js'));
+      document.head.appendChild(s);
+    });
+  }
+
+  await ensureScript();
   const { createFFmpeg } = window.FFmpeg;
   const ffmpeg = createFFmpeg({
     log: true,
-    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js' // single-thread
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js' // single-thread; widest mobile support
   });
   await ffmpeg.load();
   _ffmpegCache = { ffmpeg };
@@ -629,22 +744,43 @@ function render(t=performance.now()){
 /* ---------- boot ---------- */
 layout(); ensureRTs(); requestAnimationFrame(render);
 
-/* click+drag canvas to set flash (UI matches image) */
+/* click+drag: in Fit = set flash, in 1:1 = pan */
 (()=>{
-  let dragging=false;
-  const setFrom=(x,y)=>{
+  const vp = document.getElementById('viewport');
+  let dragging=false, mode='flash'; // 'flash' or 'pan'
+  let sx=0, sy=0, ox=0, oy=0;
+
+  function setFlashFromCanvas(x,y){
     const r=CAN.getBoundingClientRect();
     const fx=(x-r.left)/r.width, fy=(y-r.top)/r.height;
     S.flashCenterX = 1.0 - Math.max(0,Math.min(1,fx));
     S.flashCenterY = 1.0 - Math.max(0,Math.min(1,fy));
     S.needsRender = true;
+  }
+  function ppos(e){ const t=e.touches?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
+
+  const onDown=(e)=>{
+    if (S.viewMode==='1x'){ mode='pan'; dragging=true; vp.classList.add('dragging');
+      const p=ppos(e); sx=p.x; sy=p.y; ox=S.panX||0; oy=S.panY||0; e.preventDefault();
+    } else { mode='flash'; dragging=true; const p=ppos(e); setFlashFromCanvas(p.x,p.y); }
   };
-  CAN.addEventListener('mousedown', e=>{ dragging=true; setFrom(e.clientX,e.clientY); });
-  window.addEventListener('mousemove', e=>{ if(dragging) setFrom(e.clientX,e.clientY); });
-  window.addEventListener('mouseup',   ()=>{ dragging=false; });
-  CAN.addEventListener('touchstart', e=>{ dragging=true; const t=e.touches[0]; setFrom(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
-  window.addEventListener('touchmove',  e=>{ if(dragging){ const t=e.touches[0]; setFrom(t.clientX,t.clientY); e.preventDefault(); } }, {passive:false});
-  window.addEventListener('touchend',   ()=>{ dragging=false; });
+  const onMove=(e)=>{
+    if (!dragging) return;
+    if (mode==='pan'){
+      const p=ppos(e); S.panX = ox + (p.x - sx); S.panY = oy + (p.y - sy); layout(); e.preventDefault();
+    } else {
+      const p=ppos(e); setFlashFromCanvas(p.x,p.y);
+    }
+  };
+  const onUp=()=>{ dragging=false; vp.classList.remove('dragging'); };
+
+  CAN.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+
+  CAN.addEventListener('touchstart', onDown, {passive:false});
+  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend', onUp);
 })();
 
 /* reset everything */
@@ -727,3 +863,20 @@ function buildTar(entries){
   for (const b of blocks){ out.set(b, off); off += b.length; }
   return new Blob([out], {type:'application/x-tar'});
 }
+document.getElementById('view-fit').onclick = ()=>{
+  S.viewMode='fit';
+  document.getElementById('view-fit').classList.add('on');
+  document.getElementById('view-1x').classList.remove('on');
+  layout();
+};
+document.getElementById('view-1x').onclick = ()=>{
+  S.viewMode='1x';
+  document.getElementById('view-1x').classList.add('on');
+  document.getElementById('view-fit').classList.remove('on');
+  // reset pan to center on enter
+  S.panX = undefined; S.panY = undefined;
+  layout();
+};
+// Ensure layout sizes are correct on load and after media load
+layout();
+window.addEventListener('load', layout);

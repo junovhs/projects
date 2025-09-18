@@ -49,3 +49,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
   .panel{order:2}
   .stage{min-height:55vh}
 }
+/* --- Viewport sizing & panning --- */
+#viewport{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;      /* crop for 1:1 */
+  margin:auto;
+  /* width/height are set by JS to 70% of window area */
+}
+#gl{
+  position:absolute;    /* so we can pan it in 1:1 */
+  image-rendering: pixelated;
+}
+.actions .toggle{ border-radius:999px; padding:6px 10px; }
+.actions .toggle.on{ background:var(--accent); color:#fff; }
+.dragging{ cursor: grabbing !important; }
