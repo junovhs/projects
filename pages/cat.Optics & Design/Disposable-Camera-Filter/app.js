@@ -431,12 +431,11 @@ function waitSeeked(){ return new Promise(r=> V.addEventListener('seeked', r, {o
 
 
 /* -- ffmpeg.wasm loader (auto-injects script if missing; single-thread core) -- */
-let _ffmpegCache=null;
-async function getFFmpeg(){
+let _ffmpegCache = null;
+async function getFFmpeg() {
   if (_ffmpegCache) return _ffmpegCache;
 
-  if (!window.FFmpeg) throw new Error('FFmpeg script not loaded. Check index.html <script> tag.'););
-  }
+  if (!window.FFmpeg) throw new Error('FFmpeg script not loaded. Check index.html <script> tag.');
 
   const { createFFmpeg } = window.FFmpeg;
   const ffmpeg = createFFmpeg({
@@ -447,6 +446,7 @@ async function getFFmpeg(){
   _ffmpegCache = { ffmpeg };
   return _ffmpegCache;
 }
+
 
 /* ---------- GL caps ---------- */
 const caps = (() => {
