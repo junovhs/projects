@@ -435,20 +435,13 @@ let _ffmpegCache=null;
 async function getFFmpeg(){
   if (_ffmpegCache) return _ffmpegCache;
 
-  if (!window.FFmpeg){
-    await new Promise((res, rej)=>{
-      const s = document.createElement('script');
-      s.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js';
-      s.onload = res;
-      s.onerror = () => rej(new Error('Failed to load ffmpeg.min.js'));
-      document.head.appendChild(s);
-    });
+  if (!window.FFmpeg) throw new Error('FFmpeg script not loaded. Check index.html <script> tag.'););
   }
 
   const { createFFmpeg } = window.FFmpeg;
   const ffmpeg = createFFmpeg({
     log: true,
-    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js'
+    corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js'
   });
   await ffmpeg.load();
   _ffmpegCache = { ffmpeg };
