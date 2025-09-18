@@ -306,6 +306,7 @@ $('#export-mp4').onclick = async ()=>{
   try{
     await ffmpeg.run(
       '-framerate','30','-i','f_%06d.png',
+      '-vf','pad=ceil(iw/2)*2:ceil(ih/2)*2',
       '-c:v','libx264','-pix_fmt','yuv420p','-crf','12','-preset','veryslow','-movflags','+faststart',
       outName
     );
@@ -313,6 +314,7 @@ $('#export-mp4').onclick = async ()=>{
     try{
       await ffmpeg.run(
         '-framerate','30','-i','f_%06d.png',
+        '-vf','pad=ceil(iw/2)*2:ceil(ih/2)*2',
         '-c:v','mpeg4','-q:v','1','-movflags','+faststart',
         outName
       );
