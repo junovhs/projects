@@ -101,8 +101,10 @@
 
   <video id="vid" playsinline muted style="display:none"></video>
 
-
+  <!-- Load ffmpeg.wasm UMD first -->
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js"></script>
-<script type="module" src="app.js"></script>
+
+  <!-- Then your app -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
