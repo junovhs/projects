@@ -435,9 +435,9 @@ let _ffmpegCache = null;
 async function getFFmpeg() {
   if (_ffmpegCache) return _ffmpegCache;
 
-  if (!window.FFmpeg) throw new Error('FFmpeg script not loaded. Check index.html <script> tag.');
+  /* ffmpeg ESM is imported below */
 
-  const { createFFmpeg } = window.FFmpeg;
+  const { createFFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js');
   const ffmpeg = createFFmpeg({
     log: true,
     corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js'
