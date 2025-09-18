@@ -435,64 +435,16 @@ let _ffmpegCache = null;
 async function getFFmpeg() {
   if (_ffmpegCache) return _ffmpegCache;
 
-  // 1) If a global UMD is already on the page, use it.
-  let createFFmpegFn = (window.FFmpeg && window.FFmpeg.createFFmpeg) ? window.FFmpeg.createFFmpeg : null;
-
-  // 2) Otherwise, try importing the ESM build from several CDNs/paths.
-  if (!createFFmpegFn) {
-    const esmSources = [
-      // unpkg first
-      'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js',
-      // jsDelivr common locations
-      'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js',
-      'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/ffmpeg.min.js',
-      // fallback variant some CDNs resolve
-      'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/ffmpeg.min.js'
-    ];
-    for (const src of esmSources) {
-      try {
-        const mod = await import(/* @vite-ignore */ src);
-        if (mod && mod.createFFmpeg) { createFFmpegFn = mod.createFFmpeg; break; }
-      } catch(_e){}
-    }
+  if (!window.FFmpeg || !window.FFmpeg.createFFmpeg) {
+    throw new Error('FFmpeg script not loaded. Check index.html <script> tag.');
   }
 
-  // 3) Still nothing? Inject UMD (jsDelivr → unpkg).
-  if (!createFFmpegFn) {
-    await new Promise((res, rej)=>{
-      const add = (url, next)=> {
-        const s = document.createElement('script');
-        s.src = url;
-        s.onload = res;
-        s.onerror = next;
-        document.head.appendChild(s);
-      };
-      add('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js', ()=>{
-        add('https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js', ()=>{
-          rej(new Error('Failed to load FFmpeg from both CDNs'));
-        });
-      });
-    });
-    if (!window.FFmpeg || !window.FFmpeg.createFFmpeg) {
-      throw new Error('FFmpeg script not loaded');
-    }
-    createFFmpegFn = window.FFmpeg.createFFmpeg;
-  }
-
-  // 4) Try loading the core from two CDNs; the first to work wins.
-  const tryLoad = async (corePath) => {
-    const ffmpeg = createFFmpegFn({ log: true, corePath });
-    await ffmpeg.load();
-    return ffmpeg;
-  };
-
-  let ffmpeg;
-  try {
-    ffmpeg = await tryLoad('https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js');
-  } catch(_e1) {
-    ffmpeg = await tryLoad('https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js');
-  }
-
+  const { createFFmpeg } = window.FFmpeg;
+  const ffmpeg = createFFmpeg({
+    log: true,
+    corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js'
+  });
+  await ffmpeg.load();
   _ffmpegCache = { ffmpeg };
   return _ffmpegCache;
 }
