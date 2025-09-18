@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Disposable Night — v5</title>
+  <title>Disposable Night — v5 (Mobile-friendly exports)</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -20,8 +20,9 @@
       <button id="play" disabled>Play</button>
       <button id="original">Original</button>
       <button id="reset">Reset</button>
-      <button id="export-pngs">Export PNGs</button>
-<button id="export-mp4">Export MP4</button>
+      <button id="save-png">Save PNG</button>
+      <button id="export-pngs">Export PNGs (.tar)</button>
+      <button id="export-mp4">Export MP4</button>
     </div>
   </header>
 
@@ -95,6 +96,9 @@
   </main>
 
   <video id="vid" playsinline muted style="display:none"></video>
+
+  <!-- ffmpeg.wasm for MP4 export -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,8 @@
-// Disposable Night — v5 (no automation, safe highlights, progress overlay, flash X fixed, ffmpeg.wasm export)
+// Disposable Night — v5 (mobile-friendly exports; no File System Access API)
+// Changes:
+// - “Export PNGs” bundles frames into a .tar and triggers a normal download (works on mobile).
+// - “Save PNG” downloads the current processed frame.
+// - MP4 export via ffmpeg.wasm with a single-thread core (no cross-origin isolation needed).
 
 const S = {
   mediaW:960, mediaH:540, dpr:Math.min(2, devicePixelRatio||1),
@@ -39,7 +43,7 @@ function layout(){
 
   const W = Math.round(cssW * S.dpr);
   const H = Math.round(cssH * S.dpr);
-  if (CAN.width !== W || CAN.height !== H){
+  if ( CAN.width !== W || CAN.height !== H ){
     CAN.width = W; CAN.height = H;
     gl.viewport(0,0,W,H);
     ensureRTs(); S.needsRender = true;
@@ -126,12 +130,22 @@ function loadVideo(file){
 $('#play').onclick=()=>{ if(!S.isVideo) return; if(V.paused){ V.play(); $('#play').textContent='Pause'; } else { V.pause(); $('#play').textContent='Play'; } };
 $('#original').onclick=()=>{ S.showOriginal=!S.showOriginal; $('#original').classList.toggle('active',S.showOriginal); S.needsRender=true; };
 
-/* ---------- Export MP4 (ffmpeg.wasm, frame-perfect from canvas frames) + progress overlay ---------- */
+/* ---------- Save single PNG (current canvas) ---------- */
+$('#save-png').onclick = async ()=>{
+  if (!S.tex){ toast('Load an image or video first','err'); return; }
+  const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+  await raf2(); // ensure the latest frame is drawn
+  const blob = await new Promise(r => CAN.toBlob(r, 'image/png'));
+  const name = S.isVideo ? 'frame_current.png' : 'image_processed.png';
+  download(blob, name);
+};
+
+/* ---------- Export MP4 (ffmpeg.wasm) + progress overlay ---------- */
 $('#export-mp4').onclick = async ()=>{
   if (!S.isVideo){ toast('Load a video first','err'); return; }
-  const {ffmpeg, fetchFile} = await getFFmpeg(); // loads if needed
+  const {ffmpeg} = await getFFmpeg();
 
-  // Switch canvas to native res for capture
+  // switch canvas to native resolution for capture
   const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
   const prevW = CAN.width, prevH = CAN.height;
   CAN.style.width  = S.mediaW + 'px';
@@ -144,7 +158,6 @@ $('#export-mp4').onclick = async ()=>{
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Export: grabbing frames… 0%';
 
-  // Grab every decoded frame deterministically (pause -> process -> resume)
   let i = 0;
   const dur = Math.max(0.01, V.duration||1);
   const wasLoop=V.loop, wasPaused=V.paused, prevRate=V.playbackRate;
@@ -154,14 +167,12 @@ $('#export-mp4').onclick = async ()=>{
   const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
 
   const grabOne = async ()=>{
-    // upload current video frame into pipeline
     gl.bindTexture(gl.TEXTURE_2D,S.tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
     S.frameSeed=(S.frameSeed+1)|0; S.needsRender=true;
     await raf2();
 
-    // write PNG into ffmpeg FS
     const blob = await pngOfCanvas();
     const ab   = await blob.arrayBuffer();
     const name = `f_${String(i).padStart(6,'0')}.png`;
@@ -170,7 +181,6 @@ $('#export-mp4').onclick = async ()=>{
     txt.textContent = `Export: grabbing frames… ${Math.round((V.currentTime/dur)*100)}%`;
   };
 
-  // Loop through frames using rVFCB, pausing each time to avoid drops
   await new Promise(async (resolve)=>{
     const onFrame = async ()=>{
       V.pause();
@@ -184,7 +194,6 @@ $('#export-mp4').onclick = async ()=>{
     V.addEventListener('ended', ()=>resolve(), {once:true});
   });
 
-  // Encode with ffmpeg.wasm (prefer libx264 -> fall back to mpeg4 -> last resort VP9/WebM)
   txt.textContent='Export: encoding…';
   ffmpeg.setLogger(({message})=>{
     const m = /frame=\s*(\d+)/.exec(message);
@@ -218,27 +227,22 @@ $('#export-mp4').onclick = async ()=>{
   const data = ffmpeg.FS('readFile', outName);
   download(new Blob([data.buffer], {type: outMime}), outName);
 
-  // Cleanup ffmpeg FS (frames + output)
+  // cleanup ffmpeg FS
   for (let k=0;k<i;k++){ try{ ffmpeg.FS('unlink', `f_${String(k).padStart(6,'0')}.png`);}catch{} }
   try{ ffmpeg.FS('unlink', outName);}catch{}
 
   ov.classList.add('hidden');
 
-  // Restore preview size & video state
+  // restore preview size & video state
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW;  CAN.height = prevH;
   gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
   V.loop=wasLoop; V.playbackRate=prevRate; if (wasPaused) V.pause();
 };
 
-/* ---------- Export PNG sequence (native res, frame-perfect) ---------- */
+/* ---------- Export PNG sequence (native res) -> single .tar download ---------- */
 $('#export-pngs').onclick = async ()=>{
-  if (!('showDirectoryPicker' in window)){
-    toast('Export PNGs needs Chrome/Edge (File System Access API).', 'err'); return;
-  }
-  const dir = await window.showDirectoryPicker({id:'dn-png-export'});
-  const ov=$('#overlay'), txt=$('#overlayText');
-  const savePNG = () => new Promise(r => CAN.toBlob(r, 'image/png'));
+  if (!S.tex){ toast('Load an image or video first','err'); return; }
 
   const prevCssW = CAN.style.width, prevCssH = CAN.style.height;
   const prevW = CAN.width, prevH = CAN.height;
@@ -249,19 +253,23 @@ $('#export-pngs').onclick = async ()=>{
   gl.viewport(0,0,CAN.width,CAN.height);
   ensureRTs(); S.needsRender = true;
 
+  const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Exporting PNGs… 0%';
+  const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const savePNG = () => new Promise(r => CAN.toBlob(r, 'image/png'));
+
+  const entries = []; // {name, data:ArrayBuffer}
 
   if (!S.isVideo){
-    await new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+    await raf2();
     const blob = await savePNG();
-    const fh = await dir.getFileHandle('frame_000000.png',{create:true});
-    const w  = await fh.createWritable(); await w.write(blob); await w.close();
+    const ab = await blob.arrayBuffer();
+    entries.push({name:'frame_000000.png', data:ab});
   } else {
     const dur = Math.max(0.01, V.duration||1);
     const wasLoop=V.loop, wasPaused=V.paused; V.loop=false;
     V.pause(); V.currentTime = 0; await waitSeeked();
 
-    const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
     let i=0;
     await new Promise(async (resolve)=>{
       const onFrame = async ()=>{
@@ -273,9 +281,9 @@ $('#export-pngs').onclick = async ()=>{
         await raf2();
 
         const blob = await savePNG();
+        const ab   = await blob.arrayBuffer();
         const name = `frame_${String(i).padStart(6,'0')}.png`;
-        const fh   = await dir.getFileHandle(name,{create:true});
-        const w    = await fh.createWritable(); await w.write(blob); await w.close();
+        entries.push({name, data:ab});
         i++;
         txt.textContent = `Exporting PNGs… ${Math.round((V.currentTime/dur)*100)}%`;
 
@@ -290,6 +298,11 @@ $('#export-pngs').onclick = async ()=>{
 
     V.loop=wasLoop; if (wasPaused) V.pause();
   }
+
+  // Build a simple tar archive (uncompressed) so users get 1 download
+  const tarBlob = buildTar(entries);
+  download(tarBlob, S.isVideo ? 'frames.tar' : 'image.tar');
+
   ov.classList.add('hidden');
 
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
@@ -304,28 +317,32 @@ function toast(msg,kind='ok'){ const t=$('#toast'); t.textContent=msg; t.classNa
 function sliderToShutterSeconds(v){ const sMin=1/250, sMax=0.5; return Math.pow(sMax/sMin, v)*sMin; }
 function formatShutter(s){ return (s>=1) ? `${s.toFixed(1)}s` : `1/${Math.round(1/s)}`; }
 function shutterToPixels(shutterSeconds,shake01){ const sMin=1/250,sMax=0.5; const t=Math.log(shutterSeconds/sMin)/Math.log(sMax/sMin); const base=0.5+26.0*Math.pow(t,0.85); return base*(0.2+1.2*shake01); }
-function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+function download(blob,name){
+  const a=document.createElement('a');
+  const url=URL.createObjectURL(blob);
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },2000);
+}
 function waitSeeked(){ return new Promise(r=> V.addEventListener('seeked', r, {once:true})); }
 
-/* -- ffmpeg.wasm loader (multi-thread core) -- */
+/* -- ffmpeg.wasm loader (single-thread core for broader mobile support) -- */
 let _ffmpegCache=null;
 async function getFFmpeg(){
   if (_ffmpegCache) return _ffmpegCache;
-  // If script tag exists, window.FFmpeg is ready; otherwise you can inject it here if you want.
   if (!window.FFmpeg) throw new Error('FFmpeg script tag missing. Add: <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>');
-  const { createFFmpeg, fetchFile } = window.FFmpeg;
+  const { createFFmpeg } = window.FFmpeg;
   const ffmpeg = createFFmpeg({
     log: true,
-    corePath: 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/ffmpeg-core.js'
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js' // single-thread
   });
   await ffmpeg.load();
-  _ffmpegCache = { ffmpeg, fetchFile };
+  _ffmpegCache = { ffmpeg };
   return _ffmpegCache;
 }
 
 /* ---------- GL caps ---------- */
 const caps = (() => {
-  const gl2   = (gl instanceof WebGL2RenderingContext);
+  const gl2   = (typeof WebGL2RenderingContext!=='undefined') && (gl instanceof WebGL2RenderingContext);
   const extCBF= gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float');
   const extHF = !gl2 && gl.getExtension('OES_texture_half_float');
   const extHFL= !gl2 && gl.getExtension('OES_texture_half_float_linear');
@@ -385,7 +402,7 @@ function makeProg(fs){ const vs=gl.createShader(gl.VERTEX_SHADER); gl.shaderSour
   const fsS=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fsS,fs); gl.compileShader(fsS);
   const p=gl.createProgram(); gl.attachShader(p,vs); gl.attachShader(p,fsS); gl.linkProgram(p); return p; }
 function bind(p){ gl.useProgram(p); const loc=gl.getAttribLocation(p,'a_pos'); gl.bindBuffer(gl.ARRAY_BUFFER,quad); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0); const r=gl.getUniformLocation(p,'uRes'); if(r) gl.uniform2f(r,CAN.width,CAN.height); }
-function draw(p,bindings,target,uniforms=()=>{}){ bind(p); let unit=0; for(const [name,tex] of Object.entries(bindings||{})){ const loc=gl.getUniformLocation(p,name); gl.activeTexture(gl['TEXTURE'+unit]); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(loc,unit); unit++; } gl.bindFramebuffer(gl.FRAMEBUFFER,target?target.fbo:null); uniforms(p); gl.drawArrays(gl.TRIANGLES,0,6); }
+function draw(p,bindings,target,uniforms=()=>{}){ bind(p); let unit=0; for(const [name,tex] of Object.entries(bindings||{})){ const loc=gl.getUniformLocation(p,name); gl.activeTexture(gl[`TEXTURE${unit}`]); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(loc,unit); unit++; } gl.bindFramebuffer(gl.FRAMEBUFFER,target?target.fbo:null); uniforms(p); gl.drawArrays(gl.TRIANGLES,0,6); }
 
 const FS_COPY  = COMMON+`uniform sampler2D uTex; void main(){ gl_FragColor=vec4(texture2D(uTex,v_uv).rgb,1.0);} `;
 const FS_PRE   = COMMON+`uniform sampler2D uTex; uniform float uEV; void main(){ vec3 c=toLin(texture2D(uTex,v_uv).rgb)*exp2(uEV); gl_FragColor=vec4(c,1.0);} `;
@@ -500,7 +517,7 @@ const P={copy:makeProg(FS_COPY),pre:makeProg(FS_PRE),flash:makeProg(FS_FLASH),mo
   bright:makeProg(FS_BRIGHT),down:makeProg(FS_DOWNS),blur:makeProg(FS_BLUR),upadd:makeProg(FS_UPADD),
   bcomp:makeProg(FS_BCOMP),clar:makeProg(FS_CLAR),ca:makeProg(FS_CA),grain:makeProg(FS_GRAIN)};
 
-/* ---------- render (ping-pong carefully) ---------- */
+/* ---------- render ---------- */
 let lastT=0;
 function render(t=performance.now()){
   if (!S.tex){ gl.clearColor(0.05,0.06,0.08,1); gl.clear(gl.COLOR_BUFFER_BIT); requestAnimationFrame(render); return; }
@@ -630,7 +647,7 @@ layout(); ensureRTs(); requestAnimationFrame(render);
   window.addEventListener('touchend',   ()=>{ dragging=false; });
 })();
 
-/* reset everything (TRUE identity) */
+/* reset everything */
 $('#reset').onclick=()=>{
   Object.assign(S,{
     ev:0.0, flashStrength:0.0, flashFalloff:4.5, flashCenterX:0.50, flashCenterY:0.50,
@@ -649,3 +666,64 @@ $('#reset').onclick=()=>{
   $('#shutterUI').value=S.shutterUI; $('#shutterLabel').textContent=formatShutter(sliderToShutterSeconds(S.shutterUI));
   S.needsRender=true;
 };
+
+/* ---------- Minimal tar builder (no compression) ---------- */
+function buildTar(entries){
+  // entries: [{name, data:ArrayBuffer}]
+  const blocks = [];
+  function padOctal(n, len){ // n as number, octal string with null
+    const s = n.toString(8);
+    return ('000000000000'.slice(s.length) + s).slice(-len) + '\0';
+  }
+  function putString(buf, off, str){
+    for (let i=0;i<str.length;i++) buf[off+i] = str.charCodeAt(i) & 0xFF;
+  }
+  function headerFor(name, size){
+    const buf = new Uint8Array(512); // zero filled
+    let prefix = '';
+    if (name.length > 100){
+      const lastSlash = name.lastIndexOf('/');
+      if (lastSlash > -1 && lastSlash < 155){
+        prefix = name.slice(0, lastSlash);
+        name = name.slice(lastSlash+1);
+      }
+    }
+    putString(buf,   0, name.slice(0,100));
+    putString(buf, 100, '0000777\0');           // mode
+    putString(buf, 108, '0000000\0');           // uid
+    putString(buf, 116, '0000000\0');           // gid
+    putString(buf, 124, padOctal(size, 11));    // size
+    putString(buf, 136, padOctal(Math.floor(Date.now()/1000), 11)); // mtime
+    putString(buf, 156, '0');                   // typeflag '0' = file
+    putString(buf, 257, 'ustar\0');             // magic
+    putString(buf, 263, '00');                  // version
+    putString(buf, 265, 'user');                // uname
+    putString(buf, 297, 'user');                // gname
+    if (prefix) putString(buf, 345, prefix.slice(0,155)); // prefix
+
+    // checksum: treat chksum field as spaces
+    for (let i=148;i<156;i++) buf[i] = 0x20;
+    let sum = 0; for (let i=0;i<512;i++) sum += buf[i];
+    const chk = (sum.toString(8).padStart(6,'0')).slice(-6) + '\0 ';
+    putString(buf, 148, chk);
+    return buf;
+  }
+  function padBlock(n){ return (512 - (n % 512)) % 512; }
+
+  for (const {name, data} of entries){
+    const size = data.byteLength;
+    blocks.push(headerFor(name, size));
+    blocks.push(new Uint8Array(data));
+    const pad = padBlock(size);
+    if (pad) blocks.push(new Uint8Array(pad));
+  }
+  // two 512-byte zero blocks
+  blocks.push(new Uint8Array(512));
+  blocks.push(new Uint8Array(512));
+
+  const total = blocks.reduce((a,b)=>a + b.length, 0);
+  const out = new Uint8Array(total);
+  let off=0;
+  for (const b of blocks){ out.set(b, off); off += b.length; }
+  return new Blob([out], {type:'application/x-tar'});
+}
