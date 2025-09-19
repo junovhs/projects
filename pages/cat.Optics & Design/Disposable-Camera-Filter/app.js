@@ -265,6 +265,7 @@ $('#export-mp4').onclick = async ()=>{
   const wasLoop=V.loop, wasPaused=V.paused, prevRate=V.playbackRate;
   V.loop=false; V.playbackRate = 1.0;
   V.pause(); V.currentTime=0; await waitSeeked();
+
   const pngOfCanvas = () => new Promise(r => CAN.toBlob(r, 'image/png'));
   const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
 
@@ -283,18 +284,23 @@ $('#export-mp4').onclick = async ()=>{
     txt.textContent = `Export: grabbing frames… ${Math.round((V.currentTime/dur)*100)}%`;
   };
 
-  await new Promise(async (resolve)=>{
+  await new Promise((resolve)=>{
+    const cleanup = ()=>{
+      if (V.cancelVideoFrameCallback && S._vfcb) { try{ V.cancelVideoFrameCallback(S._vfcb); }catch{} }
+    };
     const onFrame = async ()=>{
       V.pause();
       await grabOne();
-      if (V.ended || V.currentTime >= dur - 1e-4){ resolve(); return; }
-      await V.play();
+      if (V.ended || V.currentTime >= dur - 1e-4){ cleanup(); resolve(); return; }
+      // IMPORTANT: register next callback BEFORE play; don't await play
       S._vfcb = V.requestVideoFrameCallback(onFrame);
+      V.play().catch(()=>{});
     };
-    await V.play();
+    // Prime the first callback, THEN play (do not await)
     S._vfcb = V.requestVideoFrameCallback(onFrame);
-    V.addEventListener('ended', ()=>resolve(), {once:true});
-  });
+    V.addEventListener('ended', ()=>{ cleanup(); resolve(); }, {once:true});
+    V.play().catch(()=>{});
+  }); // (previously this scheduled play before rVFC, which lost ~every other frame) :contentReference[oaicite:1]{index=1}
 
   txt.textContent='Export: encoding…';
   ffmpeg.setLogger(({message})=>{
@@ -344,6 +350,7 @@ $('#export-mp4').onclick = async ()=>{
   V.loop=wasLoop; V.playbackRate=prevRate; if (wasPaused) V.pause();
 };
 
+
 /* ---------- Export PNG sequence (native res) -> single .tar download ---------- */
 $('#export-pngs').onclick = async ()=>{
   if (!S.tex){ toast('Load an image or video first','err'); return; }
@@ -359,7 +366,8 @@ $('#export-pngs').onclick = async ()=>{
 
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Exporting PNGs… 0%';
-  const raf2 = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+  const raf2    = () => new Promise(r=> requestAnimationFrame(()=>requestAnimationFrame(r)));
   const savePNG = () => new Promise(r => CAN.toBlob(r, 'image/png'));
 
   const entries = []; // {name, data:ArrayBuffer}
@@ -375,9 +383,13 @@ $('#export-pngs').onclick = async ()=>{
     V.pause(); V.currentTime = 0; await waitSeeked();
 
     let i=0;
-    await new Promise(async (resolve)=>{
+    await new Promise((resolve)=>{
+      const cleanup = ()=>{
+        if (V.cancelVideoFrameCallback && S._vfcb) { try{ V.cancelVideoFrameCallback(S._vfcb); }catch{} }
+      };
       const onFrame = async ()=>{
         V.pause();
+
         gl.bindTexture(gl.TEXTURE_2D,S.tex);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
         gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
@@ -391,14 +403,16 @@ $('#export-pngs').onclick = async ()=>{
         i++;
         txt.textContent = `Exporting PNGs… ${Math.round((V.currentTime/dur)*100)}%`;
 
-        if (V.ended || V.currentTime >= dur - 1e-4){ resolve(); return; }
-        await V.play();
+        if (V.ended || V.currentTime >= dur - 1e-4){ cleanup(); resolve(); return; }
+        // IMPORTANT: register next callback BEFORE play; don't await play
         S._vfcb = V.requestVideoFrameCallback(onFrame);
+        V.play().catch(()=>{});
       };
-      await V.play();
+      // Prime the first callback, THEN play (do not await)
       S._vfcb = V.requestVideoFrameCallback(onFrame);
-      V.addEventListener('ended', ()=>resolve(), {once:true});
-    });
+      V.addEventListener('ended', ()=>{ cleanup(); resolve(); }, {once:true});
+      V.play().catch(()=>{});
+    }); // (previously scheduled play before rVFC, which dropped ~every other frame) :contentReference[oaicite:3]{index=3}
 
     V.loop=wasLoop; if (wasPaused) V.pause();
   }
@@ -416,6 +430,7 @@ $('#export-pngs').onclick = async ()=>{
   toast('PNG sequence exported');
 };
 
+
 /* ---------- helpers ---------- */
 function toast(msg,kind='ok'){ const t=$('#toast'); t.textContent=msg; t.className='toast '+(kind==='ok'?'ok':'err'); t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),2200); }
 function sliderToShutterSeconds(v){ const sMin=1/250, sMax=0.5; return Math.pow(sMax/sMin, v)*sMin; }
@@ -425,7 +440,8 @@ function download(blob,name){
   const a=document.createElement('a');
   const url=URL.createObjectURL(blob);
   a.href=url; a.download=name; document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },2000);
+  // Give browsers ample time to finish writing large files (esp. iOS/Safari)
+  setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch{} a.remove(); }, 60000);
 }
 function waitSeeked(){ return new Promise(r=> V.addEventListener('seeked', r, {once:true})); }
 
