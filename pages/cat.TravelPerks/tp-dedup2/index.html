@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Deal Deduplicator — TravelPerks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0b0e12;
+    --panel: #12161d;
+    --panel-2: #171c24;
+    --ink: #e8eef9;
+    --muted: #9fb2ce;
+    --accent: #79c0ff;
+    --warn: #ffcc66;
+    --bad: #ff6b6b;
+    --good: #62d394;
+    --border: #212a36;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+  .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; }
+  header { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  .badge { font-size: 12px; color: var(--muted); }
+  .col {
+    display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: calc(100vh - 110px);
+  }
+  .section { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .section h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+  textarea {
+    width: 100%; min-height: 240px; resize: vertical; border-radius: 8px; border: 1px solid var(--border);
+    background: #0e131a; color: var(--ink); padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button, .btn {
+    cursor: pointer; border: 1px solid var(--border); background: #1a2130; color: var(--ink); border-radius: 10px; padding: 8px 10px; font-weight: 600;
+  }
+  button:hover { background: #20283a; }
+  input[type="file"] { display: none; }
+  label.file { border: 1px dashed var(--border); padding: 8px 10px; border-radius: 10px; background: #0f141c; cursor: pointer; }
+  .mini { font-size: 12px; color: var(--muted); }
+  .pill { padding: 2px 8px; border-radius: 999px; background: #0e141c; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .list { display: grid; gap: 8px; }
+  .card {
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #0e131a; display: grid; gap: 6px;
+  }
+  .card .top { display:flex; gap:8px; align-items:center; justify-content: space-between; }
+  .supplier { font-weight: 700; }
+  .score { font-weight: 800; }
+  .score.good { color: var(--good); }
+  .score.warn { color: var(--warn); }
+  .score.bad { color: var(--bad); }
+  .muted { color: var(--muted); }
+  .kvs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .kvs .kv { background: #0b1016; border: 1px solid var(--border); border-radius: 8px; padding: 4px 6px; font-size: 12px; color: var(--muted); }
+  .grid { display:grid; gap:10px; grid-template-columns: repeat(12, 1fr); }
+  .span-6 { grid-column: span 6; }
+  .span-12 { grid-column: span 12; }
+  .results { background: var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px; }
+  .matches { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .pair { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--panel-2); }
+  .pair-controls { text-align: center; }
+  .reject-btn { background: var(--bad); color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
+  .unmatched { display: grid; gap: 8px; }
+  .highlight { background: rgba(98, 211, 148, 0.1); color: var(--good); padding: 2px 4px; border-radius: 4px; }
+  .highlight.date { background: rgba(121, 192, 255, 0.1); color: var(--accent); }
+  .why-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .why-chip { padding: 2px 6px; border-radius: 4px; background: rgba(121, 192, 255, 0.2); color: var(--accent); font-size: 11px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:2px 8px; border-radius:999px; background:#0f141c; border:1px solid var(--border); color:var(--muted); font-size:12px; }
+  .chip.match { background: rgba(98, 211, 148, 0.3); color: var(--good); border-color: var(--good); }
+  .right-tools { display:flex; gap:8px; align-items:center; }
+  @media (max-width: 768px) { .matches { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Deal Deduplicator</h1>
+      <span class="badge">Paste HQ → Match website JSON → Find misses</span>
+      <div class="right-tools" style="margin-left:auto">
+        <span class="mini">Local time: <span id="now"></span></span>
+        <button id="exportUnmatched">Export Unmatched to Clipboard</button>
+        <button id="resetRejects" style="display:none;">Reset Rejects</button>
+      </div>
+    </header>
+
+    <div class="col">
+      <div class="section">
+        <h3>HQ Paste (v/d/ed format)</h3>
+        <textarea id="hqInput" placeholder="Paste your HQ text here, e.g.
+v	Carnival
+d	Great Rates Sale (PB4): Ends 9/30/2025
+ed	EXCLUSIVE covert rates: Ongoing
+v	Celebrity:
+d	All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
+        <div class="row">
+          <button id="parseHQ">Parse HQ</button>
+          <span class="pill" id="hqCount">0 vendors • 0 deals</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Website JSON</h3>
+        <div class="row">
+          <label class="file">
+            <input type="file" id="jsonFile" accept=".json" />
+            Choose entries JSON…
+          </label>
+          <button id="loadSample">Load tiny sample</button>
+          <span class="mini">We look at <code>shopOverline</code>, <code>title</code>, <code>shopListing</code>, <code>postDate</code>, <code>expiryDate</code>.</span>
+        </div>
+        <div class="row">
+          <select id="supplierFilter"></select>
+          <span class="pill" id="webCount">0 deals loaded</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Compare</h3>
+        <div class="row">
+          <button id="runMatch">Run matcher</button>
+          <span class="mini">Matches use vendor family + dates + benefit keywords.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="section">
+        <h3>Parsed HQ Deals</h3>
+        <div id="hqList" class="list"></div>
+      </div>
+
+      <div class="section">
+        <h3>Matches & Misses</h3>
+        <div id="results" class="results" style="display:none;">
+          <h4>Matched Pairs (<span id="matchCount">0</span>)</h4>
+          <div id="matchesList" class="matches"></div>
+          <h4>Unmatched HQ Deals (<span id="unmatchedCount">0</span>)</h4>
+          <div id="unmatchedList" class="unmatched"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===================== Utilities ===================== */
+const fmt = new Intl.DateTimeFormat('en-US',{year:'numeric',month:'2-digit',day:'2-digit', timeZone: 'America/Los_Angeles'});
+const today = new Date();
+const tz = 'America/Los_Angeles';
+document.getElementById('now').textContent = new Date().toLocaleString('en-US',{timeZone: tz});
+
+/** Normalize text for matching */
+const norm = (s) => (s||'')
+  .toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // strip accents (Zoëtry)
+  .replace(/&/g,'and')
+  .replace(/[\.\,\!\:\;KATEX_INLINE_OPENKATEX_INLINE_CLOSE```math
+```\{\}\-]/g,' ')
+  .replace(/\s+/g,' ')
+  .trim();
+
+/** Parse flexible dates like:
+ * Ends 9/30/2025; 9/12-9/19/2025; 9/1-10/31/2025; Ends 9/30; Ends today!; Ongoing
+ */
+function parseHQDates(text) {
+  const t = text.toLowerCase();
+  const out = { start: null, end: null, ongoing: false, raw: text };
+
+  if (/ongoing/.test(t)) { out.ongoing = true; return out; }
+  if (/today/.test(t)) { const d = new Date(); out.end = endOfDay(d); return out; }
+
+  // Range m/d[-m]/d/yy(yy)
+  const range = t.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*-\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (range) {
+    let [ , m1, d1, y1, m2, d2, y2 ] = range;
+    const year2 = parseYear(y2);
+    const year1 = parseYear(y1 ?? y2); // inherit year from right side if missing
+    out.start = toLA(Number(m1), Number(d1), year1);
+    out.end = endOfDay(toLA(Number(m2), Number(d2), year2));
+    return out;
+  }
+
+  // Single "Ends m/d[/yy]"
+  const single = t.match(/ends?\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (single) {
+    let [, m, d, y] = single;
+    let year = parseYear(y);
+    if (!year) {
+      // if implied year: choose current year unless already passed → next year
+      const tentative = toLA(Number(m), Number(d), new Date().getFullYear());
+      year = (tentative < startOfDay(new Date())) ? new Date().getFullYear()+1 : new Date().getFullYear();
+    }
+    out.end = endOfDay(toLA(Number(m), Number(d), year));
+    return out;
+  }
+
+  // Dates embedded without 'Ends' (fallback: pick last date in text)
+  const any = [...t.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+  if (any.length) {
+    const last = any[any.length-1];
+    const year = parseYear(last[3]);
+    const chosen = toLA(Number(last[1]), Number(last[2]), year || new Date().getFullYear());
+    out.end = endOfDay(chosen);
+  }
+
+  return out;
+}
+
+function parseYear(y) {
+  if (!y) return null;
+  let n = Number(y);
+  if (y.length === 2) n = (n >= 70) ? 1900+n : 2000+n; // 70→2069 rule
+  return n;
+}
+function toLA(m,d,y){ const dt = new Date(Date.UTC(y, m-1, d, 12,0,0)); return new Date(dt.toLocaleString('en-US',{timeZone: tz})); }
+function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
+function sameDay(a,b){ return !!(a && b) && a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate(); }
+
+/* ===================== Vendor Aliases (yours, intact & expanded) ===================== */
+/** Canonical names list (used for UI and matching) */
+const knownSuppliers = [
+  "Abercrombie & Kent","Adventures by Disney","African Travel","Ama Waterways","American Airline Vacations","American Cruise Line",
+  "Aulani, A Disney Resort & Spa","Avalon Waterways","Azamara","Beaches","BlueSky Tours","Breathless","Carnival Cruise Line",
+  "Celebrity Cruises","CIE Tours","Club Med","Collette","CroisiEurope","Crystal Cruises","Cunard","Delta Vacations","Disney Cruise Line",
+  "Disneyland","DisneyWorld","Dreams","El Dorado Spa Resorts & Hotels","Emerald Cruises","Excellence Resorts","Explora Journeys",
+  "Four Seasons Yachts","Funjet","G Adventures","Globus","Great Safaris","Hard Rock Hotels","Holland America Line","Hurtigruten",
+  "Iberostar Hotels & Resorts","Karisma Hotels & Resorts","Lindblad Expeditions & National Geographic","MSC Cruises","Norwegian Cruise Line",
+  "Oceania Cruises","Outrigger Hotels & Resorts","Palace Resorts","Paul Gauguin Cruises","Ponant","Princess Cruises","Project Expedition",
+  "Regent Seven Seas Cruises","Ritz-Carlton Yacht Collection","RIU Hotels & Resorts","Riverside Cruises","Riviera River Cruises",
+  "Rocky Mountaineer","Royal Caribbean","Sandals","Scenic","Scenic River","Seabourn","Secrets","Shore Excursions Group","Silversea",
+  "Southwest Vacations","Star Clippers","Tauck Cruises","Tauck Tours","TourSales.com","Trafalgar","UnCruise Adventures","Uniworld",
+  "United Vacations","Viking Cruises","Viking Ocean & Expedition","Viking River","Viator","Virgin Voyages","Villas of Distinction",
+  "Windstar","Zoetry Wellness & Spa Resorts"
+];
+
+/** Your alias map preserved (plus a few safety adds & punctuation/spacing flex). */
+const aliasMapping = {
+  // --- BIG SHIP / OCEAN ---
+  "royal":"Royal Caribbean","rccl":"Royal Caribbean","rcc":"Royal Caribbean","royal caribbean":"Royal Caribbean",
+  "norwegian":"Norwegian Cruise Line","norwegian cruise":"Norwegian Cruise Line","norwegian cruise line":"Norwegian Cruise Line","ncl":"Norwegian Cruise Line",
+  "disney cruise":"Disney Cruise Line","disney cruises":"Disney Cruise Line","disney cruise line":"Disney Cruise Line",
+  "celebrity":"Celebrity Cruises","celebrity cruises":"Celebrity Cruises",
+  "virgin":"Virgin Voyages","virgin voyages":"Virgin Voyages","virgin cruise":"Virgin Voyages",
+  "holland":"Holland America Line","holland america":"Holland America Line","holland america line":"Holland America Line",
+  "princess":"Princess Cruises","princess cruises":"Princess Cruises",
+  "carnival":"Carnival Cruise Line","carnival cruise":"Carnival Cruise Line","carnival cruises":"Carnival Cruise Line",
+  "msc":"MSC Cruises","msc cruises":"MSC Cruises",
+  "oceania":"Oceania Cruises","oceania cruises":"Oceania Cruises",
+  "seabourn":"Seabourn","seabourn cruises":"Seabourn",
+  "silversea":"Silversea","silversea cruises":"Silversea",
+  "crystal":"Crystal Cruises","crystal cruises":"Crystal Cruises",
+  "azamara":"Azamara","ponant":"Ponant","cunard":"Cunard",
+  "ritz-carlton":"Ritz-Carlton Yacht Collection","ritz carlton":"Ritz-Carlton Yacht Collection","ritz-carlton yacht":"Ritz-Carlton Yacht Collection",
+  "four seasons":"Four Seasons Yachts","four seasons yachts":"Four Seasons Yachts","four seasons yacht":"Four Seasons Yachts",
+
+  // --- VIKING (family) ---
+  "viking":"Viking Cruises","viking cruises":"Viking Cruises","viking ocean":"Viking Ocean & Expedition","viking river":"Viking River",
+
+  // --- RIVER / EXPEDITION ---
+  "avalon":"Avalon Waterways","avalon waterways":"Avalon Waterways",
+  "ama":"Ama Waterways","ama waterways":"Ama Waterways","amawaterways":"Ama Waterways","ama waterways":"Ama Waterways",
+  "croisieurope":"CroisiEurope","croisi europe":"CroisiEurope","croisi-europe":"CroisiEurope",
+  "riverside":"Riverside Cruises","riverside cruises":"Riverside Cruises",
+  "riviera":"Riviera River Cruises","riviera river":"Riviera River Cruises","riviera river cruises":"Riviera River Cruises",
+  "uniworld":"Uniworld","uniworld cruises":"Uniworld",
+  "scenic river":"Scenic River","scenic":"Scenic",
+  "lindblad":"Lindblad Expeditions & National Geographic","lindblad expeditions":"Lindblad Expeditions & National Geographic",
+  "national geographic":"Lindblad Expeditions & National Geographic",
+  "hurtigruten":"Hurtigruten","hx":"Hurtigruten","hx expeditions":"Hurtigruten",
+  "paul gauguin":"Paul Gauguin Cruises","paul gauguin cruises":"Paul Gauguin Cruises",
+  "regent":"Regent Seven Seas Cruises","regent seven seas":"Regent Seven Seas Cruises","seven seas":"Regent Seven Seas Cruises",
+  "windstar":"Windstar","windstar cruises":"Windstar",
+  "explora":"Explora Journeys","explora journeys":"Explora Journeys",
+  "emerald":"Emerald Cruises","emerald cruises":"Emerald Cruises",
+  "scenic & emerald cruises":"Emerald Cruises",
+
+  // --- LAND / VACATIONS / HOTELS ---
+  "american airlines vacations":"American Airline Vacations","american airline vacations":"American Airline Vacations","american airlnes vacations":"American Airline Vacations",
+  "delta":"Delta Vacations","delta vacations":"Delta Vacations",
+  "southwest":"Southwest Vacations","southwest vacations":"Southwest Vacations",
+  "united":"United Vacations","united vacations":"United Vacations",
+  "disneyland":"Disneyland","disney land":"Disneyland",
+  "disneyworld":"DisneyWorld","disney world":"DisneyWorld",
+  "adventures by disney":"Adventures by Disney",
+  "aulani":"Aulani, A Disney Resort & Spa","a disney resort":"Aulani, A Disney Resort & Spa","aulani, a disney resort & spa":"Aulani, A Disney Resort & Spa",
+  "sandals":"Sandals","beaches":"Beaches","breathless":"Breathless",
+  "club med":"Club Med","clubmed":"Club Med",
+  "el dorado":"El Dorado Spa Resorts & Hotels","el dorado spa":"El Dorado Spa Resorts & Hotels",
+  "dreams":"Dreams","excellence":"Excellence Resorts","excellence resorts":"Excellence Resorts",
+  "hard rock":"Hard Rock Hotels","hard rock hotels":"Hard Rock Hotels",
+  "iberostar":"Iberostar Hotels & Resorts","iberostar hotels":"Iberostar Hotels & Resorts",
+  "karisma":"Karisma Hotels & Resorts",
+  "outrigger":"Outrigger Hotels & Resorts","outrigger hotels":"Outrigger Hotels & Resorts",
+  "palace":"Palace Resorts","palace resorts":"Palace Resorts",
+  "riu":"RIU Hotels & Resorts","riu hotels":"RIU Hotels & Resorts",
+  "secrets":"Secrets",
+  "villas":"Villas of Distinction","villas of distinction":"Villas of Distinction",
+  "zoetry":"Zoetry Wellness & Spa Resorts","zoeetry":"Zoetry Wellness & Spa Resorts","zoëtry":"Zoetry Wellness & Spa Resorts",
+  "bluesky":"BlueSky Tours","blue sky tours":"BlueSky Tours",
+  "cie":"CIE Tours","cie tours":"CIE Tours",
+  "collette":"Collette",
+  "great safaris":"Great Safaris","globus":"Globus",
+
+  // --- Misc keeps ---
+  "star clippers":"Star Clippers","star clipper":"Star Clippers",
+  "tauck":"Tauck Cruises","tauck cruises":"Tauck Cruises","tauck tours":"Tauck Tours","tauck tour":"Tauck Tours",
+  "american cruise":"American Cruise Line","american cruise line":"American Cruise Line",
+  "atlas":"Atlas Ocean Voyages","atlas ocean":"Atlas Ocean Voyages","atlas ocean voyages":"Atlas Ocean Voyages",
+};
+
+/** Map canonical → family key for looser vendor matching */
+const familyOf = {
+  // Viking family
+  "Viking Cruises":"viking","Viking Ocean & Expedition":"viking","Viking Ocean":"viking","Viking River":"viking",
+  // Obvious one-to-ones (family key = normalized canonical)
+  ...Object.fromEntries(knownSuppliers.map(n => [n, norm(n)])),
+  "Princess":"princess cruises","Princess Cruises":"princess cruises",
+  "Norwegian":"norwegian cruise line","Norwegian Cruise Line":"norwegian cruise line",
+  "Carnival":"carnival cruise line","Carnival Cruise Line":"carnival cruise line",
+  "MSC":"msc cruises","MSC Cruises":"msc cruises",
+};
+
+/** Canonicalize vendor using alias map + fuzzy fallback */
+function canonicalVendor(input) {
+  if (!input) return null;
+  const n = norm(input.replace(/:$/, ''));
+  if (aliasMapping[n]) return aliasMapping[n];
+
+  // exact match against known suppliers by normalized string
+  const byNorm = knownSuppliers.find(s => norm(s) === n);
+  if (byNorm) return byNorm;
+
+  // fallback heuristics
+  if (/\bviking\b/.test(n)) return "Viking Cruises";
+  if (/\bncl\b|\bnorwegian\b/.test(n)) return "Norwegian Cruise Line";
+  if (/\broyal\b|\brccl?\b/.test(n)) return "Royal Caribbean";
+  if (/\bprincess\b/.test(n)) return "Princess Cruises";
+  if (/\bcarnival\b/.test(n)) return "Carnival Cruise Line";
+  if (/\bmsc\b/.test(n)) return "MSC Cruises";
+  if (/\bholland\b/.test(n)) return "Holland America Line";
+  if (/\bcelebrity\b/.test(n)) return "Celebrity Cruises";
+  if (/\bvirgin\b/.test(n)) return "Virgin Voyages";
+  if (/\boceania\b/.test(n)) return "Oceania Cruises";
+  if (/\bseabourn\b/.test(n)) return "Seabourn";
+  if (/\bsilversea\b/.test(n)) return "Silversea";
+  if (/\bcrystal\b/.test(n)) return "Crystal Cruises";
+  if (/\bazamara\b/.test(n)) return "Azamara";
+  if (/\bcunard\b/.test(n)) return "Cunard";
+  // river-ish
+  if (/\bavalon\b/.test(n)) return "Avalon Waterways";
+  if (/\bama\b/.test(n)) return "Ama Waterways";
+  if (/\briviera\b/.test(n)) return "Riviera River Cruises";
+  if (/\buniworld\b/.test(n)) return "Uniworld";
+  if (/\bscenic\b/.test(n)) return "Scenic";
+  if (/\blindblad|national geographic\b/.test(n)) return "Lindblad Expeditions & National Geographic";
+  return input.trim();
+}
+
+function vendorFamily(name) {
+  const c = canonicalVendor(name);
+  return familyOf[c] || norm(c);
+}
+
+/* ===================== HQ Parser ===================== */
+function parseHQ(text) {
+  const lines = (text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const items = [];
+  let currentVendor = null;
+
+  for (const line of lines) {
+    const m = line.match(/^([ve]d?|V|D|ED)\s*\t\s*(.+)$/i);
+    if (!m) continue;
+    const tag = m[1].toLowerCase();
+    const content = m[2].trim();
+
+    if (tag === 'v' || tag === 'V') {
+      currentVendor = canonicalVendor(content.replace(/:$/, ''));
+      items.push({ type:'vendorHeader', vendor: currentVendor, originalLine: line });
+    } else {
+      if (!currentVendor) continue;
+      const type = (tag === 'ed' ? 'exclusive' : 'deal');
+      const dates = parseHQDates(content);
+      items.push({
+        type,
+        vendor: currentVendor,
+        vendorFamily: vendorFamily(currentVendor),
+        text: content,
+        originalLine: line,
+        ...dates,
+        features: extractFeatures(content)
+      });
+    }
+  }
+
+  // collapse vendor headers + attach original lines for export
+  return items.filter(x => x.type !== 'vendorHeader');
+}
+
+/* ===================== Feature Extraction ===================== */
+function extractFeatures(text) {
+  const t = norm(text);
+  const feats = {
+    percent: null,
+    dollars: null,
+    kidsFree: /\bkids? (sail|stay) free\b/.test(t),
+    gratuities: /\bgratu(?:ities|ity)|prepaid gratuities|free gratuities/.test(t),
+    obc: /\bobc\b|on ?board credit|bar tab/.test(t),
+    instant: /instant (savings|credit)/.test(t),
+    covert: /\bcovert\b|too low to show|opaque/.test(t),
+    drinksWifi: /(drinks|beverage).*wi[\- ]?fi/.test(t) || /wi[\- ]?fi.*(drinks|beverage)/.test(t) || /\bdrinks ?& ?wi ?-?fi\b/.test(t),
+    coupon: /\bcoupon booklet|booklet/.test(t),
+  };
+
+  // biggest percent in text
+  const ps = [...t.matchAll(/(\d{1,3})\s*%/g)].map(m => Number(m[1]));
+  feats.percent = ps.length ? Math.max(...ps) : null;
+
+  // capture up to $X values (largest)
+  const ds = [...t.matchAll(/\$?\b(\d{2,5})\b(?=\s*(?:obc|credit|instant|off|savings|amenity|air|cash|per|pp|ppg|usd)\b)/g)].map(m => Number(m[1]));
+  const ds2 = [...t.matchAll(/\$\s*(\d{2,5})/g)].map(m => Number(m[1]));
+  const allD = [...ds, ...ds2];
+  feats.dollars = allD.length ? Math.max(...allD) : null;
+
+  return feats;
+}
+
+/* ===================== Website JSON ingest ===================== */
+let websiteDeals = [];  // normalized objects for matching
+
+function ingestWebsiteJSON(arr) {
+  websiteDeals = (arr||[]).map(row => {
+    const supplier = row.shopOverline || '';
+    const vendor = canonicalVendor(supplier);
+    const family = vendorFamily(vendor);
+    const expiry = row.expiryDate ? new Date(row.expiryDate) : null;
+    const post = row.postDate ? new Date(row.postDate) : null;
+    const text = [row.title||'', row.shopListing||''].join(' • ');
+    return {
+      raw: row,
+      supplier: vendor,
+      vendorFamily: family,
+      expiryDate: expiry,
+      postDate: post,
+      text,
+      features: extractFeatures(text)
+    };
+  });
+
+  // populate supplier filter
+  const sel = document.getElementById('supplierFilter');
+  const uniq = Array.from(new Set(websiteDeals.map(d => d.supplier))).sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = `<option value="">All suppliers (${websiteDeals.length})</option>` + uniq.map(s => `<option>${s}</option>`).join('');
+  document.getElementById('webCount').textContent = `${websiteDeals.length} deals loaded`;
+}
+
+/* ===================== Matching ===================== */
+function similarity(hq, web) {
+  let score = 0;
+  const why = [];
+
+  // Vendor family (strong)
+  if (hq.vendorFamily === web.vendorFamily) { score += 10; why.push('vendor'); }
+
+  // Dates (medium)
+  if (hq.ongoing && !web.expiryDate) { score += 4; why.push('ongoing'); }
+  else if (hq.end && web.expiryDate) {
+    if (sameDay(hq.end, web.expiryDate)) { score += 4; why.push('date=exact'); }
+    else {
+      const diff = Math.abs((+hq.end - +web.expiryDate) / 86400000);
+      if (diff <= 2) { score += 3; why.push('date≈'); }
+    }
+  }
+
+  // Feature overlaps (medium)
+  const f = hq.features, g = web.features;
+  const k = (cond, s, pts) => { if (cond) { score += pts; why.push(s); } };
+  k(f.kidsFree && /kids/.test(web.text.toLowerCase()), 'kids', 3);
+  k(f.gratuities && /gratu/.test(web.text.toLowerCase()), 'gratuities', 2);
+  k(f.obc && /\bobc\b|on ?board credit|bar tab/.test(web.text.toLowerCase()), 'obc', 3);
+  k(f.instant && /instant/.test(web.text.toLowerCase()), 'instant', 2);
+  k(f.coupon && /coupon|booklet/.test(web.text.toLowerCase()), 'coupon', 2);
+  k(f.drinksWifi && /(drinks|beverage).*wi[\- ]?fi/.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/.test(web.text.toLowerCase()), 'drinks+wifi', 2);
+
+  // Percent / dollars proximity (soft)
+  if (f.percent && web.features.percent) {
+    const pd = Math.abs(f.percent - web.features.percent);
+    if (pd <= 5) { score += 2; why.push('%≈'); }
+  }
+  if (f.dollars && web.features.dollars) {
+    const dd = Math.abs(f.dollars - web.features.dollars);
+    if (dd === 0) { score += 3; why.push('$='); }
+    else if (dd <= 100) { score += 2; why.push('$≈'); }
+  }
+
+  // Exclusive/covert
+  if (f.covert && /\bcovert\b|too low to show|opaque/i.test(web.text)) { score += 3; why.push('covert'); }
+
+  return { score, why };
+}
+
+function matchAll(hqDeals) {
+  const rows = [];
+  const filterSupplier = document.getElementById('supplierFilter').value;
+
+  for (const hq of hqDeals) {
+    if (filterSupplier && canonicalVendor(filterSupplier) !== canonicalVendor(hq.vendor)) continue;
+
+    // Search within same family first
+    const pool = websiteDeals.filter(w => w.vendorFamily === hq.vendorFamily);
+    let best = null, bestMeta = null;
+
+    for (const w of pool) {
+      const meta = similarity(hq, w);
+      if (!best || meta.score > bestMeta.score) { best = w; bestMeta = meta; }
+    }
+
+    rows.push({ hq, best, meta: bestMeta });
+  }
+  return rows;
+}
+
+/* ===================== UI wiring ===================== */
+let hqDeals = [];
+let rejectedHQ = [];  // Track rejected deals for export
+
+document.getElementById('parseHQ').addEventListener('click', () => {
+  const txt = document.getElementById('hqInput').value;
+  hqDeals = parseHQ(txt);
+  rejectedHQ = [];  // Reset rejects on re-parse
+  renderHQ(hqDeals);
+});
+
+function renderHQ(items) {
+  document.getElementById('hqCount').textContent = `${new Set(items.map(x => x.vendor)).size} vendors • ${items.length} deals`;
+  const host = document.getElementById('hqList');
+  host.innerHTML = items.map(it => `
+    <div class="card">
+      <div class="top">
+        <div><span class="supplier">${it.vendor}</span> · <span class="muted">${it.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
+        <div class="chips">
+          ${it.features.kidsFree?'<span class="chip">Kids Free</span>':''}
+          ${it.features.gratuities?'<span class="chip">Grats</span>':''}
+          ${it.features.obc?'<span class="chip">OBC</span>':''}
+          ${it.features.instant?'<span class="chip">Instant</span>':''}
+          ${it.features.coupon?'<span class="chip">Coupon</span>':''}
+          ${it.features.drinksWifi?'<span class="chip">Drinks+Wi-Fi</span>':''}
+          ${it.features.percent?`<span class="chip">${it.features.percent}%</span>`:''}
+          ${it.features.dollars?`<span class="chip">$${it.features.dollars}</span>`:''}
+        </div>
+      </div>
+      <div>${escapeHTML(it.text)}</div>
+      <div class="kvs">
+        ${it.ongoing?'<span class="kv">Duration: ongoing</span>':''}
+        ${it.start?`<span class="kv">Start: ${fmt.format(it.start)}</span>`:''}
+        ${it.end?`<span class="kv">End: ${fmt.format(it.end)}</span>`:''}
+        <span class="kv muted">Family: ${it.vendorFamily}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('jsonFile').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    ingestWebsiteJSON(Array.isArray(data) ? data : (data.entries || data.data || []));
+  } catch (err) {
+    alert('Failed to parse JSON: ' + err.message);
+  }
+});
+
+document.getElementById('loadSample').addEventListener('click', () => {
+  // Super tiny inline sample just to prove wiring; use your uploaded JSON for the real run.
+  const sample = [
+    {
+      shopOverline: "Virgin Voyages",
+      title: "EXCLUSIVE: Get $100 Bar Tab Credit",
+      shopListing: "Enjoy a $100 Bar Tab Credit on select sailings. Ends 9/30.",
+      postDate: "2025-09-01T03:00:00-07:00",
+      expiryDate: "2025-09-30T16:00:00-07:00"
+    },
+    {
+      shopOverline: "Princess",
+      title: "EXCLUSIVE: Special rate for a limited time",
+      shopListing: "Call agent for details on this appealing, covert opportunity.",
+      postDate: "2025-09-08T00:00:00-07:00",
+      expiryDate: "2025-09-30T15:00:00-07:00"
+    }
+  ];
+  ingestWebsiteJSON(sample);
+});
+
+document.getElementById('runMatch').addEventListener('click', () => {
+  if (!hqDeals.length) { alert('Paste HQ text and click “Parse HQ” first.'); return; }
+  if (!websiteDeals.length) { alert('Load the website entries JSON first.'); return; }
+
+  const rows = matchAll(hqDeals);
+  rejectedHQ = [];  // Reset on re-run
+  renderMatches(rows);
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('resetRejects').style.display = 'inline-block';
+});
+
+function renderMatches(rows) {
+  const matchesHost = document.getElementById('matchesList');
+  const unmatchedHost = document.getElementById('unmatchedList');
+  let unmatched = [];
+
+  matchesHost.innerHTML = rows.map(({hq, best, meta}, idx) => {
+    const sc = (meta?.score ?? 0);
+    const cls = sc >= 12 ? 'good' : sc >= 8 ? 'warn' : 'bad';
+    const isMatch = !!best && sc >= 8;  // Only show as pair if decent score
+
+    if (!isMatch) {
+      unmatched.push(hq);
+      return '';
+    }
+
+    // Render chips with matches highlighted
+    const hqChips = renderChips(hq.features, true);
+    const webChips = renderChips(best.features, false);
+    const sharedChips = getSharedChips(hq, best);
+
+    return `
+      <div class="pair">
+        <div style="text-align: center; font-weight: bold; color: var(--${cls === 'good' ? 'good' : cls === 'warn' ? 'warn' : 'bad'});">Score: ${sc} ${renderWhyChips(meta.why)}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <h5>HQ Deal</h5>
+            <div class="top">
+              <span class="supplier ${hq.vendorFamily === best.vendorFamily ? 'highlight' : ''}">${hq.vendor}</span>
+            </div>
+            <div>${escapeHTML(hq.text)}</div>
+            <div class="chips">${hqChips}</div>
+            <div class="kvs">
+              ${hq.ongoing ? '<span class="kv highlight date">Ongoing</span>' : hq.end ? `<span class="kv ${sameDay(hq.end, best.expiryDate) ? 'highlight date' : ''}">End: ${fmt.format(hq.end)}</span>` : ''}
+            </div>
+          </div>
+          <div>
+            <h5>Website Deal</h5>
+            <div class="top">
+              <span class="supplier ${hq.vendorFamily === best.vendorFamily ? 'highlight' : ''}">${best.supplier}</span>
+            </div>
+            <div>${escapeHTML(best.raw.title || '')}</div>
+            <div class="mini">${escapeHTML(best.raw.shopListing || '')}</div>
+            <div class="chips">${webChips}</div>
+            <div class="kvs">
+              <span class="kv ${sameDay(hq.end, best.expiryDate) ? 'highlight date' : ''}">End: ${best.expiryDate ? fmt.format(best.expiryDate) : '—'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="pair-controls">
+          <button class="reject-btn" onclick="rejectMatch(${idx})">👎 Reject Match</button>
+        </div>
+        <div class="shared-matches">Shared: ${sharedChips.join(', ')}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Render unmatched
+  unmatchedHost.innerHTML = unmatched.map((hq, idx) => `
+    <div class="card">
+      <div class="top">
+        <div><span class="supplier">${hq.vendor}</span> · <span class="muted">${hq.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
+        <div class="chips">${renderChips(hq.features, true)}</div>
+      </div>
+      <div>${escapeHTML(hq.text)}</div>
+      <div class="kvs">
+        ${hq.ongoing?'<span class="kv">Ongoing</span>': hq.end?`<span class="kv">End: ${fmt.format(hq.end)}</span>`:''}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('matchCount').textContent = rows.filter(r => r.meta?.score >= 8).length;
+  document.getElementById('unmatchedCount').textContent = unmatched.length;
+}
+
+function renderChips(features, isHQ) {
+  const chips = [];
+  if (features.kidsFree) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Kids Free</span>`);
+  if (features.gratuities) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Grats</span>`);
+  if (features.obc) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">OBC</span>`);
+  if (features.instant) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Instant</span>`);
+  if (features.coupon) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Coupon</span>`);
+  if (features.drinksWifi) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Drinks+Wi-Fi</span>`);
+  if (features.percent) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${features.percent}%</span>`);
+  if (features.dollars) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${features.dollars}</span>`);
+  return chips.join('');
+}
+
+function getSharedChips(hq, web) {
+  const shared = [];
+  if (hq.features.kidsFree && /kids/.test(web.text.toLowerCase())) shared.push('Kids');
+  if (hq.features.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text)) shared.push('OBC');
+  if (hq.features.gratuities && /gratu/i.test(web.text)) shared.push('Grats');
+  if (hq.features.covert && /covert|low to show|opaque/i.test(web.text)) shared.push('Covert');
+  if (hq.features.coupon && /coupon|booklet/i.test(web.text)) shared.push('Coupon');
+  return shared;
+}
+
+function renderWhyChips(why) {
+  return `<span class="why-chips">${why.map(w => `<span class="why-chip">${w}</span>`).join('')}</span>`;
+}
+
+window.rejectMatch = function(idx) {
+  const rows = matchAll(hqDeals);  // Recompute for current state
+  rejectedHQ.push(rows[idx].hq);
+  renderMatches(rows);
+};
+
+document.getElementById('supplierFilter').addEventListener('change', () => {
+  if (hqDeals.length && websiteDeals.length) document.getElementById('runMatch').click();
+});
+
+// Export unmatched to clipboard in HQ format
+document.getElementById('exportUnmatched').addEventListener('click', () => {
+  if (!rejectedHQ.length) { alert('No unmatched deals to export.'); return; }
+
+  // Group by vendor, preserving order
+  const grouped = {};
+  rejectedHQ.forEach(deal => {
+    if (!grouped[deal.vendor]) grouped[deal.vendor] = [];
+    grouped[deal.vendor].push(deal);
+  });
+
+  let output = '';
+  Object.keys(grouped).forEach(vendor => {
+    output += `v\t${vendor}\n`;
+    grouped[vendor].forEach(deal => {
+      const tag = deal.type === 'exclusive' ? 'ed' : 'd';
+      output += `${tag}\t${deal.text}\n`;
+    });
+  });
+
+  navigator.clipboard.writeText(output.trim()).then(() => {
+    alert('Copied to clipboard!');
+  }).catch(() => {
+    // Fallback download
+    const blob = new Blob([output], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'unmatched_hq.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    alert('Downloaded as fallback (clipboard failed).');
+  });
+});
+
+document.getElementById('resetRejects').addEventListener('click', () => {
+  rejectedHQ = [];
+  document.getElementById('runMatch').click();
+});
+
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+</script>
+</body>
+</html>
