@@ -50,7 +50,7 @@
 <body>
   <div class="container">
     <h1>🖼️ Images/Video → WebM</h1>
-    <p>Pick a folder/files/video, set <strong>FPS</strong> (default 3), and make a looping WebM (GIF replacement). All client-side!</p>
+    <p>Pick a folder/files/video, set <strong>FPS</strong> (default 3 for images, source for video), and make a looping WebM (GIF replacement). All client-side!</p>
 
     <div class="btn-row">
       <button class="btn" id="pickFolderBtn">📁 Pick Folder</button>
@@ -69,7 +69,7 @@
     <div class="row">
       <div>
         <label for="fps">⏱️ Frame Rate (fps)</label>
-        <input type="number" id="fps" min="1" value="3" />
+        <input type="number" id="fps" min="1" value="" placeholder="(auto)" />
       </div>
       <div>
         <label for="duration">⏳ Duration (s, blank = full)</label>
@@ -123,7 +123,7 @@
       </div>
     </div>
 
-    <div class="row" id="gifRow" style="display:none;">
+    <div class="row" id="gifRow" style="display:flex;">
       <div>
         <label for="gifQuality">🎞️ GIF Quality (1=best/large, 30=small/lossy)</label>
         <input type="range" id="gifQuality" min="1" max="30" value="5" />
@@ -138,7 +138,10 @@
       </div>
     </div>
 
-    <button class="btn" id="makeBtn" style="width:100%; margin-top:12px;">⚡ Make WebM</button>
+    <div class="btn-row">
+      <button class="btn" id="makeBtn" style="flex:1;">⚡ Make WebM</button>
+      <button class="btn secondary" id="makeGifBtn" style="flex:1;">🎞️ Make GIF</button>
+    </div>
 
     <label>Progress</label>
     <progress id="prog" max="100" value="0"></progress>
@@ -148,7 +151,7 @@
     <div id="dlWrap" style="margin-top:10px; display:none;">
       <div class="btn-row">
         <a id="download" class="btn" download="out.webm">⬇️ Download WebM</a>
-        <button class="btn secondary" id="makeGifBtn">🎞️ To GIF</button>
+        <button class="btn secondary" id="toGifFromWebmBtn">🎞️ To GIF</button>
       </div>
     </div>
   </div>
@@ -164,6 +167,7 @@
     const listEl        = document.getElementById('list');
     const makeBtn       = document.getElementById('makeBtn');
     const makeGifBtn    = document.getElementById('makeGifBtn');
+    const toGifFromWebmBtn = document.getElementById('toGifFromWebmBtn');
     const gifRow        = document.getElementById('gifRow');
     const fpsEl         = document.getElementById('fps');
     const durationEl    = document.getElementById('duration');
@@ -189,6 +193,7 @@
     let lastCanvasW = null, lastCanvasH = null, lastMime = null;
     let isVideoMode = false;
     let videoElement = null; // Hidden video for frame extraction
+    let originalVideoFps = 30; // Default fallback
 
     // Helpers
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -266,6 +271,14 @@
       ctx.putImageData(imageData, 0, 0);
     }
 
+    function getEffectiveFps() {
+      const val = parseInt(fpsEl.value);
+      if (isNaN(val) || val < 1) {
+        return isVideoMode ? originalVideoFps : 3;
+      }
+      return val;
+    }
+
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
     gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (lower = better quality)';
 
@@ -310,10 +323,15 @@
     function setImages(files) {
       imageFiles = files;
       isVideoMode = false;
-      if (videoElement) { videoElement.remove(); videoElement = null; }
+      if (videoElement) {
+        if (videoElement.__objectURL) URL.revokeObjectURL(videoElement.__objectURL);
+        videoElement.remove();
+        videoElement = null;
+      }
       showList();
       bitmaps = []; naturalW = null; naturalH = null;
-      gifRow.style.display = 'none';
+      gifRow.style.display = 'flex';
+      fpsEl.placeholder = '(auto: 3)';
       status(`Loaded ${files.length} image(s).`);
     }
 
@@ -335,18 +353,23 @@
     videoInput.onchange = async () => {
       const file = videoInput.files[0];
       if (!file) return;
+      if (videoElement) {
+        if (videoElement.__objectURL) URL.revokeObjectURL(videoElement.__objectURL);
+        videoElement.remove();
+      }
       imageFiles = [file];
       isVideoMode = true;
       showList();
       bitmaps = []; naturalW = null; naturalH = null;
       gifRow.style.display = 'flex';
+      fpsEl.placeholder = '(auto: source)';
       status(`Loaded video: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
 
       // Hidden video element
       const videoUrl = URL.createObjectURL(file);
       videoElement = document.createElement('video');
       videoElement.preload = 'auto';
-      videoElement.muted = true;         // just in case the browser requires it for programmatic seeks
+      videoElement.muted = true;
       videoElement.playsInline = true;
       videoElement.src = videoUrl;
       videoElement.style.display = 'none';
@@ -358,7 +381,18 @@
       wEl.placeholder = String(naturalW);
       hEl.placeholder = String(naturalH);
 
-      // free the URL when you’re totally done with extraction (e.g., after makeWebM or after loadBitmaps finishes)
+      // Approximate original FPS (fallback to 30; real detection is complex)
+      originalVideoFps = 30; // Could enhance with webkitDecodedFrameCount if available
+      if ('webkitDecodedFrameCount' in videoElement) {
+        // Play briefly to count frames (hacky but works for approx)
+        await videoElement.play();
+        await sleep(1000);
+        const frames = videoElement.webkitDecodedFrameCount || 30;
+        originalVideoFps = Math.round(frames);
+        videoElement.pause();
+        videoElement.currentTime = 0;
+      }
+
       videoElement.__objectURL = videoUrl;
     };
 
@@ -367,18 +401,18 @@
     async function loadBitmaps() {
       if (!imageFiles.length) throw new Error("No files selected.");
       bitmaps = [];
+      const effectiveFps = getEffectiveFps();
       if (isVideoMode && videoElement) {
-        const fps = parseInt(fpsEl.value || "3", 10);
-        const frameInterval = 1 / fps;
+        const frameInterval = 1 / effectiveFps;
         const duration = parseFloat(durationEl.value) || videoElement.duration;
         const totalFrames = Math.ceil(duration / frameInterval);
-        status(`Extracting ${totalFrames} frames from video…`);
+        status(`Extracting ${totalFrames} frames from video @ ${effectiveFps} fps…`);
 
         // One offscreen canvas is enough
         const grab = document.createElement('canvas');
         grab.width = videoElement.videoWidth;
         grab.height = videoElement.videoHeight;
-        const gctx = grab.getContext('2d');
+        const gctx = grab.getContext('2d', { willReadFrequently: true });
 
         for (let i = 0; i < totalFrames; i++) {
           await seekTo(videoElement, i * frameInterval);
@@ -388,7 +422,7 @@
           prog.value = Math.round(((i + 1) / totalFrames) * 30);
         }
 
-        // optional: clean up the video object URL now that frames are extracted
+        // Clean up the video object URL now that frames are extracted
         if (videoElement.__objectURL) {
           URL.revokeObjectURL(videoElement.__objectURL);
           delete videoElement.__objectURL;
@@ -406,12 +440,15 @@
 
     async function makeWebM() {
       try {
-        prog.value = 0; preview.style.display = "none"; dlWrap.style.display = "none";
+        prog.value = 0; 
+        if (preview.src) URL.revokeObjectURL(preview.src);
+        preview.style.display = "none"; 
+        dlWrap.style.display = "none";
         status("Preparing…");
         await loadBitmaps();
-        const fps = Math.max(1, parseInt(fpsEl.value || "3", 10));
+        const fps = getEffectiveFps();
         let duration = parseFloat(durationEl.value);
-        if (!duration) duration = isVideoMode ? videoElement.duration : bitmaps.length / fps;
+        if (!duration) duration = isVideoMode ? videoElement?.duration || (bitmaps.length / fps) : bitmaps.length / fps;
         const totalFrames = Math.ceil(fps * duration);
         const loop = loopEl.checked;
         let outW = parseInt(wEl.value, 10);
@@ -422,7 +459,7 @@
 
         const canvas = document.createElement('canvas');
         canvas.width = outW; canvas.height = outH;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         lastCanvasW = outW;
         lastCanvasH = outH;
@@ -440,23 +477,33 @@
 
         rec.start(200);
         status(`Rendering ${totalFrames} frame(s) @ ${fps} fps…`);
-        const frameDur = 1000 / fps;
-        for (let i = 0; i < totalFrames; i++) {
-          const frameIdx = loop ? (i % bitmaps.length) : i;
-          if (frameIdx >= bitmaps.length) break;
+        // Remove manual sleep; rely on captureStream(fps) for timing
+        // Use requestAnimationFrame for smooth drawing
+        let frameI = 0;
+        function renderLoop() {
+          if (frameI >= totalFrames || rec.state !== 'recording') return;
+          const frameIdx = loop ? (frameI % bitmaps.length) : frameI;
+          if (frameIdx >= bitmaps.length) {
+            rec.stop();
+            return;
+          }
+          ctx.clearRect(0, 0, outW, outH);
           drawFrame(ctx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
           applyFilter(ctx, outW, outH, filterEl.value);
-          prog.value = 30 + Math.round((i / totalFrames) * 70);
-          await new Promise(r => setTimeout(r, frameDur));
+          prog.value = 30 + Math.round((frameI / totalFrames) * 70);
+          frameI++;
+          requestAnimationFrame(renderLoop);
         }
-
-        await new Promise(r => setTimeout(r, 250));
-        rec.stop();
+        renderLoop();
 
         const waitStop = () => new Promise(res => {
           const check = () => stopped ? res() : setTimeout(check, 50);
           check();
         });
+
+        // Wait a bit for final chunks
+        await new Promise(r => setTimeout(r, Math.max(500, (totalFrames / fps) * 1000 + 500)));
+        if (rec.state === 'recording') rec.stop();
         await waitStop();
 
         const webmBlob = new Blob(chunks, { type: mime });
@@ -468,25 +515,28 @@
         downloadA.download = "out.webm";
         dlWrap.style.display = "block";
         prog.value = 100;
-        status(`WebM done (${mime}). ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
+        status(`WebM done (${mime}) @ ${fps} fps. ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
       } catch (err) {
         console.error(err);
         status("Error: " + (err && err.message ? err.message : err));
       }
     }
 
-    async function makeGIF() {
-      if (!bitmaps.length) { alert('Load files and generate WebM first for frame data.'); return; }
+    async function makeGIF(standalone = false) {
+      if (!standalone && !bitmaps.length) { alert('Load files and generate WebM first for frame data.'); return; }
       if (typeof GIF === 'undefined') { alert('GIF library failed to load. Check console and refresh.'); return; }
       try {
+        if (standalone) {
+          prog.value = 0; 
+          await loadBitmaps();
+        }
         status("Loading GIF worker…");
-        prog.value = 0;
         const workerResponse = await fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js');
         if (!workerResponse.ok) throw new Error('Worker fetch failed');
         const workerBlob = await workerResponse.blob();
         const workerURL = URL.createObjectURL(workerBlob);
 
-        const fps = parseInt(fpsEl.value || "3", 10);
+        const fps = getEffectiveFps();
         let duration = parseFloat(durationEl.value);
         if (!duration) duration = bitmaps.length / fps;
         const totalFrames = Math.ceil(fps * duration);
@@ -495,29 +545,30 @@
         const outH = lastCanvasH || (parseInt(hEl.value,10) || naturalH || 240);
         const gifQual = Math.max(1, parseInt(gifQualityEl.value, 10) || 5);
 
-        status("Generating GIF… (quality=" + gifQual + ")");
+        status(`Generating GIF… (quality=${gifQual}, ${totalFrames} frames @ ${fps} fps)`);
         const gif = new GIF({
           workers: 4,
-          quality: gifQual,            // 1 = best (largest), 30 = smallest (lossier)
+          quality: gifQual,
           width: outW,
           height: outH,
           workerScript: workerURL,
           background: '#000000',
-          repeat: loop ? 0 : -1        // 0 = infinite; -1 = no loop
+          repeat: loop ? 0 : -1
         });
 
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = outW; tempCanvas.height = outH;
-        const tempCtx = tempCanvas.getContext('2d');
+        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
         const frameDelay = Math.round(1000 / fps);
 
         for (let i = 0; i < totalFrames; i++) {
           const frameIdx = loop ? (i % bitmaps.length) : i;
           if (frameIdx >= bitmaps.length) break;
+          tempCtx.clearRect(0, 0, outW, outH);
           drawFrame(tempCtx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
           applyFilter(tempCtx, outW, outH, filterEl.value);
           gif.addFrame(tempCanvas, { delay: frameDelay, copy: true });
-          prog.value = Math.round((i / totalFrames) * 100);
+          if (standalone) prog.value = Math.round((i / totalFrames) * 100);
         }
 
         gif.on('finished', blob => {
@@ -526,10 +577,13 @@
           a.href = url; a.download = 'out.gif'; a.click();
           URL.revokeObjectURL(url);
           URL.revokeObjectURL(workerURL);
-          status(`GIF done (q=${gifQual}). ${(blob.size/1024/1024).toFixed(2)} MB`);
+          status(`GIF done (q=${gifQual}) @ ${fps} fps. ${(blob.size/1024/1024).toFixed(2)} MB`);
+          if (standalone) prog.value = 100;
         });
 
-        gif.on('progress', p => { prog.value = Math.round(p * 100); });
+        gif.on('progress', p => { 
+          if (standalone) prog.value = Math.round(p * 100); 
+        });
         gif.render();
       } catch (err) {
         console.error(err);
@@ -538,7 +592,8 @@
     }
 
     makeBtn.onclick = makeWebM;
-    makeGifBtn.onclick = makeGIF;
+    makeGifBtn.onclick = () => makeGIF(true); // Standalone mode
+    toGifFromWebmBtn.onclick = () => makeGIF(false); // Reuse bitmaps
   </script>
 </body>
 </html>
