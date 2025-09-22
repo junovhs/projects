@@ -22,7 +22,7 @@
     margin: 0; background: var(--bg); color: var(--ink);
     font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   }
-  .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; }
+  .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; height: calc(100vh - 24px); overflow: hidden; }
   header { 
     grid-column: 1 / -1; 
     display: flex; gap: 10px; align-items: center; 
@@ -36,10 +36,10 @@
     display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px;
   }
   .col:first-child {
-    position: sticky; top: 60px; align-self: start; height: fit-content; z-index: 5;
+    position: sticky; top: 72px; align-self: start; height: fit-content; z-index: 5; overflow-y: auto; max-height: calc(100vh - 120px);
   }
   .col:last-child {
-    min-height: calc(100vh - 110px);
+    overflow-y: auto; height: calc(100vh - 120px);
   }
   .section { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
   .section h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
@@ -56,6 +56,8 @@
   label.file { border: 1px dashed var(--border); padding: 8px 10px; border-radius: 10px; background: #f8f9fa; cursor: pointer; }
   .mini { font-size: 12px; color: var(--muted); }
   .pill { padding: 2px 8px; border-radius: 999px; background: #e9ecef; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .supplier-pill { display: inline-flex; align-items: center; gap: 4px; margin: 2px; }
+  .supplier-pill button { background: var(--bad); color: white; border: none; padding: 2px 6px; border-radius: 50%; font-size: 10px; min-width: 16px; height: 16px; }
   .list { display: grid; gap: 8px; }
   .card {
     border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #ffffff; display: grid; gap: 6px;
@@ -81,6 +83,7 @@
   .highlight { background: rgba(40, 167, 69, 0.1); color: var(--good); padding: 2px 4px; border-radius: 4px; }
   .highlight.date { background: rgba(0, 123, 255, 0.1); color: var(--accent); }
   .highlight.date-approx { background: rgba(255, 193, 7, 0.1); color: var(--warn); }
+  .today-end { background: rgba(220, 53, 69, 0.1) !important; border-color: var(--bad) !important; }
   .why-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
   .why-chip { padding: 2px 6px; border-radius: 4px; background: rgba(0, 123, 255, 0.2); color: var(--accent); font-size: 11px; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -89,6 +92,7 @@
   .right-tools { display:flex; gap:8px; align-items:center; }
   @media (max-width: 768px) { .matches { grid-template-columns: 1fr; } }
   input[type=number] { width: 60px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
+  #toggleToday.on { background: var(--bad); color: white; }
 </style>
 </head>
 <body>
@@ -117,6 +121,11 @@ d All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
         </div>
       </div>
 
+      <div class="section" id="suppliersSection" style="display:none;">
+        <h3>HQ Suppliers</h3>
+        <div id="supplierList" class="row" style="flex-wrap:wrap; justify-content: flex-start;"></div>
+      </div>
+
       <div class="section">
         <h3>Website JSON</h3>
         <div class="row">
@@ -140,6 +149,7 @@ d All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
           <input type="number" id="scoreThreshold" value="10" min="5" max="30">
           <label class="mini">Min Score</label>
           <span class="mini">Matches sorted by score (desc).</span>
+          <button id="toggleToday">Restrict Ends Today: Off</button>
         </div>
       </div>
     </div>
@@ -567,6 +577,7 @@ function matchAll(hqDeals) {
 /* ===================== UI wiring ===================== */
 let hqDeals = [];
 let rejectedHQ = new Set();  // Set of deal IDs
+let restrictToday = false;
 
 document.getElementById('jsonFile').addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
@@ -600,12 +611,36 @@ document.getElementById('loadSample').addEventListener('click', () => {
   ingestWebsiteJSON(sample);
 });
 
+function renderSuppliers() {
+  const uniq = Array.from(new Set(hqDeals.map(d => d.vendor))).sort();
+  const host = document.getElementById('supplierList');
+  host.innerHTML = uniq.map(v => `
+    <span class="pill supplier-pill">
+      ${v}
+      <button onclick="removeSupplier('${v.replace(/'/g, "\\'")}')">×</button>
+    </span>
+  `).join('');
+  document.getElementById('suppliersSection').style.display = uniq.length ? 'block' : 'none';
+}
+
+window.removeSupplier = function(v) {
+  hqDeals = hqDeals.filter(d => d.vendor !== v);
+  renderSuppliers();
+  const vendors = new Set(hqDeals.map(x => x.vendor));
+  document.getElementById('hqCount').textContent = `${vendors.size} vendors • ${hqDeals.length} deals`;
+  if (websiteDeals.length) {
+    const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
+    renderMatches(matchAll(hqDeals), threshold);
+  }
+};
+
 document.getElementById('runMatch').addEventListener('click', () => {
   const txt = document.getElementById('hqInput').value;
   if (!hqDeals.length && txt.trim()) {
     hqDeals = parseHQ(txt);
     const vendors = new Set(hqDeals.map(x => x.vendor));
     document.getElementById('hqCount').textContent = `${vendors.size} vendors • ${hqDeals.length} deals`;
+    renderSuppliers();
   }
   if (!hqDeals.length) { alert('Paste HQ text first.'); return; }
   if (!websiteDeals.length) { alert('Load the website entries JSON first.'); return; }
@@ -615,6 +650,21 @@ document.getElementById('runMatch').addEventListener('click', () => {
   renderMatches(rows, threshold);
   document.getElementById('results').style.display = 'block';
   document.getElementById('resetRejects').style.display = 'inline-block';
+});
+
+document.getElementById('toggleToday').addEventListener('click', () => {
+  restrictToday = !restrictToday;
+  const btn = document.getElementById('toggleToday');
+  btn.textContent = `Restrict Ends Today: ${restrictToday ? 'On' : 'Off'}`;
+  if (restrictToday) {
+    btn.classList.add('on');
+  } else {
+    btn.classList.remove('on');
+  }
+  if (hqDeals.length && websiteDeals.length) {
+    const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
+    renderMatches(matchAll(hqDeals), threshold);
+  }
 });
 
 function renderMatches(rows, threshold) {
@@ -641,9 +691,10 @@ function renderMatches(rows, threshold) {
 
     const dateClassHQ = hq.end && best.expiryDate ? (sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx') : '';
     const dateClassWeb = sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx';
+    const todayClass = sameDay(hq.end, today) ? 'today-end' : '';
 
     return `
-      <div class="pair">
+      <div class="pair ${todayClass}">
         <div style="text-align: center; font-weight: bold; color: var(--${cls === 'good' ? 'good' : cls === 'warn' ? 'warn' : 'bad'});">Score: ${sc} ${renderWhyChips(meta.why)}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
@@ -680,18 +731,21 @@ function renderMatches(rows, threshold) {
 
   // Sort unmatched by vendor
   unmatched.sort((a, b) => a.vendor.localeCompare(b.vendor));
-  unmatchedHost.innerHTML = unmatched.map(hq => `
-    <div class="card">
-      <div class="top">
-        <div><span class="supplier">${hq.vendor}</span> · <span class="muted">${hq.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
-        <div class="chips">${renderChips(hq.features, true)}</div>
+  unmatchedHost.innerHTML = unmatched.map(hq => {
+    const todayClass = sameDay(hq.end, today) ? 'today-end' : '';
+    return `
+      <div class="card ${todayClass}">
+        <div class="top">
+          <div><span class="supplier">${hq.vendor}</span> · <span class="muted">${hq.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
+          <div class="chips">${renderChips(hq.features, true)}</div>
+        </div>
+        <div>${escapeHTML(hq.text)}</div>
+        <div class="kvs">
+          ${hq.ongoing?'<span class="kv">Ongoing</span>': hq.end?`<span class="kv">End: ${fmt.format(hq.end)}</span>`:''}
+        </div>
       </div>
-      <div>${escapeHTML(hq.text)}</div>
-      <div class="kvs">
-        ${hq.ongoing?'<span class="kv">Ongoing</span>': hq.end?`<span class="kv">End: ${fmt.format(hq.end)}</span>`:''}
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   document.getElementById('matchCount').textContent = matchedCount;
   document.getElementById('unmatchedCount').textContent = unmatched.length;
@@ -750,11 +804,14 @@ document.getElementById('supplierFilter').addEventListener('change', () => {
 
 // Export unmatched to clipboard in HQ format
 document.getElementById('exportUnmatched').addEventListener('click', () => {
-  const rejectedDeals = hqDeals.filter(d => rejectedHQ.has(d.id));
-  if (!rejectedDeals.length) { alert('No unmatched deals to export.'); return; }
+  let exportDeals = hqDeals.filter(d => rejectedHQ.has(d.id));
+  if (restrictToday) {
+    exportDeals = exportDeals.filter(d => !sameDay(d.end, today));
+  }
+  if (!exportDeals.length) { alert('No unmatched deals to export.'); return; }
 
   const grouped = {};
-  rejectedDeals.forEach(deal => {
+  exportDeals.forEach(deal => {
     if (!grouped[deal.vendor]) grouped[deal.vendor] = [];
     grouped[deal.vendor].push(deal);
   });
@@ -768,16 +825,28 @@ document.getElementById('exportUnmatched').addEventListener('click', () => {
     });
   });
 
-  navigator.clipboard.writeText(output.trim()).then(() => {
-    alert('Copied to clipboard!');
-  }).catch(() => {
+  const doExport = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(output.trim()).then(() => {
+        alert('Copied to clipboard!');
+      }).catch(() => {
+        downloadFallback();
+      });
+    } else {
+      downloadFallback();
+    }
+  };
+
+  const downloadFallback = () => {
     const blob = new Blob([output], {type: 'text/plain'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'unmatched_hq.txt';
     document.body.appendChild(a); a.click(); a.remove();
-    alert('Downloaded as fallback (clipboard failed).');
-  });
+    alert('Downloaded as fallback (clipboard unavailable).');
+  };
+
+  doExport();
 });
 
 document.getElementById('resetRejects').addEventListener('click', () => {
