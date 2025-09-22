@@ -534,7 +534,6 @@ function matchAll(hqDeals) {
 /* ===================== UI wiring ===================== */
 let hqDeals = [];
 let rejectedHQ = new Set();  // Set of deal IDs
-let nextId = 0;
 
 document.getElementById('jsonFile').addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
