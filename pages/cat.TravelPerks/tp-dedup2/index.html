@@ -23,11 +23,23 @@
     font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   }
   .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; }
-  header { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+  header { 
+    grid-column: 1 / -1; 
+    display: flex; gap: 10px; align-items: center; 
+    padding: 8px 12px; background: var(--panel); 
+    border: 1px solid var(--border); border-radius: 12px; 
+    position: sticky; top: 0; z-index: 10;
+  }
   h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
   .badge { font-size: 12px; color: var(--muted); }
   .col {
-    display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: calc(100vh - 110px);
+    display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px;
+  }
+  .col:first-child {
+    position: sticky; top: 60px; align-self: start; height: fit-content; z-index: 5;
+  }
+  .col:last-child {
+    min-height: calc(100vh - 110px);
   }
   .section { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
   .section h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
@@ -134,11 +146,6 @@ d All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
 
     <div class="col">
       <div class="section">
-        <h3>Parsed HQ Deals</h3>
-        <div id="hqList" class="list"></div>
-      </div>
-
-      <div class="section">
         <h3>Matches & Misses</h3>
         <div id="results" class="results" style="display:none;">
           <h4>Matched Pairs (<span id="matchCount">0</span>)</h4>
@@ -165,6 +172,16 @@ const norm = (s) => (s||'')
   .replace(/[\.\,\!\:\;\{\}\-]/g,' ')
   .replace(/\s+/g,' ')
   .trim();
+
+/** Jaccard similarity for text overlap */
+function jaccardSim(a, b) {
+  const setA = new Set(norm(a).split(/\s+/).filter(w => w.length > 2));
+  const setB = new Set(norm(b).split(/\s+/).filter(w => w.length > 2));
+  const inter = new Set([...setA].filter(x => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  const sim = inter.size / Math.max(union.size, 1);
+  return { sim, count: inter.size };
+}
 
 /** Parse flexible dates like:
  * Ends 9/30/2025; 9/12-9/19/2025; 9/1-10/31/2025; Ends 9/30; Ends today!; Ongoing
@@ -405,7 +422,7 @@ function extractFeatures(text) {
     guestCount: null,
     percentWords: null,
     kidsFree: /\bkids? (sail|stay) free\b/.test(t),
-    gratuities: /\bgratu(?:ities|ity)|prepaid gratuities|free gratuities/.test(t),
+    gratuities: /\bgratu(?:ities|ity)|prepaid gratuities|free gratuities|ppg/.test(t),
     obc: /\bobc\b|on ?board credit|bar tab/.test(t),
     instant: /instant (savings|credit)/.test(t),
     covert: /\bcovert\b|too low to show|opaque/.test(t),
@@ -415,6 +432,10 @@ function extractFeatures(text) {
     secondGuest: /\bsecond ?guest\b|\b2nd ?guest\b/.test(t),
     airfare: /\bair ?fare|air ?credit|bogo ?air\b/.test(t),
     upgrade: /\bupgrade|1-?cat\b/.test(t),
+    perk: /\bperk(?:s?)\b/i.test(t) && !/\bno ?perk\b/i.test(t),
+    noPerk: /\bno ?perk\b/i.test(t),
+    upTo: /up to/.test(t),
+    sale: /sale/.test(t),
   };
 
   const ps = [...t.matchAll(/(\d{1,3})\s*%/g)].map(m => Number(m[1]));
@@ -470,14 +491,14 @@ function similarity(hq, web) {
   const why = [];
   const f = hq.features, g = web.features;
 
-  if (hq.vendorFamily === web.vendorFamily) { score += 10; why.push('vendor'); }
+  // Vendor match is prerequisite (filtered), no score addition
 
-  if (hq.ongoing && !web.expiryDate) { score += 5; why.push('ongoing'); }
+  if (hq.ongoing && !web.expiryDate) { score += 3; why.push('ongoing'); }
   else if (hq.end && web.expiryDate) {
-    if (sameDay(hq.end, web.expiryDate)) { score += 8; why.push('date=exact'); }
+    if (sameDay(hq.end, web.expiryDate)) { score += 5; why.push('date=exact'); }
     else {
       const diff = Math.abs((+hq.end - +web.expiryDate) / 86400000);
-      if (diff <= 2) { score += 4; why.push('date≈'); }
+      if (diff <= 2) { score += 3; why.push('date≈'); }
     }
   }
 
@@ -488,23 +509,35 @@ function similarity(hq, web) {
   if (f.percent && g.percent) {
     if (f.percent === g.percent) { score += 5; why.push('%='); }
     else if (Math.abs(f.percent - g.percent) <= 5) { score += 3; why.push('%≈'); }
+    // No else: if mismatch >5, no points added (strict match required for points)
   }
   if (f.percentWords && g.percent) {
     if (Math.abs(f.percentWords - g.percent) <= 5) { score += 3; why.push('%word≈'); }
   }
   if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) { score += 4; why.push('guests='); }
 
+  // Text similarity
+  const jacc = jaccardSim(hq.text, web.text);
+  if (jacc.sim > 0.3) {
+    const pts = Math.floor(jacc.sim * 8);
+    score += pts;
+    why.push(`text(${jacc.count})`);
+  }
+
   const k = (cond, s, pts) => { if (cond) { score += pts; why.push(s); } };
   k(f.kidsFree && /kids/.test(web.text.toLowerCase()), 'kids', 3);
-  k(f.gratuities && /gratu/i.test(web.text.toLowerCase()), 'gratuities', 3);
+  k(f.gratuities && (/gratu|ppg/i.test(web.text.toLowerCase())), 'gratuities', 3);
   k(f.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text.toLowerCase()), 'obc', 3);
   k(f.instant && /instant/i.test(web.text.toLowerCase()), 'instant', 2);
   k(f.coupon && /coupon|booklet/i.test(web.text.toLowerCase()), 'coupon', 2);
-  k(f.drinksWifi && /(drinks|beverage).*wi[\- ]?fi/i.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/i.test(web.text.toLowerCase()), 'drinks+wifi', 3);
+  k(f.drinksWifi && ( /(drinks|beverage).*wi[\- ]?fi/i.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/i.test(web.text.toLowerCase()) ), 'drinks+wifi', 3);
   k(f.earlyBooking && /early ?booking/i.test(web.text.toLowerCase()), 'earlyBooking', 2);
   k(f.secondGuest && /second ?guest|2nd ?guest/i.test(web.text.toLowerCase()), 'secondGuest', 2);
   k(f.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text.toLowerCase()), 'airfare', 2);
   k(f.upgrade && /upgrade|1-?cat/i.test(web.text.toLowerCase()), 'upgrade', 2);
+  k(f.noPerk && /no perk/i.test(web.text.toLowerCase()), 'noPerk', 3);
+  k(f.perk && /perk/i.test(web.text.toLowerCase()) && !/no perk/i.test(web.text.toLowerCase()), 'perk', 2);
+  k(f.upTo && /up to/i.test(web.text.toLowerCase()), 'upTo', 2);
 
   if (f.covert && /\bcovert\b|too low to show|opaque/i.test(web.text)) { score += 3; why.push('covert'); }
 
@@ -571,7 +604,8 @@ document.getElementById('runMatch').addEventListener('click', () => {
   const txt = document.getElementById('hqInput').value;
   if (!hqDeals.length && txt.trim()) {
     hqDeals = parseHQ(txt);
-    renderHQ(hqDeals);
+    const vendors = new Set(hqDeals.map(x => x.vendor));
+    document.getElementById('hqCount').textContent = `${vendors.size} vendors • ${hqDeals.length} deals`;
   }
   if (!hqDeals.length) { alert('Paste HQ text first.'); return; }
   if (!websiteDeals.length) { alert('Load the website entries JSON first.'); return; }
@@ -582,40 +616,6 @@ document.getElementById('runMatch').addEventListener('click', () => {
   document.getElementById('results').style.display = 'block';
   document.getElementById('resetRejects').style.display = 'inline-block';
 });
-
-function renderHQ(items) {
-  document.getElementById('hqCount').textContent = `${new Set(items.map(x => x.vendor)).size} vendors • ${items.length} deals`;
-  const host = document.getElementById('hqList');
-  host.innerHTML = items.map(it => `
-    <div class="card">
-      <div class="top">
-        <div><span class="supplier">${it.vendor}</span> · <span class="muted">${it.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
-        <div class="chips">
-          ${it.features.kidsFree?'<span class="chip">Kids Free</span>':''}
-          ${it.features.gratuities?'<span class="chip">Grats</span>':''}
-          ${it.features.obc?'<span class="chip">OBC</span>':''}
-          ${it.features.instant?'<span class="chip">Instant</span>':''}
-          ${it.features.coupon?'<span class="chip">Coupon</span>':''}
-          ${it.features.drinksWifi?'<span class="chip">Drinks+Wi-Fi</span>':''}
-          ${it.features.earlyBooking?'<span class="chip">Early Booking</span>':''}
-          ${it.features.secondGuest?'<span class="chip">2nd Guest</span>':''}
-          ${it.features.airfare?'<span class="chip">Airfare</span>':''}
-          ${it.features.upgrade?'<span class="chip">Upgrade</span>':''}
-          ${it.features.percent?`<span class="chip">${it.features.percent}%</span>`:''}
-          ${it.features.dollars?`<span class="chip">$${it.features.dollars}</span>`:''}
-          ${it.features.guestCount?`<span class="chip">For ${it.features.guestCount}</span>`:''}
-        </div>
-      </div>
-      <div>${escapeHTML(it.text)}</div>
-      <div class="kvs">
-        ${it.ongoing?'<span class="kv">Duration: ongoing</span>':''}
-        ${it.start?`<span class="kv">Start: ${fmt.format(it.start)}</span>`:''}
-        ${it.end?`<span class="kv">End: ${fmt.format(it.end)}</span>`:''}
-        <span class="kv muted">Family: ${it.vendorFamily}</span>
-      </div>
-    </div>
-  `).join('');
-}
 
 function renderMatches(rows, threshold) {
   // Sort by score desc
@@ -671,7 +671,7 @@ function renderMatches(rows, threshold) {
           </div>
         </div>
         <div class="pair-controls">
-          <button class="reject-btn" onclick="rejectMatch('${hq.id}')">👎 Reject Match</button>
+          <button class="reject-btn" onclick="rejectMatch(${hq.id})">👎 Reject Match</button>
         </div>
         <div class="shared-matches">Shared: ${sharedChips.join(', ')}</div>
       </div>
@@ -709,6 +709,9 @@ function renderChips(features, isHQ) {
   if (features.secondGuest) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">2nd Guest</span>`);
   if (features.airfare) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Airfare</span>`);
   if (features.upgrade) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Upgrade</span>`);
+  if (features.perk) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Perk</span>`);
+  if (features.noPerk) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">No Perk</span>`);
+  if (features.upTo) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Up To</span>`);
   if (features.percent) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${features.percent}%</span>`);
   if (features.dollars) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${features.dollars}</span>`);
   if (features.guestCount) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">For ${features.guestCount}</span>`);
@@ -719,12 +722,15 @@ function getSharedChips(hq, web) {
   const shared = [];
   if (hq.features.kidsFree && /kids/.test(web.text.toLowerCase())) shared.push('Kids');
   if (hq.features.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text)) shared.push('OBC');
-  if (hq.features.gratuities && /gratu/i.test(web.text)) shared.push('Grats');
+  if (hq.features.gratuities && /gratu|ppg/i.test(web.text)) shared.push('Grats');
   if (hq.features.covert && /covert|low to show|opaque/i.test(web.text)) shared.push('Covert');
   if (hq.features.coupon && /coupon|booklet/i.test(web.text)) shared.push('Coupon');
   if (hq.features.earlyBooking && /early ?booking/i.test(web.text)) shared.push('Early Booking');
   if (hq.features.secondGuest && /second ?guest|2nd ?guest/i.test(web.text)) shared.push('2nd Guest');
   if (hq.features.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text)) shared.push('Airfare');
+  if (hq.features.perk && /perk/i.test(web.text) && !/no perk/i.test(web.text)) shared.push('Perk');
+  if (hq.features.noPerk && /no perk/i.test(web.text)) shared.push('No Perk');
+  if (hq.features.upTo && /up to/i.test(web.text)) shared.push('Up To');
   return shared;
 }
 
@@ -733,7 +739,7 @@ function renderWhyChips(why) {
 }
 
 window.rejectMatch = function(id) {
-  rejectedHQ.add(id);
+  rejectedHQ.add(Number(id));
   const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
   renderMatches(matchAll(hqDeals), threshold);
 };
