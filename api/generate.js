@@ -18,9 +18,8 @@ function readBody(req) {
 }
 
 const ALLOWED_MODELS = new Set([
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "grok-4-fast-non-reasoning",
+  "grok-4-fast-reasoning",
 ]);
 
 export default async function handler(req, res) {
@@ -47,8 +46,8 @@ export default async function handler(req, res) {
   }
 
   // API key
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) return send(res, 500, { error: "GEMINI_API_KEY not configured on the server" });
+  const XAI_API_KEY = process.env.XAI_API_KEY;
+  if (!XAI_API_KEY) return send(res, 500, { error: "XAI_API_KEY not configured on the server" });
 
   try {
     // Parse JSON body
@@ -68,44 +67,41 @@ export default async function handler(req, res) {
     const requestedModel = typeof body.model === "string" ? body.model.trim() : "";
     const MODEL = ALLOWED_MODELS.has(requestedModel)
       ? requestedModel
-      : (process.env.GEMINI_MODEL || "gemini-2.5-flash");
+      : (process.env.XAI_MODEL || "grok-4-fast-non-reasoning");
 
-    // REST endpoint
-    const geminiApiUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+    // xAI endpoint
+    const xaiApiUrl = `https://api.x.ai/v1/chat/completions`;
 
-    // Convert chat messages to Gemini "contents"
-    const contents = messages.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: String(m.content ?? "") }],
-    }));
-
-    // Build payload (no thinkingConfig in REST)
-    const payload = { contents };
+    // Build payload
+    const payload = {
+      model: MODEL,
+      messages,
+    };
     if (json) {
-      payload.generationConfig = { response_mime_type: "application/json" };
+      payload.response_format = { type: "json_object" };
     }
 
-    // Call Gemini
-    const r = await fetch(geminiApiUrl, {
+    // Call xAI
+    const r = await fetch(xaiApiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${XAI_API_KEY}`
+      },
       body: JSON.stringify(payload),
     });
 
     if (!r.ok) {
       const errText = await r.text();
-      return send(res, r.status, { error: "Gemini error", details: errText });
+      return send(res, r.status, { error: "xAI error", details: errText });
     }
 
     const data = await r.json();
 
-    // Extract text defensively
+    // Extract content defensively
     const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-      (Array.isArray(data?.candidates?.[0]?.content?.parts)
-        ? data.candidates[0].content.parts.map((p) => p?.text).filter(Boolean).join("\n")
-        : "") ?? "";
+      data?.choices?.[0]?.message?.content ??
+      "";
 
     return send(res, 200, { model: MODEL, content: text });
   } catch (e) {
