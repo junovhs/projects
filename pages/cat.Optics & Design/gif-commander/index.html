@@ -139,6 +139,24 @@
         <input type="range" id="gifQuality" min="1" max="30" value="10" />
         <small id="gifQualityVal">10 (default)</small>
       </div>
+      <div>
+        <label for="reduceColors">🎨 Reduce Colors (2-256, like FFmpeg palette; blank=auto)</label>
+        <input type="range" id="reduceColors" min="2" max="256" value="64" />
+        <small id="reduceColorsVal">64 colors</small>
+      </div>
+    </div>
+
+    <div class="row" id="gifAdvancedRow" style="display:flex;">
+      <div>
+        <label><input type="checkbox" id="gifOptimize" checked> 🔧 Optimize (remove duplicates)</label>
+      </div>
+      <div>
+        <label for="gifDither">🖌️ Dither</label>
+        <select id="gifDither">
+          <option value="false">None (smaller, crisp)</option>
+          <option value="floyd-steinberg">Floyd-Steinberg (smoother, larger)</option>
+        </select>
+      </div>
     </div>
 
     <div class="row">
@@ -180,6 +198,7 @@
     const makeGifBtn    = document.getElementById('makeGifBtn');
     const cancelBtn     = document.getElementById('cancelBtn');
     const gifRow        = document.getElementById('gifRow');
+    const gifAdvancedRow = document.getElementById('gifAdvancedRow');
     const fpsEl         = document.getElementById('fps');
     const durationEl    = document.getElementById('duration');
     const loopEl        = document.getElementById('loop');
@@ -190,6 +209,10 @@
     const qualityValEl  = document.getElementById('qualityVal');
     const gifQualityEl  = document.getElementById('gifQuality');
     const gifQualityValEl = document.getElementById('gifQualityVal');
+    const reduceColorsEl = document.getElementById('reduceColors');
+    const reduceColorsValEl = document.getElementById('reduceColorsVal');
+    const gifOptimizeEl = document.getElementById('gifOptimize');
+    const gifDitherEl = document.getElementById('gifDither');
     const codecEl       = document.getElementById('codec');
     const prog          = document.getElementById('prog');
     const statusEl      = document.getElementById('status');
@@ -326,7 +349,8 @@
     }
 
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
-    gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (lower = better quality)';
+    gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (higher=smaller file)';
+    reduceColorsEl.oninput = () => reduceColorsValEl.textContent = reduceColorsEl.value + ' colors';
 
     function naturalSort(a, b) {
       const ax = [], bx = [];
@@ -377,6 +401,7 @@
       showList();
       bitmaps = []; naturalW = null; naturalH = null;
       gifRow.style.display = 'flex';
+      gifAdvancedRow.style.display = 'flex';
       fpsEl.placeholder = '(auto: 3)';
       status(`Loaded ${files.length} image(s).`);
     }
@@ -408,6 +433,7 @@
       showList();
       bitmaps = []; naturalW = null; naturalH = null;
       gifRow.style.display = 'flex';
+      gifAdvancedRow.style.display = 'flex';
       fpsEl.placeholder = '(auto: source)';
       status(`Loaded video: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
 
@@ -441,6 +467,61 @@
 
     function status(msg) { statusEl.textContent = msg; }
 
+    // Simple k-means for global palette (FFmpeg palettegen approx)
+    function generatePalette(bitmaps, maxColors) {
+      const allPixels = [];
+      bitmaps.slice(0, Math.min(100, bitmaps.length)).forEach(bm => { // Sample first 100 frames for speed
+        const canvas = document.createElement('canvas');
+        canvas.width = bm.width; canvas.height = bm.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bm, 0, 0);
+        const imageData = ctx.getImageData(0, 0, bm.width, bm.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          allPixels.push([data[i], data[i+1], data[i+2]]); // RGB only
+        }
+      });
+
+      // Simplified k-means (init random centroids, iterate 5x)
+      let centroids = allPixels.slice(0, maxColors).map(p => [...p]);
+      for (let iter = 0; iter < 5; iter++) {
+        const clusters = Array(maxColors).fill().map(() => []);
+        allPixels.forEach(pixel => {
+          const dists = centroids.map(c => Math.hypot(...pixel.map((v, i) => v - c[i])));
+          const closest = dists.indexOf(Math.min(...dists));
+          clusters[closest].push(pixel);
+        });
+        centroids = clusters.map(cluster => {
+          if (!cluster.length) return [0,0,0];
+          const sums = cluster.reduce((acc, p) => acc.map((s, i) => s + p[i]), [0,0,0]);
+          return sums.map(s => Math.round(s / cluster.length));
+        });
+      }
+      return centroids;
+    }
+
+    // Quantize frame to palette
+    function quantizeFrame(bitmap, palette, outW, outH) {
+      const canvas = document.createElement('canvas');
+      canvas.width = outW; canvas.height = outH;
+      const ctx = canvas.getContext('2d');
+      drawFrame(ctx, bitmap, outW, outH, scaleModeEl.value); // Apply scaling first
+      const imageData = ctx.getImageData(0, 0, outW, outH);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const rgb = [data[i], data[i+1], data[i+2]];
+        const closest = palette.reduce((best, p, idx) => {
+          const dist = Math.hypot(...rgb.map((v, j) => v - p[j]));
+          return dist < best.dist ? { idx, dist } : best;
+        }, { idx: 0, dist: Infinity });
+        data[i] = palette[closest.idx][0];
+        data[i+1] = palette[closest.idx][1];
+        data[i+2] = palette[closest.idx][2];
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+
     async function loadBitmaps() {
       if (!imageFiles.length) throw new Error("No files selected.");
       bitmaps = [];
@@ -454,7 +535,7 @@
       }
       if (isVideoMode && videoElement) {
         const frameInterval = 1 / effectiveFps;
-        const totalFrames = Math.min(Math.ceil(extractDuration / frameInterval), 1500); // Hard limit
+        const totalFrames = Math.min(Math.ceil(extractDuration / frameInterval), lowEnd ? 300 : 1500); // Tighter cap on low-end
         let tip = '';
         if (totalFrames > 300) {
           tip = ' (Tip: For long videos, try lower FPS or shorter duration to save RAM)';
@@ -595,11 +676,29 @@
         else if (outW && !outH) { outH = Math.round(naturalH * (outW / naturalW)); }
         else if (!outW && outH) { outW = Math.round(naturalW * (outH / naturalH)); }
         const gifQual = Math.max(1, parseInt(gifQualityEl.value, 10) || 10);
+        const maxColors = lowEnd ? Math.min(64, parseInt(reduceColorsEl.value, 10) || 64) : parseInt(reduceColorsEl.value, 10) || 128;
+        const optimize = gifOptimizeEl.checked;
+        const dither = gifDitherEl.value;
 
         const framesToUse = Math.min(totalFrames, bitmaps.length);
         const frameDelay = Math.round(1000 / fps);
+        const estSizeKB = Math.round(framesToUse * outW * outH / 10000 / (31 - gifQual)); // Rough heuristic
 
-        status(`Generating GIF… (quality=${gifQual}, ${framesToUse} frames @ ${fps} fps, duration: ${duration.toFixed(1)}s)`);
+        let processedFrames = bitmaps.slice(0, framesToUse);
+        if (maxColors < 256) {
+          status(`Building global palette (${maxColors} colors) for better compression…`);
+          const palette = generatePalette(bitmaps, maxColors);
+          status(`Quantizing ${framesToUse} frames to palette…`);
+          processedFrames = await Promise.all(processedFrames.map(async (bm, i) => {
+            if (canceled) throw new Error('Canceled');
+            if (i % 10 === 0) await new Promise(requestAnimationFrame);
+            const quantizedCanvas = quantizeFrame(bm, palette, outW, outH);
+            return createImageBitmap(quantizedCanvas);
+          }));
+          prog.value = 20;
+        }
+
+        status(`Generating GIF… (q=${gifQual}, ${framesToUse} frames @ ${fps} fps, ~${estSizeKB}KB est, duration: ${duration.toFixed(1)}s)`);
         const gif = new GIF({
           workers: Math.min(4, caps.hardwareConcurrency),
           quality: gifQual,
@@ -608,7 +707,8 @@
           workerScript: workerURL,
           background: '#000000',
           repeat: loop ? 0 : -1,
-          optimize: true
+          optimize: optimize,
+          dither: dither
         });
 
         const tempCanvas = document.createElement('canvas');
@@ -619,11 +719,15 @@
           if (canceled) throw new Error('Canceled');
           if (i % 30 === 0) await new Promise(requestAnimationFrame);
           const frameIdx = loop ? (i % bitmaps.length) : i;
+          const frameBm = processedFrames[frameIdx % processedFrames.length];
           tempCtx.clearRect(0, 0, outW, outH);
-          drawFrame(tempCtx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
+          drawFrame(tempCtx, frameBm, outW, outH, scaleModeEl.value);
           gif.addFrame(tempCanvas, { delay: frameDelay, copy: true });
-          prog.value = Math.round((i / framesToUse) * 70);
+          prog.value = 20 + Math.round((i / framesToUse) * 50);
         }
+
+        // Cleanup processed frames
+        processedFrames.forEach(bm => bm.close?.());
 
         gif.on('finished', blob => {
           const url = URL.createObjectURL(blob);
@@ -632,7 +736,7 @@
           URL.revokeObjectURL(workerURL);
           cleanupBitmaps();
           prog.value = 100;
-          status(`GIF done (q=${gifQual}) @ ${fps} fps. ${(blob.size/1024/1024).toFixed(2)} MB`);
+          status(`GIF done (q=${gifQual}, ${maxColors} colors) @ ${fps} fps. ${(blob.size/1024/1024).toFixed(2)} MB`);
         });
 
         gif.on('progress', p => { 
