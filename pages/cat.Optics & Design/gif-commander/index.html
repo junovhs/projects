@@ -289,13 +289,14 @@
     // Helpers
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     const once = (el, ev) => new Promise(res => el.addEventListener(ev, res, { once: true }));
+    const raf = () => new Promise(resolve => requestAnimationFrame(resolve)); // Fixed yield helper
 
     async function seekTo(video, t) {
       const target = Math.min(Math.max(0, t), Math.max(0, video.duration - 0.001));
       if (Math.abs(video.currentTime - target) < 1e-4) return;
       video.currentTime = target;
       await once(video, 'seeked');
-      await new Promise(requestAnimationFrame);
+      await raf();
     }
 
     function pickMime(preferred) {
@@ -515,7 +516,7 @@
           allPixels.push([data[i], data[i+1], data[i+2]]); // RGB only
           if (allPixels.length >= maxPixels) break;
         }
-        if (f % 10 === 0) await new Promise(requestAnimationFrame); // Yield
+        if (f % 10 === 0) await raf(); // Fixed yield
         if (allPixels.length >= maxPixels) break;
       }
       prog.value = 10;
@@ -526,7 +527,7 @@
         if (canceled) throw new Error('Canceled');
         const clusters = Array(maxColors).fill().map(() => []);
         allPixels.forEach((pixel, idx) => {
-          if (idx % 10000 === 0) await new Promise(requestAnimationFrame); // Yield during clustering
+          if (idx % 10000 === 0) await raf(); // Fixed yield
           const dists = centroids.map(c => Math.hypot(...pixel.map((v, i) => v - c[i])));
           const closest = dists.indexOf(Math.min(...dists));
           clusters[closest].push(pixel);
@@ -561,7 +562,7 @@
         data[i] = palette[closest.idx][0];
         data[i+1] = palette[closest.idx][1];
         data[i+2] = palette[closest.idx][2];
-        if (i % batchSize === 0) await new Promise(requestAnimationFrame); // Yield
+        if (i % batchSize === 0) await raf(); // Fixed yield
       }
       ctx.putImageData(imageData, 0, 0);
       return createImageBitmap(canvas);
@@ -594,7 +595,7 @@
 
         for (let i = 0; i < totalFrames; i++) {
           if (canceled) throw new Error('Canceled');
-          if (i % 30 === 0) await new Promise(requestAnimationFrame); // Micro-break
+          if (i % 30 === 0) await raf(); // Fixed yield
           await seekTo(videoElement, i * frameInterval);
           gctx.drawImage(videoElement, 0, 0);
           const bm = await createImageBitmap(grab);
@@ -613,6 +614,7 @@
           bitmaps.push(bm);
           if (!naturalW) { naturalW = bm.width; naturalH = bm.height; wEl.placeholder = String(naturalW); hEl.placeholder = "(auto)"; }
           prog.value = Math.round(((i+1)/imageFiles.length)*30);
+          if (i % 10 === 0) await raf(); // Added yield for large sequences
         }
         extractDuration = inputDuration || (bitmaps.length / effectiveFps);
       }
@@ -669,7 +671,7 @@
             if (rec.state === 'recording') rec.stop();
             return;
           }
-          if (i % 30 === 0) requestAnimationFrame(() => {}); // Yield
+          if (i % 30 === 0) raf(); // Non-async yield for interval
           const frameIdx = loop ? (i % bitmaps.length) : Math.min(i, bitmaps.length - 1);
           ctx.clearRect(0, 0, outW, outH);
           drawFrame(ctx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
@@ -741,7 +743,7 @@
             if (canceled) throw new Error('Canceled');
             const quantizedBm = await quantizeFrame(bitmaps[i], palette, outW, outH);
             processedFrames.push(quantizedBm);
-            if (i % 5 === 0) await new Promise(requestAnimationFrame);
+            if (i % 5 === 0) await raf(); // Fixed yield
             prog.value = 15 + Math.round((i / framesToUse) * 5);
           }
         }
@@ -766,7 +768,7 @@
 
         for (let i = 0; i < framesToUse; i++) {
           if (canceled) throw new Error('Canceled');
-          if (i % 30 === 0) await new Promise(requestAnimationFrame);
+          if (i % 30 === 0) await raf(); // Fixed yield
           const frameIdx = loop ? (i % bitmaps.length) : i;
           const frameBm = processedFrames.length ? processedFrames[frameIdx % processedFrames.length] : bitmaps[frameIdx];
           tempCtx.clearRect(0, 0, outW, outH);
