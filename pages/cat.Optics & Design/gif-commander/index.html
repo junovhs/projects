@@ -4,15 +4,6 @@
   <meta charset="UTF-8" />
   <title>Images/Video → WebM (Browser-Only)</title>
   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
-  <link rel="manifest" href="data:application/manifest+json,{
-    'name': 'WebM/GIF Maker',
-    'short_name': 'ClipMaker',
-    'start_url': '.',
-    'display': 'standalone',
-    'background_color': '#e0eafc',
-    'theme_color': '#3498db',
-    'icons': [{'src': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjMzQ5OGRiIi8+CjxwYXRoIGQ9Ik0zMiA0MEw2NCA0MEwxNjAgNDBMNzYgMTYwTDMyIDQwWiIgZmlsbD0iI2ZmZiIvPgo8L3N2Zz4K', 'sizes': '192x192', 'type': 'image/svg+xml'}]
-  }">
   <meta name="theme-color" content="#3498db">
   <style>
     body {
@@ -177,14 +168,6 @@
   </div>
 
   <script>
-    // PWA Service Worker (stub for offline/install)
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
-        self.addEventListener('install', e => e.waitUntil(caches.open('v1').then(c => c.addAll(['/', 'index.html']))));
-        self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-      `));
-    }
-
     const pickFolderBtn = document.getElementById('pickFolderBtn');
     const pickFilesBtn  = document.getElementById('pickFilesBtn');
     const pickFolderCompatBtn = document.getElementById('pickFolderCompat');
