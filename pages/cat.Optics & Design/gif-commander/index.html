@@ -1,169 +1,403 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Combined GIF Command Generator</title>
+  <meta charset="UTF-8" />
+  <title>Images → WebM (Browser-Only)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.min.js"></script>
   <style>
     body {
       font-family: "Segoe UI", Roboto, Arial, sans-serif;
       background: linear-gradient(135deg, #e0eafc, #cfdef3);
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding-top: 40px;
+      margin: 0; padding: 0; min-height: 100vh;
+      display: flex; justify-content: center; align-items: flex-start; padding-top: 40px;
     }
-
     .container {
-      background: #fff;
-      padding: 30px 40px;
-      border-radius: 12px;
+      background: #fff; padding: 30px 40px; border-radius: 12px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-      max-width: 700px;
-      width: 90%;
-      animation: fadeIn 0.6s ease-in-out;
+      max-width: 760px; width: 92%; animation: fadeIn 0.6s ease-in-out;
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-      font-size: 1.8rem;
-      color: #2c3e50;
+    h1 { text-align: center; margin: 0 0 10px; font-size: 1.8rem; color: #2c3e50; }
+    p  { text-align: center; color: #555; margin: 0 0 18px; }
+    label { display:block; margin: 14px 0 6px; font-weight:600; color:#333; }
+    input[type="number"], input[type="text"], select {
+      width:100%; padding:12px 14px; font-size:1rem; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;
+      transition: border .3s ease, box-shadow .3s ease;
     }
-
-    p {
-      text-align: center;
-      color: #555;
-      margin-bottom: 25px;
+    input[type="range"] { width:100%; margin: 8px 0; }
+    input:focus, select:focus { border-color:#3498db; box-shadow:0 0 6px rgba(52,152,219,.4); outline:none; }
+    .row { display:flex; gap:12px; }
+    .row > div { flex:1; }
+    .btn {
+      display:inline-block; padding:12px 16px; border:none; border-radius:8px; cursor:pointer;
+      background: linear-gradient(135deg, #3498db, #2ecc71); color:#fff; font-weight:600;
+      transition: transform .15s ease, box-shadow .2s ease;
     }
-
-    label {
-      display: block;
-      margin: 15px 0 5px;
-      font-weight: 600;
-      color: #333;
+    .btn:hover { transform: translateY(-2px); box-shadow:0 6px 12px rgba(0,0,0,.15); }
+    .btn.secondary { background: linear-gradient(135deg, #6c757d, #495057); }
+    .btn-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .small { color:#666; font-size:.9rem; }
+    .note, .warn {
+      border-radius:8px; padding:12px 14px; margin:14px 0; font-size:.95rem;
     }
-
-    input[type="text"], input[type="number"], textarea {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      transition: border 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    input:focus, textarea:focus {
-      border-color: #3498db;
-      box-shadow: 0 0 6px rgba(52, 152, 219, 0.4);
-      outline: none;
-    }
-
-    button {
-      display: inline-block;
-      width: 100%;
-      padding: 14px;
-      margin-top: 20px;
-      font-size: 1rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #3498db, #2ecc71);
-      color: white;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.2s ease;
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    }
-
-    textarea {
-      margin-top: 20px;
-      height: 160px;
-      resize: none;
-      font-family: monospace;
-      font-size: 0.95rem;
-      background: #f8f9fa;
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 0.85rem;
-      color: #888;
-    }
-
-    @keyframes fadeIn {
-      from {opacity: 0; transform: translateY(10px);}
-      to {opacity: 1; transform: translateY(0);}
-    }
+    .note  { background:#d1ecf1; border:1px solid #bee5eb; color:#0c5460; }
+    .warn  { background:#fff3cd; border:1px solid #ffeaa7; color:#856404; }
+    video { width:100%; margin-top:14px; border-radius:8px; background:#000; }
+    progress { width:100%; height:12px; }
+    .list { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f8f9fa; border:1px solid #e1e5ea; border-radius:8px; padding:10px; max-height:120px; overflow:auto; }
+    @keyframes fadeIn { from {opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎞️ Combined GIF Command Generator</h1>
-    <p>Generate your <code>ffmpeg</code> GIF conversion commands easily.  
-       Default crop: <code>crop=1440:1072:240:4</code> (for 1920×1080 video).</p>
+    <h1>🖼️ Image Sequence → WebM</h1>
+    <p>Pick a folder or files, set <strong>FPS</strong> (default 3), and make a looping WebM (GIF replacement).</p>
 
-    <form id="commandForm">
-      <label for="videoPath">🎥 Video File Path</label>
-      <input type="text" id="videoPath" placeholder="e.g., C:\Users\Spencer\Documents\video.mp4" required>
-      
-      <label for="outputWidth">📐 Desired Output Width (px)</label>
-      <input type="number" id="outputWidth" placeholder="e.g., 800" required>
-      
-      <label for="frameRate">⏱️ Frame Rate (fps)</label>
-      <input type="number" id="frameRate" placeholder="e.g., 24" required>
-      
-      <button type="button" onclick="generateCommand()">⚡ Generate Command</button>
-    </form>
+    <div class="btn-row">
+      <button class="btn" id="pickFolderBtn">📁 Pick Folder</button>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
+      <button class="btn secondary" id="pickFilesBtn">🖼️ Select Images</button>
+    </div>
 
-    <label for="commandOutput">📝 Generated Command</label>
-    <textarea id="commandOutput" readonly placeholder="Your combined command will appear here..."></textarea>
-    
-    <div class="footer">Made with ❤️ for smooth GIF creation</div>
+    <div class="note small">
+      Tip: Files are sorted naturally (001, 2, 10…). Mixed sizes will be resized consistently. Folder pick works on HTTPS (Vercel is fine—ensure user gesture).
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="fps">⏱️ Frame Rate (fps)</label>
+        <input type="number" id="fps" min="1" value="3" />
+      </div>
+      <div>
+        <label for="duration">⏳ Duration (s, blank = one pass)</label>
+        <input type="number" id="duration" min="0.1" step="0.1" placeholder="(auto)" />
+      </div>
+      <div>
+        <label><input type="checkbox" id="loop" checked> 🔄 Loop</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="width">📐 Output Width (px, blank = source)</label>
+        <input type="number" id="width" min="1" placeholder="(auto)" />
+      </div>
+      <div>
+        <label for="height">📏 Output Height (px, blank = auto)</label>
+        <input type="number" id="height" min="1" placeholder="(auto)" />
+      </div>
+      <div>
+        <label for="scaleMode">🖼️ Scale Mode</label>
+        <select id="scaleMode">
+          <option value="fit">Fit (letterbox)</option>
+          <option value="crop">Crop</option>
+          <option value="stretch">Stretch</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="quality">🎨 Quality (kbps, higher = better, less drop)</label>
+        <input type="range" id="quality" min="500" max="8000" value="4000" />
+        <small id="qualityVal">4000 kbps</small>
+      </div>
+      <div>
+        <label for="filter">🌈 Filter</label>
+        <select id="filter">
+          <option value="none">None</option>
+          <option value="grayscale">B&W</option>
+          <option value="sepia">Vintage</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Selected Images</label>
+        <div id="list" class="list">None yet.</div>
+      </div>
+    </div>
+
+    <button class="btn" id="makeBtn" style="width:100%; margin-top:12px;">⚡ Make WebM</button>
+
+    <div class="warn small">
+      Quality drop? Crank up the kbps slider—VP9 shines at 4k+ for sharp frames.
+    </div>
+
+    <label>Progress</label>
+    <progress id="prog" max="100" value="0"></progress>
+    <div id="status" class="small" style="margin-top:6px;">Idle.</div>
+
+    <video id="preview" autoplay muted playsinline controls style="display:none"></video>
+    <div id="dlWrap" style="margin-top:10px; display:none;">
+      <div class="btn-row">
+        <a id="download" class="btn" download="out.webm">⬇️ Download WebM</a>
+        <button class="btn secondary" id="makeGifBtn">🎞️ To GIF</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    function generateCommand() {
-      const videoPath = document.getElementById("videoPath").value.trim();
-      const outputWidth = parseInt(document.getElementById("outputWidth").value);
-      const frameRate = document.getElementById("frameRate").value.trim();
-      
-      if (!videoPath || isNaN(outputWidth) || !frameRate) {
-        alert("⚠️ Please fill in all fields correctly.");
-        return;
+    const pickFolderBtn = document.getElementById('pickFolderBtn');
+    const pickFilesBtn  = document.getElementById('pickFilesBtn');
+    const fileInput     = document.getElementById('fileInput');
+    const listEl        = document.getElementById('list');
+    const makeBtn       = document.getElementById('makeBtn');
+    const makeGifBtn    = document.getElementById('makeGifBtn');
+    const fpsEl         = document.getElementById('fps');
+    const durationEl    = document.getElementById('duration');
+    const loopEl        = document.getElementById('loop');
+    const wEl           = document.getElementById('width');
+    const hEl           = document.getElementById('height');
+    const scaleModeEl   = document.getElementById('scaleMode');
+    const qualityEl     = document.getElementById('quality');
+    const qualityValEl  = document.getElementById('qualityVal');
+    const filterEl      = document.getElementById('filter');
+    const prog          = document.getElementById('prog');
+    const statusEl      = document.getElementById('status');
+    const preview       = document.getElementById('preview');
+    const downloadA     = document.getElementById('download');
+    const dlWrap        = document.getElementById('dlWrap');
+
+    let imageFiles = [];     // File[]
+    let bitmaps    = [];     // ImageBitmap[]
+    let naturalW = null, naturalH = null;
+    let webmBlob = null;     // For GIF conversion
+
+    qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
+
+    function naturalSort(a, b) {
+      const ax = [], bx = [];
+      a.name.replace(/(\d+)|(\D+)/g, (_, $1, $2) => ax.push([$1 || Infinity, $2 || ""]));
+      b.name.replace(/(\d+)|(\D+)/g, (_, $1, $2) => bx.push([$1 || Infinity, $2 || ""]));
+      while (ax.length && bx.length) {
+        const an = ax.shift(), bn = bx.shift();
+        const nA = parseInt(an[0], 10), nB = parseInt(bn[0], 10);
+        if (an[0] !== Infinity || bn[0] !== Infinity) {
+          if (nA !== nB) return nA - nB;
+        } else if (an[1] !== bn[1]) {
+          return an[1] > bn[1] ? 1 : -1;
+        }
       }
-      
-      // Extract folder and base name from the video path
-      const separators = /[\\/]/;
-      const parts = videoPath.split(separators);
-      const fileName = parts.pop();
-      const folder = parts.join("\\");
-      const baseName = fileName.split('.')[0];
-      
-      // Default crop
-      const cropFilter = "crop=1440:1072:240:4";
-      
-      // Preserve aspect ratio of cropped video (1440x1072)
-      const outputHeight = Math.round(outputWidth * 1072 / 1440);
-      
-      // Build paths
-      const croppedPath = `${folder}\\${baseName}_cropped.mp4`;
-      const palettePath = `${folder}\\${baseName}_palette.png`;
-      const gifPath = `${folder}\\${baseName}.gif`;
-      
-      // Final combined command
-      const command = `ffmpeg -i "${videoPath}" -vf "${cropFilter}" -y "${croppedPath}" && ` +
-                      `ffmpeg -i "${croppedPath}" -vf "fps=${frameRate},scale=${outputWidth}:${outputHeight}:flags=lanczos,palettegen" -y "${palettePath}" && ` +
-                      `ffmpeg -i "${croppedPath}" -i "${palettePath}" -filter_complex "fps=${frameRate},scale=${outputWidth}:${outputHeight}:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer" -y "${gifPath}"`;
-      
-      document.getElementById("commandOutput").value = command;
+      return ax.length - bx.length;
     }
+
+    function showList() {
+      if (!imageFiles.length) { listEl.textContent = "None yet."; return; }
+      const lines = imageFiles.map(f => f.name).slice(0, 50);
+      listEl.innerHTML = lines.map(s => `<div>${s}</div>`).join("") + (imageFiles.length>50 ? `<div>… +${imageFiles.length-50} more</div>`:"");
+    }
+
+    async function pickFolder() {
+      try {
+        const dir = await window.showDirectoryPicker();
+        const files = [];
+        for await (const entry of dir.values()) {
+          if (entry.kind === "file" && /\.(png|jpe?g|webp)$/i.test(entry.name)) {
+            files.push(await entry.getFile());
+          }
+        }
+        files.sort(naturalSort);
+        setImages(files);
+      } catch (e) {
+        if (e && e.name !== 'AbortError') console.error(e);
+      }
+    }
+
+    function setImages(files) {
+      imageFiles = files;
+      showList();
+      bitmaps = []; naturalW = null; naturalH = null;
+      status(`Loaded ${files.length} image(s).`);
+    }
+
+    pickFolderBtn.onclick = pickFolder;
+
+    pickFilesBtn.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      const files = Array.from(fileInput.files).filter(f => /\.(png|jpe?g|webp)$/i.test(f.name));
+      files.sort(naturalSort);
+      setImages(files);
+    };
+
+    function status(msg) { statusEl.textContent = msg; }
+
+    async function loadBitmaps() {
+      if (!imageFiles.length) throw new Error("No images selected.");
+      bitmaps = [];
+      for (let i=0;i<imageFiles.length;i++){
+        const bm = await createImageBitmap(imageFiles[i]);
+        bitmaps.push(bm);
+        if (!naturalW) { naturalW = bm.width; naturalH = bm.height; wEl.placeholder = String(naturalW); hEl.placeholder = "(auto)"; }
+        prog.value = Math.round(((i+1)/imageFiles.length)*30);
+      }
+    }
+
+    function applyFilter(ctx, w, h, filter) {
+      if (filter === 'none') return;
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        if (filter === 'grayscale') {
+          const avg = (r + g + b) / 3;
+          data[i] = data[i+1] = data[i+2] = avg;
+        } else if (filter === 'sepia') {
+          data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+          data[i+1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+          data[i+2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function pickMime() {
+      const types = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+      ];
+      for (const t of types) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return 'video/webm';
+    }
+
+    async function drawFrame(ctx, bm, outW, outH, scaleMode) {
+      const mode = scaleMode;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, outW, outH);
+      let sx=0, sy=0, sw=bm.width, sh=bm.height, dx=0, dy=0, dw=outW, dh=outH;
+      if (mode === 'stretch') {
+        ctx.drawImage(bm, 0, 0, outW, outH);
+      } else {
+        let scale = mode === 'crop' ? Math.max(outW / bm.width, outH / bm.height) : Math.min(outW / bm.width, outH / bm.height);
+        if (mode === 'crop') {
+          sw = outW / scale; sh = outH / scale;
+          sx = (bm.width - sw) / 2; sy = (bm.height - sh) / 2;
+        } else { // fit
+          dw = bm.width * scale; dh = bm.height * scale;
+          dx = (outW - dw) / 2; dy = (outH - dh) / 2;
+        }
+        ctx.drawImage(bm, sx, sy, sw, sh, dx, dy, dw, dh);
+      }
+    }
+
+    async function makeWebM() {
+      try {
+        prog.value = 0; preview.style.display = "none"; dlWrap.style.display = "none"; webmBlob = null;
+        status("Preparing…");
+        await loadBitmaps();
+        const fps = Math.max(1, parseInt(fpsEl.value || "3", 10));
+        let duration = parseFloat(durationEl.value);
+        if (!duration) duration = bitmaps.length / fps;
+        const totalFrames = Math.ceil(fps * duration);
+        const loop = loopEl.checked;
+        let outW = parseInt(wEl.value, 10);
+        let outH = parseInt(hEl.value, 10);
+        if (!outW && !outH) { outW = naturalW; outH = naturalH; }
+        else if (outW && !outH) { outH = Math.round(naturalH * (outW / naturalW)); }
+        else if (!outW && outH) { outW = Math.round(naturalW * (outH / naturalH)); }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = outW; canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+
+        const stream = canvas.captureStream(fps);
+        const mime = pickMime();
+        const bitrate = parseInt(qualityEl.value);
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate * 1000 });
+        const chunks = [];
+        rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+        let stopped = false;
+        rec.onstop = () => { stopped = true; };
+
+        rec.start(200);
+        status(`Rendering ${totalFrames} frame(s) @ ${fps} fps…`);
+        const frameDur = 1000 / fps;
+        for (let i = 0; i < totalFrames; i++) {
+          const frameIdx = loop ? (i % bitmaps.length) : i;
+          if (frameIdx >= bitmaps.length) break; // Safety for non-loop
+          drawFrame(ctx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
+          applyFilter(ctx, outW, outH, filterEl.value);
+          prog.value = 30 + Math.round((i / totalFrames) * 70);
+          await new Promise(r => setTimeout(r, frameDur));
+        }
+
+        await new Promise(r => setTimeout(r, 250));
+        rec.stop();
+
+        const waitStop = () => new Promise(res => {
+          const check = () => stopped ? res() : setTimeout(check, 50);
+          check();
+        });
+        await waitStop();
+
+        webmBlob = new Blob(chunks, { type: mime });
+        const url = URL.createObjectURL(webmBlob);
+        preview.src = url;
+        preview.loop = loop;
+        preview.style.display = "block";
+        downloadA.href = url;
+        downloadA.download = "out.webm";
+        dlWrap.style.display = "block";
+        prog.value = 100;
+        status(`WebM done. ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
+      } catch (err) {
+        console.error(err);
+        status("Error: " + (err && err.message ? err.message : err));
+      }
+    }
+
+    async function makeGIF() {
+      if (!webmBlob) throw new Error("Generate WebM first.");
+      try {
+        status("Converting to GIF… (Chrome best; ~2x file size)");
+        prog.value = 0;
+        const fps = parseInt(fpsEl.value || "3", 10);
+        let duration = parseFloat(durationEl.value);
+        if (!duration) duration = bitmaps.length / fps;
+        const totalFrames = Math.ceil(fps * duration);
+        const loop = loopEl.checked;
+        // Reuse outW/outH from before (assume same)
+        const outW = canvas.width; // Wait, need to re-calc or store
+        // Actually, re-load params for consistency
+        let ow = parseInt(wEl.value, 10) || naturalW;
+        let oh = parseInt(hEl.value, 10) || (naturalW ? Math.round(naturalH * (ow / naturalW)) : naturalH);
+        const gif = new GIF({
+          workers: 2,
+          quality: 10, // Lower = better quality, bigger file
+          width: ow,
+          height: oh,
+          workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = ow; canvas.height = oh;
+        const ctx = canvas.getContext('2d');
+        const frameDelay = Math.round(1000 / fps);
+        for (let i = 0; i < totalFrames; i++) {
+          const frameIdx = loop ? (i % bitmaps.length) : i;
+          if (frameIdx >= bitmaps.length) break;
+          drawFrame(ctx, bitmaps[frameIdx], ow, oh, scaleModeEl.value);
+          applyFilter(ctx, ow, oh, filterEl.value);
+          gif.addFrame(ctx, { delay: frameDelay, copy: true });
+          prog.value = Math.round((i / totalFrames) * 100);
+        }
+        gif.on('finished', blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'out.gif'; a.click();
+          status(`GIF done. ${(blob.size/1024/1024).toFixed(2)} MB (tune quality via lib if needed)`);
+        });
+        gif.render();
+      } catch (err) {
+        console.error(err);
+        status("GIF Error: " + (err && err.message ? err.message : err) + " (Try Chrome)");
+      }
+    }
+
+    makeBtn.onclick = makeWebM;
+    makeGifBtn.onclick = makeGIF;
   </script>
 </body>
 </html>
