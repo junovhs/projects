@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <title>Images/Video → WebM (Browser-Only)</title>
   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
+  <link rel="manifest" href="data:application/manifest+json,{
+    'name': 'WebM/GIF Maker',
+    'short_name': 'ClipMaker',
+    'start_url': '.',
+    'display': 'standalone',
+    'background_color': '#e0eafc',
+    'theme_color': '#3498db',
+    'icons': [{'src': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjMzQ5OGRiIi8+CjxwYXRoIGQ9Ik0zMiA0MEw2NCA0MEwxNjAgNDBMNzYgMTYwTDMyIDQwWiIgZmlsbD0iI2ZmZiIvPgo8L3N2Zz4K', 'sizes': '192x192', 'type': 'image/svg+xml'}]
+  }">
+  <meta name="theme-color" content="#3498db">
   <style>
     body {
       font-family: "Segoe UI", Roboto, Arial, sans-serif;
@@ -44,6 +54,10 @@
     video, img { width:100%; margin-top:14px; border-radius:8px; background:#000; }
     progress { width:100%; height:12px; }
     .list { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f8f9fa; border:1px solid #e1e5ea; border-radius:8px; padding:10px; max-height:120px; overflow:auto; }
+    .preset-btn { padding: 8px 12px; font-size: 0.9rem; margin: 2px; border-radius: 6px; background: #f8f9fa; border: 1px solid #ddd; color: #333; cursor: pointer; }
+    .preset-btn:hover { background: #e9ecef; }
+    .cancel-btn { background: #dc3545; flex: none; padding: 8px 16px; font-size: 0.9rem; }
+    .caps-banner { text-align: center; margin: 10px 0; font-size: 0.85rem; color: #666; }
     @keyframes fadeIn { from {opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} }
   </style>
 </head>
@@ -61,6 +75,8 @@
       <input type="file" id="videoInput" accept="video/*" style="display:none" />
       <button class="btn secondary" id="pickVideoBtn">🎥 Upload Video</button>
     </div>
+
+    <div class="caps-banner" id="capsBanner"></div>
 
     <div class="note small">
       Tip: Files sorted naturally. Videos auto-extract frames at FPS. Mixed OK—resized consistently.
@@ -81,6 +97,25 @@
     </div>
 
     <div class="row">
+      <div style="flex:2">
+        <label>Quick Presets</label>
+        <div class="btn-row">
+          <button class="preset-btn" data-preset="tiny">Tiny (480p, 6fps)</button>
+          <button class="preset-btn" data-preset="balanced">Balanced (720p, 10fps)</button>
+          <button class="preset-btn" data-preset="hq">HQ (1080p, 15fps)</button>
+        </div>
+      </div>
+      <div>
+        <label for="scaleMode">🖼️ Scale Mode</label>
+        <select id="scaleMode">
+          <option value="crop">Crop (preserve aspect, no bars)</option>
+          <option value="fit">Fit (letterbox)</option>
+          <option value="stretch">Stretch (fill, may distort)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
       <div>
         <label for="width">📐 Output Width (px, blank = source)</label>
         <input type="number" id="width" min="1" placeholder="(auto)" />
@@ -88,14 +123,6 @@
       <div>
         <label for="height">📏 Output Height (px, blank = auto)</label>
         <input type="number" id="height" min="1" placeholder="(auto)" />
-      </div>
-      <div>
-        <label for="scaleMode">🖼️ Scale Mode</label>
-        <select id="scaleMode">
-          <option value="fit">Fit (letterbox)</option>
-          <option value="crop">Crop</option>
-          <option value="stretch">Stretch</option>
-        </select>
       </div>
     </div>
 
@@ -133,6 +160,7 @@
     <div class="btn-row">
       <button class="btn" id="makeBtn" style="flex:1;">⚡ Make WebM</button>
       <button class="btn secondary" id="makeGifBtn" style="flex:1;">🎞️ Make GIF</button>
+      <button class="btn cancel-btn" id="cancelBtn" style="display:none;">⏹️ Stop</button>
     </div>
 
     <label>Progress</label>
@@ -149,6 +177,14 @@
   </div>
 
   <script>
+    // PWA Service Worker (stub for offline/install)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+        self.addEventListener('install', e => e.waitUntil(caches.open('v1').then(c => c.addAll(['/', 'index.html']))));
+        self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+      `));
+    }
+
     const pickFolderBtn = document.getElementById('pickFolderBtn');
     const pickFilesBtn  = document.getElementById('pickFilesBtn');
     const pickFolderCompatBtn = document.getElementById('pickFolderCompat');
@@ -159,6 +195,7 @@
     const listEl        = document.getElementById('list');
     const makeBtn       = document.getElementById('makeBtn');
     const makeGifBtn    = document.getElementById('makeGifBtn');
+    const cancelBtn     = document.getElementById('cancelBtn');
     const gifRow        = document.getElementById('gifRow');
     const fpsEl         = document.getElementById('fps');
     const durationEl    = document.getElementById('duration');
@@ -177,6 +214,7 @@
     const gifPreview    = document.getElementById('gifPreview');
     const downloadA     = document.getElementById('download');
     const dlWrap        = document.getElementById('dlWrap');
+    const capsBanner    = document.getElementById('capsBanner');
 
     let imageFiles = [];     // File[]
     let bitmaps    = [];     // ImageBitmap[]
@@ -187,6 +225,36 @@
     let originalVideoFps = 30; // Default fallback
     let lastOutputType = null; // 'webm' or 'gif'
     let lastOutputUrl = null; // For cleanup
+    let canceled = false; // For cancel button
+
+    // Device capabilities probe
+    const caps = {
+      mediaRecorder: !!window.MediaRecorder,
+      vp9: window.MediaRecorder?.isTypeSupported?.('video/webm;codecs=vp9'),
+      vp8: window.MediaRecorder?.isTypeSupported?.('video/webm;codecs=vp8'),
+      deviceMemory: navigator.deviceMemory || 4, // Fallback to 4GB
+      hardwareConcurrency: navigator.hardwareConcurrency || 4
+    };
+    const lowEnd = caps.deviceMemory <= 4;
+    capsBanner.innerHTML = `WebM ${caps.vp9 ? 'VP9' : caps.vp8 ? 'VP8' : '❌'} | GIF ✅ | RAM: ${lowEnd ? 'Low (capped for stability)' : 'High'}`;
+
+    // Presets
+    const presets = {
+      tiny: { width: 480, fps: 6, quality: 1500 },
+      balanced: { width: 720, fps: 10, quality: 4000 },
+      hq: { width: 1080, fps: 15, quality: 6000 }
+    };
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.onclick = () => {
+        const p = presets[btn.dataset.preset];
+        if (lowEnd && p.width > 720) p.width = 720; // Cap low-end
+        wEl.value = p.width;
+        fpsEl.value = p.fps;
+        qualityEl.value = p.quality;
+        qualityValEl.textContent = `${p.quality} kbps`;
+        hEl.value = ''; // Auto-height
+      };
+    });
 
     // Helpers
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -197,26 +265,23 @@
       if (Math.abs(video.currentTime - target) < 1e-4) return;
       video.currentTime = target;
       await once(video, 'seeked');
-      await new Promise(requestAnimationFrame); // ensure the frame is actually painted
+      await new Promise(requestAnimationFrame);
     }
 
     function pickMime(preferred) {
-      if (preferred === 'video/webm;codecs=vp9' && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        return 'video/webm;codecs=vp9';
-      }
-      if (preferred === 'video/webm;codecs=vp8' && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-        return 'video/webm;codecs=vp8';
-      }
+      if (preferred === 'video/webm;codecs=vp9' && caps.vp9) return 'video/webm;codecs=vp9';
+      if (preferred === 'video/webm;codecs=vp8' && caps.vp8) return 'video/webm;codecs=vp8';
       return 'video/webm';
     }
 
-    function drawFrame(ctx, bitmap, outW, outH, mode) {
-      // Fill background black for letterboxing
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, outW, outH);
+    function drawFrame(ctx, source, outW, outH, mode) {
+      if (mode === 'fit') {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, outW, outH);
+      }
 
-      const iw = bitmap.width;
-      const ih = bitmap.height;
+      const iw = source.width || source.videoWidth;
+      const ih = source.height || source.videoHeight;
       let sx = 0, sy = 0, sw = iw, sh = ih;
       let dx = 0, dy = 0, dw = outW, dh = outH;
 
@@ -235,29 +300,23 @@
         dw = outW;
         dh = outH;
       } else if (mode === 'stretch') {
-        // Full stretch, no change to sx/sy/sw/sh
+        // Full stretch
       }
 
-      ctx.drawImage(bitmap, sx, sy, sw, sh, dx, dy, dw, dh);
+      ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
     }
 
     function getEffectiveFps() {
       const val = parseInt(fpsEl.value);
-      if (isNaN(val) || val < 1) {
-        return isVideoMode ? originalVideoFps : 3;
-      }
+      if (isNaN(val) || val < 1 || val > 30) return isVideoMode ? originalVideoFps : 3; // Clamp 1-30
       return val;
     }
 
     function showPreview(type, url) {
-      // Cleanup old
       if (lastOutputUrl) URL.revokeObjectURL(lastOutputUrl);
       lastOutputUrl = url;
-
-      // Hide both
       preview.style.display = 'none';
       gifPreview.style.display = 'none';
-
       if (type === 'webm') {
         preview.src = url;
         preview.loop = loopEl.checked;
@@ -266,7 +325,6 @@
         gifPreview.src = url;
         gifPreview.style.display = 'block';
       }
-
       dlWrap.style.display = 'block';
       downloadA.href = url;
       downloadA.download = `out.${type}`;
@@ -275,6 +333,13 @@
     function cleanupBitmaps() {
       bitmaps.forEach(bm => bm.close?.());
       bitmaps = [];
+    }
+
+    function cancel() {
+      canceled = true;
+      status('Stopped.');
+      prog.value = 0;
+      cancelBtn.style.display = 'none';
     }
 
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
@@ -363,7 +428,6 @@
       fpsEl.placeholder = '(auto: source)';
       status(`Loaded video: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
 
-      // Hidden video element
       const videoUrl = URL.createObjectURL(file);
       videoElement = document.createElement('video');
       videoElement.preload = 'auto';
@@ -379,7 +443,6 @@
       wEl.placeholder = String(naturalW);
       hEl.placeholder = String(naturalH);
 
-      // Approximate original FPS (fallback to 30; real detection is complex)
       originalVideoFps = 30;
       if ('webkitDecodedFrameCount' in videoElement) {
         await videoElement.play();
@@ -398,6 +461,8 @@
     async function loadBitmaps() {
       if (!imageFiles.length) throw new Error("No files selected.");
       bitmaps = [];
+      canceled = false;
+      cancelBtn.style.display = 'inline-block';
       const effectiveFps = getEffectiveFps();
       const inputDuration = parseFloat(durationEl.value);
       let extractDuration = inputDuration;
@@ -406,20 +471,21 @@
       }
       if (isVideoMode && videoElement) {
         const frameInterval = 1 / effectiveFps;
-        const totalFrames = Math.ceil(extractDuration / frameInterval);
+        const totalFrames = Math.min(Math.ceil(extractDuration / frameInterval), 1500); // Hard limit
         let tip = '';
         if (totalFrames > 300) {
           tip = ' (Tip: For long videos, try lower FPS or shorter duration to save RAM)';
         }
         status(`Extracting ${totalFrames} frames from video @ ${effectiveFps} fps (duration: ${extractDuration.toFixed(1)}s)${tip}…`);
 
-        // One offscreen canvas is enough
         const grab = document.createElement('canvas');
         grab.width = videoElement.videoWidth;
         grab.height = videoElement.videoHeight;
         const gctx = grab.getContext('2d', { willReadFrequently: true });
 
         for (let i = 0; i < totalFrames; i++) {
+          if (canceled) throw new Error('Canceled');
+          if (i % 30 === 0) await new Promise(requestAnimationFrame); // Micro-break
           await seekTo(videoElement, i * frameInterval);
           gctx.drawImage(videoElement, 0, 0);
           const bm = await createImageBitmap(grab);
@@ -427,27 +493,28 @@
           prog.value = Math.round(((i + 1) / totalFrames) * 30);
         }
 
-        // Clean up the video object URL now that frames are extracted
         if (videoElement.__objectURL) {
           URL.revokeObjectURL(videoElement.__objectURL);
           delete videoElement.__objectURL;
         }
       } else {
-        // For images, use all files as frames
         for (let i=0; i<imageFiles.length; i++) {
+          if (canceled) throw new Error('Canceled');
           const bm = await createImageBitmap(imageFiles[i]);
           bitmaps.push(bm);
           if (!naturalW) { naturalW = bm.width; naturalH = bm.height; wEl.placeholder = String(naturalW); hEl.placeholder = "(auto)"; }
           prog.value = Math.round(((i+1)/imageFiles.length)*30);
         }
-        // For images, if duration specified, we subsample frames later
         extractDuration = inputDuration || (bitmaps.length / effectiveFps);
       }
+      cancelBtn.style.display = 'none';
     }
 
     async function makeWebM() {
       try {
         prog.value = 0; 
+        canceled = false;
+        cancelBtn.style.display = 'inline-block';
         status("Preparing…");
         await loadBitmaps();
         const fps = getEffectiveFps();
@@ -456,7 +523,7 @@
         if (!duration) duration = isVideoMode ? videoElement?.duration || (bitmaps.length / fps) : bitmaps.length / fps;
         let totalFrames;
         if (isVideoMode) {
-          totalFrames = bitmaps.length; // Use exact extracted frames to avoid drift
+          totalFrames = bitmaps.length;
         } else {
           totalFrames = Math.ceil(fps * duration);
         }
@@ -488,11 +555,12 @@
         const frameDur = 1000 / fps;
         let i = 0;
         const timer = setInterval(() => {
-          if (i >= totalFrames) {
+          if (canceled || i >= totalFrames) {
             clearInterval(timer);
             if (rec.state === 'recording') rec.stop();
             return;
           }
+          if (i % 30 === 0) requestAnimationFrame(() => {}); // Yield
           const frameIdx = loop ? (i % bitmaps.length) : Math.min(i, bitmaps.length - 1);
           ctx.clearRect(0, 0, outW, outH);
           drawFrame(ctx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
@@ -510,15 +578,21 @@
         prog.value = 100;
         status(`WebM done (${mime}) @ ${fps} fps. ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
       } catch (err) {
+        if (err.message === 'Canceled') return;
         console.error(err);
         status("Error: " + (err && err.message ? err.message : err));
+      } finally {
+        cancelBtn.style.display = 'none';
+        canceled = false;
       }
     }
 
     async function makeGIF() {
       prog.value = 0;
+      canceled = false;
+      cancelBtn.style.display = 'inline-block';
       if (!bitmaps.length) await loadBitmaps();
-      if (typeof GIF === 'undefined') { alert('GIF library failed to load. Check console and refresh.'); return; }
+      if (typeof GIF === 'undefined') { alert('GIF library failed to load.'); return; }
       try {
         status("Loading GIF worker…");
         const workerResponse = await fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js');
@@ -532,24 +606,26 @@
         if (!duration) duration = bitmaps.length / fps;
         const totalFrames = Math.ceil(fps * duration);
         const loop = loopEl.checked;
-        const outW = lastCanvasW || (parseInt(wEl.value,10) || naturalW || 480);
-        const outH = lastCanvasH || (parseInt(hEl.value,10) || naturalH || 240);
+        let outW = parseInt(wEl.value, 10);
+        let outH = parseInt(hEl.value, 10);
+        if (!outW && !outH) { outW = naturalW; outH = naturalH; }
+        else if (outW && !outH) { outH = Math.round(naturalH * (outW / naturalW)); }
+        else if (!outW && outH) { outW = Math.round(naturalW * (outH / naturalH)); }
         const gifQual = Math.max(1, parseInt(gifQualityEl.value, 10) || 10);
 
-        // For GIF, use all extracted bitmaps, but subsample if duration specified for images
         const framesToUse = Math.min(totalFrames, bitmaps.length);
         const frameDelay = Math.round(1000 / fps);
 
         status(`Generating GIF… (quality=${gifQual}, ${framesToUse} frames @ ${fps} fps, duration: ${duration.toFixed(1)}s)`);
         const gif = new GIF({
-          workers: 4,
+          workers: Math.min(4, caps.hardwareConcurrency),
           quality: gifQual,
           width: outW,
           height: outH,
           workerScript: workerURL,
           background: '#000000',
           repeat: loop ? 0 : -1,
-          optimize: true // Helps with compression
+          optimize: true
         });
 
         const tempCanvas = document.createElement('canvas');
@@ -557,6 +633,8 @@
         const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
         for (let i = 0; i < framesToUse; i++) {
+          if (canceled) throw new Error('Canceled');
+          if (i % 30 === 0) await new Promise(requestAnimationFrame);
           const frameIdx = loop ? (i % bitmaps.length) : i;
           tempCtx.clearRect(0, 0, outW, outH);
           drawFrame(tempCtx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
@@ -579,13 +657,18 @@
         });
         gif.render();
       } catch (err) {
+        if (err.message === 'Canceled') return;
         console.error(err);
         status("GIF Error: " + (err && err.message ? err.message : err));
+      } finally {
+        cancelBtn.style.display = 'none';
+        canceled = false;
       }
     }
 
     makeBtn.onclick = makeWebM;
     makeGifBtn.onclick = makeGIF;
+    cancelBtn.onclick = cancel;
   </script>
 </body>
 </html>
