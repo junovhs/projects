@@ -50,7 +50,7 @@
 <body>
   <div class="container">
     <h1>🖼️ Image Sequence → WebM</h1>
-    <p>Pick a folder or files, set <strong>FPS</strong> (default 3), and make a looping WebM (GIF replacement).</p>
+    <p>Pick a folder or files, set <strong>FPS</strong> (default 3), and make a looping WebM (GIF replacement). All client-side!</p>
 
     <div class="btn-row">
       <button class="btn" id="pickFolderBtn">📁 Pick Folder</button>
@@ -59,7 +59,7 @@
     </div>
 
     <div class="note small">
-      Tip: Files are sorted naturally (001, 2, 10…). Mixed sizes will be resized consistently. Folder pick works on HTTPS (Vercel is fine—ensure user gesture).
+      Tip: Files are sorted naturally (001, 2, 10…). Mixed sizes will be resized consistently. Folder pick works on HTTPS.
     </div>
 
     <div class="row">
@@ -120,8 +120,8 @@
 
     <button class="btn" id="makeBtn" style="width:100%; margin-top:12px;">⚡ Make WebM</button>
 
-    <div class="warn small">
-      Quality drop? Crank up the kbps slider—VP9 shines at 4k+ for sharp frames.
+    <div class="note small">
+      GIFs via gif.js (client-side)—max quality (no dither loss). Files ~2x WebM size, but crisp!
     </div>
 
     <label>Progress</label>
@@ -162,7 +162,7 @@
     let imageFiles = [];     // File[]
     let bitmaps    = [];     // ImageBitmap[]
     let naturalW = null, naturalH = null;
-    let webmBlob = null;     // For GIF conversion
+    let webmBlob = null;     // For GIF conversion (unused now, but kept)
 
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
 
@@ -350,49 +350,58 @@
     }
 
     async function makeGIF() {
-      if (!webmBlob) throw new Error("Generate WebM first.");
+      if (!bitmaps.length) throw new Error("Load images and generate WebM first for frame data.");
       try {
-        status("Converting to GIF… (Chrome best; ~2x file size)");
+        status("Generating high-quality GIF… (client-side, max fidelity)");
         prog.value = 0;
         const fps = parseInt(fpsEl.value || "3", 10);
         let duration = parseFloat(durationEl.value);
         if (!duration) duration = bitmaps.length / fps;
         const totalFrames = Math.ceil(fps * duration);
         const loop = loopEl.checked;
-        // Reuse outW/outH from before (assume same)
-        const outW = canvas.width; // Wait, need to re-calc or store
-        // Actually, re-load params for consistency
-        let ow = parseInt(wEl.value, 10) || naturalW;
-        let oh = parseInt(hEl.value, 10) || (naturalW ? Math.round(naturalH * (ow / naturalW)) : naturalH);
+        // Re-calc output size for consistency (no canvas ref here)
+        let outW = parseInt(wEl.value, 10);
+        let outH = parseInt(hEl.value, 10);
+        if (!outW && !outH) { outW = naturalW; outH = naturalH; }
+        else if (outW && !outH) { outH = Math.round(naturalH * (outW / naturalW)); }
+        else if (!outW && outH) { outW = Math.round(naturalW * (outH / naturalH)); }
+
         const gif = new GIF({
-          workers: 2,
-          quality: 10, // Lower = better quality, bigger file
-          width: ow,
-          height: oh,
-          workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+          workers: 4, // Max workers for speed
+          quality: 1, // 1 = highest quality (minimal compression artifacts)
+          width: outW,
+          height: outH,
+          workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+          background: '#000000' // Matches letterbox
         });
-        const canvas = document.createElement('canvas');
-        canvas.width = ow; canvas.height = oh;
-        const ctx = canvas.getContext('2d');
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = outW; tempCanvas.height = outH;
+        const tempCtx = tempCanvas.getContext('2d');
         const frameDelay = Math.round(1000 / fps);
+
         for (let i = 0; i < totalFrames; i++) {
           const frameIdx = loop ? (i % bitmaps.length) : i;
           if (frameIdx >= bitmaps.length) break;
-          drawFrame(ctx, bitmaps[frameIdx], ow, oh, scaleModeEl.value);
-          applyFilter(ctx, ow, oh, filterEl.value);
-          gif.addFrame(ctx, { delay: frameDelay, copy: true });
+          drawFrame(tempCtx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
+          applyFilter(tempCtx, outW, outH, filterEl.value);
+          gif.addFrame(tempCanvas, { delay: frameDelay, copy: true }); // copy=true for efficiency
           prog.value = Math.round((i / totalFrames) * 100);
         }
+
         gif.on('finished', blob => {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url; a.download = 'out.gif'; a.click();
-          status(`GIF done. ${(blob.size/1024/1024).toFixed(2)} MB (tune quality via lib if needed)`);
+          URL.revokeObjectURL(url);
+          status(`High-Q GIF done. ${(blob.size/1024/1024).toFixed(2)} MB (quality=1 for sharpness)`);
         });
+
+        gif.on('progress', p => { prog.value = Math.round(p * 100); });
         gif.render();
       } catch (err) {
         console.error(err);
-        status("GIF Error: " + (err && err.message ? err.message : err) + " (Try Chrome)");
+        status("GIF Error: " + (err && err.message ? err.message : err) + " (Try fewer frames)");
       }
     }
 
