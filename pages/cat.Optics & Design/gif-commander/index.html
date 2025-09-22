@@ -202,6 +202,70 @@
       await new Promise(requestAnimationFrame); // ensure the frame is actually painted
     }
 
+    function pickMime(preferred) {
+      if (preferred === 'video/webm;codecs=vp9' && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        return 'video/webm;codecs=vp9';
+      }
+      if (preferred === 'video/webm;codecs=vp8' && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+        return 'video/webm;codecs=vp8';
+      }
+      return 'video/webm';
+    }
+
+    function drawFrame(ctx, bitmap, outW, outH, mode) {
+      // Fill background black for letterboxing
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, outW, outH);
+
+      const iw = bitmap.width;
+      const ih = bitmap.height;
+      let sx = 0, sy = 0, sw = iw, sh = ih;
+      let dx = 0, dy = 0, dw = outW, dh = outH;
+
+      if (mode === 'fit') {
+        const ratio = Math.min(outW / iw, outH / ih);
+        dw = iw * ratio;
+        dh = ih * ratio;
+        dx = (outW - dw) / 2;
+        dy = (outH - dh) / 2;
+      } else if (mode === 'crop') {
+        const ratio = Math.max(outW / iw, outH / ih);
+        sw = iw;
+        sh = ih;
+        sx = (iw - (outW / ratio)) / 2;
+        sy = (ih - (outH / ratio)) / 2;
+        sw = outW / ratio;
+        sh = outH / ratio;
+        dw = outW;
+        dh = outH;
+      } else if (mode === 'stretch') {
+        // Full stretch, no change to sx/sy/sw/sh
+      }
+
+      ctx.drawImage(bitmap, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+
+    function applyFilter(ctx, w, h, filter) {
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      if (filter === 'grayscale') {
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          data[i] = data[i + 1] = data[i + 2] = avg;
+        }
+      } else if (filter === 'sepia') {
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+          data[i + 1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+          data[i + 2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
     gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (lower = better quality)';
 
@@ -339,8 +403,6 @@
         }
       }
     }
-
-    // ... (applyFilter, pickMime, drawFrame functions unchanged from previous version)
 
     async function makeWebM() {
       try {
