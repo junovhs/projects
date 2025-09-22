@@ -6,16 +6,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root {
-    --bg: #0b0e12;
-    --panel: #12161d;
-    --panel-2: #171c24;
-    --ink: #e8eef9;
-    --muted: #9fb2ce;
-    --accent: #79c0ff;
-    --warn: #ffcc66;
-    --bad: #ff6b6b;
-    --good: #62d394;
-    --border: #212a36;
+    --bg: #ffffff;
+    --panel: #f8f9fa;
+    --panel-2: #e9ecef;
+    --ink: #212529;
+    --muted: #6c757d;
+    --accent: #007bff;
+    --warn: #ffc107;
+    --bad: #dc3545;
+    --good: #28a745;
+    --border: #dee2e6;
   }
   html, body { height: 100%; }
   body {
@@ -33,20 +33,20 @@
   .section h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
   textarea {
     width: 100%; min-height: 240px; resize: vertical; border-radius: 8px; border: 1px solid var(--border);
-    background: #0e131a; color: var(--ink); padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #ffffff; color: var(--ink); padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   button, .btn {
-    cursor: pointer; border: 1px solid var(--border); background: #1a2130; color: var(--ink); border-radius: 10px; padding: 8px 10px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: #ffffff; color: var(--ink); border-radius: 10px; padding: 8px 10px; font-weight: 600;
   }
-  button:hover { background: #20283a; }
+  button:hover { background: #e9ecef; }
   input[type="file"] { display: none; }
-  label.file { border: 1px dashed var(--border); padding: 8px 10px; border-radius: 10px; background: #0f141c; cursor: pointer; }
+  label.file { border: 1px dashed var(--border); padding: 8px 10px; border-radius: 10px; background: #f8f9fa; cursor: pointer; }
   .mini { font-size: 12px; color: var(--muted); }
-  .pill { padding: 2px 8px; border-radius: 999px; background: #0e141c; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .pill { padding: 2px 8px; border-radius: 999px; background: #e9ecef; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
   .list { display: grid; gap: 8px; }
   .card {
-    border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #0e131a; display: grid; gap: 6px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #ffffff; display: grid; gap: 6px;
   }
   .card .top { display:flex; gap:8px; align-items:center; justify-content: space-between; }
   .supplier { font-weight: 700; }
@@ -56,7 +56,7 @@
   .score.bad { color: var(--bad); }
   .muted { color: var(--muted); }
   .kvs { display: flex; gap: 8px; flex-wrap: wrap; }
-  .kvs .kv { background: #0b1016; border: 1px solid var(--border); border-radius: 8px; padding: 4px 6px; font-size: 12px; color: var(--muted); }
+  .kvs .kv { background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 4px 6px; font-size: 12px; color: var(--muted); }
   .grid { display:grid; gap:10px; grid-template-columns: repeat(12, 1fr); }
   .span-6 { grid-column: span 6; }
   .span-12 { grid-column: span 12; }
@@ -66,15 +66,17 @@
   .pair-controls { text-align: center; }
   .reject-btn { background: var(--bad); color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
   .unmatched { display: grid; gap: 8px; }
-  .highlight { background: rgba(98, 211, 148, 0.1); color: var(--good); padding: 2px 4px; border-radius: 4px; }
-  .highlight.date { background: rgba(121, 192, 255, 0.1); color: var(--accent); }
+  .highlight { background: rgba(40, 167, 69, 0.1); color: var(--good); padding: 2px 4px; border-radius: 4px; }
+  .highlight.date { background: rgba(0, 123, 255, 0.1); color: var(--accent); }
+  .highlight.date-approx { background: rgba(255, 193, 7, 0.1); color: var(--warn); }
   .why-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-  .why-chip { padding: 2px 6px; border-radius: 4px; background: rgba(121, 192, 255, 0.2); color: var(--accent); font-size: 11px; }
+  .why-chip { padding: 2px 6px; border-radius: 4px; background: rgba(0, 123, 255, 0.2); color: var(--accent); font-size: 11px; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
-  .chip { padding:2px 8px; border-radius:999px; background:#0f141c; border:1px solid var(--border); color:var(--muted); font-size:12px; }
-  .chip.match { background: rgba(98, 211, 148, 0.3); color: var(--good); border-color: var(--good); }
+  .chip { padding:2px 8px; border-radius:999px; background:#f8f9fa; border:1px solid var(--border); color:var(--muted); font-size:12px; }
+  .chip.match { background: rgba(40, 167, 69, 0.3); color: var(--good); border-color: var(--good); }
   .right-tools { display:flex; gap:8px; align-items:center; }
   @media (max-width: 768px) { .matches { grid-template-columns: 1fr; } }
+  input[type=number] { width: 60px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -93,13 +95,12 @@
       <div class="section">
         <h3>HQ Paste (v/d/ed format)</h3>
         <textarea id="hqInput" placeholder="Paste your HQ text here, e.g.
-v	Carnival
-d	Great Rates Sale (PB4): Ends 9/30/2025
-ed	EXCLUSIVE covert rates: Ongoing
-v	Celebrity:
-d	All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
+v Carnival
+d Great Rates Sale (PB4): Ends 9/30/2025
+ed  EXCLUSIVE covert rates: Ongoing
+v Celebrity:
+d All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
         <div class="row">
-          <button id="parseHQ">Parse HQ</button>
           <span class="pill" id="hqCount">0 vendors • 0 deals</span>
         </div>
       </div>
@@ -124,7 +125,9 @@ d	All Inclusive Pricing (Drinks &amp; Wi-Fi): Ends 9/22/2025"></textarea>
         <h3>Compare</h3>
         <div class="row">
           <button id="runMatch">Run matcher</button>
-          <span class="mini">Matches use vendor family + dates + benefit keywords.</span>
+          <input type="number" id="scoreThreshold" value="10" min="5" max="30">
+          <label class="mini">Min Score</label>
+          <span class="mini">Matches sorted by score (desc).</span>
         </div>
       </div>
     </div>
@@ -159,8 +162,7 @@ const norm = (s) => (s||'')
   .toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // strip accents (Zoëtry)
   .replace(/&/g,'and')
-  .replace(/[\.\,\!\:\;KATEX_INLINE_OPENKATEX_INLINE_CLOSE```math
-```\{\}\-]/g,' ')
+  .replace(/[\.\,\!\:\;\{\}\-]/g,' ')
   .replace(/\s+/g,' ')
   .trim();
 
@@ -222,8 +224,7 @@ function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
 function endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
 function sameDay(a,b){ return !!(a && b) && a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate(); }
 
-/* ===================== Vendor Aliases (yours, intact & expanded) ===================== */
-/** Canonical names list (used for UI and matching) */
+/* ===================== Vendor Aliases ===================== */
 const knownSuppliers = [
   "Abercrombie & Kent","Adventures by Disney","African Travel","Ama Waterways","American Airline Vacations","American Cruise Line",
   "Aulani, A Disney Resort & Spa","Avalon Waterways","Azamara","Beaches","BlueSky Tours","Breathless","Carnival Cruise Line",
@@ -239,7 +240,6 @@ const knownSuppliers = [
   "Windstar","Zoetry Wellness & Spa Resorts"
 ];
 
-/** Your alias map preserved (plus a few safety adds & punctuation/spacing flex). */
 const aliasMapping = {
   // --- BIG SHIP / OCEAN ---
   "royal":"Royal Caribbean","rccl":"Royal Caribbean","rcc":"Royal Caribbean","royal caribbean":"Royal Caribbean",
@@ -314,11 +314,9 @@ const aliasMapping = {
   "atlas":"Atlas Ocean Voyages","atlas ocean":"Atlas Ocean Voyages","atlas ocean voyages":"Atlas Ocean Voyages",
 };
 
-/** Map canonical → family key for looser vendor matching */
 const familyOf = {
   // Viking family
   "Viking Cruises":"viking","Viking Ocean & Expedition":"viking","Viking Ocean":"viking","Viking River":"viking",
-  // Obvious one-to-ones (family key = normalized canonical)
   ...Object.fromEntries(knownSuppliers.map(n => [n, norm(n)])),
   "Princess":"princess cruises","Princess Cruises":"princess cruises",
   "Norwegian":"norwegian cruise line","Norwegian Cruise Line":"norwegian cruise line",
@@ -326,17 +324,12 @@ const familyOf = {
   "MSC":"msc cruises","MSC Cruises":"msc cruises",
 };
 
-/** Canonicalize vendor using alias map + fuzzy fallback */
 function canonicalVendor(input) {
   if (!input) return null;
   const n = norm(input.replace(/:$/, ''));
   if (aliasMapping[n]) return aliasMapping[n];
-
-  // exact match against known suppliers by normalized string
   const byNorm = knownSuppliers.find(s => norm(s) === n);
   if (byNorm) return byNorm;
-
-  // fallback heuristics
   if (/\bviking\b/.test(n)) return "Viking Cruises";
   if (/\bncl\b|\bnorwegian\b/.test(n)) return "Norwegian Cruise Line";
   if (/\broyal\b|\brccl?\b/.test(n)) return "Royal Caribbean";
@@ -352,7 +345,6 @@ function canonicalVendor(input) {
   if (/\bcrystal\b/.test(n)) return "Crystal Cruises";
   if (/\bazamara\b/.test(n)) return "Azamara";
   if (/\bcunard\b/.test(n)) return "Cunard";
-  // river-ish
   if (/\bavalon\b/.test(n)) return "Avalon Waterways";
   if (/\bama\b/.test(n)) return "Ama Waterways";
   if (/\briviera\b/.test(n)) return "Riviera River Cruises";
@@ -368,6 +360,7 @@ function vendorFamily(name) {
 }
 
 /* ===================== HQ Parser ===================== */
+let nextId = 0;
 function parseHQ(text) {
   const lines = (text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const items = [];
@@ -386,7 +379,9 @@ function parseHQ(text) {
       if (!currentVendor) continue;
       const type = (tag === 'ed' ? 'exclusive' : 'deal');
       const dates = parseHQDates(content);
+      const id = ++nextId;
       items.push({
+        id,
         type,
         vendor: currentVendor,
         vendorFamily: vendorFamily(currentVendor),
@@ -398,7 +393,6 @@ function parseHQ(text) {
     }
   }
 
-  // collapse vendor headers + attach original lines for export
   return items.filter(x => x.type !== 'vendorHeader');
 }
 
@@ -408,6 +402,8 @@ function extractFeatures(text) {
   const feats = {
     percent: null,
     dollars: null,
+    guestCount: null,
+    percentWords: null,
     kidsFree: /\bkids? (sail|stay) free\b/.test(t),
     gratuities: /\bgratu(?:ities|ity)|prepaid gratuities|free gratuities/.test(t),
     obc: /\bobc\b|on ?board credit|bar tab/.test(t),
@@ -415,23 +411,33 @@ function extractFeatures(text) {
     covert: /\bcovert\b|too low to show|opaque/.test(t),
     drinksWifi: /(drinks|beverage).*wi[\- ]?fi/.test(t) || /wi[\- ]?fi.*(drinks|beverage)/.test(t) || /\bdrinks ?& ?wi ?-?fi\b/.test(t),
     coupon: /\bcoupon booklet|booklet/.test(t),
+    earlyBooking: /\bearly ?booking\b/.test(t),
+    secondGuest: /\bsecond ?guest\b|\b2nd ?guest\b/.test(t),
+    airfare: /\bair ?fare|air ?credit|bogo ?air\b/.test(t),
+    upgrade: /\bupgrade|1-?cat\b/.test(t),
   };
 
-  // biggest percent in text
   const ps = [...t.matchAll(/(\d{1,3})\s*%/g)].map(m => Number(m[1]));
   feats.percent = ps.length ? Math.max(...ps) : null;
 
-  // capture up to $X values (largest)
+  if (/half/.test(t)) feats.percentWords = 50;
+  if (/third/.test(t)) feats.percentWords = 33;
+  if (/quarter/.test(t)) feats.percentWords = 25;
+  if (/free/.test(t) && /all/.test(t)) feats.percentWords = 100;
+
   const ds = [...t.matchAll(/\$?\b(\d{2,5})\b(?=\s*(?:obc|credit|instant|off|savings|amenity|air|cash|per|pp|ppg|usd)\b)/g)].map(m => Number(m[1]));
   const ds2 = [...t.matchAll(/\$\s*(\d{2,5})/g)].map(m => Number(m[1]));
   const allD = [...ds, ...ds2];
   feats.dollars = allD.length ? Math.max(...allD) : null;
 
+  const guests = t.match(/for (\d{1,2})|(\d{1,2})nd ?guest|(\d{1,2}) ?guest/i);
+  if (guests) feats.guestCount = Number(guests[1] || guests[2] || guests[3]);
+
   return feats;
 }
 
 /* ===================== Website JSON ingest ===================== */
-let websiteDeals = [];  // normalized objects for matching
+let websiteDeals = [];
 
 function ingestWebsiteJSON(arr) {
   websiteDeals = (arr||[]).map(row => {
@@ -452,7 +458,6 @@ function ingestWebsiteJSON(arr) {
     };
   });
 
-  // populate supplier filter
   const sel = document.getElementById('supplierFilter');
   const uniq = Array.from(new Set(websiteDeals.map(d => d.supplier))).sort((a,b)=>a.localeCompare(b));
   sel.innerHTML = `<option value="">All suppliers (${websiteDeals.length})</option>` + uniq.map(s => `<option>${s}</option>`).join('');
@@ -463,42 +468,44 @@ function ingestWebsiteJSON(arr) {
 function similarity(hq, web) {
   let score = 0;
   const why = [];
+  const f = hq.features, g = web.features;
 
-  // Vendor family (strong)
   if (hq.vendorFamily === web.vendorFamily) { score += 10; why.push('vendor'); }
 
-  // Dates (medium)
-  if (hq.ongoing && !web.expiryDate) { score += 4; why.push('ongoing'); }
+  if (hq.ongoing && !web.expiryDate) { score += 5; why.push('ongoing'); }
   else if (hq.end && web.expiryDate) {
-    if (sameDay(hq.end, web.expiryDate)) { score += 4; why.push('date=exact'); }
+    if (sameDay(hq.end, web.expiryDate)) { score += 8; why.push('date=exact'); }
     else {
       const diff = Math.abs((+hq.end - +web.expiryDate) / 86400000);
-      if (diff <= 2) { score += 3; why.push('date≈'); }
+      if (diff <= 2) { score += 4; why.push('date≈'); }
     }
   }
 
-  // Feature overlaps (medium)
-  const f = hq.features, g = web.features;
+  if (f.dollars && g.dollars) {
+    if (f.dollars === g.dollars) { score += 6; why.push('$='); }
+    else if (Math.abs(f.dollars - g.dollars) <= 100) { score += 3; why.push('$≈'); }
+  }
+  if (f.percent && g.percent) {
+    if (f.percent === g.percent) { score += 5; why.push('%='); }
+    else if (Math.abs(f.percent - g.percent) <= 5) { score += 3; why.push('%≈'); }
+  }
+  if (f.percentWords && g.percent) {
+    if (Math.abs(f.percentWords - g.percent) <= 5) { score += 3; why.push('%word≈'); }
+  }
+  if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) { score += 4; why.push('guests='); }
+
   const k = (cond, s, pts) => { if (cond) { score += pts; why.push(s); } };
   k(f.kidsFree && /kids/.test(web.text.toLowerCase()), 'kids', 3);
-  k(f.gratuities && /gratu/.test(web.text.toLowerCase()), 'gratuities', 2);
-  k(f.obc && /\bobc\b|on ?board credit|bar tab/.test(web.text.toLowerCase()), 'obc', 3);
-  k(f.instant && /instant/.test(web.text.toLowerCase()), 'instant', 2);
-  k(f.coupon && /coupon|booklet/.test(web.text.toLowerCase()), 'coupon', 2);
-  k(f.drinksWifi && /(drinks|beverage).*wi[\- ]?fi/.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/.test(web.text.toLowerCase()), 'drinks+wifi', 2);
+  k(f.gratuities && /gratu/i.test(web.text.toLowerCase()), 'gratuities', 3);
+  k(f.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text.toLowerCase()), 'obc', 3);
+  k(f.instant && /instant/i.test(web.text.toLowerCase()), 'instant', 2);
+  k(f.coupon && /coupon|booklet/i.test(web.text.toLowerCase()), 'coupon', 2);
+  k(f.drinksWifi && /(drinks|beverage).*wi[\- ]?fi/i.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/i.test(web.text.toLowerCase()), 'drinks+wifi', 3);
+  k(f.earlyBooking && /early ?booking/i.test(web.text.toLowerCase()), 'earlyBooking', 2);
+  k(f.secondGuest && /second ?guest|2nd ?guest/i.test(web.text.toLowerCase()), 'secondGuest', 2);
+  k(f.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text.toLowerCase()), 'airfare', 2);
+  k(f.upgrade && /upgrade|1-?cat/i.test(web.text.toLowerCase()), 'upgrade', 2);
 
-  // Percent / dollars proximity (soft)
-  if (f.percent && web.features.percent) {
-    const pd = Math.abs(f.percent - web.features.percent);
-    if (pd <= 5) { score += 2; why.push('%≈'); }
-  }
-  if (f.dollars && web.features.dollars) {
-    const dd = Math.abs(f.dollars - web.features.dollars);
-    if (dd === 0) { score += 3; why.push('$='); }
-    else if (dd <= 100) { score += 2; why.push('$≈'); }
-  }
-
-  // Exclusive/covert
   if (f.covert && /\bcovert\b|too low to show|opaque/i.test(web.text)) { score += 3; why.push('covert'); }
 
   return { score, why };
@@ -511,7 +518,6 @@ function matchAll(hqDeals) {
   for (const hq of hqDeals) {
     if (filterSupplier && canonicalVendor(filterSupplier) !== canonicalVendor(hq.vendor)) continue;
 
-    // Search within same family first
     const pool = websiteDeals.filter(w => w.vendorFamily === hq.vendorFamily);
     let best = null, bestMeta = null;
 
@@ -527,43 +533,8 @@ function matchAll(hqDeals) {
 
 /* ===================== UI wiring ===================== */
 let hqDeals = [];
-let rejectedHQ = [];  // Track rejected deals for export
-
-document.getElementById('parseHQ').addEventListener('click', () => {
-  const txt = document.getElementById('hqInput').value;
-  hqDeals = parseHQ(txt);
-  rejectedHQ = [];  // Reset rejects on re-parse
-  renderHQ(hqDeals);
-});
-
-function renderHQ(items) {
-  document.getElementById('hqCount').textContent = `${new Set(items.map(x => x.vendor)).size} vendors • ${items.length} deals`;
-  const host = document.getElementById('hqList');
-  host.innerHTML = items.map(it => `
-    <div class="card">
-      <div class="top">
-        <div><span class="supplier">${it.vendor}</span> · <span class="muted">${it.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
-        <div class="chips">
-          ${it.features.kidsFree?'<span class="chip">Kids Free</span>':''}
-          ${it.features.gratuities?'<span class="chip">Grats</span>':''}
-          ${it.features.obc?'<span class="chip">OBC</span>':''}
-          ${it.features.instant?'<span class="chip">Instant</span>':''}
-          ${it.features.coupon?'<span class="chip">Coupon</span>':''}
-          ${it.features.drinksWifi?'<span class="chip">Drinks+Wi-Fi</span>':''}
-          ${it.features.percent?`<span class="chip">${it.features.percent}%</span>`:''}
-          ${it.features.dollars?`<span class="chip">$${it.features.dollars}</span>`:''}
-        </div>
-      </div>
-      <div>${escapeHTML(it.text)}</div>
-      <div class="kvs">
-        ${it.ongoing?'<span class="kv">Duration: ongoing</span>':''}
-        ${it.start?`<span class="kv">Start: ${fmt.format(it.start)}</span>`:''}
-        ${it.end?`<span class="kv">End: ${fmt.format(it.end)}</span>`:''}
-        <span class="kv muted">Family: ${it.vendorFamily}</span>
-      </div>
-    </div>
-  `).join('');
-}
+let rejectedHQ = new Set();  // Set of deal IDs
+let nextId = 0;
 
 document.getElementById('jsonFile').addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
@@ -578,7 +549,6 @@ document.getElementById('jsonFile').addEventListener('change', async (e) => {
 });
 
 document.getElementById('loadSample').addEventListener('click', () => {
-  // Super tiny inline sample just to prove wiring; use your uploaded JSON for the real run.
   const sample = [
     {
       shopOverline: "Virgin Voyages",
@@ -599,35 +569,79 @@ document.getElementById('loadSample').addEventListener('click', () => {
 });
 
 document.getElementById('runMatch').addEventListener('click', () => {
-  if (!hqDeals.length) { alert('Paste HQ text and click “Parse HQ” first.'); return; }
+  const txt = document.getElementById('hqInput').value;
+  if (!hqDeals.length && txt.trim()) {
+    hqDeals = parseHQ(txt);
+    renderHQ(hqDeals);
+  }
+  if (!hqDeals.length) { alert('Paste HQ text first.'); return; }
   if (!websiteDeals.length) { alert('Load the website entries JSON first.'); return; }
 
+  const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
   const rows = matchAll(hqDeals);
-  rejectedHQ = [];  // Reset on re-run
-  renderMatches(rows);
+  renderMatches(rows, threshold);
   document.getElementById('results').style.display = 'block';
   document.getElementById('resetRejects').style.display = 'inline-block';
 });
 
-function renderMatches(rows) {
+function renderHQ(items) {
+  document.getElementById('hqCount').textContent = `${new Set(items.map(x => x.vendor)).size} vendors • ${items.length} deals`;
+  const host = document.getElementById('hqList');
+  host.innerHTML = items.map(it => `
+    <div class="card">
+      <div class="top">
+        <div><span class="supplier">${it.vendor}</span> · <span class="muted">${it.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
+        <div class="chips">
+          ${it.features.kidsFree?'<span class="chip">Kids Free</span>':''}
+          ${it.features.gratuities?'<span class="chip">Grats</span>':''}
+          ${it.features.obc?'<span class="chip">OBC</span>':''}
+          ${it.features.instant?'<span class="chip">Instant</span>':''}
+          ${it.features.coupon?'<span class="chip">Coupon</span>':''}
+          ${it.features.drinksWifi?'<span class="chip">Drinks+Wi-Fi</span>':''}
+          ${it.features.earlyBooking?'<span class="chip">Early Booking</span>':''}
+          ${it.features.secondGuest?'<span class="chip">2nd Guest</span>':''}
+          ${it.features.airfare?'<span class="chip">Airfare</span>':''}
+          ${it.features.upgrade?'<span class="chip">Upgrade</span>':''}
+          ${it.features.percent?`<span class="chip">${it.features.percent}%</span>`:''}
+          ${it.features.dollars?`<span class="chip">$${it.features.dollars}</span>`:''}
+          ${it.features.guestCount?`<span class="chip">For ${it.features.guestCount}</span>`:''}
+        </div>
+      </div>
+      <div>${escapeHTML(it.text)}</div>
+      <div class="kvs">
+        ${it.ongoing?'<span class="kv">Duration: ongoing</span>':''}
+        ${it.start?`<span class="kv">Start: ${fmt.format(it.start)}</span>`:''}
+        ${it.end?`<span class="kv">End: ${fmt.format(it.end)}</span>`:''}
+        <span class="kv muted">Family: ${it.vendorFamily}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderMatches(rows, threshold) {
+  // Sort by score desc
+  rows.sort((a, b) => (b.meta?.score ?? 0) - (a.meta?.score ?? 0));
+
   const matchesHost = document.getElementById('matchesList');
   const unmatchedHost = document.getElementById('unmatchedList');
   let unmatched = [];
+  let matchedCount = 0;
 
   matchesHost.innerHTML = rows.map(({hq, best, meta}, idx) => {
     const sc = (meta?.score ?? 0);
-    const cls = sc >= 12 ? 'good' : sc >= 8 ? 'warn' : 'bad';
-    const isMatch = !!best && sc >= 8;  // Only show as pair if decent score
-
-    if (!isMatch) {
+    if (rejectedHQ.has(hq.id) || sc < threshold) {
       unmatched.push(hq);
       return '';
     }
 
-    // Render chips with matches highlighted
+    matchedCount++;
+    const cls = sc >= 15 ? 'good' : sc >= 10 ? 'warn' : 'bad';
     const hqChips = renderChips(hq.features, true);
     const webChips = renderChips(best.features, false);
     const sharedChips = getSharedChips(hq, best);
+
+    const dateClassHQ = hq.end && best.expiryDate ? (sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx') : '';
+    const dateClassWeb = sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx';
 
     return `
       <div class="pair">
@@ -641,7 +655,7 @@ function renderMatches(rows) {
             <div>${escapeHTML(hq.text)}</div>
             <div class="chips">${hqChips}</div>
             <div class="kvs">
-              ${hq.ongoing ? '<span class="kv highlight date">Ongoing</span>' : hq.end ? `<span class="kv ${sameDay(hq.end, best.expiryDate) ? 'highlight date' : ''}">End: ${fmt.format(hq.end)}</span>` : ''}
+              ${hq.ongoing ? '<span class="kv highlight date">Ongoing</span>' : hq.end ? `<span class="kv ${dateClassHQ}">End: ${fmt.format(hq.end)}</span>` : ''}
             </div>
           </div>
           <div>
@@ -653,20 +667,21 @@ function renderMatches(rows) {
             <div class="mini">${escapeHTML(best.raw.shopListing || '')}</div>
             <div class="chips">${webChips}</div>
             <div class="kvs">
-              <span class="kv ${sameDay(hq.end, best.expiryDate) ? 'highlight date' : ''}">End: ${best.expiryDate ? fmt.format(best.expiryDate) : '—'}</span>
+              <span class="kv ${dateClassWeb}">End: ${best.expiryDate ? fmt.format(best.expiryDate) : '—'}</span>
             </div>
           </div>
         </div>
         <div class="pair-controls">
-          <button class="reject-btn" onclick="rejectMatch(${idx})">👎 Reject Match</button>
+          <button class="reject-btn" onclick="rejectMatch('${hq.id}')">👎 Reject Match</button>
         </div>
         <div class="shared-matches">Shared: ${sharedChips.join(', ')}</div>
       </div>
     `;
   }).join('');
 
-  // Render unmatched
-  unmatchedHost.innerHTML = unmatched.map((hq, idx) => `
+  // Sort unmatched by vendor
+  unmatched.sort((a, b) => a.vendor.localeCompare(b.vendor));
+  unmatchedHost.innerHTML = unmatched.map(hq => `
     <div class="card">
       <div class="top">
         <div><span class="supplier">${hq.vendor}</span> · <span class="muted">${hq.type === 'exclusive' ? 'Exclusive' : 'Deal'}</span></div>
@@ -679,7 +694,7 @@ function renderMatches(rows) {
     </div>
   `).join('');
 
-  document.getElementById('matchCount').textContent = rows.filter(r => r.meta?.score >= 8).length;
+  document.getElementById('matchCount').textContent = matchedCount;
   document.getElementById('unmatchedCount').textContent = unmatched.length;
 }
 
@@ -691,8 +706,13 @@ function renderChips(features, isHQ) {
   if (features.instant) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Instant</span>`);
   if (features.coupon) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Coupon</span>`);
   if (features.drinksWifi) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Drinks+Wi-Fi</span>`);
+  if (features.earlyBooking) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Early Booking</span>`);
+  if (features.secondGuest) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">2nd Guest</span>`);
+  if (features.airfare) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Airfare</span>`);
+  if (features.upgrade) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Upgrade</span>`);
   if (features.percent) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${features.percent}%</span>`);
   if (features.dollars) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${features.dollars}</span>`);
+  if (features.guestCount) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">For ${features.guestCount}</span>`);
   return chips.join('');
 }
 
@@ -703,6 +723,9 @@ function getSharedChips(hq, web) {
   if (hq.features.gratuities && /gratu/i.test(web.text)) shared.push('Grats');
   if (hq.features.covert && /covert|low to show|opaque/i.test(web.text)) shared.push('Covert');
   if (hq.features.coupon && /coupon|booklet/i.test(web.text)) shared.push('Coupon');
+  if (hq.features.earlyBooking && /early ?booking/i.test(web.text)) shared.push('Early Booking');
+  if (hq.features.secondGuest && /second ?guest|2nd ?guest/i.test(web.text)) shared.push('2nd Guest');
+  if (hq.features.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text)) shared.push('Airfare');
   return shared;
 }
 
@@ -710,10 +733,10 @@ function renderWhyChips(why) {
   return `<span class="why-chips">${why.map(w => `<span class="why-chip">${w}</span>`).join('')}</span>`;
 }
 
-window.rejectMatch = function(idx) {
-  const rows = matchAll(hqDeals);  // Recompute for current state
-  rejectedHQ.push(rows[idx].hq);
-  renderMatches(rows);
+window.rejectMatch = function(id) {
+  rejectedHQ.add(id);
+  const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
+  renderMatches(matchAll(hqDeals), threshold);
 };
 
 document.getElementById('supplierFilter').addEventListener('change', () => {
@@ -722,11 +745,11 @@ document.getElementById('supplierFilter').addEventListener('change', () => {
 
 // Export unmatched to clipboard in HQ format
 document.getElementById('exportUnmatched').addEventListener('click', () => {
-  if (!rejectedHQ.length) { alert('No unmatched deals to export.'); return; }
+  const rejectedDeals = hqDeals.filter(d => rejectedHQ.has(d.id));
+  if (!rejectedDeals.length) { alert('No unmatched deals to export.'); return; }
 
-  // Group by vendor, preserving order
   const grouped = {};
-  rejectedHQ.forEach(deal => {
+  rejectedDeals.forEach(deal => {
     if (!grouped[deal.vendor]) grouped[deal.vendor] = [];
     grouped[deal.vendor].push(deal);
   });
@@ -743,7 +766,6 @@ document.getElementById('exportUnmatched').addEventListener('click', () => {
   navigator.clipboard.writeText(output.trim()).then(() => {
     alert('Copied to clipboard!');
   }).catch(() => {
-    // Fallback download
     const blob = new Blob([output], {type: 'text/plain'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -754,8 +776,9 @@ document.getElementById('exportUnmatched').addEventListener('click', () => {
 });
 
 document.getElementById('resetRejects').addEventListener('click', () => {
-  rejectedHQ = [];
-  document.getElementById('runMatch').click();
+  rejectedHQ.clear();
+  const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
+  renderMatches(matchAll(hqDeals), threshold);
 });
 
 function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
