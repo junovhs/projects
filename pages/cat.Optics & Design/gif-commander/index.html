@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Images → WebM (Browser-Only)</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.min.js"></script>
   <style>
     body {
       font-family: "Segoe UI", Roboto, Arial, sans-serif;
@@ -56,6 +55,8 @@
       <button class="btn" id="pickFolderBtn">📁 Pick Folder</button>
       <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
       <button class="btn secondary" id="pickFilesBtn">🖼️ Select Images</button>
+      <input type="file" id="folderCompat" webkitdirectory directory multiple accept="image/*" style="display:none" />
+      <button class="btn secondary" id="pickFolderCompat">📁 Pick Folder (compat)</button>
     </div>
 
     <div class="note small">
@@ -109,6 +110,14 @@
           <option value="sepia">Vintage</option>
         </select>
       </div>
+      <div>
+        <label for="codec">🎛️ Codec</label>
+        <select id="codec">
+          <option value="video/webm;codecs=vp9">VP9 (better)</option>
+          <option value="video/webm;codecs=vp8">VP8 (compat)</option>
+          <option value="video/webm">Auto</option>
+        </select>
+      </div>
     </div>
 
     <div class="row">
@@ -121,7 +130,7 @@
     <button class="btn" id="makeBtn" style="width:100%; margin-top:12px;">⚡ Make WebM</button>
 
     <div class="note small">
-      GIFs via gif.js (client-side)—max quality (no dither loss). Files ~2x WebM size, but crisp!
+      GIFs via FFmpeg.wasm (lazy-loaded)—sharper quality, palette-optimized. First GIF takes ~10s to init.
     </div>
 
     <label>Progress</label>
@@ -138,8 +147,24 @@
   </div>
 
   <script>
+    let ffmpeg; // singleton
+    async function getFFmpeg() {
+      if (ffmpeg) return ffmpeg;
+      // Load UMD build only when needed:
+      await import('https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/ffmpeg.min.js');
+      const { createFFmpeg, fetchFile } = window.FFmpeg; // UMD global
+      ffmpeg = createFFmpeg({
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.12.15/dist/ffmpeg-core.js',
+        log: true
+      });
+      await ffmpeg.load();
+      return ffmpeg;
+    }
+
     const pickFolderBtn = document.getElementById('pickFolderBtn');
     const pickFilesBtn  = document.getElementById('pickFilesBtn');
+    const pickFolderCompatBtn = document.getElementById('pickFolderCompat');
+    const folderCompat = document.getElementById('folderCompat');
     const fileInput     = document.getElementById('fileInput');
     const listEl        = document.getElementById('list');
     const makeBtn       = document.getElementById('makeBtn');
@@ -153,6 +178,7 @@
     const qualityEl     = document.getElementById('quality');
     const qualityValEl  = document.getElementById('qualityVal');
     const filterEl      = document.getElementById('filter');
+    const codecEl       = document.getElementById('codec');
     const prog          = document.getElementById('prog');
     const statusEl      = document.getElementById('status');
     const preview       = document.getElementById('preview');
@@ -162,7 +188,8 @@
     let imageFiles = [];     // File[]
     let bitmaps    = [];     // ImageBitmap[]
     let naturalW = null, naturalH = null;
-    let webmBlob = null;     // For GIF conversion (unused now, but kept)
+    let webmBlob = null;     // For GIF conversion
+    let lastCanvasW = null, lastCanvasH = null, lastMime = null;
 
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
 
@@ -212,13 +239,14 @@
     }
 
     pickFolderBtn.onclick = pickFolder;
-
     pickFilesBtn.onclick = () => fileInput.click();
+    pickFolderCompatBtn.onclick = () => folderCompat.click();
     fileInput.onchange = () => {
       const files = Array.from(fileInput.files).filter(f => /\.(png|jpe?g|webp)$/i.test(f.name));
       files.sort(naturalSort);
       setImages(files);
     };
+    folderCompat.onchange = () => setImages(Array.from(folderCompat.files).filter(f => /\.(png|jpe?g|webp)$/i.test(f.name)));
 
     function status(msg) { statusEl.textContent = msg; }
 
@@ -251,16 +279,10 @@
       ctx.putImageData(imgData, 0, 0);
     }
 
-    function pickMime() {
-      const types = [
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm'
-      ];
-      for (const t of types) {
-        if (MediaRecorder.isTypeSupported(t)) return t;
-      }
-      return 'video/webm';
+    function pickMime(preferred) {
+      const order = preferred ? [preferred, 'video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']
+                              : ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+      return order.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
     }
 
     async function drawFrame(ctx, bm, outW, outH, scaleMode) {
@@ -303,8 +325,13 @@
         canvas.width = outW; canvas.height = outH;
         const ctx = canvas.getContext('2d');
 
+        lastCanvasW = outW;
+        lastCanvasH = outH;
+
         const stream = canvas.captureStream(fps);
-        const mime = pickMime();
+        const preferred = codecEl.value;
+        const mime = pickMime(preferred);
+        lastMime = mime;
         const bitrate = parseInt(qualityEl.value);
         const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate * 1000 });
         const chunks = [];
@@ -342,7 +369,7 @@
         downloadA.download = "out.webm";
         dlWrap.style.display = "block";
         prog.value = 100;
-        status(`WebM done. ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
+        status(`WebM done (${mime}). ${(webmBlob.size/1024/1024).toFixed(2)} MB`);
       } catch (err) {
         console.error(err);
         status("Error: " + (err && err.message ? err.message : err));
@@ -350,58 +377,43 @@
     }
 
     async function makeGIF() {
-      if (!bitmaps.length) throw new Error("Load images and generate WebM first for frame data.");
+      if (!webmBlob) { alert('Generate WebM first.'); return; }
       try {
-        status("Generating high-quality GIF… (client-side, max fidelity)");
         prog.value = 0;
-        const fps = parseInt(fpsEl.value || "3", 10);
-        let duration = parseFloat(durationEl.value);
-        if (!duration) duration = bitmaps.length / fps;
-        const totalFrames = Math.ceil(fps * duration);
-        const loop = loopEl.checked;
-        // Re-calc output size for consistency (no canvas ref here)
-        let outW = parseInt(wEl.value, 10);
-        let outH = parseInt(hEl.value, 10);
-        if (!outW && !outH) { outW = naturalW; outH = naturalH; }
-        else if (outW && !outH) { outH = Math.round(naturalH * (outW / naturalW)); }
-        else if (!outW && outH) { outW = Math.round(naturalW * (outH / naturalH)); }
+        status("Converting to GIF via ffmpeg.wasm…");
+        const ff = await getFFmpeg();
 
-        const gif = new GIF({
-          workers: 4, // Max workers for speed
-          quality: 1, // 1 = highest quality (minimal compression artifacts)
-          width: outW,
-          height: outH,
-          workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
-          background: '#000000' // Matches letterbox
-        });
+        // Write input
+        ff.FS('writeFile', 'in.webm', new Uint8Array(await webmBlob.arrayBuffer()));
 
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = outW; tempCanvas.height = outH;
-        const tempCtx = tempCanvas.getContext('2d');
-        const frameDelay = Math.round(1000 / fps);
+        const fps = Math.max(1, parseInt(fpsEl.value || "3", 10));
+        const W = lastCanvasW || (parseInt(wEl.value,10) || 480);
+        const H = lastCanvasH || -1; // -1 = preserve aspect if unknown
 
-        for (let i = 0; i < totalFrames; i++) {
-          const frameIdx = loop ? (i % bitmaps.length) : i;
-          if (frameIdx >= bitmaps.length) break;
-          drawFrame(tempCtx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
-          applyFilter(tempCtx, outW, outH, filterEl.value);
-          gif.addFrame(tempCanvas, { delay: frameDelay, copy: true }); // copy=true for efficiency
-          prog.value = Math.round((i / totalFrames) * 100);
-        }
+        // 2-pass palette for best color
+        await ff.run(
+          '-i','in.webm',
+          '-vf', `fps=${fps},scale=${W}:${H === -1 ? -1 : H}:flags=lanczos,palettegen`,
+          '-y','pal.png'
+        );
+        await ff.run(
+          '-i','in.webm','-i','pal.png',
+          '-lavfi', `[0:v][1:v]paletteuse=dither=bayer:bayer_scale=3`,
+          '-loop', loopEl.checked ? '0' : '-1',
+          '-y','out.gif'
+        );
 
-        gif.on('finished', blob => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = 'out.gif'; a.click();
-          URL.revokeObjectURL(url);
-          status(`High-Q GIF done. ${(blob.size/1024/1024).toFixed(2)} MB (quality=1 for sharpness)`);
-        });
-
-        gif.on('progress', p => { prog.value = Math.round(p * 100); });
-        gif.render();
-      } catch (err) {
-        console.error(err);
-        status("GIF Error: " + (err && err.message ? err.message : err) + " (Try fewer frames)");
+        const data = ff.FS('readFile', 'out.gif');
+        const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
+        const url = URL.createObjectURL(gifBlob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'out.gif'; a.click();
+        URL.revokeObjectURL(url); // Cleanup
+        status(`GIF ready. ${(gifBlob.size/1024/1024).toFixed(2)} MB`);
+        prog.value = 100;
+      } catch (e) {
+        console.error(e);
+        status("GIF Error: " + (e?.message || e));
       }
     }
 
