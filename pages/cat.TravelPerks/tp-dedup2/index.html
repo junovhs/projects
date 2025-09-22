@@ -804,10 +804,28 @@ document.getElementById('supplierFilter').addEventListener('change', () => {
 
 // Export unmatched to clipboard in HQ format
 document.getElementById('exportUnmatched').addEventListener('click', () => {
-  let exportDeals = hqDeals.filter(d => rejectedHQ.has(d.id));
+  if (!hqDeals.length) { alert('No HQ deals to export.'); return; }
+
+  const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
+  const filterSupplier = document.getElementById('supplierFilter').value;
+
+  let rows = [];
+  if (websiteDeals.length) {
+    // Compute matches to determine unmatched (rejected or low-score)
+    rows = matchAll(hqDeals);
+  } else {
+    // Fallback: if no website data, treat all HQ as unmatched
+    rows = hqDeals.map(hq => ({ hq, best: null, meta: { score: 0 } }));
+  }
+
+  let exportDeals = rows
+    .filter(row => rejectedHQ.has(row.hq.id) || (row.meta?.score ?? 0) < threshold)
+    .map(row => row.hq);
+
   if (restrictToday) {
     exportDeals = exportDeals.filter(d => !sameDay(d.end, today));
   }
+
   if (!exportDeals.length) { alert('No unmatched deals to export.'); return; }
 
   const grouped = {};
@@ -817,9 +835,9 @@ document.getElementById('exportUnmatched').addEventListener('click', () => {
   });
 
   let output = '';
-  Object.keys(grouped).forEach(vendor => {
-    output += `v\t${vendor}\n`;
-    grouped[vendor].forEach(deal => {
+  Object.keys(grouped).sort().forEach(vendor => {
+    output += `v\t${vendor}:\n`;
+    grouped[vendor].sort((a, b) => a.originalLine.localeCompare(b.originalLine)).forEach(deal => {
       const tag = deal.type === 'exclusive' ? 'ed' : 'd';
       output += `${tag}\t${deal.text}\n`;
     });
