@@ -125,9 +125,9 @@
 
     <div class="row" id="gifRow" style="display:none;">
       <div>
-        <label for="gifQuality">🎞️ GIF Quality (0=best/large, 30=small/lossy)</label>
-        <input type="range" id="gifQuality" min="0" max="30" value="5" />
-        <small id="gifQualityVal">5 (balanced)</small>
+        <label for="gifQuality">🎞️ GIF Quality (1=best/large, 30=small/lossy)</label>
+        <input type="range" id="gifQuality" min="1" max="30" value="5" />
+        <small id="gifQualityVal">5 (lower = better quality)</small>
       </div>
     </div>
 
@@ -190,8 +190,20 @@
     let isVideoMode = false;
     let videoElement = null; // Hidden video for frame extraction
 
+    // Helpers
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const once = (el, ev) => new Promise(res => el.addEventListener(ev, res, { once: true }));
+
+    async function seekTo(video, t) {
+      const target = Math.min(Math.max(0, t), Math.max(0, video.duration - 0.001));
+      if (Math.abs(video.currentTime - target) < 1e-4) return;
+      video.currentTime = target;
+      await once(video, 'seeked');
+      await new Promise(requestAnimationFrame); // ensure the frame is actually painted
+    }
+
     qualityEl.oninput = () => qualityValEl.textContent = qualityEl.value + ' kbps';
-    gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (0=best/large, 30=small/lossy)';
+    gifQualityEl.oninput = () => gifQualityValEl.textContent = gifQualityEl.value + ' (lower = better quality)';
 
     function naturalSort(a, b) {
       const ax = [], bx = [];
@@ -265,16 +277,25 @@
       bitmaps = []; naturalW = null; naturalH = null;
       gifRow.style.display = 'flex';
       status(`Loaded video: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
-      // Create hidden video element
+
+      // Hidden video element
+      const videoUrl = URL.createObjectURL(file);
       videoElement = document.createElement('video');
-      videoElement.src = URL.createObjectURL(file);
+      videoElement.preload = 'auto';
+      videoElement.muted = true;         // just in case the browser requires it for programmatic seeks
+      videoElement.playsInline = true;
+      videoElement.src = videoUrl;
       videoElement.style.display = 'none';
       document.body.appendChild(videoElement);
-      await videoElement.load();
+
+      await once(videoElement, 'loadedmetadata');
       naturalW = videoElement.videoWidth;
       naturalH = videoElement.videoHeight;
       wEl.placeholder = String(naturalW);
       hEl.placeholder = String(naturalH);
+
+      // free the URL when you’re totally done with extraction (e.g., after makeWebM or after loadBitmaps finishes)
+      videoElement.__objectURL = videoUrl;
     };
 
     function status(msg) { statusEl.textContent = msg; }
@@ -283,30 +304,30 @@
       if (!imageFiles.length) throw new Error("No files selected.");
       bitmaps = [];
       if (isVideoMode && videoElement) {
-        // Extract frames from video
-        const fps = parseInt(fpsEl.value || "3");
+        const fps = parseInt(fpsEl.value || "3", 10);
         const frameInterval = 1 / fps;
         const duration = parseFloat(durationEl.value) || videoElement.duration;
         const totalFrames = Math.ceil(duration / frameInterval);
         status(`Extracting ${totalFrames} frames from video…`);
+
+        // One offscreen canvas is enough
+        const grab = document.createElement('canvas');
+        grab.width = videoElement.videoWidth;
+        grab.height = videoElement.videoHeight;
+        const gctx = grab.getContext('2d');
+
         for (let i = 0; i < totalFrames; i++) {
-          const time = i * frameInterval;
-          videoElement.currentTime = time;
-          await new Promise(resolve => {
-            if (videoElement.readyState >= 2) {
-              requestAnimationFrame(resolve);
-            } else {
-              videoElement.onloadeddata = resolve;
-            }
-          });
-          const canvas = document.createElement('canvas');
-          canvas.width = naturalW;
-          canvas.height = naturalH;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(videoElement, 0, 0);
-          const bm = await createImageBitmap(canvas);
+          await seekTo(videoElement, i * frameInterval);
+          gctx.drawImage(videoElement, 0, 0);
+          const bm = await createImageBitmap(grab);
           bitmaps.push(bm);
-          prog.value = Math.round(((i+1)/totalFrames)*30);
+          prog.value = Math.round(((i + 1) / totalFrames) * 30);
+        }
+
+        // optional: clean up the video object URL now that frames are extracted
+        if (videoElement.__objectURL) {
+          URL.revokeObjectURL(videoElement.__objectURL);
+          delete videoElement.__objectURL;
         }
       } else {
         // Original image load
@@ -410,17 +431,17 @@
         const loop = loopEl.checked;
         const outW = lastCanvasW || (parseInt(wEl.value,10) || naturalW || 480);
         const outH = lastCanvasH || (parseInt(hEl.value,10) || naturalH || 240);
-        const gifQual = parseInt(gifQualityEl.value);
+        const gifQual = Math.max(1, parseInt(gifQualityEl.value, 10) || 5);
 
         status("Generating GIF… (quality=" + gifQual + ")");
         const gif = new GIF({
           workers: 4,
-          quality: gifQual,
+          quality: gifQual,            // 1 = best (largest), 30 = smallest (lossier)
           width: outW,
           height: outH,
           workerScript: workerURL,
           background: '#000000',
-          repeat: loop ? 0 : 0
+          repeat: loop ? 0 : -1        // 0 = infinite; -1 = no loop
         });
 
         const tempCanvas = document.createElement('canvas');
