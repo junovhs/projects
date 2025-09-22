@@ -526,12 +526,14 @@
       for (let iter = 0; iter < 3; iter++) {
         if (canceled) throw new Error('Canceled');
         const clusters = Array(maxColors).fill().map(() => []);
-        allPixels.forEach((pixel, idx) => {
-          if (idx % 10000 === 0) await raf(); // Fixed yield
+        // Fixed: Use for...of loop instead of forEach to allow await
+        for (let idx = 0; idx < allPixels.length; idx++) {
+          const pixel = allPixels[idx];
+          if (idx % 10000 === 0) await raf(); // Now safe in async context
           const dists = centroids.map(c => Math.hypot(...pixel.map((v, i) => v - c[i])));
           const closest = dists.indexOf(Math.min(...dists));
           clusters[closest].push(pixel);
-        });
+        }
         centroids = clusters.map(cluster => {
           if (!cluster.length) return [0,0,0];
           const sums = cluster.reduce((acc, p) => acc.map((s, i) => s + p[i]), [0,0,0]);
@@ -671,7 +673,7 @@
             if (rec.state === 'recording') rec.stop();
             return;
           }
-          if (i % 30 === 0) raf(); // Non-async yield for interval
+          if (i % 30 === 0) requestAnimationFrame(() => {}); // Non-async yield for interval
           const frameIdx = loop ? (i % bitmaps.length) : Math.min(i, bitmaps.length - 1);
           ctx.clearRect(0, 0, outW, outH);
           drawFrame(ctx, bitmaps[frameIdx], outW, outH, scaleModeEl.value);
