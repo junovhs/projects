@@ -10,86 +10,107 @@
     <link rel="stylesheet" href="layout.css">
     <link rel="stylesheet" href="components.css">
     <link rel="stylesheet" href="tree.css">
-    <script type="module" src="scan.js" defer></script>
     <script type="module" src="utils.js" defer></script>
     <script type="module">
-        // Phase 2 Init: Wire events, state
-        import { scanDirectory, appState } from './scan.js';
-        import { showNotification, debounce, escapeHtml } from './utils.js';
-        import { buildTree, renderTreeNode, loadFileContent, generateReport, updateStats, exportReport } from './tree.js'; // Phase 3 stub for now
+        // Phase 1.5 Init: Static + Log Stubs (no scan yet)
+        import { showNotification, debounce, logEvent, traceError } from './utils.js';
 
-        // State & Events
-        window.appState = appState; // Global for modules
+        console.log('DirAnalyze Init: Phase 1.5 - Visuals + Logging Only');
 
-        // Drop/Select
+        // Drop Zone Logs (no func, just trace events)
         const dropZone = document.getElementById('dropZone');
-        ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
-        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (ev === 'drop') handleDirectorySelect(); }));
-        document.getElementById('selectFolderBtn').addEventListener('click', handleDirectorySelect);
-        async function handleDirectorySelect() {
-            const loader = document.getElementById('loader');
-            loader.style.display = 'block';
-            try {
-                const files = await scanDirectory({ mode: 'read' });
-                appState.projectRootName = files.rootName || 'Root';
-                appState.fullScanData.allFilesList = files.list;
-                buildTree(appState.fullScanData.allFilesList);
-                updateStats();
-                generateReport();
-                document.getElementById('dropZone').style.display = 'none';
-                document.getElementById('clearProjectBtn').style.display = 'block';
-                loader.style.display = 'none';
-                showNotification(`Loaded: ${appState.projectRootName}`);
-            } catch (err) {
-                loader.style.display = 'none';
-                showNotification(err.message, 'error');
+        ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, e => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+            logEvent(`Drag ${ev} fired: Target ${e.target.id}, DataTransfer types: ${e.dataTransfer.types.join(', ')}`);
+        }));
+        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (ev === 'drop') {
+                logEvent(`Drop fired: Items ${e.dataTransfer.items.length}, Types ${Array.from(e.dataTransfer.items).map(i => i.type).join(', ')}`);
+                traceError('Drop stub: Directory API not active yet - Phase 2');
+                showNotification('Drop detected! (Logging only - Phase 2 for full scan)', 'info');
+            } else {
+                logEvent(`Drag leave fired: Target ${e.target.id}`);
             }
-        }
+        }));
 
-        // Search (debounced)
-        const searchInput = document.getElementById('searchInput');
-        searchInput.addEventListener('input', debounce((e) => {
-            appState.searchTerm = e.target.value.toLowerCase();
-            buildTree(appState.fullScanData.allFilesList);
-            updateStats();
-        }, 250));
-
-        // Expand/Collapse
-        document.getElementById('expandAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.add('open'); n.querySelector('ul').style.display = 'block'; }));
-        document.getElementById('collapseAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.remove('open'); n.querySelector('ul').style.display = 'none'; }));
-
-        // Resizer
-        let isResizing = false;
-        const resizer = document.getElementById('sidebarResizer');
-        resizer.addEventListener('mousedown', () => { isResizing = true; resizer.classList.add('resizing'); });
-        document.addEventListener('mousemove', e => { if (isResizing) { const left = document.getElementById('leftSidebar'); let w = e.clientX; w = Math.max(220, Math.min(w, window.innerWidth * 0.6)); left.style.width = w + 'px'; } });
-        document.addEventListener('mouseup', () => { isResizing = false; resizer.classList.remove('resizing'); });
-
-        // Clear
-        document.getElementById('clearProjectBtn').addEventListener('click', () => {
-            appState = { dirHandle: null, fullScanData: { allFilesList: [] }, filesMap: new Map(), isScaffoldMode: false, projectRootName: '', searchTerm: '' };
-            document.getElementById('directoryTree').innerHTML = '';
-            document.getElementById('emptyTreeNotice').style.display = 'flex';
-            updateStats();
-            document.getElementById('textReport').style.display = 'none';
-            document.getElementById('exportReportBtn').style.display = 'none';
-            document.getElementById('dropZone').style.display = 'flex';
-            document.getElementById('clearProjectBtn').style.display = 'none';
-            showNotification('Cleared');
+        // Select Btn Log
+        document.getElementById('selectFolderBtn').addEventListener('click', () => {
+            logEvent('Select Folder clicked - Stub: Browser picker not active (Phase 2)');
+            showNotification('Select clicked! (Logging only - Phase 2)', 'info');
         });
 
-        // Export
-        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+        // Search Stub Log (debounced)
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', debounce((e) => {
+            logEvent(`Search input: "${e.target.value}" (length ${e.target.value.length}) - Stub: Filter not active (Phase 3)`);
+        }, 250));
 
-        // Init: Hide drop if loaded, but start empty
-        document.getElementById('textReport').style.display = 'none';
-        document.getElementById('exportReportBtn').style.display = 'none';
-        document.getElementById('clearProjectBtn').style.display = 'none';
+        // Tree Buttons Stub Logs
+        document.getElementById('expandAllBtn').addEventListener('click', () => logEvent('Expand All clicked - Stub: Dynamic tree Phase 3'));
+        document.getElementById('collapseAllBtn').addEventListener('click', () => logEvent('Collapse All clicked - Stub: Dynamic tree Phase 3'));
+
+        // Import Modal Stub
+        document.getElementById('importScaffoldBtn').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'flex';
+            logEvent('Import Scaffold clicked - Modal opened');
+        });
+        document.getElementById('closeScaffoldModalBtn').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'none';
+            logEvent('Scaffold modal closed via X');
+        });
+        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'none';
+            logEvent('Scaffold modal canceled');
+        });
+        document.getElementById('createProjectFromScaffoldBtn').addEventListener('click', () => {
+            logEvent('Create Scaffold clicked - Stub: Write Phase 4');
+            showNotification('Create clicked! (Logging only - Phase 4)', 'info');
+        });
+
+        // Resizer Log
+        let isResizing = false;
+        const resizer = document.getElementById('sidebarResizer');
+        resizer.addEventListener('mousedown', () => {
+            isResizing = true;
+            resizer.classList.add('resizing');
+            logEvent('Resizer mousedown - Start drag');
+        });
+        document.addEventListener('mousemove', e => {
+            if (isResizing) {
+                const left = document.getElementById('leftSidebar');
+                const oldW = left.style.width;
+                let w = e.clientX;
+                w = Math.max(220, Math.min(w, window.innerWidth * 0.6));
+                left.style.width = w + 'px';
+                logEvent(`Resizer mousemove: Old width ${oldW}, New ${w}px, Mouse X ${e.clientX}`);
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('resizing');
+                logEvent('Resizer mouseup - End drag');
+            }
+        });
+
+        // Export Stub Log
+        document.getElementById('exportReportBtn').addEventListener('click', () => {
+            logEvent('Export clicked - Stub: Blob Phase 3');
+            showNotification('Export clicked! (Logging only - Phase 3)', 'info');
+        });
+
+        // Init Log
+        console.log('Init complete: Events wired with logs. Open console for traces.');
         document.getElementById('emptyTreeNotice').style.display = 'flex';
+        document.getElementById('textReport').style.display = 'block'; // Show static mock
+        document.getElementById('exportReportBtn').style.display = 'block';
     </script>
 </head>
 <body>
-    <!-- Logo: Fixed to match screenshot (blue bar + folder + text) -->
+    <!-- Fixed Logo: Matches screenshot (blue bar + folder path + text) -->
     <header id="logoHeader">
         <svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="200" height="60" fill="#007AFF" rx="8"/>
@@ -112,53 +133,117 @@
             </div>
             <div id="generalActions">
                 <button class="utility-button" id="importScaffoldBtn">IMPORT AI SCAFFOLD</button>
-                <button class="utility-button" id="clearProjectBtn">CLEAR PROJECT</button>
+                <button class="utility-button" id="clearProjectBtn" style="display: none;">CLEAR PROJECT</button>
             </div>
             <hr class="sidebar-hr">
-            <ul id="directoryTree"></ul>
-            <div class="empty-notice" id="emptyTreeNotice">No folder loaded</div>
+            <ul id="directoryTree">
+                <!-- Fixed Static Tree: Matches screenshot (indents, icons, sizes) -->
+                <li class="tree-node folder open" data-path="diranalyze">
+                    <i class="fas fa-folder"></i>
+                    <span class="toggle"></span>
+                    <span>diranalyze (52 files, 9 subdirs, 4.5 MB)</span>
+                    <ul style="display: block;">
+                        <li class="tree-node folder open" data-path="backend">
+                            <i class="fas fa-folder"></i>
+                            <span class="toggle"></span>
+                            <span>backend (8 files, 1 subdir, 98.3 KB)</span>
+                            <ul style="display: block;">
+                                <li class="tree-node file" data-path="backend/src/db.sqlite3"><i class="fas fa-file"></i><span>src/db.sqlite3 (24 B)</span></li>
+                                <li class="tree-node file" data-path="backend/src/db_manage.rs"><i class="fas fa-file-code"></i><span>src/db_manage.rs (1.2 KB)</span></li>
+                            </ul>
+                        </li>
+                        <li class="tree-node file" data-path="gitignore"><i class="fas fa-file"></i><span>gitignore (17 B)</span></li>
+                        <li class="tree-node file" data-path="Cargo.lock"><i class="fas fa-file"></i><span>Cargo.lock (53.4 KB)</span></li>
+                        <li class="tree-node file" data-path="Cargo.toml"><i class="fas fa-file"></i><span>Cargo.toml (788 B)</span></li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="empty-notice" id="emptyTreeNotice" style="display: none;">No folder loaded</div>
         </aside>
 
         <div id="sidebarResizer"></div>
 
         <main id="mainView">
             <div id="mainAction">
+                <!-- Fixed Drop: Top-left, bolder text, dim alt -->
                 <div id="dropZone" style="align-self: flex-start; width: auto; min-width: 300px;">
                     <i class="fas fa-folder drop-icon"></i>
-                    <div class="drop-text" style="font-weight: 500;">DROP FOLDER</div>
+                    <div class="drop-text" style="font-weight: 600;">DROP FOLDER</div>
                     <div class="drop-alternative" style="color: var(--dim-color); font-weight: 400;">- OR -</div>
                     <button class="folder-select-btn" id="selectFolderBtn">SELECT FOLDER</button>
                 </div>
                 <div id="loader" style="display: none; align-self: flex-start;"><i class="fas fa-spinner"></i> Scanning...</div>
             </div>
             <div style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border-color);">
-                <div id="textReport"></div>
-                <button id="exportReportBtn" class="action-button primary" style="display: none; align-self: flex-start; margin: 10px 15px;">EXPORT COMBINED TEXT</button>
+                <!-- Fixed Report: Exact // format, pre-wrap -->
+                <div id="textReport" style="display: block; white-space: pre-wrap;">
+// DIRANALYZE COMBINED TEXT EXPORT //
+// Project: diranalyze
+// Timestamp: 2025-09-23T17:05:03.052Z
+// Files in this export: 43
+
+// NOTE: 8 binary or non-text file(s) were omitted from this export.
+
+// ===== START OF FILE: diranalyze ===== //
+
+- diranalyze (Folder)
+  - backend (Folder)
+    - src/db.sqlite3 (0.02 KB)
+    - src/db_manage.rs (1.23 KB)
+  - gitignore (0.02 KB)
+  - Cargo.lock (53.48 KB)
+  - Cargo.toml (0.79 KB)
+
+// ===== END OF FILE ===== //
+                </div>
+                <button id="exportReportBtn" class="action-button primary" style="display: block; align-self: flex-start; margin: 10px 15px 0;">EXPORT COMBINED TEXT</button>
             </div>
         </main>
 
         <aside id="rightStatsPanel">
             <div class="panel-header"><h2>STATISTICS</h2></div>
-            <div id="globalStats" class="empty-notice">No data yet</div>
+            <div id="globalStats">
+                <p class="stat-item"><strong>Files in View:</strong> 51</p>
+                <p class="stat-item"><strong>Folders in View (Entries):</strong> 10</p>
+                <p class="stat-item"><strong>Total Size (Original Files in View):</strong> 853.94 KB</p>
+                <p class="stat-item"><strong>Avg File Size (Original Scan):</strong> 16.74 KB</p>
+                <p class="stat-item"><strong>Empty Dirs (Original Scan):</strong> N/A</p>
+                <p class="selection-summary">Displaying stats for 51 selected files (853.94 KB). 1 file (3.7 MB) and 0 folder entries were omitted from view.</p>
+            </div>
             <div class="file-type-stats">
                 <h3>FILE TYPE BREAKDOWN</h3>
                 <table id="fileTypeTable">
                     <thead><tr><th>Extension</th><th>Count</th><th>Total Size</th></tr></thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <tr><td>png</td><td>1</td><td>295.36 KB</td></tr>
+                        <tr><td>js</td><td>18</td><td>266.75 KB</td></tr>
+                        <tr><td>md</td><td>8</td><td>68.9 KB</td></tr>
+                        <tr><td>lock</td><td>1</td><td>53.48 KB</td></tr>
+                        <tr><td>webm</td><td>6</td><td>34.97 KB</td></tr>
+                        <tr><td>sqlite3</td><td>2</td><td>24 KB</td></tr>
+                        <tr><td>py</td><td>2</td><td>22.58 KB</td></tr>
+                        <tr><td>rs</td><td>3</td><td>20.12 KB</td></tr>
+                        <tr><td>html</td><td>1</td><td>15.04 KB</td></tr>
+                        <tr><td>sh</td><td>2</td><td>9.58 KB</td></tr>
+                        <tr><td>(no ext)</td><td>3</td><td>3.32 KB</td></tr>
+                        <tr><td>toml</td><td>1</td><td>788 B</td></tr>
+                        <tr><td>json</td><td>1</td><td>423 B</td></tr>
+                    </tbody>
                 </table>
             </div>
         </aside>
     </div>
 
-    <!-- Stub Modal for Phase 4 -->
-    <div id="scaffoldImportModal" class="diff-modal" style="display: none;">
+    <div id="notification" class="notification"></div>
+
+    <div id="scaffoldImportModal" class="diff-modal">
         <div class="diff-modal-content">
             <div>
                 <h3>Import AI-Generated Project Scaffold</h3>
                 <button class="diff-modal-close" id="closeScaffoldModalBtn">×</button>
             </div>
             <div class="modal-scrollable-content">
-                <p style="font-size: 0.9em; color: var(--dim-color);">Paste the JSON array of <code>create_scaffold_file</code> operations from your AI below.</p>
+                <p style="font-size: 0.9em; color: var(--dim-color);">Paste the JSON array of <code>create_scaffold_file</code> operations from your AI below. Ensure filePaths are like 'projectName/src/app.js' or 'projectName/index.html'.</p>
                 <textarea id="aiScaffoldJsonInput" placeholder='[{"operation": "create_scaffold_file", "filePath": "my-project/index.html", "content": "&lt;!DOCTYPE html&gt;..."}]'></textarea>
             </div>
             <div class="diff-modal-actions">
@@ -167,7 +252,5 @@
             </div>
         </div>
     </div>
-
-    <div id="notification" class="notification"></div>
 </body>
 </html>
