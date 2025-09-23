@@ -1,281 +1,1256 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DirAnalyze 2.0</title>
-  <script src="https://unpkg.com/feather-icons"></script>
-  <link rel="stylesheet" href="ui.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DirAnalyze</title>
+    <style>
+        /* Combined Inline CSS: All provided files concatenated, pruned for read-only (no editor/CodeMirror specifics). Matches original exactly. */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
+
+        /* Base Variables - Minimal Theme Focused */
+        :root {
+            --disabled-opacity: 0.4;
+            --error-color: #c62828;
+            --warning-color: #f57c00;
+            --border-radius-small: 4px;
+            --border-radius-medium: 8px;
+            --animation-speed: 0.3s;
+            --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --scroll-thumb-width: 10px;
+            --transition-smooth: all 0.2s ease-in-out;
+
+            /* Minimal Theme Variables - "Apple-Inspired" Refresh */
+            --bg-color: #ffffff;
+            --text-color: #1d1d1f;
+            --accent-color: #007aff; /* Apple blue */
+            --dim-color: #8a8a8e;
+            --border-color: #d1d1d6;
+            --panel-bg: #f9f9f9;
+            --highlight-bg: #e5e5ea;
+            --font-main: 'Roboto Mono', monospace;
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
+            --terminal-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+            --header-color: #000000;
+            --button-bg: #f5f5f7; /* Default background for general buttons */
+            --button-text: var(--text-color);
+            --button-hover-bg: #e9e9eb;
+            --button-active-bg: var(--accent-color); /* Background for active/primary buttons */
+            --button-active-text: white;
+
+
+            --notification-bg: rgba(0, 0, 0, 0.85);
+            --notification-border: var(--accent-color);
+            --scroll-track-color: var(--highlight-bg);
+            --scroll-thumb-color: #c7c7cc;
+            --scroll-thumb-hover-color: #aeaeb2;
+            --status-saved: #34c759;
+            --status-unsaved: #ff9f0a;
+            --status-error: #ff3b30;
+            --status-loading: var(--accent-color);
+            --status-unchanged: var(--dim-color);
+
+            /* Layout Variables from original styles.css */
+            --initial-left-sidebar-width: 300px;
+            --right-stats-panel-width: 320px;
+            --tabs-height: 40px;
+            --resizer-width: 6px;
+        }
+
+        /* Animations */
+        @keyframes slideDown { 0% { transform: translateY(-100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100%); opacity: 0; } }
+
+        /* Base Styles */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: var(--font-ui);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            letter-spacing: 0.1px;
+            line-height: 1.45;
+            transition: var(--transition-smooth);
+        }
+
+        body.loaded #appContainer {
+            /* Styles to apply after loading, if any specific are needed */
+        }
+
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: var(--scroll-thumb-width);
+            height: var(--scroll-thumb-width);
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--scroll-track-color);
+            border-radius: var(--border-radius-small);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb-color);
+            border-radius: var(--border-radius-small);
+            border: 2px solid var(--scroll-track-color);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--scroll-thumb-hover-color);
+        }
+
+        /* Page Loader */
+        #pageLoader {
+            position: fixed;
+            top:0; left:0;
+            width:100vw; height:100vh;
+            background-color:var(--bg-color);
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            z-index:9999;
+            opacity:1;
+            transition:opacity 0.5s ease-out .2s;
+        }
+        #pageLoader.hidden {
+            opacity:0;
+            pointer-events:none;
+        }
+        #pageLoader video {
+            width:150px;
+            height:150px;
+            margin-bottom:15px;
+        }
+        #pageLoader p {
+            font-size:1.1em;
+            color:var(--text-color);
+        }
+
+        /* Sidebar Header & Logo */
+        #sidebarHeader {
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        #sidebarHeader h1 { /* Was project title, now general header for logo */
+            font-size: 1.5em;
+            color: var(--header-color);
+            margin: 0;
+            font-weight: 500;
+        }
+        .header-logo { /* For the actual image */
+            height: auto; /* Let width control aspect ratio */
+            width: 200px; /* Example width */
+            max-width: 100%;
+            margin-bottom: 10px; /* Space below logo */
+        }
+
+        /* Drop Zone */
+        #mainAction { /* Container for dropzone and loader */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #dropZone {
+            width: 100%;
+            min-height: 130px;
+            border: 2px dashed var(--accent-color);
+            border-radius: var(--border-radius-medium);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background-color: var(--bg-color);
+            transition: var(--transition-smooth);
+            cursor: pointer;
+            box-shadow: var(--terminal-shadow);
+            margin-bottom: 10px;
+        }
+        #dropZone.dragover {
+            background-color: var(--highlight-bg);
+            border-color: var(--text-color);
+            box-shadow: 0 0 10px var(--accent-color);
+            transform: scale(1.01);
+        }
+        .drop-content { padding: 10px; }
+        .drop-icon { font-size: 1.8rem; margin-bottom: 6px; color: var(--accent-color); }
+        .drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); }
+        .drop-alternative { margin: 4px 0; font-size: 0.75rem; color: var(--dim-color); }
+        .folder-select-btn {
+            padding: 6px 12px;
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            border-radius: var(--border-radius-small);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            margin-top: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 0.8em;
+            font-family: var(--font-ui);
+        }
+        .folder-select-btn:hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
+
+        /* Loader */
+        #loader {
+            display: none;
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            margin: 10px 0;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        #loader.visible { display: block; }
+
+        /* Horizontal Rule */
+        .sidebar-hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 10px 0;
+        }
+
+        /* Button Containers & General Buttons */
+        #treeViewControls, #generalActions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        /* Standard button styling, can be for action-button, utility-button, etc. */
+        button.action-button, button.utility-button {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            border: 1px solid var(--border-color);
+            padding: 7px 14px;
+            font-family: var(--font-ui);
+            font-size: 0.85em;
+            border-radius: var(--border-radius-small);
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            letter-spacing: 0.3px;
+            text-transform: none;
+            font-weight: 500;
+            width: 100%; /* Make utility buttons full width */
+            text-align: center; /* Center text for general action buttons */
+        }
+        button.utility-button { /* Specific overrides if utility buttons need to differ */
+            text-align: left;
+        }
+        button.action-button:not(:disabled):hover, button.utility-button:not(:disabled):hover {
+            background-color: var(--button-hover-bg);
+            box-shadow: var(--shadow-small);
+        }
+        button.action-button:disabled, button.utility-button:disabled {
+            opacity: var(--disabled-opacity);
+            cursor: not-allowed;
+            background-color: var(--button-bg); /* Ensure disabled state is clear */
+            color: var(--dim-color);
+        }
+        /* Primary action style (e.g., for "Commit") */
+        button.action-button.primary:not(:disabled) {
+            background-color: var(--accent-color);
+            color: var(--button-active-text);
+            border-color: var(--accent-color);
+        }
+        button.action-button.primary:not(:disabled):hover {
+            background-color: #0056b3; /* Darker accent */
+        }
+
+        /* Tree View Container */
+        #leftSidebar #visualOutputContainer {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--terminal-shadow);
+            padding: 10px;
+            background-color: var(--bg-color);
+            border-radius: var(--border-radius-medium);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 200px;
+        }
+        #leftSidebar #visualOutputContainer .panel-header {
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+            flex-shrink: 0;
+        }
+        #leftSidebar #treeContainer {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        /* Tree View Item Styling */
+        .tree ul { list-style-type: none; padding-left: 20px; margin: 2px 0; }
+        .tree li { margin: 0; position: relative; padding: 0; display: flex; flex-direction: column; }
+        .tree li > .item-line { display: flex; align-items: center; padding: 2px 0; }
+        .tree li.dimmed-uncommitted > .item-line { opacity: 0.6; }
+        .tree li.dimmed-uncommitted > .item-line .name,
+        .tree li.dimmed-uncommitted > .item-line .stats,
+        .tree li.dimmed-uncommitted > .item-line .icon svg,
+        .tree li.dimmed-uncommitted > .item-line .folder-toggle {
+            color: var(--dim-color) !important;
+            fill: var(--dim-color) !important;
+        }
+        .tree li.dimmed-uncommitted > .item-line .selector { opacity: 0.65; }
+        .tree li::before { content: ""; position: absolute; left: -11px; top: 0; bottom: 0; width: 1px; background: var(--border-color); }
+
+        /* Tabs (pruned for single-tab report view) */
+        #mainViewTabs {
+            display: flex;
+            flex-direction: row;
+            gap: 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 0;
+            flex-shrink: 0;
+            height: var(--tabs-height);
+            background-color: var(--bg-color);
+            border-radius: var(--border-radius-medium) var(--border-radius-medium) 0 0;
+        }
+        .tab-button {
+            padding: 8px 16px;
+            background-color: var(--bg-color);
+            color: var(--dim-color);
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            font-family: var(--font-ui);
+            font-size: 0.9em;
+            font-weight: 500;
+            border-radius: var(--border-radius-small) var(--border-radius-small) 0 0;
+            margin-bottom: -1px;
+            position: relative;
+        }
+        .tab-button:hover {
+            color: var(--text-color);
+            background-color: var(--highlight-bg);
+        }
+        .tab-button.active {
+            background-color: var(--panel-bg);
+            border-color: var(--border-color);
+            border-bottom-color: var(--panel-bg);
+            color: var(--accent-color);
+            z-index: 1;
+        }
+        #tabContentArea {
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
+            background-color: var(--panel-bg);
+        }
+        .tab-content-item {
+            display: none;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .tab-content-item.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Panels inside Tab Content */
+        #tabContentArea .content-panel {
+            flex-grow: 1;
+            margin-bottom: 0;
+            width: 100%;
+            box-sizing: border-box;
+            border: none;
+            box-shadow: none;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 15px;
+            margin-bottom: 0;
+            flex-shrink: 0;
+            background-color: var(--highlight-bg);
+        }
+        .panel-header h2 {
+            margin: 0;
+            color: var(--header-color);
+            font-size: 1.05em;
+            font-weight: 500;
+        }
+        .button-container { /* For buttons at the bottom of a panel */
+            margin-top: auto;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 15px;
+            flex-shrink:0;
+            border-top:1px solid var(--border-color);
+            background-color: var(--panel-bg);
+        }
+
+        /* Specific Panel Content (Text Report, AI Patcher Log etc.) */
+        #textOutputContainerOuter { padding: 0; }
+        #textOutput {
+            font-family: var(--font-main);
+            white-space: pre;
+            line-height: 1.6;
+            font-size: 0.85em;
+            padding: 15px 20px;
+            background-color: var(--bg-color);
+            border-radius: 0;
+            color: var(--text-color);
+            overflow-y: auto;
+            flex-grow: 1;
+            height: 0; /* For flex scroll */
+            border-bottom: 1px solid var(--border-color);
+        }
+        #aiPatchOutputLog {
+            overflow-y: auto;
+            flex-grow: 1;
+            height: 0; /* For flex scroll */
+            padding: 10px;
+            background-color: var(--bg-color);
+            font-family: var(--font-main);
+            white-space: pre-wrap;
+            font-size: 0.85em;
+        }
+
+        /* AI Patcher Specifics (pruned, but keep for modal) */
+        #aiPatchPanel { background-color: var(--panel-bg); }
+        .patch-input-area {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .patch-input-area > .action-button { /* Buttons directly in this area */
+            width: auto; /* Don't force full width */
+            align-self: flex-start;
+        }
+        .patch-input-area > p {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--text-color);
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        #aiPatchInput { /* Textarea for patch JSON */
+            width: calc(100% - 20px); /* Adjust based on parent padding */
+            margin: 0 auto 10px auto; /* Center if parent padding is tricky */
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-small);
+            font-family: var(--font-main);
+            font-size: 0.85em;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 80px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .patch-results-area {
+            flex-grow: 1;
+            overflow: hidden;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .patch-results-area h3 { margin-top: 0;}
+
+        /* Stats Panel Specifics */
+        #rightStatsPanel .panel-header h2 {
+            font-size: 1.1em;
+            color: var(--header-color);
+            font-weight: 500;
+            margin: 0;
+        }
+        #globalStats, .file-type-stats { padding: 5px; }
+        .selection-summary {
+            font-size: 0.85em; color: var(--dim-color); margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }
+        .stat-item { margin-bottom: 7px; font-size: 0.85em; }
+        .stat-item strong { color: var(--text-color); font-weight: 500; }
+        .file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
+        .file-type-stats th, .file-type-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
+        .file-type-stats th { background-color: var(--highlight-bg); font-weight: 500; color: var(--header-color); }
+
+        /* Empty Notice */
+        .empty-notice {
+            text-align: center; padding: 20px; color: var(--dim-color);
+            font-size: 0.9em; flex-grow: 1; display:flex;
+            align-items:center; justify-content:center;
+        }
+
+        /* Notification Bar */
+        .notification {
+            position: fixed; top: 0; right: 20px;
+            background-color: var(--notification-bg); color: white;
+            padding: 10px 15px;
+            border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
+            z-index: 2100; max-width: 300px;
+            transform: translateY(-100%);
+            border-left: 4px solid var(--notification-border);
+            box-shadow: var(--shadow-medium); font-size: 0.9em;
+        }
+        .notification.show { animation: slideDown 0.3s forwards, slideUp 0.3s forwards 3s; }
+
+        /* New App Container Layout */
+        #appContainer {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Left Sidebar */
+        #leftSidebar {
+            width: var(--initial-left-sidebar-width);
+            min-width: 220px;
+            max-width: 60%;
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            height: 100%;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Sidebar Resizer Handle */
+        #sidebarResizer {
+            width: var(--resizer-width);
+            background-color: var(--border-color);
+            cursor: col-resize;
+            flex-shrink: 0;
+            z-index: 10;
+            transition: background-color 0.2s ease-in-out;
+            position: relative;
+        }
+        #sidebarResizer:hover, #sidebarResizer.resizing {
+            background-color: var(--accent-color);
+        }
+
+        /* Main View (Center Column) */
+        #mainView {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+            background-color: var(--bg-color);
+            padding: 15px;
+            box-sizing: border-box;
+            gap: 10px;
+            border-left: 1px solid var(--border-color);
+        }
+
+        /* Right Stats Panel */
+        #rightStatsPanel {
+            width: var(--right-stats-panel-width);
+            min-width: 240px;
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border-color);
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Generic Modal Styling */
+        .diff-modal { /* Base class for modals like AI Patcher Diff, Scaffold Import, AI Debrief */
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: rgba(0,0,0,0.65);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .diff-modal-content {
+            background-color: var(--bg-color);
+            padding: 0; /* Header/footer/content will have their own padding */
+            border: 1px solid #c8c8c8;
+            border-radius: var(--border-radius-medium);
+            width: auto;
+            min-width: 320px;
+            max-width: 90%; /* Default max-width */
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+            overflow: hidden; /* Scroll managed by .modal-scrollable-content */
+        }
+        .diff-modal-content > div:first-child:not(.modal-scrollable-content) { /* Modal Header Style */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+        }
+        .diff-modal-content > div:first-child h3 { margin: 0; font-size: 1.15em; color: var(--header-color); font-weight: 500; }
+        .diff-modal-close { /* For the '×' button in modal headers */
+            color: var(--dim-color); font-size: 22px; font-weight: bold;
+            cursor: pointer; line-height:1; background:none; border:none; padding:0 5px;
+        }
+        .diff-modal-close:hover, .diff-modal-close:focus { color: var(--text-color); }
+
+        .modal-scrollable-content { /* For the main content area of modals */
+            padding: 18px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .diff-modal-actions { /* Footer for modal action buttons */
+            text-align: right;
+            padding: 12px 18px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+        }
+        .diff-modal-actions .action-button.secondary {
+            background-color: var(--highlight-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+        .diff-modal-actions .action-button.secondary:hover:not(:disabled) {
+            background-color: var(--border-color);
+        }
+
+        /* AI Patch Diff Modal (pruned) */
+        #aiPatchDiffModal .diff-modal-content { max-width: 900px; }
+        #diffOutputContainer { /* For the diff content itself */
+            white-space: pre-wrap; font-family: var(--font-main); font-size: 0.85em;
+            border: 1px solid var(--border-color); margin: 0;
+            padding: 10px; max-height: 60vh; overflow-y: auto; background-color: var(--bg-color);
+            line-height: 1.5; flex-grow:1;
+        }
+        #diffOutputContainer del { background-color: #ffe6e6; color: #c00; text-decoration: none; padding: 0 1px; }
+        #diffOutputContainer ins { background-color: #e6ffe6; color: #060; text-decoration: none; padding: 0 1px; }
+
+        /* Scaffold Import Modal */
+        #scaffoldImportModal .diff-modal-content { max-width: 600px; }
+        #aiScaffoldJsonInput { /* Textarea in scaffold modal */
+            width: 98%;
+            font-family: var(--font-main);
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-small);
+            margin-bottom:15px;
+            min-height: 150px; /* Ensure enough space for typical JSON */
+            resize: vertical;
+        }
+
+        /* AI Debriefing Assistant Modal (pruned) */
+        #aiDebriefingAssistantModal .diff-modal-content { max-width: 750px; }
+        .debrief-step {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-small);
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            background-color: var(--bg-color);
+        }
+        .debrief-step legend {
+            font-weight: 500;
+            padding: 0 5px;
+            color: var(--text-color);
+        }
+        .debrief-step p {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .code-block-display {
+            background-color: var(--highlight-bg);
+            padding: 8px 12px;
+            border-radius: var(--border-radius-small);
+            font-family: var(--font-main);
+            font-size: 0.85em;
+            line-height: 1.6;
+            border: 1px solid var(--border-color);
+        }
+        .code-block-display code { display: block; }
+        #aiDebriefingAssistantModal .action-button.secondary.active-profile {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            font-weight: bold;
+        }
+        #aiDebriefingAssistantModal .action-button.secondary.active-profile:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        /* File Preview Modal (adapted for inline preview, but keep modal styles if needed) */
+        #filePreview { /* This is an older style modal, might need update to match .diff-modal structure */
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--bg-color);
+            border: 1px solid #c8c8c8;
+            border-radius: var(--border-radius-medium);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            z-index: 2010;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0; width: 80%; max-width: 900px; height: 80vh; max-height: 700px;
+        }
+        #filePreviewTitle {
+            padding: 12px 18px; margin:0;
+            border-bottom: 1px solid var(--border-color);
+            font-size:1.15em; color: var(--header-color); font-weight:500;
+            background-color:var(--panel-bg);
+        }
+        #filePreviewContentWrapper {
+            flex-grow: 1; overflow: hidden; position: relative; display: flex; padding: 1px;
+        }
+        #filePreviewContent { flex-grow: 1; height: 100%; }
+        #closePreview { /* The 'X' button on the preview modal */
+            position: absolute; top: 10px; right: 15px;
+            background:transparent; border:none;
+            color:var(--dim-color); font-size:1.8em; cursor:pointer; z-index:1;
+        }
+        #closePreview:hover { color:var(--text-color); }
+
+        /* Error Panel Modal (pruned) */
+        .error-panel { /* Also a modal, but with specific error styling */
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--bg-color);
+            border-radius: var(--border-radius-medium);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            z-index: 2030; /* Higher than other modals */
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--error-color); /* Error color border */
+            width: 80%; max-width: 600px; padding:0;
+        }
+        .error-header {
+            background-color: var(--error-color); color: white;
+            padding: 12px 18px; display: flex;
+            justify-content: space-between; align-items: center; flex-shrink:0;
+        }
+        .error-header h3 { margin: 0; font-size: 1.15em; font-weight: 500; }
+        .error-header button { background: none; border: none; color: white; font-size: 1.6em; cursor: pointer; }
+        .error-content { padding: 18px; font-size: 0.9em; flex-grow:1; overflow-y:auto; }
+        .error-title { font-weight: 500; font-size: 1em; margin-bottom: 8px; color: var(--error-color); }
+        .error-message { margin-bottom: 10px; }
+        .error-details {
+            padding: 10px; background-color: var(--highlight-bg);
+            border-radius: var(--border-radius-small); margin-bottom: 10px;
+            font-family: var(--font-main);
+            color: var(--dim-color); font-size: 0.8em; max-height: 150px; overflow-y: auto;
+            white-space: pre-wrap; /* This is the fix! */
+        }
+        .error-suggestions { border-top: 1px solid var(--border-color); padding-top: 10px; }
+        .error-suggestions ul { padding-left: 18px; margin-top: 4px; }
+        .error-suggestions li { margin-bottom: 4px; }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            #appContainer {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto; /* Allow body to scroll if content overflows */
+            }
+            body { overflow-y: auto; } /* Ensure body itself can scroll */
+
+            #leftSidebar, #mainView, #rightStatsPanel {
+                width: 100% !important; /* Override inline styles */
+                max-width: 100% !important; /* Override inline styles */
+                height: auto; /* Allow content to define height */
+                max-height: none; /* Allow content to define height */
+                border-right: none;
+                border-left: none;
+                border-bottom: 1px solid var(--border-color);
+                overflow-y: visible; /* Let content flow, parent scrolls */
+            }
+            #sidebarResizer { display: none; }
+            #mainView {
+                padding: 10px;
+                border-left: none;
+                min-height: 400px; /* Give it some initial height */
+            }
+            #tabContentArea .content-panel, #textOutput,
+            #fileEditor {
+                 min-height: 300px; /* Ensure content areas have space */
+                 max-height: 60vh; /* But also limit viewport height usage */
+            }
+            #leftSidebar #visualOutputContainer { /* Tree view container */
+                max-height: 50vh; /* Limit tree view height */
+                min-height: 200px;
+            }
+            #rightStatsPanel {
+                border-bottom: none; /* No border at the very end */
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { font-size: 13px; }
+            #leftSidebar { padding: 10px; gap:10px; }
+            #mainViewTabs {
+                flex-wrap: wrap; /* Allow tabs to wrap */
+                padding-bottom: 5px;
+                height: auto;
+            }
+            .tab-button { padding: 7px 12px; font-size: 0.85em; margin-bottom: 5px; }
+            #rightStatsPanel { padding: 10px; }
+
+            .drop-icon { font-size: 1.6rem; }
+            .drop-text { font-size: 0.8rem; }
+            .folder-select-btn { font-size: 0.75em; }
+
+            .panel-header h2 { font-size: 1.0em; }
+            #leftSidebar #visualOutputContainer .panel-header h2 { font-size: 1.0em; }
+            #aiScaffoldJsonInput { min-height: 60px; font-size: 0.8em; }
+
+            button.action-button, button.utility-button {
+                font-size: 0.8em; padding: 6px 10px;
+            }
+            .editor-button { font-size: 0.8em; }
+
+            /* Modals and Preview panels to take more screen width */
+            #filePreview,
+            #scaffoldImportModal .diff-modal-content,
+            #aiPatchDiffModal .diff-modal-content,
+            #aiBriefingStudioModal .diff-modal-content,
+            .error-panel {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                height: auto; /* Let content define height up to max */
+                max-height: 90vh;
+            }
+             .diff-modal { padding: 10px; } /* Reduce padding on smallest screens */
+        }
+    </style>
 </head>
 <body>
-  <header class="row between p-4">
-    <div class="row g-2">
-      <svg class="logo"><use href="#i-folder"/></svg>
-      <div class="col">
-        <h1 class="title m-0">DirAnalyze 2.0</h1>
-        <p class="muted small m-0">Directory Analysis Tool</p>
-      </div>
+    <div id="appContainer">
+        <!-- Left Sidebar: Directory Tree -->
+        <div id="leftSidebar">
+            <div id="sidebarHeader">
+                <h1>DirAnalyze</h1>
+            </div>
+            <div id="treeViewControls">
+                <input type="text" id="treeSearchInput" class="action-button" placeholder="Search files/folders..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color);">
+                <div style="display: flex; gap: 5px;">
+                    <button id="expandAllBtn" class="action-button">Expand All</button>
+                    <button id="collapseAllBtn" class="action-button">Collapse All</button>
+                </div>
+            </div>
+            <hr class="sidebar-hr">
+            <div id="visualOutputContainer">
+                <div class="panel-header">
+                    <h2>Directory Tree</h2>
+                </div>
+                <div id="treeContainer" class="tree"></div>
+            </div>
+        </div>
+
+        <!-- Resizer -->
+        <div id="sidebarResizer"></div>
+
+        <!-- Main View: Center Panel -->
+        <div id="mainView">
+            <div id="mainAction">
+                <div id="dropZone" class="drop-content">
+                    <div class="drop-icon">📁</div>
+                    <div class="drop-text">DROP FOLDER</div>
+                    <div class="drop-alternative">- OR -</div>
+                    <button class="folder-select-btn" id="selectFolderBtn">SELECT FOLDER</button>
+                </div>
+                <div id="loader">Scanning...</div>
+            </div>
+            <div id="mainViewTabs">
+                <button class="tab-button active" data-tab="report">Text Report</button>
+            </div>
+            <div id="tabContentArea">
+                <div id="reportTab" class="tab-content-item active content-panel">
+                    <div id="textOutputContainerOuter">
+                        <div id="textOutput"></div>
+                    </div>
+                    <div class="button-container">
+                        <button id="exportReportBtn" class="action-button primary">EXPORT COMBINED TEXT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Stats Panel -->
+        <div id="rightStatsPanel">
+            <div class="panel-header">
+                <h2>Statistics</h2>
+            </div>
+            <div id="globalStats" class="selection-summary">
+                <div class="stat-item">Files in view: 0</div>
+                <div class="stat-item">Total size (original files in view): 0 KB</div>
+            </div>
+            <div class="file-type-stats">
+                <h3>File Type Breakdown</h3>
+                <table>
+                    <thead><tr><th>Extension</th><th>Count</th><th>Total Size</th></tr></thead>
+                    <tbody id="fileTypeTbody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-    <div class="row g-2">
-      <button id="themeBtn" class="btn icon" title="Toggle theme"><svg id="themeIcon" class="ico"><use href="#i-moon"/></svg></button>
-      <button id="clearBtn" class="btn ghost">Clear</button>
+
+    <!-- Notification -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Scaffold Import Modal -->
+    <div id="scaffoldImportModal" class="diff-modal">
+        <div class="diff-modal-content">
+            <div>
+                <h3>Import AI Scaffold</h3>
+                <button class="diff-modal-close" id="closeScaffoldModal">&times;</button>
+            </div>
+            <div class="modal-scrollable-content">
+                <p>Paste the JSON array of create_scaffold_file operations from your AI below.</p>
+                <textarea id="aiScaffoldJsonInput" placeholder='[{"operation": "create_scaffold_file", "filePath": "my-project/index.html", "content": "&lt;!DOCTYPE html&gt;..."}]'></textarea>
+            </div>
+            <div class="diff-modal-actions">
+                <button id="createProjectFromScaffoldBtn" class="action-button primary">Write Scaffold</button>
+                <button id="cancelScaffoldImportBtn" class="action-button secondary">Cancel</button>
+            </div>
+        </div>
     </div>
-  </header>
 
-  <div id="app" class="shell">
-    <aside id="sidebar" class="col g-3 p-4">
-      <div id="sidebarEmpty" class="col center g-3">
-        <div class="drop-icon"><svg class="ico"><use href="#i-folder"/></svg></div>
-        <h2 class="m-0">Drop Folder Here</h2>
-        <p class="muted m-0">Drag & drop a folder or click to select</p>
-        <input type="file" id="folderInput" webkitdirectory multiple hidden>
-        <button id="selectBtn" class="btn primary">Select Folder</button>
-      </div>
+    <!-- Import Scaffold Button (add to generalActions if needed, but trigger via global button) -->
+    <button id="importScaffoldBtn" class="action-button" style="display: block; margin: 10px auto;">Import AI Scaffold</button>
 
-      <div id="sidebarControls" style="display:none">
-        <div class="row between">
-          <button id="textReportBtn" class="btn ghost">Text Report</button>
-          <button id="combinedBtn" class="btn ghost">Combined</button>
-        </div>
-        <div class="row g-2">
-          <button id="selectAllBtn" class="btn ghost small">All</button>
-          <button id="selectNoneBtn" class="btn ghost small">None</button>
-          <button id="expandAllBtn" class="btn ghost small">Expand</button>
-          <button id="collapseAllBtn" class="btn ghost small">Collapse</button>
-        </div>
-        <div class="col g-2">
-          <label class="row between small">
-            Include patterns
-            <input id="includeFilter" class="input" placeholder="e.g., *.js">
-          </label>
-          <label class="row between small">
-            Exclude patterns
-            <input id="excludeFilter" class="input" placeholder="e.g., node_modules">
-          </label>
-          <label class="row between small">
-            <input id="showHiddenChk" type="checkbox">
-            Show hidden files
-          </label>
-        </div>
-      </div>
+    <script>
+        // App State
+        let appState = {
+            dirHandle: null,
+            fullScanData: { allFilesList: [], folders: [] },
+            filesMap: new Map(), // path -> File
+            isScaffoldMode: false,
+            projectRootName: '',
+            searchTerm: '',
+            isFilePreview: false
+        };
 
-      <div class="col g-3">
-        <div class="row between">
-          <span class="small muted">Directory Structure</span>
-          <span id="committedBadge" class="badge">0 committed files</span>
-        </div>
-        <button id="copyTreeBtn" class="btn ghost w-full" disabled>Copy Report</button>
-      </div>
+        // Notification
+        function showNotification(msg, type = 'info') {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.classList.add('show');
+            notif.style.borderLeftColor = type === 'error' ? 'var(--error-color)' : 'var(--accent-color)';
+        }
 
-      <div id="tree"></div>
-    </aside>
+        // Recursive Scan
+        async function processDirectoryEntryRecursive(dirHandle, path = '') {
+            const files = [];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file') {
+                    const file = await entry.getFile();
+                    const fullPath = path ? `${path}/${entry.name}` : entry.name;
+                    files.push({ path: fullPath, size: file.size, type: entry.name.split('.').pop() || '(no ext)' });
+                    appState.filesMap.set(fullPath, file);
+                } else if (entry.kind === 'directory') {
+                    const subPath = path ? `${path}/${entry.name}` : entry.name;
+                    const subFiles = await processDirectoryEntryRecursive(entry, subPath);
+                    files.push(...subFiles);
+                }
+            }
+            return files;
+        }
 
-    <div id="divider"></div>
+        // Build Tree Structure
+        function buildTreeStructure(files) {
+            const tree = { name: appState.projectRootName || 'Root', children: [], isFolder: true, path: '' };
+            files.forEach(f => {
+                const parts = f.path.split('/');
+                let current = tree;
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    let child = current.children.find(c => c.name === part);
+                    if (!child) {
+                        const childPath = parts.slice(0, i + 1).join('/');
+                        child = { name: part, path: childPath, children: [], isFolder: i < parts.length - 1 };
+                        if (i === parts.length - 1) child.size = f.size;
+                        current.children.sort((a, b) => a.isFolder === b.isFolder ? 0 : a.isFolder ? -1 : 1); // Folders first
+                        current.children.push(child);
+                    }
+                    current = child;
+                }
+            });
+            return tree;
+        }
 
-    <main class="main">
-      <div id="mainTreePane" class="main-pane">
-        <div class="pane-head row between p-3">
-          <span class="small muted">Report Preview</span>
-          <div class="row g-1">
-            <span id="statsRow" class="row g-2" style="display:none">
-              <span id="totalFilesBadge" class="badge"></span>
-              <span id="selectedFilesBadge" class="badge"></span>
-            </span>
-          </div>
-        </div>
-        <div id="emptyState" class="empty col center g-3">
-          <div class="empty-icon"><svg><use href="#i-file-text"/></svg></div>
-          <h2 id="emptyTitle" class="m-0">No files loaded</h2>
-          <p id="emptyDesc" class="muted m-0">Drop a folder to get started with directory analysis</p>
-        </div>
-        <pre id="treeReport" class="pane-scroll report-pre mono"></pre>
-      </div>
+        // Render Tree
+        function renderTreeNode(node, parentEl, indent = 0) {
+            const li = document.createElement('li');
+            li.className = `tree-node ${node.isFolder ? 'folder' : 'file'}`;
+            const toggle = document.createElement('span');
+            toggle.className = 'folder-toggle';
+            toggle.textContent = node.isFolder ? '▶ ' : '';
+            toggle.style.paddingLeft = `${indent * 20}px`;
+            li.appendChild(toggle);
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'name';
+            nameSpan.textContent = node.name + (node.isFolder ? '/' : '');
+            li.appendChild(nameSpan);
+            if (node.isFolder) {
+                const ul = document.createElement('ul');
+                ul.style.display = 'none';
+                node.children.forEach(child => renderTreeNode(child, ul, indent + 1));
+                li.appendChild(ul);
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = ul.style.display === 'block';
+                    ul.style.display = isOpen ? 'none' : 'block';
+                    toggle.textContent = isOpen ? '▶ ' : '▼ ';
+                    li.classList.toggle('open', !isOpen);
+                });
+            } else {
+                li.addEventListener('click', () => loadFilePreview(node.path));
+            }
+            parentEl.appendChild(li);
+        }
 
-      <div id="editorPane" class="editor-pane">
-        <div class="pane-head row between p-3">
-          <span id="currentFileLabel" class="small"></span>
-          <div class="row g-2">
-            <button id="copyLinesBtn" class="btn ghost">Copy with Lines</button>
-            <button id="patchBtn" class="btn ghost">Apply Patch</button>
-            <button id="saveBtn" class="btn primary" disabled>Save</button>
-            <button id="closeBtn" class="btn ghost">Close</button>
-          </div>
-        </div>
-        <div id="editorToolbar" class="toolbar row p-2" style="display:none">
-          <span class="small muted">Line numbers</span>
-        </div>
-        <div class="editor">
-          <div class="linenums">
-            <div id="linenumsInner" class="linenums-inner"></div>
-          </div>
-          <textarea id="editor" class="textarea" placeholder="Select a file to edit..."></textarea>
-        </div>
-      </div>
-    </main>
-  </div>
+        function buildTree(files) {
+            const treeContainer = document.getElementById('treeContainer');
+            treeContainer.innerHTML = '';
+            const treeData = buildTreeStructure(files.filter(f => f.path.toLowerCase().includes(appState.searchTerm.toLowerCase())));
+            renderTreeNode(treeData, treeContainer);
+        }
 
-  <footer id="status" class="status row between px-4 py-3 small">
-    <span id="statusFiles">0 files</span>
-    <span id="statusSelected">0 selected</span>
-    <span id="statusSize">0 B</span>
-    <span id="statusMsg">Ready</span>
-  </footer>
+        // File Preview: Replace textOutput with content
+        async function loadFilePreview(path) {
+            const file = appState.filesMap.get(path);
+            if (!file) return showNotification('File not found', 'error');
+            const text = await file.text();
+            const textOutput = document.getElementById('textOutput');
+            textOutput.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-main);">${escapeHtml(text)}</pre><button id="closeFilePreviewBtn" class="action-button" style="margin-top: 10px;">Close Preview</button>`;
+            document.getElementById('closeFilePreviewBtn').addEventListener('click', generateReport);
+            appState.isFilePreview = true;
+            showNotification(`Viewing: ${path}`);
+        }
 
-  <dialog id="patchDialog">
-    <div class="dlg-head row between">
-      <h3 class="m-0">Apply AI Patches</h3>
-      <button class="btn icon" onclick="document.getElementById('patchDialog').close()">×</button>
-    </div>
-    <div class="dlg-body">
-      <p class="small muted">Paste patches with this format:</p>
-      <pre class="mono small p-2" style="background:var(--muted); border-radius:6px; margin:.5rem 0">FILE: path/to/file.js
-12-14:
-  // new code here</pre>
-      <textarea id="patchInput" class="dlg-input" placeholder="Paste your patches here..."></textarea>
-    </div>
-    <div class="row p-3 between">
-      <button class="btn ghost">Cancel</button>
-      <button id="applyPatchesBtn" class="btn primary">Apply Patches</button>
-    </div>
-  </dialog>
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/[&<"']/g, match => ({'&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;'}[match]));
+        }
 
-  <div id="toast" class="toast" style="display:none"></div>
+        // Generate Report
+        function generateReport() {
+            const { allFilesList } = appState.fullScanData;
+            let report = `// DIRANALYZE COMBINED TEXT EXPORT //\n// Project: ${appState.projectRootName}\n// Timestamp: ${new Date().toISOString().split('T')[0]}\n// Files in this export: ${allFilesList.length}\n\n// NOTE: Binary or non-text file(s) were omitted from this export.\n\n// ===== START OF DIRECTORY STRUCTURE =====\n`;
+            const treeStr = buildReportTree(buildTreeStructure(allFilesList));
+            report += treeStr + '\n// ===== END OF FILE ===== //';
+            document.getElementById('textOutput').textContent = report;
+            appState.isFilePreview = false;
+        }
 
-  <script src="report.js"></script>
-  <script src="app.js"></script>
+        function buildReportTree(node, indent = '') {
+            let str = `${indent}${node.name}${node.isFolder ? '/' : ''}\n`;
+            if (node.children) node.children.forEach(child => str += buildReportTree(child, indent + '  '));
+            return str;
+        }
+
+        // Update Stats
+        function updateStats(filteredFiles = appState.fullScanData.allFilesList) {
+            let totalSize = filteredFiles.reduce((sum, f) => sum + f.size, 0);
+            let typeStats = {};
+            filteredFiles.forEach(f => {
+                const ext = f.type;
+                typeStats[ext] = (typeStats[ext] || { count: 0, size: 0 });
+                typeStats[ext].count++;
+                typeStats[ext].size += f.size;
+            });
+            document.getElementById('globalStats').innerHTML = `
+                <div class="stat-item"><strong>Files in view:</strong> ${filteredFiles.length}</div>
+                <div class="stat-item"><strong>Total size (original files in view):</strong> ${(totalSize / 1024).toFixed(1)} KB</div>
+            `;
+            const tbody = document.getElementById('fileTypeTbody');
+            tbody.innerHTML = Object.entries(typeStats).map(([ext, data]) => 
+                `<tr><td>${ext}</td><td>${data.count}</td><td>${(data.size / 1024).toFixed(1)} KB</td></tr>`
+            ).join('');
+        }
+
+        // Export
+        function exportReport() {
+            const text = document.getElementById('textOutput').textContent;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `diranalyze_export_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotification('Report exported');
+        }
+
+        // Search
+        document.getElementById('treeSearchInput').addEventListener('input', (e) => {
+            appState.searchTerm = e.target.value;
+            buildTree(appState.fullScanData.allFilesList);
+            updateStats(appState.fullScanData.allFilesList.filter(f => f.path.toLowerCase().includes(appState.searchTerm.toLowerCase())));
+        });
+
+        // Expand/Collapse
+        document.getElementById('expandAllBtn').addEventListener('click', () => {
+            document.querySelectorAll('.folder-toggle').forEach(toggle => {
+                if (toggle.textContent === '▶ ') {
+                    toggle.textContent = '▼ ';
+                    toggle.parentElement.querySelector('ul').style.display = 'block';
+                    toggle.parentElement.classList.add('open');
+                }
+            });
+        });
+        document.getElementById('collapseAllBtn').addEventListener('click', () => {
+            document.querySelectorAll('.folder-toggle').forEach(toggle => {
+                if (toggle.textContent === '▼ ') {
+                    toggle.textContent = '▶ ';
+                    toggle.parentElement.querySelector('ul').style.display = 'none';
+                    toggle.parentElement.classList.remove('open');
+                }
+            });
+        });
+
+        // Resizer
+        let isResizing = false;
+        const resizer = document.getElementById('sidebarResizer');
+        resizer.addEventListener('mousedown', () => { isResizing = true; resizer.classList.add('resizing'); });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const leftSidebar = document.getElementById('leftSidebar');
+            let width = e.clientX;
+            width = Math.max(220, Math.min(width, window.innerWidth * 0.6));
+            leftSidebar.style.width = width + 'px';
+        });
+        document.addEventListener('mouseup', () => { isResizing = false; resizer.classList.remove('resizing'); });
+
+        // Drop/Select
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            await handleDirectoryLoad();
+        });
+        document.getElementById('selectFolderBtn').addEventListener('click', handleDirectoryLoad);
+
+        async function handleDirectoryLoad() {
+            try {
+                document.getElementById('loader').classList.add('visible');
+                appState.dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+                appState.projectRootName = appState.dirHandle.name;
+                appState.fullScanData.allFilesList = await processDirectoryEntryRecursive(appState.dirHandle);
+                appState.isScaffoldMode = false;
+                appState.filesMap = new Map(); // Reset, but repopulate in scan
+                buildTree(appState.fullScanData.allFilesList);
+                updateStats();
+                generateReport();
+                dropZone.style.display = 'none';
+                document.getElementById('loader').classList.remove('visible');
+                showNotification(`Loaded: ${appState.projectRootName}`);
+            } catch (err) {
+                document.getElementById('loader').classList.remove('visible');
+                showNotification('Failed to load: ' + err.message, 'error');
+            }
+        }
+
+        // Scaffold
+        document.getElementById('importScaffoldBtn').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'flex';
+        });
+        document.getElementById('closeScaffoldModal').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'none';
+        });
+        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => {
+            document.getElementById('scaffoldImportModal').style.display = 'none';
+        });
+
+        async function writeScaffoldToDir(dirHandle, filePath, content) {
+            const parts = filePath.split('/');
+            let current = dirHandle;
+            for (let i = 0; i < parts.length - 1; i++) {
+                current = await current.getDirectoryHandle(parts[i], { create: true });
+            }
+            const fileH = await current.getFileHandle(parts[parts.length - 1], { create: true });
+            const writable = await fileH.createWritable();
+            await writable.write(content);
+            await writable.close();
+        }
+
+        document.getElementById('createProjectFromScaffoldBtn').addEventListener('click', async () => {
+            try {
+                const jsonStr = document.getElementById('aiScaffoldJsonInput').value;
+                const ops = JSON.parse(jsonStr);
+                if (!Array.isArray(ops)) throw new Error('Invalid JSON array');
+
+                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                const projectName = ops[0]?.filePath.split('/')[0] || 'scaffold-project';
+
+                for (const op of ops) {
+                    if (op.operation === 'create_scaffold_file') {
+                        await writeScaffoldToDir(dirHandle, op.filePath, op.content);
+                    }
+                }
+
+                // Virtual scan from scaffold
+                appState.fullScanData.allFilesList = ops.filter(op => op.operation === 'create_scaffold_file').map(op => ({
+                    path: op.filePath,
+                    size: new Blob([op.content]).size,
+                    type: op.filePath.split('.').pop() || '(no ext)'
+                }));
+                appState.filesMap.clear();
+                ops.forEach(op => appState.filesMap.set(op.filePath, new Blob([op.content], { type: 'text/plain' })));
+                appState.projectRootName = projectName;
+                appState.isScaffoldMode = true;
+
+                buildTree(appState.fullScanData.allFilesList);
+                updateStats();
+                generateReport();
+                dropZone.style.display = 'none';
+                showNotification(`Scaffold written to ${projectName}`);
+                document.getElementById('scaffoldImportModal').style.display = 'none';
+            } catch (err) {
+                showNotification('Scaffold failed: ' + err.message, 'error');
+            }
+        });
+
+        // Export
+        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+
+        // Init
+        document.getElementById('textOutput').innerHTML = '<div class="empty-notice">Drop a folder or import a scaffold to begin analysis.</div>';
+    </script>
 </body>
 </html>
-:root{
-  --bg:#f8fafc; --bg2:#eef2ff; --card:#fff; --muted:#f1f5f9;
-  --text:#0f172a; --text-muted:#64748b;
-  --primary:#1d4ed8; --primary-foreground:#fff;
-  --border:#e2e8f0; --ring:#93c5fd;
-  --headerH:56px; --footerH:40px;
-}
-.dark{
-  --bg:#0b1220; --bg2:#111827; --card:#0f172a; --muted:#0b1424;
-  --text:#e5e7eb; --text-muted:#9ca3af;
-  --primary:#60a5fa; --primary-foreground:#0b1220;
-  --border:#1f2937; --ring:#3b82f6;
-}
-
-*{box-sizing:border-box}
-html,body{height:100%; overflow:hidden}
-body{
-  margin:0;
-  font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans;
-  color:var(--text);
-  background:linear-gradient(135deg,var(--bg),var(--bg2));
-}
-a{color:inherit}
-
-.small{font-size:12px}
-.mono{font:12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
-
-/* utils */
-.row{display:flex; align-items:center}
-.col{display:flex; flex-direction:column}
-.between{justify-content:space-between}
-.center{justify-content:center}
-.g-2{gap:.5rem} .g-3{gap:.75rem} .g-4{gap:1rem}
-.p-4{padding:1rem} .p-6{padding:1.5rem}
-.px-4{padding-left:1rem; padding-right:1rem}
-.py-3{padding-top:.75rem; padding-bottom:.75rem}
-.card{background:var(--card); border:1px solid var(--border); border-radius:14px}
-.badge{display:inline-flex; align-items:center; height:22px; padding:0 .6rem; border:1px solid var(--border); background:var(--muted); border-radius:999px; font-size:12px}
-.muted{color:var(--text-muted)}
-.shadow{box-shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.05)}
-.logo{width:32px; height:32px; border-radius:999px; background:radial-gradient(circle at 30% 20%, #93c5fd, #3b82f6); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:700}
-
-/* buttons/inputs */
-.btn{display:inline-flex; align-items:center; gap:.4rem; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:8px; height:32px; padding:0 .75rem; cursor:pointer}
-.btn:hover{background:color-mix(in hsl,var(--card),var(--primary) 5%)}
-.btn[disabled]{opacity:.5; cursor:not-allowed}
-.btn.primary{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground)}
-.btn.ghost{border-color:transparent; background:transparent}
-.btn.icon{width:36px; height:36px; justify-content:center}
-.input{height:32px; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:6px; padding:0 .5rem}
-.checkbox{width:14px; height:14px}
-
-/* icons */
-.ico{width:16px; height:16px}
-
-/* tooltips */
-.has-tip{position:relative}
-.has-tip::after{
-  content:attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%) translateY(4px);
-  background:#111; color:#fff; padding:.35rem .55rem; font-size:12px; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.25);
-  white-space:pre; opacity:0; pointer-events:none; transition:opacity .15s, transform .15s;
-  z-index:80;
-}
-.has-tip::before{
-  content:""; position:absolute; bottom:100%; left:50%; transform:translateX(-50%) translateY(4px);
-  border:6px solid transparent; border-top-color:#111; opacity:0; transition:opacity .15s, transform .15s; z-index:80;
-}
-.has-tip:hover::after, .has-tip:hover::before{opacity:1; transform:translateX(-50%) translateY(0)}
-
-/* header/footer/layout */
-header{position:sticky; top:0; z-index:10; background:color-mix(in hsl,var(--card), transparent 20%); backdrop-filter:saturate(1.2) blur(6px); border-bottom:1px solid var(--border)}
-#app{min-height:100vh}
-.shell{display:flex; height:calc(100vh - var(--headerH) - var(--footerH))}
-.sidebar{position:relative; width:320px; border-right:1px solid var(--border); background:color-mix(in hsl,var(--card), transparent 30%)} 
-.main{flex:1; display:flex; flex-direction:column; min-height:0}
-.divider{position:absolute; top:0; right:0; bottom:0; width:6px; cursor:ew-resize}
-.divider:hover{background:color-mix(in hsl,var(--primary), transparent 50%)}
-
-/* scrollbars */
-*{scrollbar-width:thin; scrollbar-color:color-mix(in hsl,var(--text-muted), transparent 50%) transparent; transition:background-color .2s, border-color .2s, color .2s}
-::-webkit-scrollbar{width:6px; height:6px}
-::-webkit-scrollbar-thumb{background:color-mix(in hsl,var(--text-muted), transparent 50%); border-radius:3px}
-::selection{background:var(--primary); color:var(--primary-foreground)}
-
-/* tree */
-.tree{height:100%; overflow:auto; padding:.5rem}
-.tree-item{display:flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:6px}
-.tree-item:hover{background:color-mix(in hsl,var(--muted), var(--primary) 6%)}
-.tree-name{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.icon-btn{border:0; background:transparent; padding:0; width:20px; height:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted)}
-.icon-btn:hover{color:var(--text)}
-
-/* main pane & editor */
-.main-pane{height:100%}
-.pane-head{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%)}
-.pane-scroll{padding:1rem; height:100%; overflow:auto}
-.report-pre{white-space:pre-wrap; display:none}
-.empty{height:100%; text-align:center; color:var(--text-muted)}
-.empty-icon{width:96px;height:96px;border-radius:999px;background:color-mix(in hsl,var(--primary), transparent 85%); display:flex;align-items:center;justify-content:center; font-size:42px}
-.empty-title{font-size:18px; color:var(--text)}
-.drop-icon{width:64px;height:64px;border-radius:999px; background:color-mix(in hsl,var(--primary), transparent 80%); display:flex;align-items:center;justify-content:center}
-
-/* editor */
-.editor-pane{display:none; height:100%}
-.editor{display:flex; height:100%; min-height:0}
-.linenums{
-  width:40px; background:color-mix(in hsl,var(--muted), transparent 20%); border-right:1px solid var(--border);
-  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; color:var(--text-muted);
-  padding:.25rem .25rem; overflow:hidden;
-}
-.linenums-inner{position:relative}
-.textarea{
-  flex:1; border:0; padding:.5rem .75rem; outline:none; resize:none;
-  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  background:transparent; color:var(--text)
-}
-
-/* footer pinned */
-.status{
-  position:fixed; left:0; right:0; bottom:0; z-index:20;
-  border-top:1px solid var(--border); background:var(--primary); color:var(--primary-foreground)
-}
-
-/* dialog & toast */
-dialog{border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:12px; padding:0; width:min(900px, calc(100vw - 2rem))}
-dialog::backdrop{background:#0006}
-.dlg-head{padding:1rem; border-bottom:1px solid var(--border)}
-.dlg-body{padding:1rem}
-.dlg-input{height:280px; border:1px solid var(--border); border-radius:8px}
-.toast{position:fixed; right:1rem; bottom:1rem; background:#111; color:#fff; border-radius:10px; padding:.75rem 1rem; box-shadow:0 8px 30px rgba(0,0,0,.3); z-index:50}
-.title{font-size:16px; font-weight:600}
-.toolbar{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%); display:none}
-.w-full{width:100%}
-.m-0{margin:0}
