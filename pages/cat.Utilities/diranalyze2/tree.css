@@ -1,0 +1,99 @@
+/* Tree: Fixed "ugly" – Indents, icons aligned, toggles rotate, hover/selected. Matches screenshot depth. */
+#directoryTree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    list-style: none;
+}
+.tree-node {
+    list-style: none;
+    padding: 4px 0 4px 20px;
+    position: relative;
+    margin: 0;
+    border-radius: var(--border-radius-small);
+    transition: var(--transition-smooth);
+}
+.tree-node:hover {
+    background: var(--highlight-bg);
+}
+.tree-node.selected {
+    background: var(--accent-color);
+    color: white;
+}
+.tree-node.selected i, .tree-node.selected .toggle::before {
+    color: white;
+}
+.tree-node i {
+    position: absolute;
+    left: 2px;
+    width: 16px;
+    text-align: center;
+    color: var(--dim-color);
+    font-size: 12px;
+}
+.tree-node .toggle {
+    cursor: pointer;
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    transition: transform 0.2s ease;
+}
+.tree-node.folder .toggle::before {
+    content: '▶';
+    color: var(--dim-color);
+    font-size: 10px;
+    display: block;
+    transition: transform 0.2s ease;
+}
+.tree-node.folder.open .toggle::before {
+    transform: rotate(90deg);
+    content: '▼';
+}
+.tree-node > span:last-child {
+    display: block;
+    padding-left: 24px;
+    font-size: 0.85em;
+    color: var(--text-color);
+}
+.tree-node ul {
+    list-style: none;
+    padding-left: 20px;
+    margin: 0;
+    display: none;
+}
+.tree-node.folder.open > ul {
+    display: block;
+}
+.tree-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+#searchInput {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    font-family: var(--font-main);
+    box-sizing: border-box;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+.tree-btn {
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    padding: 4px 8px;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    width: auto;
+    align-self: flex-start;
+}
+.tree-btn:hover {
+    background: var(--button-hover-bg);
+}
