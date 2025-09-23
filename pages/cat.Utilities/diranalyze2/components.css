@@ -1,4 +1,4 @@
-/* Components: Fixed report lines (numbered), drop bolder. */
+/* Components: Drop zone, buttons, panels, notifications. Dashed accent, hover glows. */
 .panel-header h2 {
     margin: 0;
     color: var(--header-color);
@@ -31,23 +31,32 @@ button.action-button:not(:disabled):hover {
 }
 button.utility-button { text-align: left; }
 .tree-btn { background: var(--button-bg); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: var(--border-radius-small); cursor: pointer; font-size: 12px; width: auto; }
-#dropZone { width: auto; min-width: 300px; min-height: 130px; border: 2px dashed var(--accent-color); border-radius: var(--border-radius-medium); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-color); transition: var(--transition-smooth); cursor: pointer; box-shadow: var(--terminal-shadow); align-self: flex-start; }
+#dropZone { width: auto; min-width: 300px; min-height: 130px; border: 2px dashed var(--accent-color); border-radius: var(--border-radius-medium); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-color); transition: var(--transition-smooth); cursor: pointer; box-shadow: var(--terminal-shadow); margin-bottom: 10px; align-self: flex-start; }
 #dropZone.dragover { background-color: var(--highlight-bg); border-color: var(--text-color); box-shadow: 0 0 10px var(--accent-color); transform: scale(1.01); }
 .drop-icon { font-size: 1.8rem; margin-bottom: 6px; color: var(--accent-color); }
-.drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); font-weight: 600; } /* Bolder */
+.drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); font-weight: 600; }
 .drop-alternative { margin: 4px 0; font-size: 0.75rem; color: var(--dim-color); font-weight: 400; }
 .folder-select-btn { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); margin-top: 4px; border: 1px solid var(--border-color); font-size: 0.8em; font-family: var(--font-ui); width: auto; }
 .folder-select-btn:hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
 .sidebar-hr { border: none; border-top: 1px solid var(--border-color); margin: 10px 0; }
-#textReport { font-family: var(--font-main); white-space: pre-wrap; line-height: 1.6; font-size: 0.85em; padding: 15px 20px; background-color: var(--bg-color); color: var(--text-color); overflow-y: auto; flex-grow: 1; height: 0; border-bottom: 1px solid var(--border-color); counter-reset: line-counter; } /* Line numbers */
-#textReport pre { counter-increment: line-counter; } /* Needs JS for numbers, stubbed */
-#textReport pre:before { content: counter(line-counter); color: var(--dim-color); float: left; padding-right: 10px; } /* Basic line num stub */
+#textReport { font-family: var(--font-main); white-space: pre-wrap; line-height: 1.4; font-size: 0.85em; padding: 15px 20px; background-color: var(--bg-color); color: var(--text-color); overflow-y: auto; flex-grow: 1; height: 0; border-bottom: 1px solid var(--border-color); }
+#textReport pre { margin: 0; line-height: 1.4; }
+.selection-summary { font-size: 0.85em; color: var(--dim-color); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
 .stat-item { margin-bottom: 7px; font-size: 0.85em; }
 .stat-item strong { color: var(--text-color); font-weight: 500; }
-.file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
-.file-type-stats th, .file-type-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
+.file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; text-align: left; }
+.file-type-stats th, .file-type-stats td { padding: 4px 6px; border-bottom: 1px solid var(--border-color); text-align: left; }
 .file-type-stats th { background-color: var(--highlight-bg); font-weight: 500; color: var(--header-color); }
-.selection-summary { font-size: 0.85em; color: var(--dim-color); margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 .empty-notice { text-align: center; padding: 20px; color: var(--dim-color); font-size: 0.9em; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
 .notification { position: fixed; top: 0; right: 20px; background-color: var(--notification-bg); color: white; padding: 10px 15px; border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium); z-index: 2100; max-width: 300px; transform: translateY(-100%); border-left: 4px solid var(--notification-border); box-shadow: var(--shadow-medium); font-size: 0.9em; }
 .notification.show { animation: slideDown 0.3s forwards, slideUp 0.3s forwards 3s; }
+.diff-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.65); align-items: center; justify-content: center; padding: 20px; }
+.diff-modal-content { background-color: var(--bg-color); border: 1px solid #c8c8c8; border-radius: var(--border-radius-medium); min-width: 320px; max-width: 90%; box-shadow: 0 8px 16px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+.diff-modal-content > div:first-child { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-color); background-color: var(--panel-bg); }
+.diff-modal-content h3 { margin: 0; font-size: 1.15em; color: var(--header-color); font-weight: 500; }
+.diff-modal-close { color: var(--dim-color); font-size: 22px; cursor: pointer; background: none; border: none; padding: 0 5px; line-height: 1; }
+.diff-modal-close:hover { color: var(--text-color); }
+.modal-scrollable-content { padding: 18px; overflow-y: auto; flex-grow: 1; }
+.diff-modal-actions { padding: 12px 18px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background-color: var(--panel-bg); }
+.action-button.secondary { background-color: var(--highlight-bg); color: var(--text-color); border-color: var(--border-color); }
+#aiScaffoldJsonInput { width: 98%; font-family: var(--font-main); padding: 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); margin-bottom: 15px; min-height: 150px; resize: vertical; box-sizing: border-box; }

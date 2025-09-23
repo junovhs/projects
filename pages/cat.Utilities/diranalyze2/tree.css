@@ -1,4 +1,4 @@
-/* Tree: Fixed "eww ugly" – Subtle connecting lines (border-left), 24px indents, code icons, bolder names. Screenshot match. */
+/* Tree: Fixed ugly – Branch lines (| and —), rotate toggles, code icons, 20px indents. Screenshot match. */
 #directoryTree {
     flex: 1;
     overflow-y: auto;
@@ -9,45 +9,62 @@
 }
 .tree-node {
     position: relative;
-    padding: 6px 8px 6px 40px; /* More space for lines/icons */
-    margin: 0 0 1px 0; /* Tight spacing, subtle lines */
-    border-left: 1px solid var(--border-color);
-    border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
+    padding: 4px 8px 4px 36px; /* Indent for icon+toggles+line */
+    margin: 0;
+    border-radius: var(--border-radius-small);
     transition: var(--transition-smooth);
     font-size: 0.85em;
-    font-weight: 500; /* Bolder names */
+}
+.tree-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-color); /* Vertical line */
+}
+.tree-node:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    width: 8px;
+    height: 1px;
+    background: var(--border-color); /* Horizontal connector */
 }
 .tree-node:hover {
     background: var(--highlight-bg);
-    border-left-color: var(--accent-color);
 }
 .tree-node.selected {
     background: var(--accent-color);
     color: white;
-    border-left-color: white;
 }
-.tree-node.selected i, .tree-node.selected .toggle::before {
+.tree-node.selected i, .tree-node.selected .toggle::before, .tree-node.selected::before, .tree-node.selected::after {
     color: white;
+    background: var(--accent-color);
 }
 .tree-node i {
     position: absolute;
-    left: 10px;
+    left: 8px;
     top: 50%;
     transform: translateY(-50%);
     width: 16px;
     text-align: center;
     color: var(--dim-color);
     font-size: 12px;
+    z-index: 1;
 }
 .tree-node .toggle {
     cursor: pointer;
     position: absolute;
-    left: 28px;
+    left: 24px;
     top: 50%;
     transform: translateY(-50%);
     width: 12px;
     height: 12px;
     transition: transform 0.2s ease;
+    z-index: 1;
 }
 .tree-node.folder .toggle::before {
     content: '▶';
@@ -67,16 +84,22 @@
 }
 .tree-node ul {
     list-style: none;
-    padding: 2px 0 0 20px; /* Tight for lines */
+    padding: 0 0 0 20px;
     margin: 0;
     display: none;
-    border-left: 1px solid var(--border-color); /* Connecting line */
+    position: relative;
+}
+.tree-node ul::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-color); /* Vertical for sub-ul */
 }
 .tree-node.folder.open > ul {
     display: block;
-}
-.tree-node ul li:first-child {
-    border-left: none; /* No double line on first child */
 }
 .tree-controls {
     display: flex;

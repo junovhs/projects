@@ -104,13 +104,12 @@
 
         // Init Log
         console.log('Init complete: Events wired with logs. Open console for traces.');
-        document.getElementById('emptyTreeNotice').style.display = 'flex';
-        document.getElementById('textReport').style.display = 'block'; // Show static mock
+        document.getElementById('emptyTreeNotice').style.display = 'none'; // Hide for mock
+        document.getElementById('textReport').style.display = 'block';
         document.getElementById('exportReportBtn').style.display = 'block';
     </script>
 </head>
 <body>
-    <!-- Fixed Logo: Matches screenshot (blue bar + folder path + text) -->
     <header id="logoHeader">
         <svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="200" height="60" fill="#007AFF" rx="8"/>
@@ -137,7 +136,6 @@
             </div>
             <hr class="sidebar-hr">
             <ul id="directoryTree">
-                <!-- Fixed Static Tree: Matches screenshot (indents, icons, sizes) -->
                 <li class="tree-node folder open" data-path="diranalyze">
                     <i class="fas fa-folder"></i>
                     <span class="toggle"></span>
@@ -158,25 +156,24 @@
                     </ul>
                 </li>
             </ul>
-            <div class="empty-notice" id="emptyTreeNotice" style="display: none;">No folder loaded</div>
+            <div class="empty-notice" id="emptyTreeNotice">No folder loaded</div>
         </aside>
 
         <div id="sidebarResizer"></div>
 
         <main id="mainView">
             <div id="mainAction">
-                <!-- Fixed Drop: Top-left, bolder text, dim alt -->
-                <div id="dropZone" style="align-self: flex-start; width: auto; min-width: 300px;">
+                <div id="dropZone">
                     <i class="fas fa-folder drop-icon"></i>
-                    <div class="drop-text" style="font-weight: 600;">DROP FOLDER</div>
-                    <div class="drop-alternative" style="color: var(--dim-color); font-weight: 400;">- OR -</div>
+                    <div class="drop-text">DROP FOLDER</div>
+                    <div class="drop-alternative">- OR -</div>
                     <button class="folder-select-btn" id="selectFolderBtn">SELECT FOLDER</button>
                 </div>
-                <div id="loader" style="display: none; align-self: flex-start;"><i class="fas fa-spinner"></i> Scanning...</div>
+                <div id="loader" style="display: none;"><i class="fas fa-spinner"></i> Scanning...</div>
             </div>
             <div style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border-color);">
-                <!-- Fixed Report: Exact // format, pre-wrap -->
-                <div id="textReport" style="display: block; white-space: pre-wrap;">
+                <div id="textReport" style="display: block;">
+<pre style="white-space: pre-wrap; line-height: 1.4; font-size: 0.85em;">
 // DIRANALYZE COMBINED TEXT EXPORT //
 // Project: diranalyze
 // Timestamp: 2025-09-23T17:05:03.052Z
@@ -195,6 +192,7 @@
   - Cargo.toml (0.79 KB)
 
 // ===== END OF FILE ===== //
+</pre>
                 </div>
                 <button id="exportReportBtn" class="action-button primary" style="display: block; align-self: flex-start; margin: 10px 15px 0;">EXPORT COMBINED TEXT</button>
             </div>
