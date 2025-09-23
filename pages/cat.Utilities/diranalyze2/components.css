@@ -1,0 +1,50 @@
+/* Components: Drop zone, buttons, panels, notifications. Dashed accent, hover glows. */
+.panel-header h2 {
+    margin: 0;
+    color: var(--header-color);
+    font-size: 1.05em;
+    font-weight: 500;
+}
+button.action-button, button.utility-button {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+    padding: 7px 14px;
+    font-family: var(--font-ui);
+    font-size: 0.85em;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    letter-spacing: 0.3px;
+    font-weight: 500;
+    width: 100%;
+    text-align: center;
+}
+button.action-button.primary:not(:disabled) {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+button.action-button:not(:disabled):hover {
+    background-color: var(--button-hover-bg);
+    box-shadow: var(--shadow-small);
+}
+button.utility-button { text-align: left; }
+.tree-btn { background: var(--button-bg); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: var(--border-radius-small); cursor: pointer; font-size: 12px; width: auto; }
+#dropZone { width: 100%; min-height: 130px; border: 2px dashed var(--accent-color); border-radius: var(--border-radius-medium); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-color); transition: var(--transition-smooth); cursor: pointer; box-shadow: var(--terminal-shadow); margin-bottom: 10px; }
+#dropZone.dragover { background-color: var(--highlight-bg); border-color: var(--text-color); box-shadow: 0 0 10px var(--accent-color); transform: scale(1.01); }
+.drop-icon { font-size: 1.8rem; margin-bottom: 6px; color: var(--accent-color); }
+.drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); }
+.drop-alternative { margin: 4px 0; font-size: 0.75rem; color: var(--dim-color); }
+.folder-select-btn { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); margin-top: 4px; border: 1px solid var(--border-color); font-size: 0.8em; font-family: var(--font-ui); width: auto; }
+.folder-select-btn:hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
+.sidebar-hr { border: none; border-top: 1px solid var(--border-color); margin: 10px 0; }
+#textReport { font-family: var(--font-main); white-space: pre-wrap; line-height: 1.6; font-size: 0.85em; padding: 15px 20px; background-color: var(--bg-color); color: var(--text-color); overflow-y: auto; flex-grow: 1; height: 0; border-bottom: 1px solid var(--border-color); }
+.stat-item { margin-bottom: 7px; font-size: 0.85em; }
+.stat-item strong { color: var(--text-color); font-weight: 500; }
+.file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
+.file-type-stats th, .file-type-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
+.file-type-stats th { background-color: var(--highlight-bg); font-weight: 500; color: var(--header-color); }
+.empty-notice { text-align: center; padding: 20px; color: var(--dim-color); font-size: 0.9em; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
+.notification { position: fixed; top: 0; right: 20px; background-color: var(--notification-bg); color: white; padding: 10px 15px; border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium); z-index: 2100; max-width: 300px; transform: translateY(-100%); border-left: 4px solid var(--notification-border); box-shadow: var(--shadow-medium); font-size: 0.9em; }
+.notification.show { animation: slideDown 0.3s forwards, slideUp 0.3s forwards 3s; }

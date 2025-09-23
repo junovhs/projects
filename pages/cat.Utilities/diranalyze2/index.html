@@ -6,485 +6,131 @@
     <title>DirAnalyze</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Pruned & Inlined CSS: Merged from base.css, components.css, layout.css, modals.css, responsive.css. Only rules for kept features. ~800 lines total, minified where possible. Matches screenshot/theme exactly. */
-        :root {
-            --disabled-opacity: 0.4;
-            --error-color: #c62828;
-            --warning-color: #f57c00;
-            --border-radius-small: 4px;
-            --border-radius-medium: 8px;
-            --animation-speed: 0.3s;
-            --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.05);
-            --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
-            --scroll-thumb-width: 10px;
-            --transition-smooth: all 0.2s ease-in-out;
-            --bg-color: #ffffff;
-            --text-color: #1d1d1f;
-            --accent-color: #007aff;
-            --dim-color: #8a8a8e;
-            --border-color: #d1d1d6;
-            --panel-bg: #f9f9f9;
-            --highlight-bg: #e5e5ea;
-            --font-main: 'Roboto Mono', monospace;
-            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-            --terminal-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-            --header-color: #000000;
-            --button-bg: #f5f5f7;
-            --button-text: var(--text-color);
-            --button-hover-bg: #e9e9eb;
-            --button-active-bg: var(--accent-color);
-            --button-active-text: white;
-            --notification-bg: rgba(0, 0, 0, 0.85);
-            --notification-border: var(--accent-color);
-            --scroll-track-color: var(--highlight-bg);
-            --scroll-thumb-color: #c7c7cc;
-            --scroll-thumb-hover-color: #aeaeb2;
-            --status-saved: #34c759;
-            --status-unsaved: #ff9f0a;
-            --status-error: #ff3b30;
-            --status-loading: var(--accent-color);
-            --status-unchanged: var(--dim-color);
-            --initial-left-sidebar-width: 300px;
-            --right-stats-panel-width: 320px;
-            --tabs-height: 40px;
-            --resizer-width: 6px;
-        }
-        @keyframes slideDown { 0% { transform: translateY(-100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-        @keyframes slideUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100%); opacity: 0; } }
-        * { box-sizing: border-box; }
-        html, body { height: 100%; margin: 0; overflow: hidden; font-family: var(--font-ui); }
-        body { background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; font-size: 14px; letter-spacing: 0.1px; line-height: 1.45; transition: var(--transition-smooth); }
-        #appContainer { display: flex; flex-direction: row; flex-grow: 1; height: 100vh; overflow: hidden; }
-        #leftSidebar { width: var(--initial-left-sidebar-width); min-width: 220px; max-width: 60%; flex-shrink: 0; background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; height: 100%; box-sizing: border-box; position: relative; }
-        #sidebarResizer { width: var(--resizer-width); background-color: var(--border-color); cursor: col-resize; flex-shrink: 0; z-index: 10; transition: background-color 0.2s ease-in-out; position: relative; }
-        #sidebarResizer:hover, #sidebarResizer.resizing { background-color: var(--accent-color); }
-        #mainView { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; background-color: var(--bg-color); padding: 15px; box-sizing: border-box; gap: 10px; border-left: 1px solid var(--border-color); }
-        #rightStatsPanel { width: var(--right-stats-panel-width); min-width: 240px; flex-shrink: 0; background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; border-left: 1px solid var(--border-color); height: 100%; box-sizing: border-box; }
-        #logoHeader { text-align: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
-        #logoHeader h1 { font-size: 1.5em; color: var(--header-color); margin: 0; font-weight: 500; }
-        .header-logo { height: auto; width: 200px; max-width: 100%; margin-bottom: 10px; }
-        #mainAction { width: 100%; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-        #dropZone { width: 100%; min-height: 130px; border: 2px dashed var(--accent-color); border-radius: var(--border-radius-medium); display: flex; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-color); transition: var(--transition-smooth); cursor: pointer; box-shadow: var(--terminal-shadow); margin-bottom: 10px; }
-        #dropZone.dragover { background-color: var(--highlight-bg); border-color: var(--text-color); box-shadow: 0 0 10px var(--accent-color); transform: scale(1.01); }
-        .drop-content { padding: 10px; }
-        .drop-icon { font-size: 1.8rem; margin-bottom: 6px; color: var(--accent-color); }
-        .drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); }
-        .drop-alternative { margin: 4px 0; font-size: 0.75rem; color: var(--dim-color); }
-        .folder-select-btn { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); margin-top: 4px; border: 1px solid var(--border-color); font-size: 0.8em; font-family: var(--font-ui); }
-        .folder-select-btn:hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
-        #loader { display: none; font-size: 0.9rem; color: var(--accent-color); margin: 10px 0; text-align: center; flex-shrink: 0; }
-        #loader.visible { display: block; }
-        .sidebar-hr { border: none; border-top: 1px solid var(--border-color); margin: 10px 0; }
-        #treeViewControls, #generalActions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-        button.action-button, button.utility-button { background-color: var(--button-bg); color: var(--button-text); border: 1px solid var(--border-color); padding: 7px 14px; font-family: var(--font-ui); font-size: 0.85em; border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); letter-spacing: 0.3px; text-transform: none; font-weight: 500; width: 100%; text-align: center; }
-        button.utility-button { text-align: left; }
-        button.action-button:not(:disabled):hover, button.utility-button:not(:disabled):hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
-        button.action-button:disabled, button.utility-button:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; background-color: var(--button-bg); color: var(--dim-color); }
-        button.action-button.primary:not(:disabled) { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
-        .panel-header h2 { margin: 0; color: var(--header-color); font-size: 1.05em; font-weight: 500; }
-        .button-container { margin-top: auto; text-align: right; display: flex; justify-content: flex-end; gap: 10px; padding: 15px; flex-shrink: 0; border-top: 1px solid var(--border-color); background-color: var(--panel-bg); }
-        #textOutputContainerOuter { padding: 0; }
-        #textReport { font-family: var(--font-main); white-space: pre; line-height: 1.6; font-size: 0.85em; padding: 15px 20px; background-color: var(--bg-color); border-radius: 0; color: var(--text-color); overflow-y: auto; flex-grow: 1; height: 0; border-bottom: 1px solid var(--border-color); display: none; }
-        #rightStatsPanel .panel-header h2 { font-size: 1.1em; color: var(--header-color); font-weight: 500; margin: 0; }
-        #globalStats, .file-type-stats { padding: 5px; }
-        .selection-summary { font-size: 0.85em; color: var(--dim-color); margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .stat-item { margin-bottom: 7px; font-size: 0.85em; }
-        .stat-item strong { color: var(--text-color); font-weight: 500; }
-        .file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
-        .file-type-stats th, .file-type-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
-        .file-type-stats th { background-color: var(--highlight-bg); font-weight: 500; color: var(--header-color); }
-        .empty-notice { text-align: center; padding: 20px; color: var(--dim-color); font-size: 0.9em; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
-        .notification { position: fixed; top: 0; right: 20px; background-color: var(--notification-bg); color: white; padding: 10px 15px; border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium); z-index: 2100; max-width: 300px; transform: translateY(-100%); border-left: 4px solid var(--notification-border); box-shadow: var(--shadow-medium); font-size: 0.9em; }
-        .notification.show { animation: slideDown 0.3s forwards, slideUp 0.3s forwards 3s; }
-        /* Tree Specific */
-        #directoryTree { flex: 1; overflow-y: auto; padding: 10px 0; }
-        .tree-node { list-style: none; padding: 2px 0; position: relative; padding-left: 20px; }
-        .tree-node.folder > .toggle { cursor: pointer; margin-right: 5px; position: absolute; left: 0; }
-        .tree-node.folder > .toggle::before { content: '▶'; color: var(--dim-color); }
-        .tree-node.folder.open > .toggle::before { content: '▼'; }
-        .tree-node.file { cursor: pointer; }
-        .tree-node.file:hover, .tree-node.folder:hover { background: var(--highlight-bg); border-radius: var(--border-radius-small); }
-        .tree-node.selected { background: var(--accent-color); color: white; }
-        .tree-node i { margin-right: 5px; width: 14px; text-align: center; }
-        #searchInput { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); margin-bottom: 10px; font-family: var(--font-main); box-sizing: border-box; }
-        .tree-controls { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-        .tree-btn { background: var(--button-bg); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: var(--border-radius-small); cursor: pointer; font-size: 12px; font-family: var(--font-ui); width: auto; }
-        /* Modals */
-        .diff-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background-color: rgba(0,0,0,0.65); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-        .diff-modal-content { background-color: var(--bg-color); padding: 0; border: 1px solid #c8c8c8; border-radius: var(--border-radius-medium); width: auto; min-width: 320px; max-width: 90%; box-shadow: 0 8px 16px rgba(0,0,0,0.15); position: relative; display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
-        .diff-modal-content > div:first-child:not(.modal-scrollable-content) { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background-color: var(--panel-bg); }
-        .diff-modal-content > div:first-child h3 { margin: 0; font-size: 1.15em; color: var(--header-color); font-weight: 500; }
-        .diff-modal-close { color: var(--dim-color); font-size: 22px; font-weight: bold; cursor: pointer; line-height: 1; background: none; border: none; padding: 0 5px; }
-        .diff-modal-close:hover, .diff-modal-close:focus { color: var(--text-color); }
-        .modal-scrollable-content { padding: 18px; overflow-y: auto; flex-grow: 1; }
-        .diff-modal-actions { text-align: right; padding: 12px 18px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background-color: var(--panel-bg); }
-        .diff-modal-actions .action-button.secondary { background-color: var(--highlight-bg); color: var(--text-color); border-color: var(--border-color); }
-        .diff-modal-actions .action-button.secondary:hover:not(:disabled) { background-color: var(--border-color); }
-        #scaffoldImportModal .diff-modal-content { max-width: 600px; }
-        #aiScaffoldJsonInput { width: 98%; font-family: var(--font-main); padding: 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); margin-bottom: 15px; min-height: 150px; resize: vertical; box-sizing: border-box; }
-        /* Scrollbars */
-        ::-webkit-scrollbar { width: var(--scroll-thumb-width); height: var(--scroll-thumb-width); }
-        ::-webkit-scrollbar-track { background: var(--scroll-track-color); border-radius: var(--border-radius-small); }
-        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb-color); border-radius: var(--border-radius-small); border: 2px solid var(--scroll-track-color); }
-        ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover-color); }
-        /* Responsive */
-        @media (max-width: 1100px) { #appContainer { flex-direction: column; height: auto; overflow-y: auto; } body { overflow-y: auto; } #leftSidebar, #mainView, #rightStatsPanel { width: 100% !important; max-width: 100% !important; height: auto; max-height: none; border-right: none; border-left: none; border-bottom: 1px solid var(--border-color); overflow-y: visible; } #sidebarResizer { display: none; } #mainView { padding: 10px; border-left: none; min-height: 400px; } #textReport { min-height: 300px; max-height: 60vh; } #directoryTree { max-height: 50vh; min-height: 200px; } #rightStatsPanel { border-bottom: none; } }
-        @media (max-width: 768px) { body { font-size: 13px; } #leftSidebar { padding: 10px; gap: 10px; } .drop-icon { font-size: 1.6rem; } .drop-text { font-size: 0.8rem; } .folder-select-btn { font-size: 0.75em; } .panel-header h2 { font-size: 1.0em; } button.action-button, button.utility-button { font-size: 0.8em; padding: 6px 10px; } .diff-modal { padding: 10px; } .diff-modal-content { width: 95vw !important; max-width: 95vw !important; height: auto; max-height: 90vh; } }
-    </style>
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="layout.css">
+    <link rel="stylesheet" href="components.css">
 </head>
 <body>
-    <!-- Logo Header: Matches screenshot top -->
-    <div id="logoHeader">
+    <!-- Logo Header: Matches screenshot -->
+    <header id="logoHeader">
         <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiB2aWV3Qm94PSIwIDAgMjAwIDYwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjMDA3YWZmIiByeD0iOCIvPgo8cGF0aCBkPSJNNSAxNSBMMzAgMTUgTDMwIDQ1IEw1IDQ1IEw1IDE1WiIgZmlsbD0id2hpdGUiLz4KPHRleHQgeD0iNDAiIHk9IjQwIiBmb250LWZhbWlseT0iUm9ib3RvIE1vbm8sIG1vbm9zcGFjZSIgZm9udC1zaXplPSIxOHB4IiBmaWxsPSJ3aGl0ZSI+RGlyQW5hbHl6ZTwvdGV4dD4KPC9zdmc+" alt="DirAnalyze Logo" class="header-logo">
-    </div>
+    </header>
 
     <div id="appContainer">
-        <!-- Left Sidebar: Tree + Controls -->
-        <div id="leftSidebar">
+        <!-- Left Sidebar: Static Tree Mock -->
+        <aside id="leftSidebar">
             <div class="panel-header">
                 <h2>DIRECTORY TREE</h2>
                 <div class="tree-controls">
-                    <input type="text" id="searchInput" placeholder="Search files/folders...">
+                    <input type="text" id="searchInput" placeholder="Search files/folders..." disabled>
                     <div style="display: flex; gap: 5px;">
-                        <button class="tree-btn action-button" id="expandAllBtn">EXPAND ALL</button>
-                        <button class="tree-btn action-button" id="collapseAllBtn">COLLAPSE ALL</button>
+                        <button class="tree-btn" disabled>EXPAND ALL</button>
+                        <button class="tree-btn" disabled>COLLAPSE ALL</button>
                     </div>
                 </div>
             </div>
             <div id="generalActions">
-                <button class="utility-button action-button" id="importScaffoldBtn">IMPORT AI SCAFFOLD</button>
+                <button class="utility-button" disabled>IMPORT AI SCAFFOLD</button>
             </div>
             <hr class="sidebar-hr">
-            <ul id="directoryTree"></ul>
-            <div class="empty-notice" id="emptyTreeNotice" style="display: none;">No folder loaded</div>
-        </div>
+            <ul id="directoryTree">
+                <!-- Hardcoded Sample Tree from Screenshot -->
+                <li class="tree-node folder open" data-path="diranalyze">
+                    <i class="fas fa-folder"></i>
+                    <span class="toggle"></span>
+                    <span>diranalyze (52 files, 9 subdirs, 4.5 MB)</span>
+                    <ul style="display: block;">
+                        <li class="tree-node folder open" data-path="backend">
+                            <i class="fas fa-folder"></i>
+                            <span class="toggle"></span>
+                            <span>backend (8 files, 1 subdir, 98.3 KB)</span>
+                            <ul style="display: block;">
+                                <li class="tree-node file" data-path="backend/src/db.sqlite3"><i class="fas fa-file"></i><span>src/db.sqlite3 (24 B)</span></li>
+                                <li class="tree-node file" data-path="backend/src/db_manage.rs"><i class="fas fa-file-code"></i><span>src/db_manage.rs (1.2 KB)</span></li>
+                            </ul>
+                        </li>
+                        <li class="tree-node file" data-path="gitignore"><i class="fas fa-file"></i><span>gitignore (17 B)</span></li>
+                        <li class="tree-node file" data-path="Cargo.lock"><i class="fas fa-file"></i><span>Cargo.lock (53.4 KB)</span></li>
+                        <li class="tree-node file" data-path="Cargo.toml"><i class="fas fa-file"></i><span>Cargo.toml (788 B)</span></li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="empty-notice" style="display: none;">No folder loaded</div>
+        </aside>
 
         <!-- Resizer -->
         <div id="sidebarResizer"></div>
 
-        <!-- Main View: Drop Zone → Report -->
-        <div id="mainView">
+        <!-- Main View: Static Drop + Report Mock -->
+        <main id="mainView">
             <div id="mainAction">
-                <div id="dropZone" class="drop-content">
+                <div id="dropZone">
                     <i class="fas fa-folder drop-icon"></i>
                     <div class="drop-text">DROP FOLDER</div>
                     <div class="drop-alternative">- OR -</div>
-                    <button class="folder-select-btn action-button" id="selectFolderBtn">SELECT FOLDER</button>
+                    <button class="folder-select-btn" disabled>SELECT FOLDER</button>
                 </div>
-                <div id="loader">Scanning...</div>
+                <div id="loader" style="display: none;"><i class="fas fa-spinner"></i> Scanning...</div>
             </div>
-            <div id="textReportContainer">
-                <div id="textReport"></div>
-                <button id="exportReportBtn" class="action-button primary" style="display: none; align-self: flex-start; margin: 10px;">EXPORT COMBINED TEXT</button>
-            </div>
-        </div>
+            <div style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border-color);">
+                <!-- Hardcoded Report Mock -->
+                <div id="textReport" style="display: block;">
+// DIRANALYZE COMBINED TEXT EXPORT //
+// Project: diranalyze
+// Timestamp: 2025-09-23T17:05:03.052Z
+// Files in this export: 43
 
-        <!-- Right Stats Panel -->
-        <div id="rightStatsPanel">
-            <div class="panel-header">
-                <h2>STATISTICS</h2>
+// NOTE: 8 binary or non-text file(s) were omitted from this export.
+
+// ===== START OF FILE: diranalyze ===== //
+
+- diranalyze (Folder)
+  - backend (Folder)
+    - src/db.sqlite3 (24 B)
+    - src/db_manage.rs (1.2 KB)
+  - gitignore (17 B)
+  - Cargo.lock (53.4 KB)
+  - Cargo.toml (788 B)
+
+// ===== END OF FILE ===== //
+                </div>
+                <button id="exportReportBtn" class="action-button primary" style="display: block; align-self: flex-start; margin: 10px;">EXPORT COMBINED TEXT</button>
             </div>
-            <div id="globalStats" class="empty-notice">No data yet</div>
+        </main>
+
+        <!-- Right Stats: Static Mock -->
+        <aside id="rightStatsPanel">
+            <div class="panel-header"><h2>STATISTICS</h2></div>
+            <div id="globalStats">
+                <p class="stat-item"><strong>Files in View:</strong> 51</p>
+                <p class="stat-item"><strong>Folders in View (Entries):</strong> 10</p>
+                <p class="stat-item"><strong>Total Size (Original Files in View):</strong> 853.94 KB</p>
+                <p class="stat-item"><strong>Avg File Size (Original Scan):</strong> 16.74 KB</p>
+                <p class="stat-item"><strong>Empty Dirs (Original Scan):</strong> N/A</p>
+                <p class="selection-summary">Displaying stats for 51 selected files (853.94 KB). 1 file (3.7 MB) and 0 folder entries were omitted from view.</p>
+            </div>
             <div class="file-type-stats">
                 <h3>FILE TYPE BREAKDOWN</h3>
                 <table id="fileTypeTable">
                     <thead><tr><th>Extension</th><th>Count</th><th>Total Size</th></tr></thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <tr><td>png</td><td>1</td><td>295.36 KB</td></tr>
+                        <tr><td>js</td><td>18</td><td>266.75 KB</td></tr>
+                        <tr><td>md</td><td>8</td><td>68.9 KB</td></tr>
+                        <tr><td>lock</td><td>1</td><td>53.48 KB</td></tr>
+                        <tr><td>webm</td><td>6</td><td>34.97 KB</td></tr>
+                        <tr><td>sqlite3</td><td>2</td><td>24 KB</td></tr>
+                        <tr><td>py</td><td>2</td><td>22.58 KB</td></tr>
+                        <tr><td>rs</td><td>3</td><td>20.12 KB</td></tr>
+                        <tr><td>html</td><td>1</td><td>15.04 KB</td></tr>
+                        <tr><td>sh</td><td>2</td><td>9.58 KB</td></tr>
+                        <tr><td>(no ext)</td><td>3</td><td>3.32 KB</td></tr>
+                        <tr><td>toml</td><td>1</td><td>788 B</td></tr>
+                        <tr><td>json</td><td>1</td><td>423 B</td></tr>
+                    </tbody>
                 </table>
             </div>
-        </div>
+        </aside>
     </div>
-
-    <!-- Notification -->
-    <div id="notification" class="notification"></div>
-
-    <!-- Scaffold Import Modal -->
-    <div id="scaffoldImportModal" class="diff-modal">
-        <div class="diff-modal-content">
-            <div>
-                <h3>Import AI-Generated Project Scaffold</h3>
-                <button class="diff-modal-close" id="closeScaffoldModalBtn">×</button>
-            </div>
-            <div class="modal-scrollable-content">
-                <p style="font-size: 0.9em; color: var(--dim-color); margin-top: 0;">Paste the JSON array of <code>create_scaffold_file</code> operations from your AI below. Ensure filePaths are like 'projectName/src/app.js' or 'projectName/index.html'.</p>
-                <textarea id="aiScaffoldJsonInput" placeholder='[{"operation": "create_scaffold_file", "filePath": "my-project/index.html", "content": "&lt;!DOCTYPE html&gt;..."}]'></textarea>
-            </div>
-            <div class="diff-modal-actions">
-                <button id="createProjectFromScaffoldBtn" class="action-button primary">Create Project from Scaffold</button>
-                <button id="cancelScaffoldImportBtn" class="action-button secondary">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // JS: Pruned for kept features. In-memory state, read-only scan, scaffold write, tree with icons, previews, etc. ~400 lines.
-        let appState = {
-            dirHandle: null,
-            fullScanData: { allFilesList: [] },
-            filesMap: new Map(),
-            isScaffoldMode: false,
-            projectRootName: '',
-            searchTerm: ''
-        };
-
-        function showNotification(msg, type = 'info') {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.style.borderLeftColor = type === 'error' ? 'var(--error-color)' : 'var(--accent-color)';
-            notif.classList.add('show');
-        }
-
-        // Recursive Scan: Read-only
-        async function processDirectoryEntryRecursive(dirHandle, path = '') {
-            const files = [];
-            for await (const [name, entry] of dirHandle.entries()) {
-                const fullPath = path ? `${path}/${name}` : name;
-                if (entry.kind === 'file') {
-                    const file = await entry.getFile();
-                    if (!file.type.startsWith('text/') && file.type !== '') continue; // Omit binaries for report
-                    files.push({ path: fullPath, size: file.size, type: name.split('.').pop() || '(no ext)' });
-                    appState.filesMap.set(fullPath, file);
-                } else if (entry.kind === 'directory') {
-                    const subFiles = await processDirectoryEntryRecursive(entry, fullPath);
-                    files.push(...subFiles);
-                }
-            }
-            return files;
-        }
-
-        // Tree Structure & Render: With Font Awesome icons
-        function buildTreeStructure(files) {
-            const root = { name: appState.projectRootName || 'Root', children: [], isFolder: true, path: '' };
-            files.forEach(f => {
-                const parts = f.path.split('/');
-                let current = root;
-                for (let i = 0; i < parts.length; i++) {
-                    const part = parts[i];
-                    let child = current.children.find(c => c.name === part && c.isFolder === (i < parts.length - 1));
-                    if (!child) {
-                        child = { name: part, path: parts.slice(0, i + 1).join('/'), children: [], isFolder: i < parts.length - 1, size: i === parts.length - 1 ? f.size : 0 };
-                        current.children.sort((a, b) => a.isFolder === b.isFolder ? 0 : a.isFolder ? -1 : 1); // Folders first
-                        current.children.push(child);
-                    }
-                    current = child;
-                }
-            });
-            return root;
-        }
-
-        function renderTreeNode(node, parentEl) {
-            const li = document.createElement('li');
-            li.className = `tree-node ${node.isFolder ? 'folder' : 'file'}`;
-            li.dataset.path = node.path;
-            const icon = document.createElement('i');
-            icon.className = node.isFolder ? 'fas fa-folder' : 'fas fa-file';
-            li.appendChild(icon);
-            const toggle = document.createElement('span');
-            toggle.className = 'toggle';
-            if (node.isFolder) toggle.style.marginLeft = '-16px'; // Adjust for icon
-            li.appendChild(toggle);
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = node.name + (node.isFolder ? ` (${node.children.length} items)` : ` (${(node.size / 1024).toFixed(1)} KB)`);
-            li.appendChild(nameSpan);
-            const ul = document.createElement('ul');
-            ul.style.display = 'none';
-            node.children.forEach(child => renderTreeNode(child, ul));
-            li.appendChild(ul);
-            if (node.isFolder) {
-                toggle.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    li.classList.toggle('open');
-                    ul.style.display = li.classList.contains('open') ? 'block' : 'none';
-                });
-            } else {
-                li.addEventListener('click', () => loadFileContent(node.path));
-            }
-            parentEl.appendChild(li);
-        }
-
-        function buildTree(files) {
-            const treeEl = document.getElementById('directoryTree');
-            treeEl.innerHTML = '';
-            if (files.length === 0) {
-                document.getElementById('emptyTreeNotice').style.display = 'block';
-                return;
-            }
-            document.getElementById('emptyTreeNotice').style.display = 'none';
-            const treeData = buildTreeStructure(files.filter(f => f.path.toLowerCase().includes(appState.searchTerm)));
-            renderTreeNode(treeData, treeEl);
-        }
-
-        // File Preview: Replace report
-        async function loadFileContent(path) {
-            const file = appState.filesMap.get(path);
-            if (!file) return showNotification('File not found', 'error');
-            const text = await file.text();
-            const reportEl = document.getElementById('textReport');
-            reportEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-main);">${escapeHtml(text)}</pre><button id="closeFileView" class="action-button primary" style="margin-top: 10px;">Close</button>`;
-            document.getElementById('closeFileView').addEventListener('click', generateReport);
-            reportEl.style.display = 'block';
-            document.getElementById('exportReportBtn').style.display = 'none';
-        }
-
-        function escapeHtml(unsafe) {
-            return unsafe.replace(/[&<"']/g, match => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[match]));
-        }
-
-        // Report Generation: Exact format
-        function generateReport() {
-            const { allFilesList } = appState;
-            let report = `// DIRANALYZE COMBINED TEXT EXPORT //\n// Project: ${appState.projectRootName}\n// Timestamp: ${new Date().toISOString()}\n// Files in this export: ${allFilesList.length}\n\n// NOTE: ${appState.filesMap.size - allFilesList.length} binary or non-text file(s) were omitted from this export.\n\n// ===== START OF FILE: ${appState.projectRootName} ===== //\n`;
-            const treeStr = buildTreeString(buildTreeStructure(allFilesList));
-            report += treeStr;
-            report += `\n// ===== END OF FILE: ${appState.projectRootName} ===== //`;
-            document.getElementById('textReport').textContent = report;
-            document.getElementById('textReport').style.display = 'block';
-            document.getElementById('exportReportBtn').style.display = 'block';
-        }
-
-        function buildTreeString(node, indent = '') {
-            let str = `${indent}- ${node.name}`;
-            if (node.isFolder) str += ` (Folder)`;
-            else str += ` (${(node.size / 1024).toFixed(2)} KB)`;
-            str += '\n';
-            if (node.children) node.children.forEach(child => str += buildTreeString(child, indent + '  '));
-            return str;
-        }
-
-        // Stats Update
-        function updateStats() {
-            const files = appState.fullScanData.allFilesList;
-            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-            document.getElementById('globalStats').innerHTML = `<p class="stat-item"><strong>Files in View:</strong> ${files.length}</p><p class="stat-item"><strong>Total Size (Original Scan):</strong> ${(totalSize / 1024).toFixed(2)} KB</p><p class="stat-item"><strong>Avg File Size (Original Scan):</strong> ${files.length ? (totalSize / files.length / 1024).toFixed(2) : 0} KB</p><p class="stat-item"><strong>Empty Dirs (Original Scan):</strong> N/A</p>`;
-            const typeStats = {};
-            files.forEach(f => {
-                const ext = f.type;
-                if (!typeStats[ext]) typeStats[ext] = { count: 0, size: 0 };
-                typeStats[ext].count++;
-                typeStats[ext].size += f.size;
-            });
-            const tbody = document.querySelector('#fileTypeTable tbody');
-            tbody.innerHTML = Object.entries(typeStats).sort(([a], [b]) => a.localeCompare(b)).map(([ext, data]) => `<tr><td>${ext}</td><td>${data.count}</td><td>${(data.size / 1024).toFixed(2)} KB</td></tr>`).join('');
-        }
-
-        // Export
-        function exportReport() {
-            const reportText = document.getElementById('textReport').textContent;
-            const blob = new Blob([reportText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `diranalyze_export_${new Date().toISOString().split('T')[0]}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showNotification('Report exported');
-        }
-
-        // Search
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            appState.searchTerm = e.target.value.toLowerCase();
-            buildTree(appState.fullScanData.allFilesList);
-            updateStats();
-        });
-
-        // Expand/Collapse
-        document.getElementById('expandAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.add('open'); n.querySelector('ul').style.display = 'block'; }));
-        document.getElementById('collapseAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.remove('open'); n.querySelector('ul').style.display = 'none'; }));
-
-        // Resizer
-        let isResizing = false;
-        const resizer = document.getElementById('sidebarResizer');
-        resizer.addEventListener('mousedown', () => { isResizing = true; resizer.classList.add('resizing'); document.body.style.userSelect = 'none'; });
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const left = document.getElementById('leftSidebar');
-            let width = e.clientX;
-            width = Math.max(220, Math.min(width, window.innerWidth * 0.6));
-            left.style.width = width + 'px';
-        });
-        document.addEventListener('mouseup', () => { isResizing = false; resizer.classList.remove('resizing'); document.body.style.userSelect = ''; });
-
-        // Drop/Select: With loader
-        async function handleDirectorySelect() {
-            const loader = document.getElementById('loader');
-            loader.classList.add('visible');
-            try {
-                appState.dirHandle = await window.showDirectoryPicker({ mode: 'read' });
-                appState.projectRootName = appState.dirHandle.name;
-                appState.fullScanData.allFilesList = await processDirectoryEntryRecursive(appState.dirHandle);
-                appState.isScaffoldMode = false;
-                appState.filesMap.forEach((file, path) => { if (!file.type.startsWith('text/') && file.type !== '') appState.fullScanData.allFilesList = appState.fullScanData.allFilesList.filter(f => f.path !== path); }); // Sync list to text-only
-                buildTree(appState.fullScanData.allFilesList);
-                updateStats();
-                generateReport();
-                document.getElementById('dropZone').style.display = 'none';
-                loader.classList.remove('visible');
-                showNotification(`Loaded: ${appState.projectRootName}`);
-            } catch (err) {
-                loader.classList.remove('visible');
-                showNotification('Failed to load: ' + err.message, 'error');
-            }
-        }
-
-        const dropZone = document.getElementById('dropZone');
-        ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); }));
-        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); if (ev === 'drop') handleDirectorySelect(); }));
-        document.getElementById('selectFolderBtn').addEventListener('click', handleDirectorySelect);
-
-        // Scaffold: Trigger, parse, write recursive, load virtual
-        document.getElementById('importScaffoldBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'flex');
-        document.getElementById('closeScaffoldModalBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'none');
-        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'none');
-
-        async function writeScaffoldRecursive(dirHandle, filePath, content) {
-            const parts = filePath.split('/');
-            let current = dirHandle;
-            for (let i = 0; i < parts.length - 1; i++) {
-                try { current = await current.getDirectoryHandle(parts[i], { create: true }); } catch { /* Assume created */ }
-            }
-            const fileH = await current.getFileHandle(parts[parts.length - 1], { create: true });
-            const writable = await fileH.createWritable();
-            await writable.write(content);
-            await writable.close();
-        }
-
-        document.getElementById('createProjectFromScaffoldBtn').addEventListener('click', async () => {
-            const modal = document.getElementById('scaffoldImportModal');
-            try {
-                const jsonStr = document.getElementById('aiScaffoldJsonInput').value;
-                const ops = JSON.parse(jsonStr);
-                if (!Array.isArray(ops)) throw new Error('Invalid JSON array');
-                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                appState.projectRootName = ops[0]?.filePath.split('/')[0] || 'ScaffoldProject';
-                for (const op of ops) {
-                    if (op.operation === 'create_scaffold_file') await writeScaffoldRecursive(dirHandle, op.filePath, op.content);
-                }
-                // Virtual load
-                appState.fullScanData.allFilesList = ops.filter(op => op.operation === 'create_scaffold_file').map(op => ({ path: op.filePath, size: op.content.length, type: op.filePath.split('.').pop() || '(no ext)' }));
-                appState.filesMap.clear();
-                ops.forEach(op => appState.filesMap.set(op.filePath, new Blob([op.content], { type: 'text/plain' })));
-                appState.isScaffoldMode = true;
-                buildTree(appState.fullScanData.allFilesList);
-                updateStats();
-                generateReport();
-                document.getElementById('dropZone').style.display = 'none';
-                showNotification(`Scaffold created in: ${dirHandle.name}`);
-                modal.style.display = 'none';
-                document.getElementById('aiScaffoldJsonInput').value = '';
-            } catch (err) {
-                showNotification('Scaffold error: ' + err.message, 'error');
-            }
-        });
-
-        // Export Btn
-        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
-
-        // Init
-        document.getElementById('textReport').style.display = 'none';
-        document.getElementById('exportReportBtn').style.display = 'none';
-    </script>
 </body>
 </html>
