@@ -104,7 +104,7 @@
 
         // Init Log
         console.log('Init complete: Events wired with logs. Open console for traces.');
-        document.getElementById('emptyTreeNotice').style.display = 'none'; // Hide for mock
+        document.getElementById('emptyTreeNotice').style.display = 'none';
         document.getElementById('textReport').style.display = 'block';
         document.getElementById('exportReportBtn').style.display = 'block';
     </script>
@@ -172,8 +172,9 @@
                 <div id="loader" style="display: none;"><i class="fas fa-spinner"></i> Scanning...</div>
             </div>
             <div style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border-color);">
+                <!-- Fixed Report: ASCII tree lines with ├── │ └── -->
                 <div id="textReport" style="display: block;">
-<pre style="white-space: pre-wrap; line-height: 1.4; font-size: 0.85em;">
+<pre style="white-space: pre-wrap; line-height: 1.4; font-size: 0.85em; font-family: var(--font-main);">
 // DIRANALYZE COMBINED TEXT EXPORT //
 // Project: diranalyze
 // Timestamp: 2025-09-23T17:05:03.052Z
@@ -183,13 +184,14 @@
 
 // ===== START OF FILE: diranalyze ===== //
 
-- diranalyze (Folder)
-  - backend (Folder)
-    - src/db.sqlite3 (0.02 KB)
-    - src/db_manage.rs (1.23 KB)
-  - gitignore (0.02 KB)
-  - Cargo.lock (53.48 KB)
-  - Cargo.toml (0.79 KB)
+diranalyze
+├── backend
+│   ├── src
+│   │   ├── db.sqlite3 (0.02 KB)
+│   │   └── db_manage.rs (1.23 KB)
+│   └── Cargo.toml (0.79 KB)
+├── gitignore (0.02 KB)
+└── Cargo.lock (53.48 KB)
 
 // ===== END OF FILE ===== //
 </pre>
