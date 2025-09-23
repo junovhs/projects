@@ -46,8 +46,8 @@ export default async function handler(req, res) {
   }
 
   // API key
-  const XAI_API_KEY = process.env.XAI_API_KEY;
-  if (!XAI_API_KEY) return send(res, 500, { error: "XAI_API_KEY not configured on the server" });
+  const AI_API_KEY = process.env.AI_API_KEY;
+  if (!AI_API_KEY) return send(res, 500, { error: "AI_API_KEY not configured on the server" });
 
   try {
     // Parse JSON body
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${XAI_API_KEY}`
+        "Authorization": `Bearer ${AI_API_KEY}`
       },
       body: JSON.stringify(payload),
     });
