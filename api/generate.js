@@ -18,8 +18,7 @@ function readBody(req) {
 }
 
 const ALLOWED_MODELS = new Set([
-  "grok-4-fast-non-reasoning",
-  "grok-4-fast-reasoning",
+  "x-ai/grok-4-fast:free",
 ]);
 
 export default async function handler(req, res) {
@@ -67,10 +66,10 @@ export default async function handler(req, res) {
     const requestedModel = typeof body.model === "string" ? body.model.trim() : "";
     const MODEL = ALLOWED_MODELS.has(requestedModel)
       ? requestedModel
-      : (process.env.XAI_MODEL || "grok-4-fast-non-reasoning");
+      : (process.env.XAI_MODEL || "x-ai/grok-4-fast:free");
 
-    // xAI endpoint
-    const xaiApiUrl = `https://api.x.ai/v1/chat/completions`;
+    // OpenRouter endpoint
+    const openRouterApiUrl = `https://openrouter.ai/api/v1/chat/completions`;
 
     // Build payload
     const payload = {
@@ -81,8 +80,8 @@ export default async function handler(req, res) {
       payload.response_format = { type: "json_object" };
     }
 
-    // Call xAI
-    const r = await fetch(xaiApiUrl, {
+    // Call OpenRouter
+    const r = await fetch(openRouterApiUrl, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -93,7 +92,7 @@ export default async function handler(req, res) {
 
     if (!r.ok) {
       const errText = await r.text();
-      return send(res, r.status, { error: "xAI error", details: errText });
+      return send(res, r.status, { error: "OpenRouter error", details: errText });
     }
 
     const data = await r.json();

@@ -242,8 +242,8 @@ NEVER use rate codes. if there is a rate code, we dont need to share that, the s
 If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE:"`
   );
 
-  // NEW: model picker state
-  const [model,setModel] = useState("grok-4-fast-non-reasoning");
+  // Model state (now fixed to OpenRouter's free Grok 4 Fast)
+  const [model] = useState("x-ai/grok-4-fast:free");
 
   useEffect(()=>{ if(toast){const t=setTimeout(()=>setToast(""),1600);return()=>clearTimeout(t)} },[toast]);
 
@@ -399,11 +399,7 @@ If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE
             <input placeholder="Search in active vendor…" value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
 
-          {/* Model picker */}
-          <select className="model-pick" value={model} onChange={e=>setModel(e.target.value)} title="AI model">
-            <option value="grok-4-fast-non-reasoning">Fast (quick responses)</option>
-            <option value="grok-4-fast-reasoning">Reasoning (thinks more)</option>
-          </select>
+          {/* No model picker needed - fixed to free Grok 4 Fast via OpenRouter */}
 
           {activeVendor && (
             <button className="btn brand" onClick={()=>generateVendorAll(active)}>
