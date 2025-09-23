@@ -1,4 +1,4 @@
-/* Tree: Fixed ugly – Branch lines (| and —), rotate toggles, code icons, 20px indents. Screenshot match. */
+/* Tree: Branch lines (│ ─), rotate toggles, code icons, 20px indents. Screenshot match. */
 #directoryTree {
     flex: 1;
     overflow-y: auto;
@@ -9,29 +9,30 @@
 }
 .tree-node {
     position: relative;
-    padding: 4px 8px 4px 36px; /* Indent for icon+toggles+line */
+    padding: 4px 8px 4px 36px;
     margin: 0;
     border-radius: var(--border-radius-small);
     transition: var(--transition-smooth);
     font-size: 0.85em;
 }
-.tree-node::before {
+.tree-node:not(:last-child)::before {
     content: '';
     position: absolute;
-    top: 0;
     left: 16px;
+    top: 0;
     bottom: 0;
     width: 1px;
-    background: var(--border-color); /* Vertical line */
+    background: var(--border-color); /* Vertical │ line */
 }
-.tree-node:not(:last-child)::after {
+.tree-node::after {
     content: '';
     position: absolute;
-    top: 50%;
     left: 16px;
+    top: 50%;
     width: 8px;
     height: 1px;
-    background: var(--border-color); /* Horizontal connector */
+    background: var(--border-color); /* Horizontal ─ connector */
+    transform: translateY(-50%);
 }
 .tree-node:hover {
     background: var(--highlight-bg);
@@ -92,8 +93,8 @@
 .tree-node ul::before {
     content: '';
     position: absolute;
-    top: 0;
     left: 16px;
+    top: 0;
     bottom: 0;
     width: 1px;
     background: var(--border-color); /* Vertical for sub-ul */
