@@ -21,7 +21,7 @@ export function debounce(func, delay) {
 }
 
 export function escapeHtml(unsafe) {
-  console.log(`[UTILS] Escaping HTML for: ${unsafe.substring(0, 50)}...`);
+  console.log(`[UTILS] Escaping HTML for: ${String(unsafe).substring(0, 50)}...`);
   const div = document.createElement('div');
   div.textContent = unsafe;
   return div.innerHTML;
@@ -51,71 +51,81 @@ export function buildTreeString(nodes, indent = '') {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 2 helpers: text/binary classification + stable sorter
+// Phase 2 helpers: text/binary classification (globals) + stable sorter
 // ---------------------------------------------------------------------------
 (function () {
+  // MIME allow-list for textual application/* types
+  const TEXTUAL_APP_MIME = new Set([
+    'application/json',
+    'application/x-ndjson',
+    'application/javascript',
+    'application/xml',
+    'application/x-sh',
+    'application/sql',
+    'application/x-toml',
+    'application/x-yaml',
+    'text/yaml',
+    'application/x-www-form-urlencoded'
+  ]);
+
+  // Extensions considered textual when MIME is empty/unknown
+  const ALLOW = new Set([
+    // general text
+    'txt','log','md','markdown','rst','adoc','textile','license','changelog','lock',
+    // data
+    'csv','tsv','ndjson','json','jsonc','yaml','yml','toml','ini','cfg','conf','properties','props','env','dotenv',
+    // markup
+    'html','htm','xhtml','xml',
+    // scripts
+    'sh','bash','zsh','ksh','fish','ps1','psm1','bat','cmd',
+    // programming
+    'js','mjs','cjs','ts','jsx','tsx','py','rb','php','pl','pm','t','java','kt','kts','groovy','scala',
+    'go','rs','swift','m','mm','c','cc','cpp','cxx','h','hh','hpp','cs','vb','fs','dart','lua','r','jl',
+    // build/tooling
+    'makefile','gnumakefile','mk','cmake','gradle','pom','babelrc','prettierrc','editorconfig','npmrc','nvmrc','eslintignore','gitignore','gitattributes',
+    // sql
+    'sql','psql','mysql','sqlite','hql',
+    // notebooks
+    'ipynb'
+  ]);
+
+  // Always-binary deny-list when MIME is unknown
+  const DENY = new Set([
+    // images & graphics
+    'png','jpg','jpeg','gif','webp','avif','bmp','tiff','ico','icns','svgz','psd','ai','sketch','fig','svg',
+    // archives
+    'zip','tar','gz','tgz','bz2','xz','7z','rar','zst','jar','war','ear','nupkg',
+    // office docs
+    'pdf','doc','docx','ppt','pptx','xls','xlsx','key','pages','numbers',
+    // audio/video
+    'mp3','aac','wav','flac','ogg','m4a','mp4','mov','mkv','avi','webm','wmv',
+    // fonts
+    'ttf','otf','woff','woff2','eot',
+    // executables & libs
+    'exe','msi','dll','so','dylib','bin','o','a','class','wasm'
+  ]);
+
+  // Filenames without extension to always treat as text (case-sensitive)
+  const NAME_TEXT = new Set([
+    // dotfiles
+    '.gitignore','.gitattributes','.npmrc','.nvmrc','.env','.env.local',
+    '.editorconfig','.prettierrc','.eslintrc','.stylelintrc',
+    // common repo files without extensions
+    'LICENSE','COPYING','NOTICE','AUTHORS','README','CHANGELOG','CODEOWNERS','CONTRIBUTING','SECURITY','VERSION',
+    'Makefile','Dockerfile','Procfile'
+  ]);
+
   if (!window.mimeLooksTextual) {
-    window.mimeLooksTextual = mime => {
+    window.mimeLooksTextual = (mime) => {
       if (!mime) return false;
       if (mime.startsWith('text/')) return true;
-      return new Set([
-        'application/json',
-        'application/x-ndjson',
-        'application/javascript',
-        'application/xml',
-        'application/x-sh',
-        'application/sql',
-        'application/x-toml',
-        'application/x-yaml',
-        'text/yaml',
-        'application/x-www-form-urlencoded'
-      ]).has(mime);
+      return TEXTUAL_APP_MIME.has(mime);
     };
   }
 
   if (!window.extLooksTextual) {
-    const ALLOW = new Set([
-      // general text
-      'txt', 'log', 'md', 'markdown', 'rst', 'adoc', 'textile', 'license', 'changelog',
-      // data
-      'csv','tsv','ndjson','json','jsonc','yaml','yml','toml','ini','cfg','conf','properties','props','env','dotenv',
-      // markup
-      'html','htm','xhtml','xml',
-      // scripts
-      'sh','bash','zsh','ksh','fish','ps1','psm1','bat','cmd',
-      // programming
-      'js','mjs','cjs','ts','jsx','tsx','py','rb','php','pl','pm','t','java','kt','kts','groovy','scala',
-      'go','rs','swift','m','mm','c','cc','cpp','cxx','h','hh','hpp','cs','vb','fs','dart','lua','r','jl',
-      // build/tooling
-      'makefile','gnumakefile','mk','cmake','gradle','pom','babelrc','prettierrc','editorconfig','npmrc','nvmrc','eslintignore','gitignore','gitattributes',
-      // sql
-      'sql','psql','mysql','sqlite','hql',
-      // notebooks
-      'ipynb'
-    ]);
-
-    const DENY = new Set([
-      // images & graphics
-      'png','jpg','jpeg','gif','webp','avif','bmp','tiff','ico','icns','svgz','psd','ai','sketch','fig','svg',
-      // archives
-      'zip','tar','gz','tgz','bz2','xz','7z','rar','zst','jar','war','ear','nupkg',
-      // office docs
-      'pdf','doc','docx','ppt','pptx','xls','xlsx','key','pages','numbers',
-      // audio/video
-      'mp3','aac','wav','flac','ogg','m4a','mp4','mov','mkv','avi','webm','wmv',
-      // fonts
-      'ttf','otf','woff','woff2','eot',
-      // executables & libs
-      'exe','msi','dll','so','dylib','bin','o','a','class','wasm'
-    ]);
-
-    const DOTS = new Set([
-      '.gitignore','.gitattributes','.npmrc','.nvmrc','.env','.env.local',
-      '.editorconfig','.prettierrc','.eslintrc','.stylelintrc'
-    ]);
-
-    window.extLooksTextual = (ext, filename) => {
-      if (!ext) return DOTS.has(filename);
+    window.extLooksTextual = (ext, filename = '') => {
+      if (!ext) return NAME_TEXT.has(filename);
       const e = String(ext).toLowerCase();
       if (DENY.has(e)) return false;
       return ALLOW.has(e);

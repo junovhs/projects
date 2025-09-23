@@ -24,143 +24,121 @@
   <link rel="stylesheet" href="components.css" />
   <link rel="stylesheet" href="tree.css" />
 
-  <!-- JS (modules load deferred by default) -->
+  <!-- JS (modules) -->
   <script type="module" src="utils.js"></script>
   <script type="module" src="scan.js"></script>
 
-  <!-- Phase 2 UI wiring (logs + non-scan stubs) -->
+  <!-- Phase 2 UI wiring (single init; guarded) -->
   <script type="module">
-    import { showNotification, debounce, logEvent, traceError } from "./utils.js";
+    if (window.__DIRANALYZE_UI_INITED) {
+      console.log("DirAnalyze UI already initialized — skipping duplicate init.");
+    } else {
+      window.__DIRANALYZE_UI_INITED = true;
 
-    // --- INIT ---
-    console.log("DirAnalyze Init: Phase 2 — Dynamic scan + visuals + logging");
+      import { showNotification, debounce, logEvent } from "./utils.js";
+      console.log("DirAnalyze Init: Phase 2 — Dynamic scan + visuals + logging");
 
-    // Search (stub; actual filter lands Phase 3)
-    const searchInput = document.getElementById("searchInput");
-    if (searchInput) {
-      searchInput.addEventListener(
-        "input",
-        debounce((e) => {
-          const v = e.target.value || "";
-          logEvent(
-            `Search input: "${v}" (length ${v.length}) - Stub: Filter not active (Phase 3)`
-          );
-        }, 250)
-      );
-    }
+      // Search (stub; actual filter lands Phase 3)
+      const searchInput = document.getElementById("searchInput");
+      if (searchInput) {
+        searchInput.addEventListener(
+          "input",
+          debounce((e) => {
+            const v = e.target.value || "";
+            logEvent(
+              `Search input: "${v}" (length ${v.length}) - Stub: Filter not active (Phase 3)`
+            );
+          }, 250)
+        );
+      }
 
-    // Tree expand/collapse (stubs for Phase 3)
-    const expandAllBtn = document.getElementById("expandAllBtn");
-    const collapseAllBtn = document.getElementById("collapseAllBtn");
-    if (expandAllBtn) {
-      expandAllBtn.addEventListener("click", () =>
-        logEvent("Expand All clicked - Stub: Dynamic tree Phase 3")
-      );
-    }
-    if (collapseAllBtn) {
-      collapseAllBtn.addEventListener("click", () =>
-        logEvent("Collapse All clicked - Stub: Dynamic tree Phase 3")
-      );
-    }
+      // Tree expand/collapse (stubs for Phase 3)
+      const expandAllBtn = document.getElementById("expandAllBtn");
+      const collapseAllBtn = document.getElementById("collapseAllBtn");
+      if (expandAllBtn) {
+        expandAllBtn.addEventListener("click", () =>
+          logEvent("Expand All clicked - Stub: Dynamic tree Phase 3")
+        );
+      }
+      if (collapseAllBtn) {
+        collapseAllBtn.addEventListener("click", () =>
+          logEvent("Collapse All clicked - Stub: Dynamic tree Phase 3")
+        );
+      }
 
-    // Import Scaffold modal (Phase 4)
-    const importBtn = document.getElementById("importScaffoldBtn");
-    const modal = document.getElementById("scaffoldImportModal");
-    const modalClose = document.getElementById("closeScaffoldModalBtn");
-    const modalCancel = document.getElementById("cancelScaffoldImportBtn");
-    const modalCreate = document.getElementById("createProjectFromScaffoldBtn");
+      // Import Scaffold modal (Phase 4)
+      const importBtn = document.getElementById("importScaffoldBtn");
+      const modal = document.getElementById("scaffoldImportModal");
+      const modalClose = document.getElementById("closeScaffoldModalBtn");
+      const modalCancel = document.getElementById("cancelScaffoldImportBtn");
+      const modalCreate = document.getElementById("createProjectFromScaffoldBtn");
 
-    if (importBtn && modal) {
-      importBtn.addEventListener("click", () => {
-        modal.style.display = "flex";
-        logEvent("Import Scaffold clicked - Modal opened");
-      });
-    }
-    if (modalClose && modal) {
-      modalClose.addEventListener("click", () => {
-        modal.style.display = "none";
-        logEvent("Scaffold modal closed via X");
-      });
-    }
-    if (modalCancel && modal) {
-      modalCancel.addEventListener("click", () => {
-        modal.style.display = "none";
-        logEvent("Scaffold modal canceled");
-      });
-    }
-    if (modalCreate) {
-      modalCreate.addEventListener("click", () => {
-        logEvent("Create Scaffold clicked - Stub: Write Phase 4");
-        showNotification("Create clicked! (Logging only - Phase 4)", "info");
-      });
-    }
+      if (importBtn && modal) {
+        importBtn.addEventListener("click", () => {
+          modal.style.display = "flex";
+          logEvent("Import Scaffold clicked - Modal opened");
+        });
+      }
+      if (modalClose && modal) {
+        modalClose.addEventListener("click", () => {
+          modal.style.display = "none";
+          logEvent("Scaffold modal closed via X");
+        });
+      }
+      if (modalCancel && modal) {
+        modalCancel.addEventListener("click", () => {
+          modal.style.display = "none";
+          logEvent("Scaffold modal canceled");
+        });
+      }
+      if (modalCreate) {
+        modalCreate.addEventListener("click", () => {
+          logEvent("Create Scaffold clicked - Stub: Write Phase 4");
+          showNotification("Create clicked! (Logging only - Phase 4)", "info");
+        });
+      }
 
-    // Resizer logs (visual only)
-    let isResizing = false;
-    const resizer = document.getElementById("sidebarResizer");
-    if (resizer) {
-      resizer.addEventListener("mousedown", () => {
-        isResizing = true;
-        resizer.classList.add("resizing");
-        logEvent("Resizer mousedown - Start drag");
-      });
-      document.addEventListener("mousemove", (e) => {
-        if (isResizing) {
-          const left = document.getElementById("leftSidebar");
-          const oldW = left.style.width;
-          let w = e.clientX;
-          w = Math.max(220, Math.min(w, window.innerWidth * 0.6));
-          left.style.width = w + "px";
-          logEvent(
-            `Resizer mousemove: Old width ${oldW}, New ${w}px, Mouse X ${e.clientX}`
-          );
-        }
-      });
-      document.addEventListener("mouseup", () => {
-        if (isResizing) {
-          isResizing = false;
-          resizer.classList.remove("resizing");
-          logEvent("Resizer mouseup - End drag");
-        }
-      });
-    }
+      // Resizer logs (visual only)
+      let isResizing = false;
+      const resizer = document.getElementById("sidebarResizer");
+      if (resizer) {
+        resizer.addEventListener("mousedown", () => {
+          isResizing = true;
+          resizer.classList.add("resizing");
+          logEvent("Resizer mousedown - Start drag");
+        });
+        document.addEventListener("mousemove", (e) => {
+          if (isResizing) {
+            const left = document.getElementById("leftSidebar");
+            const oldW = left.style.width;
+            let w = e.clientX;
+            w = Math.max(220, Math.min(w, window.innerWidth * 0.6));
+            left.style.width = w + "px";
+            logEvent(
+              `Resizer mousemove: Old width ${oldW}, New ${w}px, Mouse X ${e.clientX}`
+            );
+          }
+        });
+        document.addEventListener("mouseup", () => {
+          if (isResizing) {
+            isResizing = false;
+            resizer.classList.remove("resizing");
+            logEvent("Resizer mouseup - End drag");
+          }
+        });
+      }
 
-    // Export (Phase 3 stub)
-    const exportBtn = document.getElementById("exportReportBtn");
-    if (exportBtn) {
-      exportBtn.addEventListener("click", () => {
-        logEvent("Export clicked - Stub: Blob Phase 3");
-        showNotification("Export clicked! (Logging only - Phase 3)", "info");
-      });
-    }
+      // Export (Phase 3 stub)
+      const exportBtn = document.getElementById("exportReportBtn");
+      if (exportBtn) {
+        exportBtn.addEventListener("click", () => {
+          logEvent("Export clicked - Stub: Blob Phase 3");
+          showNotification("Export clicked! (Logging only - Phase 3)", "info");
+        });
+      }
 
-    // Folder Select (real scan handled by scan.js attachUI)
-    const selectFolderBtn = document.getElementById("select-folder");
-    if (selectFolderBtn) {
-      selectFolderBtn.addEventListener("click", () => {
-        logEvent("Select Folder clicked");
-      });
+      console.log("Init complete: Events wired. Open console for traces.");
     }
-
-    // Drag visual (scan.js handles actual scanning + logs)
-    const dropZone = document.getElementById("drop-zone");
-    if (dropZone) {
-      ["dragenter", "dragover"].forEach((ev) =>
-        dropZone.addEventListener(ev, (e) => {
-          e.preventDefault();
-          dropZone.classList.add("dragover");
-        })
-      );
-      ["dragleave", "drop"].forEach((ev) =>
-        dropZone.addEventListener(ev, (e) => {
-          e.preventDefault();
-          dropZone.classList.remove("dragover");
-        })
-      );
-    }
-
-    // Initial state (keep visuals visible; tree starts empty)
-    console.log("Init complete: Events wired. Open console for traces.");
   </script>
 </head>
 
@@ -255,12 +233,12 @@
         "
       >
         <!-- Dynamic ASCII report will render here -->
-        <div id="report" style="display: block;"></div>
+        <div id="report" style="display: none;"></div>
 
         <button
           id="exportReportBtn"
           class="action-button primary"
-          style="display: block; align-self: flex-start; margin: 10px 15px 0"
+          style="display: none; align-self: flex-start; margin: 10px 15px 0"
         >
           EXPORT COMBINED TEXT
         </button>

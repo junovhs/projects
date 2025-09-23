@@ -15,6 +15,7 @@ const ERR = (msg, data) => {
   (window.traceError ? window.traceError : console.error)(msg, data ?? "");
 };
 
+// --- Classification tables (local to this module) ---
 const TEXTUAL_APPLICATION_MIME = new Set([
   "application/json",
   "application/x-ndjson",
@@ -24,14 +25,14 @@ const TEXTUAL_APPLICATION_MIME = new Set([
   "application/sql",
   "application/x-toml",
   "application/x-yaml",
-  "text/yaml",             // seen in some browsers
+  "text/yaml",
   "application/x-www-form-urlencoded",
 ]);
 
-// Conservative allow-list for unknown MIME (case-insensitive).
+// Extensions considered textual when MIME is empty/unknown.
 const TEXT_EXT_ALLOW = new Set([
   // general
-  "txt","log","md","markdown","rst","adoc","textile","license","changelog",
+  "txt","log","md","markdown","rst","adoc","textile","license","changelog","lock",
   // data
   "csv","tsv","ndjson","json","jsonc","yaml","yml","toml","ini","cfg","conf","properties","props","env","dotenv",
   // markup
@@ -58,7 +59,7 @@ const TEXT_EXT_ALLOW = new Set([
 // Always-binary deny-list when MIME unknown.
 const BINARY_EXT_DENY = new Set([
   // images & graphics
-  "png","jpg","jpeg","gif","webp","avif","bmp","tiff","ico","icns","svgz","psd","ai","sketch","fig","svg", // NOTE: svg treated as binary per product rule
+  "png","jpg","jpeg","gif","webp","avif","bmp","tiff","ico","icns","svgz","psd","ai","sketch","fig","svg",
   // archives
   "zip","tar","gz","tgz","bz2","xz","7z","rar","zst","jar","war","ear","nupkg",
   // office
@@ -71,10 +72,32 @@ const BINARY_EXT_DENY = new Set([
   "exe","msi","dll","so","dylib","bin","o","a","class","wasm"
 ]);
 
-// Dotfiles (exact filename, no extension) to treat as text.
+// Dotfiles (with dot) to treat as text.
 const DOTFILE_TEXT = new Set([
   ".gitignore",".gitattributes",".npmrc",".nvmrc",".env",".env.local",".editorconfig",".prettierrc",".eslintrc",".stylelintrc"
 ]);
+
+// Filenames without extension to always treat as text (e.g., LICENSE, Makefile)
+const NAME_TEXT = new Set([
+  "LICENSE","COPYING","NOTICE","AUTHORS","README","CHANGELOG","CODEOWNERS","CONTRIBUTING","SECURITY","VERSION",
+  "Makefile","Dockerfile","Procfile"
+]);
+
+// --- Small UI helpers for spinner & visibility ---
+function setLoading(on) {
+  const el = document.getElementById("loader");
+  if (el) el.style.display = on ? "flex" : "none";
+}
+function toggleReportVisibility(show) {
+  const report = document.getElementById("report");
+  const exportBtn = document.getElementById("exportReportBtn");
+  if (report) report.style.display = show ? "block" : "none";
+  if (exportBtn) exportBtn.style.display = show ? "block" : "none";
+}
+function toggleEmptyNotice(treeExists) {
+  const empty = document.getElementById("emptyTreeNotice");
+  if (empty) empty.style.display = treeExists ? "none" : "block";
+}
 
 // Public API namespace
 const DirAnalyze = {
@@ -96,6 +119,7 @@ const DirAnalyze = {
   extLooksTextual(ext, filename) {
     if (!ext) {
       if (DOTFILE_TEXT.has(filename)) return true;
+      if (NAME_TEXT.has(filename)) return true;
       return false;
     }
     const e = (ext + "").toLowerCase();
@@ -122,6 +146,7 @@ const DirAnalyze = {
       return;
     }
     try {
+      setLoading(true);
       const dirHandle = await showDirectoryPicker({ mode: "read" });
       const rootName = dirHandle.name || "root";
       LOG(`Scan start: ${rootName}`);
@@ -135,12 +160,15 @@ const DirAnalyze = {
       this.renderAll();
     } catch (e) {
       ERR("Scan error: picker failed", e);
+    } finally {
+      setLoading(false);
     }
   },
 
   // ---------- Scan from Drag & Drop ----------
   async scanFromDropEvent(evt) {
     try {
+      setLoading(true);
       const dt = evt.dataTransfer;
       if (!dt) return;
 
@@ -182,6 +210,8 @@ const DirAnalyze = {
       this.renderAll();
     } catch (e) {
       ERR("Scan error: drop failed", e);
+    } finally {
+      setLoading(false);
     }
   },
 
@@ -294,7 +324,7 @@ const DirAnalyze = {
     if (!name) return "";
     const dot = name.lastIndexOf(".");
     if (dot <= 0) {
-      // dotfile?
+      // extensionless or dotfile
       return "";
     }
     return name.slice(dot + 1).toLowerCase();
@@ -343,7 +373,7 @@ const DirAnalyze = {
       totalBytes: 0,
       byExt: Object.create(null)
     };
-    for (const [rel, rec] of Object.entries(filesMap)) {
+    for (const rec of Object.values(filesMap)) {
       stats.totalFiles++;
       stats.kept++;
       stats.totalBytes += rec.size;
@@ -371,6 +401,10 @@ const DirAnalyze = {
     if (treeEl) this._renderTree(treeEl, this.state.tree);
     if (reportEl) this._renderReport(reportEl, this.state.tree);
     if (statsEl) this._renderStatsTable(statsEl, this.state.stats);
+
+    // Toggle visibility states
+    toggleEmptyNotice(!!this.state.tree);
+    toggleReportVisibility(!!this.state.tree);
   },
 
   _renderTree(container, tree) {
@@ -503,7 +537,7 @@ const DirAnalyze = {
     for (const [ext, count, bytes] of extRows) {
       const tr = document.createElement("tr");
       const th = document.createElement("th");
-      th.textContent = `.${ext}`;
+      th.textContent = ext === "(noext)" ? "(noext)" : `.${ext}`;
       const td = document.createElement("td");
       td.textContent = `${count} • ${bytes} bytes`;
       tr.appendChild(th); tr.appendChild(td);
