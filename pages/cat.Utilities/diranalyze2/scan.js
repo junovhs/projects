@@ -1,4 +1,3 @@
-<script type="module">
 /* ============================================================================
    DirAnalyze - Phase 2 (scan.js)
    - Browser-only, read-only recursive scan (Directory Picker + Drag & Drop)
@@ -306,7 +305,7 @@ const DirAnalyze = {
 
     // Insert paths
     const paths = Object.keys(filesMap);
-    // Deterministic: natural case-insensitive, directories-first handled during render/build
+    // Deterministic: natural case-insensitive
     paths.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     for (const p of paths) {
@@ -375,7 +374,6 @@ const DirAnalyze = {
   },
 
   _renderTree(container, tree) {
-    // Expecting container to be empty target (<div id="tree">...</div>)
     container.innerHTML = "";
     if (!tree) return;
 
@@ -461,7 +459,6 @@ const DirAnalyze = {
 
   _renderStatsTable(tableEl, stats) {
     if (!stats) return;
-    // Expect a <table id="stats-table"> with <tbody> we can replace, or a container
     const isTable = tableEl.tagName.toLowerCase() === "table";
     let container;
     if (isTable) {
@@ -497,7 +494,7 @@ const DirAnalyze = {
       container.appendChild(tr);
     }
 
-    // Spacer row (optional, aligns with Apple-minimal vibe)
+    // Spacer row (optional)
     const spacer = document.createElement("tr");
     spacer.innerHTML = `<td colspan="2" style="height:8px;border:0;"></td>`;
     container.appendChild(spacer);
@@ -555,4 +552,3 @@ window.addEventListener("DOMContentLoaded", () => {
     DirAnalyze.attachUI({});
   }
 });
-</script>
