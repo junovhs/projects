@@ -1,200 +1,281 @@
-<!doctype html>
-<html lang="en" class="antialiased">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DirAnalyze 2.0 – Static</title>
-  <link rel="stylesheet" href="ui.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DirAnalyze 2.0</title>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <link rel="stylesheet" href="ui.css">
 </head>
 <body>
-<!-- SVG sprite (real icons, no emojis) -->
-<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute; width:0; height:0; overflow:hidden">
-  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10M3 7v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-1l3-7H11l-2-4H3z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-file-code" viewBox="0 0 24 24"><use href="#i-file"/><path d="M10 17l-2-2 2-2M14 13l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-md" viewBox="0 0 24 24"><use href="#i-file"/><path d="M8 16v-6l3 3 3-3v6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-json" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 10c-1 0-2 1-2 2s1 2 2 2M15 10c1 0 2 1 2 2s-1 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-image" viewBox="0 0 24 24"><use href="#i-file"/><path d="M8 15l2-2 2 2 3-3 3 3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-html" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 12l-2 2 2 2M15 12l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-css" viewBox="0 0 24 24"><use href="#i-file"/><path d="M9 15h6M9 12h6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-js" viewBox="0 0 24 24"><use href="#i-file"/><path d="M10 16v-4M14 12h2a2 2 0 0 1 0 4h-1" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M17 21v-8H7v8M7 3v5h8" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M16 16H8a2 2 0 0 1-2-2V6h8l4 4v4a2 2 0 0 1-2 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6V4a2 2 0 0 1 2-2h6l4 4v2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-patch" viewBox="0 0 24 24"><path d="M22 12l-4 4-6-6-6 6-4-4 10-10z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.5 6.5l-1.5-1.5M6.5 6.5L5 5m13 0l-1.5 1.5M6.5 17.5L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3h-5v5M16 3h5v5M8 21H3v-5M16 21h5v-5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M3 9V4h5M21 9V4h-5M3 15v5h5M21 15v5h-5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 5l14 14" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-</svg>
-
-<div id="app">
-  <!-- Header -->
-  <header>
-    <div class="row between px-4 py-3">
-      <div class="row g-3">
-        <div class="logo">D2</div>
-        <div>
-          <div style="font-weight:700">DirAnalyze 2.0</div>
-          <div class="muted small">Directory Analysis Tool</div>
-        </div>
+  <header class="row between p-4">
+    <div class="row g-2">
+      <svg class="logo"><use href="#i-folder"/></svg>
+      <div class="col">
+        <h1 class="title m-0">DirAnalyze 2.0</h1>
+        <p class="muted small m-0">Directory Analysis Tool</p>
       </div>
-      <div class="row g-2">
-        <button class="btn has-tip" data-tip="Clear the current project" id="clearBtn">
-          <svg class="ico"><use href="#i-none"/></svg> Clear
-        </button>
-        <button class="btn ghost icon has-tip" data-tip="Toggle dark/light theme" id="themeBtn" title="Toggle theme">
-          <svg class="ico"><use id="themeIcon" href="#i-moon"/></svg>
-        </button>
-      </div>
+    </div>
+    <div class="row g-2">
+      <button id="themeBtn" class="btn icon" title="Toggle theme"><svg id="themeIcon" class="ico"><use href="#i-moon"/></svg></button>
+      <button id="clearBtn" class="btn ghost">Clear</button>
     </div>
   </header>
 
-  <div class="shell">
-    <!-- Sidebar -->
-    <aside class="sidebar col" id="sidebar">
-      <div class="divider" id="divider"></div>
-
-      <div class="p-4" id="sidebarEmpty">
-        <div class="card p-6 shadow">
-          <div class="col g-3 center">
-            <div class="drop-icon"> </div>
-            <div style="font-weight:600">Drop Folder Here</div>
-            <div class="muted small">Drag & drop a folder or click to select</div>
-            <div class="row g-2">
-              <button class="btn has-tip" data-tip="Pick a folder from your machine" id="selectBtn">
-                <svg class="ico"><use href="#i-download"/></svg> Select Folder
-              </button>
-              <input id="folderInput" type="file" webkitdirectory directory multiple
-       style="position:fixed; left:-9999px; top:-9999px; width:1px; height:1px; opacity:0;" />
-            </div>
-          </div>
-        </div>
+  <div id="app" class="shell">
+    <aside id="sidebar" class="col g-3 p-4">
+      <div id="sidebarEmpty" class="col center g-3">
+        <div class="drop-icon"><svg class="ico"><use href="#i-folder"/></svg></div>
+        <h2 class="m-0">Drop Folder Here</h2>
+        <p class="muted m-0">Drag & drop a folder or click to select</p>
+        <input type="file" id="folderInput" webkitdirectory multiple hidden>
+        <button id="selectBtn" class="btn primary">Select Folder</button>
       </div>
 
       <div id="sidebarControls" style="display:none">
-        <div class="p-4" style="border-bottom:1px solid var(--border)">
-          <div class="row g-2 pb-2">
-            <button class="btn has-tip" data-tip="Copy the text-only report (current selection)" id="textReportBtn">
-              <svg class="ico"><use href="#i-copy"/></svg> Text Report
-            </button>
-            <button class="btn has-tip" data-tip="Download report + all selected file contents" id="combinedBtn">
-              <svg class="ico"><use href="#i-download"/></svg> Combined
-            </button>
-          </div>
-          <div class="row g-2 pb-2">
-            <button class="btn ghost has-tip" data-tip="Select everything" id="selectAllBtn"><svg class="ico"><use href="#i-check"/></svg> All</button>
-            <button class="btn ghost has-tip" data-tip="Clear all selections" id="selectNoneBtn"><svg class="ico"><use href="#i-none"/></svg> None</button>
-            <button class="btn ghost has-tip" data-tip="Expand all folders" id="expandAllBtn"><svg class="ico"><use href="#i-expand"/></svg> Expand</button>
-            <button class="btn ghost has-tip" data-tip="Collapse all folders" id="collapseAllBtn"><svg class="ico"><use href="#i-collapse"/></svg> Collapse</button>
-          </div>
-          <div class="col g-2">
-            <label class="small has-tip" data-tip="Only include files matching these patterns (comma separated)">Include patterns</label>
-            <input class="input" id="includeFilter" placeholder="*.js, *.css" />
-            <label class="small has-tip" data-tip="Exclude files/folders matching these patterns (comma separated)">Exclude patterns</label>
-            <input class="input" id="excludeFilter" />
-            <label class="row g-2 small has-tip" data-tip="Also show files and folders starting with a dot" style="align-items:center">
-              <input type="checkbox" class="checkbox" id="showHiddenChk"> Show hidden files
-            </label>
-          </div>
+        <div class="row between">
+          <button id="textReportBtn" class="btn ghost">Text Report</button>
+          <button id="combinedBtn" class="btn ghost">Combined</button>
         </div>
-        <div class="tree" id="tree"></div>
+        <div class="row g-2">
+          <button id="selectAllBtn" class="btn ghost small">All</button>
+          <button id="selectNoneBtn" class="btn ghost small">None</button>
+          <button id="expandAllBtn" class="btn ghost small">Expand</button>
+          <button id="collapseAllBtn" class="btn ghost small">Collapse</button>
+        </div>
+        <div class="col g-2">
+          <label class="row between small">
+            Include patterns
+            <input id="includeFilter" class="input" placeholder="e.g., *.js">
+          </label>
+          <label class="row between small">
+            Exclude patterns
+            <input id="excludeFilter" class="input" placeholder="e.g., node_modules">
+          </label>
+          <label class="row between small">
+            <input id="showHiddenChk" type="checkbox">
+            Show hidden files
+          </label>
+        </div>
       </div>
+
+      <div class="col g-3">
+        <div class="row between">
+          <span class="small muted">Directory Structure</span>
+          <span id="committedBadge" class="badge">0 committed files</span>
+        </div>
+        <button id="copyTreeBtn" class="btn ghost w-full" disabled>Copy Report</button>
+      </div>
+
+      <div id="tree"></div>
     </aside>
 
-    <!-- Main -->
+    <div id="divider"></div>
+
     <main class="main">
-      <div id="editorToolbar" class="row between p-4 toolbar">
-        <div class="row g-2">
-          <button class="btn has-tip" data-tip="Copy active file with line numbers" id="copyLinesBtn">
-            <svg class="ico"><use href="#i-copy"/></svg> Copy with Lines
-          </button>
-          <button class="btn has-tip" data-tip="Apply patch blocks to files" id="patchBtn">
-            <svg class="ico"><use href="#i-patch"/></svg> Apply Patch
-          </button>
-          <button class="btn has-tip" data-tip="Save changes to this in-memory file" id="saveBtn" disabled>
-            <svg class="ico"><use href="#i-save"/></svg> Save
-          </button>
-          <button class="btn has-tip" data-tip="Close the editor" id="closeBtn">
-            <svg class="ico"><use href="#i-x"/></svg> Close
-          </button>
+      <div id="mainTreePane" class="main-pane">
+        <div class="pane-head row between p-3">
+          <span class="small muted">Report Preview</span>
+          <div class="row g-1">
+            <span id="statsRow" class="row g-2" style="display:none">
+              <span id="totalFilesBadge" class="badge"></span>
+              <span id="selectedFilesBadge" class="badge"></span>
+            </span>
+          </div>
         </div>
-        <div id="currentFileLabel" class="muted small"></div>
+        <div id="emptyState" class="empty col center g-3">
+          <div class="empty-icon"><svg><use href="#i-file-text"/></svg></div>
+          <h2 id="emptyTitle" class="m-0">No files loaded</h2>
+          <p id="emptyDesc" class="muted m-0">Drop a folder to get started with directory analysis</p>
+        </div>
+        <pre id="treeReport" class="pane-scroll report-pre mono"></pre>
       </div>
 
-      <section id="mainTreePane" class="col main-pane">
-        <div class="row between p-4 pane-head">
-          <div class="row g-2" style="align-items:center">
-            <div class="title">Directory Structure</div>
-            <span class="badge" id="committedBadge">0 committed files</span>
-          </div>
-          <button class="btn has-tip" data-tip="Copy the matrix directory report" id="copyTreeBtn" disabled>
-            <svg class="ico"><use href="#i-copy"/></svg> Copy Report
-          </button>
-        </div>
-        <div class="pane-scroll">
-          <pre id="treeReport" class="card p-4 report-pre"></pre>
-          <div id="emptyState" class="col center g-3 empty">
-            <div class="empty-icon">📄</div>
-            <div class="empty-title"><span id="emptyTitle">No files loaded</span></div>
-            <div id="emptyDesc" class="muted">Drop a folder to get started with directory analysis</div>
-            <div class="row g-2" id="statsRow" style="display:none">
-              <span class="badge" id="totalFilesBadge">0 total files</span>
-              <span class="badge" id="selectedFilesBadge">0 selected</span>
-            </div>
+      <div id="editorPane" class="editor-pane">
+        <div class="pane-head row between p-3">
+          <span id="currentFileLabel" class="small"></span>
+          <div class="row g-2">
+            <button id="copyLinesBtn" class="btn ghost">Copy with Lines</button>
+            <button id="patchBtn" class="btn ghost">Apply Patch</button>
+            <button id="saveBtn" class="btn primary" disabled>Save</button>
+            <button id="closeBtn" class="btn ghost">Close</button>
           </div>
         </div>
-      </section>
-
-      <section id="editorPane" class="editor-pane">
+        <div id="editorToolbar" class="toolbar row p-2" style="display:none">
+          <span class="small muted">Line numbers</span>
+        </div>
         <div class="editor">
-          <div class="linenums" id="linenums"><div id="linenumsInner" class="linenums-inner"></div></div>
-          <textarea class="textarea" id="editor" spellcheck="false"></textarea>
+          <div class="linenums">
+            <div id="linenumsInner" class="linenums-inner"></div>
+          </div>
+          <textarea id="editor" class="textarea" placeholder="Select a file to edit..."></textarea>
         </div>
-      </section>
+      </div>
     </main>
   </div>
 
-  <footer class="status px-4 py-2">
-    <div class="row between">
-      <div class="row g-4">
-        <span id="statusFiles">0 files</span>
-        <span id="statusSelected">0 selected</span>
-        <span id="statusSize">0 B</span>
-      </div>
-      <div id="statusMsg">Ready</div>
-    </div>
+  <footer id="status" class="status row between px-4 py-3 small">
+    <span id="statusFiles">0 files</span>
+    <span id="statusSelected">0 selected</span>
+    <span id="statusSize">0 B</span>
+    <span id="statusMsg">Ready</span>
   </footer>
-</div>
 
-<!-- Apply Patch dialog -->
-<dialog id="patchDialog">
-  <div class="dlg-head row between">
-    <div style="font-weight:600">Apply AI Patches</div>
-    <button class="btn ghost icon" onclick="patchDialog.close()"><svg class="ico"><use href="#i-x"/></svg></button>
-  </div>
-  <div class="dlg-body col g-3">
-    <div class="muted small">Paste patches with this format:
-      <pre class="card p-3 mono">FILE: path/to/file.js
+  <dialog id="patchDialog">
+    <div class="dlg-head row between">
+      <h3 class="m-0">Apply AI Patches</h3>
+      <button class="btn icon" onclick="document.getElementById('patchDialog').close()">×</button>
+    </div>
+    <div class="dlg-body">
+      <p class="small muted">Paste patches with this format:</p>
+      <pre class="mono small p-2" style="background:var(--muted); border-radius:6px; margin:.5rem 0">FILE: path/to/file.js
 12-14:
-    // new code here</pre>
+  // new code here</pre>
+      <textarea id="patchInput" class="dlg-input" placeholder="Paste your patches here..."></textarea>
     </div>
-    <textarea id="patchInput" class="textarea dlg-input"></textarea>
-    <div class="row" style="justify-content:flex-end; gap:.5rem">
-      <button class="btn" onclick="patchDialog.close()">Cancel</button>
-      <button class="btn primary" id="applyPatchesBtn">Apply Patches</button>
+    <div class="row p-3 between">
+      <button class="btn ghost">Cancel</button>
+      <button id="applyPatchesBtn" class="btn primary">Apply Patches</button>
     </div>
-  </div>
-</dialog>
+  </dialog>
 
-<div id="toast" class="toast" style="display:none"></div>
+  <div id="toast" class="toast" style="display:none"></div>
 
-<script defer src="report.js"></script>
-<script defer src="app.js"></script>
+  <script src="report.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
+:root{
+  --bg:#f8fafc; --bg2:#eef2ff; --card:#fff; --muted:#f1f5f9;
+  --text:#0f172a; --text-muted:#64748b;
+  --primary:#1d4ed8; --primary-foreground:#fff;
+  --border:#e2e8f0; --ring:#93c5fd;
+  --headerH:56px; --footerH:40px;
+}
+.dark{
+  --bg:#0b1220; --bg2:#111827; --card:#0f172a; --muted:#0b1424;
+  --text:#e5e7eb; --text-muted:#9ca3af;
+  --primary:#60a5fa; --primary-foreground:#0b1220;
+  --border:#1f2937; --ring:#3b82f6;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%; overflow:hidden}
+body{
+  margin:0;
+  font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans;
+  color:var(--text);
+  background:linear-gradient(135deg,var(--bg),var(--bg2));
+}
+a{color:inherit}
+
+.small{font-size:12px}
+.mono{font:12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+
+/* utils */
+.row{display:flex; align-items:center}
+.col{display:flex; flex-direction:column}
+.between{justify-content:space-between}
+.center{justify-content:center}
+.g-2{gap:.5rem} .g-3{gap:.75rem} .g-4{gap:1rem}
+.p-4{padding:1rem} .p-6{padding:1.5rem}
+.px-4{padding-left:1rem; padding-right:1rem}
+.py-3{padding-top:.75rem; padding-bottom:.75rem}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px}
+.badge{display:inline-flex; align-items:center; height:22px; padding:0 .6rem; border:1px solid var(--border); background:var(--muted); border-radius:999px; font-size:12px}
+.muted{color:var(--text-muted)}
+.shadow{box-shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.05)}
+.logo{width:32px; height:32px; border-radius:999px; background:radial-gradient(circle at 30% 20%, #93c5fd, #3b82f6); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:700}
+
+/* buttons/inputs */
+.btn{display:inline-flex; align-items:center; gap:.4rem; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:8px; height:32px; padding:0 .75rem; cursor:pointer}
+.btn:hover{background:color-mix(in hsl,var(--card),var(--primary) 5%)}
+.btn[disabled]{opacity:.5; cursor:not-allowed}
+.btn.primary{background:var(--primary); border-color:var(--primary); color:var(--primary-foreground)}
+.btn.ghost{border-color:transparent; background:transparent}
+.btn.icon{width:36px; height:36px; justify-content:center}
+.input{height:32px; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:6px; padding:0 .5rem}
+.checkbox{width:14px; height:14px}
+
+/* icons */
+.ico{width:16px; height:16px}
+
+/* tooltips */
+.has-tip{position:relative}
+.has-tip::after{
+  content:attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%) translateY(4px);
+  background:#111; color:#fff; padding:.35rem .55rem; font-size:12px; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.25);
+  white-space:pre; opacity:0; pointer-events:none; transition:opacity .15s, transform .15s;
+  z-index:80;
+}
+.has-tip::before{
+  content:""; position:absolute; bottom:100%; left:50%; transform:translateX(-50%) translateY(4px);
+  border:6px solid transparent; border-top-color:#111; opacity:0; transition:opacity .15s, transform .15s; z-index:80;
+}
+.has-tip:hover::after, .has-tip:hover::before{opacity:1; transform:translateX(-50%) translateY(0)}
+
+/* header/footer/layout */
+header{position:sticky; top:0; z-index:10; background:color-mix(in hsl,var(--card), transparent 20%); backdrop-filter:saturate(1.2) blur(6px); border-bottom:1px solid var(--border)}
+#app{min-height:100vh}
+.shell{display:flex; height:calc(100vh - var(--headerH) - var(--footerH))}
+.sidebar{position:relative; width:320px; border-right:1px solid var(--border); background:color-mix(in hsl,var(--card), transparent 30%)} 
+.main{flex:1; display:flex; flex-direction:column; min-height:0}
+.divider{position:absolute; top:0; right:0; bottom:0; width:6px; cursor:ew-resize}
+.divider:hover{background:color-mix(in hsl,var(--primary), transparent 50%)}
+
+/* scrollbars */
+*{scrollbar-width:thin; scrollbar-color:color-mix(in hsl,var(--text-muted), transparent 50%) transparent; transition:background-color .2s, border-color .2s, color .2s}
+::-webkit-scrollbar{width:6px; height:6px}
+::-webkit-scrollbar-thumb{background:color-mix(in hsl,var(--text-muted), transparent 50%); border-radius:3px}
+::selection{background:var(--primary); color:var(--primary-foreground)}
+
+/* tree */
+.tree{height:100%; overflow:auto; padding:.5rem}
+.tree-item{display:flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:6px}
+.tree-item:hover{background:color-mix(in hsl,var(--muted), var(--primary) 6%)}
+.tree-name{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.icon-btn{border:0; background:transparent; padding:0; width:20px; height:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted)}
+.icon-btn:hover{color:var(--text)}
+
+/* main pane & editor */
+.main-pane{height:100%}
+.pane-head{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%)}
+.pane-scroll{padding:1rem; height:100%; overflow:auto}
+.report-pre{white-space:pre-wrap; display:none}
+.empty{height:100%; text-align:center; color:var(--text-muted)}
+.empty-icon{width:96px;height:96px;border-radius:999px;background:color-mix(in hsl,var(--primary), transparent 85%); display:flex;align-items:center;justify-content:center; font-size:42px}
+.empty-title{font-size:18px; color:var(--text)}
+.drop-icon{width:64px;height:64px;border-radius:999px; background:color-mix(in hsl,var(--primary), transparent 80%); display:flex;align-items:center;justify-content:center}
+
+/* editor */
+.editor-pane{display:none; height:100%}
+.editor{display:flex; height:100%; min-height:0}
+.linenums{
+  width:40px; background:color-mix(in hsl,var(--muted), transparent 20%); border-right:1px solid var(--border);
+  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; color:var(--text-muted);
+  padding:.25rem .25rem; overflow:hidden;
+}
+.linenums-inner{position:relative}
+.textarea{
+  flex:1; border:0; padding:.5rem .75rem; outline:none; resize:none;
+  font:12px/24px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background:transparent; color:var(--text)
+}
+
+/* footer pinned */
+.status{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  border-top:1px solid var(--border); background:var(--primary); color:var(--primary-foreground)
+}
+
+/* dialog & toast */
+dialog{border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:12px; padding:0; width:min(900px, calc(100vw - 2rem))}
+dialog::backdrop{background:#0006}
+.dlg-head{padding:1rem; border-bottom:1px solid var(--border)}
+.dlg-body{padding:1rem}
+.dlg-input{height:280px; border:1px solid var(--border); border-radius:8px}
+.toast{position:fixed; right:1rem; bottom:1rem; background:#111; color:#fff; border-radius:10px; padding:.75rem 1rem; box-shadow:0 8px 30px rgba(0,0,0,.3); z-index:50}
+.title{font-size:16px; font-weight:600}
+.toolbar{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%); display:none}
+.w-full{width:100%}
+.m-0{margin:0}

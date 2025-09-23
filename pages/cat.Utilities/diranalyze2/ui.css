@@ -71,7 +71,7 @@ a{color:inherit}
 header{position:sticky; top:0; z-index:10; background:color-mix(in hsl,var(--card), transparent 20%); backdrop-filter:saturate(1.2) blur(6px); border-bottom:1px solid var(--border)}
 #app{min-height:100vh}
 .shell{display:flex; height:calc(100vh - var(--headerH) - var(--footerH))}
-.sidebar{position:relative; width:320px; border-right:1px solid var(--border); background:color-mix(in hsl,var(--card), transparent 30%)}
+.sidebar{position:relative; width:320px; border-right:1px solid var(--border); background:color-mix(in hsl,var(--card), transparent 30%)} 
 .main{flex:1; display:flex; flex-direction:column; min-height:0}
 .divider{position:absolute; top:0; right:0; bottom:0; width:6px; cursor:ew-resize}
 .divider:hover{background:color-mix(in hsl,var(--primary), transparent 50%)}
@@ -130,3 +130,5 @@ dialog::backdrop{background:#0006}
 .toast{position:fixed; right:1rem; bottom:1rem; background:#111; color:#fff; border-radius:10px; padding:.75rem 1rem; box-shadow:0 8px 30px rgba(0,0,0,.3); z-index:50}
 .title{font-size:16px; font-weight:600}
 .toolbar{border-bottom:1px solid var(--border); background:color-mix(in hsl,var(--muted), transparent 20%); display:none}
+.w-full{width:100%}
+.m-0{margin:0}
