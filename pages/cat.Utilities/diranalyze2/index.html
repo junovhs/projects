@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DirAnalyze</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Combined Inline CSS: All provided files concatenated, pruned for read-only (no editor/CodeMirror specifics). Matches original exactly. */
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
-
-        /* Base Variables - Minimal Theme Focused */
+        /* Pruned & Inlined CSS: Merged from base.css, components.css, layout.css, modals.css, responsive.css. Only rules for kept features. ~800 lines total, minified where possible. Matches screenshot/theme exactly. */
         :root {
             --disabled-opacity: 0.4;
             --error-color: #c62828;
@@ -20,27 +19,22 @@
             --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
             --scroll-thumb-width: 10px;
             --transition-smooth: all 0.2s ease-in-out;
-
-            /* Minimal Theme Variables - "Apple-Inspired" Refresh */
             --bg-color: #ffffff;
             --text-color: #1d1d1f;
-            --accent-color: #007aff; /* Apple blue */
+            --accent-color: #007aff;
             --dim-color: #8a8a8e;
             --border-color: #d1d1d6;
             --panel-bg: #f9f9f9;
             --highlight-bg: #e5e5ea;
             --font-main: 'Roboto Mono', monospace;
             --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-
             --terminal-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
             --header-color: #000000;
-            --button-bg: #f5f5f7; /* Default background for general buttons */
+            --button-bg: #f5f5f7;
             --button-text: var(--text-color);
             --button-hover-bg: #e9e9eb;
-            --button-active-bg: var(--accent-color); /* Background for active/primary buttons */
+            --button-active-bg: var(--accent-color);
             --button-active-text: white;
-
-
             --notification-bg: rgba(0, 0, 0, 0.85);
             --notification-border: var(--accent-color);
             --scroll-track-color: var(--highlight-bg);
@@ -51,876 +45,152 @@
             --status-error: #ff3b30;
             --status-loading: var(--accent-color);
             --status-unchanged: var(--dim-color);
-
-            /* Layout Variables from original styles.css */
             --initial-left-sidebar-width: 300px;
             --right-stats-panel-width: 320px;
             --tabs-height: 40px;
             --resizer-width: 6px;
         }
-
-        /* Animations */
         @keyframes slideDown { 0% { transform: translateY(-100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
         @keyframes slideUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100%); opacity: 0; } }
-
-        /* Base Styles */
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-            font-family: var(--font-ui);
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            font-size: 14px;
-            letter-spacing: 0.1px;
-            line-height: 1.45;
-            transition: var(--transition-smooth);
-        }
-
-        body.loaded #appContainer {
-            /* Styles to apply after loading, if any specific are needed */
-        }
-
-        /* Scrollbar Styles */
-        ::-webkit-scrollbar {
-            width: var(--scroll-thumb-width);
-            height: var(--scroll-thumb-width);
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--scroll-track-color);
-            border-radius: var(--border-radius-small);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--scroll-thumb-color);
-            border-radius: var(--border-radius-small);
-            border: 2px solid var(--scroll-track-color);
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--scroll-thumb-hover-color);
-        }
-
-        /* Page Loader */
-        #pageLoader {
-            position: fixed;
-            top:0; left:0;
-            width:100vw; height:100vh;
-            background-color:var(--bg-color);
-            display:flex; flex-direction:column;
-            align-items:center; justify-content:center;
-            z-index:9999;
-            opacity:1;
-            transition:opacity 0.5s ease-out .2s;
-        }
-        #pageLoader.hidden {
-            opacity:0;
-            pointer-events:none;
-        }
-        #pageLoader video {
-            width:150px;
-            height:150px;
-            margin-bottom:15px;
-        }
-        #pageLoader p {
-            font-size:1.1em;
-            color:var(--text-color);
-        }
-
-        /* Sidebar Header & Logo */
-        #sidebarHeader {
-            text-align: center;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-            flex-shrink: 0;
-        }
-        #sidebarHeader h1 { /* Was project title, now general header for logo */
-            font-size: 1.5em;
-            color: var(--header-color);
-            margin: 0;
-            font-weight: 500;
-        }
-        .header-logo { /* For the actual image */
-            height: auto; /* Let width control aspect ratio */
-            width: 200px; /* Example width */
-            max-width: 100%;
-            margin-bottom: 10px; /* Space below logo */
-        }
-
-        /* Drop Zone */
-        #mainAction { /* Container for dropzone and loader */
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        #dropZone {
-            width: 100%;
-            min-height: 130px;
-            border: 2px dashed var(--accent-color);
-            border-radius: var(--border-radius-medium);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            background-color: var(--bg-color);
-            transition: var(--transition-smooth);
-            cursor: pointer;
-            box-shadow: var(--terminal-shadow);
-            margin-bottom: 10px;
-        }
-        #dropZone.dragover {
-            background-color: var(--highlight-bg);
-            border-color: var(--text-color);
-            box-shadow: 0 0 10px var(--accent-color);
-            transform: scale(1.01);
-        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; overflow: hidden; font-family: var(--font-ui); }
+        body { background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; font-size: 14px; letter-spacing: 0.1px; line-height: 1.45; transition: var(--transition-smooth); }
+        #appContainer { display: flex; flex-direction: row; flex-grow: 1; height: 100vh; overflow: hidden; }
+        #leftSidebar { width: var(--initial-left-sidebar-width); min-width: 220px; max-width: 60%; flex-shrink: 0; background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; height: 100%; box-sizing: border-box; position: relative; }
+        #sidebarResizer { width: var(--resizer-width); background-color: var(--border-color); cursor: col-resize; flex-shrink: 0; z-index: 10; transition: background-color 0.2s ease-in-out; position: relative; }
+        #sidebarResizer:hover, #sidebarResizer.resizing { background-color: var(--accent-color); }
+        #mainView { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; background-color: var(--bg-color); padding: 15px; box-sizing: border-box; gap: 10px; border-left: 1px solid var(--border-color); }
+        #rightStatsPanel { width: var(--right-stats-panel-width); min-width: 240px; flex-shrink: 0; background-color: var(--panel-bg); padding: 15px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; border-left: 1px solid var(--border-color); height: 100%; box-sizing: border-box; }
+        #logoHeader { text-align: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        #logoHeader h1 { font-size: 1.5em; color: var(--header-color); margin: 0; font-weight: 500; }
+        .header-logo { height: auto; width: 200px; max-width: 100%; margin-bottom: 10px; }
+        #mainAction { width: 100%; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+        #dropZone { width: 100%; min-height: 130px; border: 2px dashed var(--accent-color); border-radius: var(--border-radius-medium); display: flex; align-items: center; justify-content: center; text-align: center; background-color: var(--bg-color); transition: var(--transition-smooth); cursor: pointer; box-shadow: var(--terminal-shadow); margin-bottom: 10px; }
+        #dropZone.dragover { background-color: var(--highlight-bg); border-color: var(--text-color); box-shadow: 0 0 10px var(--accent-color); transform: scale(1.01); }
         .drop-content { padding: 10px; }
         .drop-icon { font-size: 1.8rem; margin-bottom: 6px; color: var(--accent-color); }
         .drop-text { font-size: 0.85rem; margin-bottom: 6px; color: var(--text-color); }
         .drop-alternative { margin: 4px 0; font-size: 0.75rem; color: var(--dim-color); }
-        .folder-select-btn {
-            padding: 6px 12px;
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            border-radius: var(--border-radius-small);
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            margin-top: 4px;
-            border: 1px solid var(--border-color);
-            font-size: 0.8em;
-            font-family: var(--font-ui);
-        }
+        .folder-select-btn { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); margin-top: 4px; border: 1px solid var(--border-color); font-size: 0.8em; font-family: var(--font-ui); }
         .folder-select-btn:hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
-
-        /* Loader */
-        #loader {
-            display: none;
-            font-size: 0.9rem;
-            color: var(--accent-color);
-            margin: 10px 0;
-            text-align: center;
-            flex-shrink: 0;
-        }
+        #loader { display: none; font-size: 0.9rem; color: var(--accent-color); margin: 10px 0; text-align: center; flex-shrink: 0; }
         #loader.visible { display: block; }
-
-        /* Horizontal Rule */
-        .sidebar-hr {
-            border: none;
-            border-top: 1px solid var(--border-color);
-            margin: 10px 0;
-        }
-
-        /* Button Containers & General Buttons */
-        #treeViewControls, #generalActions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-        /* Standard button styling, can be for action-button, utility-button, etc. */
-        button.action-button, button.utility-button {
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            border: 1px solid var(--border-color);
-            padding: 7px 14px;
-            font-family: var(--font-ui);
-            font-size: 0.85em;
-            border-radius: var(--border-radius-small);
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            letter-spacing: 0.3px;
-            text-transform: none;
-            font-weight: 500;
-            width: 100%; /* Make utility buttons full width */
-            text-align: center; /* Center text for general action buttons */
-        }
-        button.utility-button { /* Specific overrides if utility buttons need to differ */
-            text-align: left;
-        }
-        button.action-button:not(:disabled):hover, button.utility-button:not(:disabled):hover {
-            background-color: var(--button-hover-bg);
-            box-shadow: var(--shadow-small);
-        }
-        button.action-button:disabled, button.utility-button:disabled {
-            opacity: var(--disabled-opacity);
-            cursor: not-allowed;
-            background-color: var(--button-bg); /* Ensure disabled state is clear */
-            color: var(--dim-color);
-        }
-        /* Primary action style (e.g., for "Commit") */
-        button.action-button.primary:not(:disabled) {
-            background-color: var(--accent-color);
-            color: var(--button-active-text);
-            border-color: var(--accent-color);
-        }
-        button.action-button.primary:not(:disabled):hover {
-            background-color: #0056b3; /* Darker accent */
-        }
-
-        /* Tree View Container */
-        #leftSidebar #visualOutputContainer {
-            flex-grow: 1;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--terminal-shadow);
-            padding: 10px;
-            background-color: var(--bg-color);
-            border-radius: var(--border-radius-medium);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 200px;
-        }
-        #leftSidebar #visualOutputContainer .panel-header {
-            padding-bottom: 6px;
-            margin-bottom: 6px;
-            flex-shrink: 0;
-        }
-        #leftSidebar #treeContainer {
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        /* Tree View Item Styling */
-        .tree ul { list-style-type: none; padding-left: 20px; margin: 2px 0; }
-        .tree li { margin: 0; position: relative; padding: 0; display: flex; flex-direction: column; }
-        .tree li > .item-line { display: flex; align-items: center; padding: 2px 0; }
-        .tree li.dimmed-uncommitted > .item-line { opacity: 0.6; }
-        .tree li.dimmed-uncommitted > .item-line .name,
-        .tree li.dimmed-uncommitted > .item-line .stats,
-        .tree li.dimmed-uncommitted > .item-line .icon svg,
-        .tree li.dimmed-uncommitted > .item-line .folder-toggle {
-            color: var(--dim-color) !important;
-            fill: var(--dim-color) !important;
-        }
-        .tree li.dimmed-uncommitted > .item-line .selector { opacity: 0.65; }
-        .tree li::before { content: ""; position: absolute; left: -11px; top: 0; bottom: 0; width: 1px; background: var(--border-color); }
-
-        /* Tabs (pruned for single-tab report view) */
-        #mainViewTabs {
-            display: flex;
-            flex-direction: row;
-            gap: 0;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 0;
-            flex-shrink: 0;
-            height: var(--tabs-height);
-            background-color: var(--bg-color);
-            border-radius: var(--border-radius-medium) var(--border-radius-medium) 0 0;
-        }
-        .tab-button {
-            padding: 8px 16px;
-            background-color: var(--bg-color);
-            color: var(--dim-color);
-            border: none;
-            border-bottom: 2px solid transparent;
-            cursor: pointer;
-            transition: var(--transition-smooth);
-            font-family: var(--font-ui);
-            font-size: 0.9em;
-            font-weight: 500;
-            border-radius: var(--border-radius-small) var(--border-radius-small) 0 0;
-            margin-bottom: -1px;
-            position: relative;
-        }
-        .tab-button:hover {
-            color: var(--text-color);
-            background-color: var(--highlight-bg);
-        }
-        .tab-button.active {
-            background-color: var(--panel-bg);
-            border-color: var(--border-color);
-            border-bottom-color: var(--panel-bg);
-            color: var(--accent-color);
-            z-index: 1;
-        }
-        #tabContentArea {
-            flex-grow: 1;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid var(--border-color);
-            border-top: none;
-            border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
-            background-color: var(--panel-bg);
-        }
-        .tab-content-item {
-            display: none;
-            flex-grow: 1;
-            overflow: hidden;
-        }
-        .tab-content-item.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Panels inside Tab Content */
-        #tabContentArea .content-panel {
-            flex-grow: 1;
-            margin-bottom: 0;
-            width: 100%;
-            box-sizing: border-box;
-            border: none;
-            box-shadow: none;
-            border-radius: 0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding: 10px 15px;
-            margin-bottom: 0;
-            flex-shrink: 0;
-            background-color: var(--highlight-bg);
-        }
-        .panel-header h2 {
-            margin: 0;
-            color: var(--header-color);
-            font-size: 1.05em;
-            font-weight: 500;
-        }
-        .button-container { /* For buttons at the bottom of a panel */
-            margin-top: auto;
-            text-align: right;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            padding: 15px;
-            flex-shrink:0;
-            border-top:1px solid var(--border-color);
-            background-color: var(--panel-bg);
-        }
-
-        /* Specific Panel Content (Text Report, AI Patcher Log etc.) */
+        .sidebar-hr { border: none; border-top: 1px solid var(--border-color); margin: 10px 0; }
+        #treeViewControls, #generalActions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        button.action-button, button.utility-button { background-color: var(--button-bg); color: var(--button-text); border: 1px solid var(--border-color); padding: 7px 14px; font-family: var(--font-ui); font-size: 0.85em; border-radius: var(--border-radius-small); cursor: pointer; transition: var(--transition-smooth); letter-spacing: 0.3px; text-transform: none; font-weight: 500; width: 100%; text-align: center; }
+        button.utility-button { text-align: left; }
+        button.action-button:not(:disabled):hover, button.utility-button:not(:disabled):hover { background-color: var(--button-hover-bg); box-shadow: var(--shadow-small); }
+        button.action-button:disabled, button.utility-button:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; background-color: var(--button-bg); color: var(--dim-color); }
+        button.action-button.primary:not(:disabled) { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .panel-header h2 { margin: 0; color: var(--header-color); font-size: 1.05em; font-weight: 500; }
+        .button-container { margin-top: auto; text-align: right; display: flex; justify-content: flex-end; gap: 10px; padding: 15px; flex-shrink: 0; border-top: 1px solid var(--border-color); background-color: var(--panel-bg); }
         #textOutputContainerOuter { padding: 0; }
-        #textOutput {
-            font-family: var(--font-main);
-            white-space: pre;
-            line-height: 1.6;
-            font-size: 0.85em;
-            padding: 15px 20px;
-            background-color: var(--bg-color);
-            border-radius: 0;
-            color: var(--text-color);
-            overflow-y: auto;
-            flex-grow: 1;
-            height: 0; /* For flex scroll */
-            border-bottom: 1px solid var(--border-color);
-        }
-        #aiPatchOutputLog {
-            overflow-y: auto;
-            flex-grow: 1;
-            height: 0; /* For flex scroll */
-            padding: 10px;
-            background-color: var(--bg-color);
-            font-family: var(--font-main);
-            white-space: pre-wrap;
-            font-size: 0.85em;
-        }
-
-        /* AI Patcher Specifics (pruned, but keep for modal) */
-        #aiPatchPanel { background-color: var(--panel-bg); }
-        .patch-input-area {
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .patch-input-area > .action-button { /* Buttons directly in this area */
-            width: auto; /* Don't force full width */
-            align-self: flex-start;
-        }
-        .patch-input-area > p {
-            font-size: 0.9em;
-            line-height: 1.5;
-            color: var(--text-color);
-            margin-top: 5px;
-            margin-bottom: 5px;
-        }
-        #aiPatchInput { /* Textarea for patch JSON */
-            width: calc(100% - 20px); /* Adjust based on parent padding */
-            margin: 0 auto 10px auto; /* Center if parent padding is tricky */
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-small);
-            font-family: var(--font-main);
-            font-size: 0.85em;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            min-height: 80px;
-            resize: vertical;
-            box-sizing: border-box;
-        }
-        .patch-results-area {
-            flex-grow: 1;
-            overflow: hidden;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .patch-results-area h3 { margin-top: 0;}
-
-        /* Stats Panel Specifics */
-        #rightStatsPanel .panel-header h2 {
-            font-size: 1.1em;
-            color: var(--header-color);
-            font-weight: 500;
-            margin: 0;
-        }
+        #textReport { font-family: var(--font-main); white-space: pre; line-height: 1.6; font-size: 0.85em; padding: 15px 20px; background-color: var(--bg-color); border-radius: 0; color: var(--text-color); overflow-y: auto; flex-grow: 1; height: 0; border-bottom: 1px solid var(--border-color); display: none; }
+        #rightStatsPanel .panel-header h2 { font-size: 1.1em; color: var(--header-color); font-weight: 500; margin: 0; }
         #globalStats, .file-type-stats { padding: 5px; }
-        .selection-summary {
-            font-size: 0.85em; color: var(--dim-color); margin-bottom: 10px;
-            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
-        }
+        .selection-summary { font-size: 0.85em; color: var(--dim-color); margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
         .stat-item { margin-bottom: 7px; font-size: 0.85em; }
         .stat-item strong { color: var(--text-color); font-weight: 500; }
         .file-type-stats table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
         .file-type-stats th, .file-type-stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
         .file-type-stats th { background-color: var(--highlight-bg); font-weight: 500; color: var(--header-color); }
-
-        /* Empty Notice */
-        .empty-notice {
-            text-align: center; padding: 20px; color: var(--dim-color);
-            font-size: 0.9em; flex-grow: 1; display:flex;
-            align-items:center; justify-content:center;
-        }
-
-        /* Notification Bar */
-        .notification {
-            position: fixed; top: 0; right: 20px;
-            background-color: var(--notification-bg); color: white;
-            padding: 10px 15px;
-            border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
-            z-index: 2100; max-width: 300px;
-            transform: translateY(-100%);
-            border-left: 4px solid var(--notification-border);
-            box-shadow: var(--shadow-medium); font-size: 0.9em;
-        }
+        .empty-notice { text-align: center; padding: 20px; color: var(--dim-color); font-size: 0.9em; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
+        .notification { position: fixed; top: 0; right: 20px; background-color: var(--notification-bg); color: white; padding: 10px 15px; border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium); z-index: 2100; max-width: 300px; transform: translateY(-100%); border-left: 4px solid var(--notification-border); box-shadow: var(--shadow-medium); font-size: 0.9em; }
         .notification.show { animation: slideDown 0.3s forwards, slideUp 0.3s forwards 3s; }
-
-        /* New App Container Layout */
-        #appContainer {
-            display: flex;
-            flex-direction: row;
-            flex-grow: 1;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Left Sidebar */
-        #leftSidebar {
-            width: var(--initial-left-sidebar-width);
-            min-width: 220px;
-            max-width: 60%;
-            flex-shrink: 0;
-            background-color: var(--panel-bg);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            overflow-y: auto;
-            height: 100%;
-            box-sizing: border-box;
-            position: relative;
-        }
-
-        /* Sidebar Resizer Handle */
-        #sidebarResizer {
-            width: var(--resizer-width);
-            background-color: var(--border-color);
-            cursor: col-resize;
-            flex-shrink: 0;
-            z-index: 10;
-            transition: background-color 0.2s ease-in-out;
-            position: relative;
-        }
-        #sidebarResizer:hover, #sidebarResizer.resizing {
-            background-color: var(--accent-color);
-        }
-
-        /* Main View (Center Column) */
-        #mainView {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            height: 100%;
-            background-color: var(--bg-color);
-            padding: 15px;
-            box-sizing: border-box;
-            gap: 10px;
-            border-left: 1px solid var(--border-color);
-        }
-
-        /* Right Stats Panel */
-        #rightStatsPanel {
-            width: var(--right-stats-panel-width);
-            min-width: 240px;
-            flex-shrink: 0;
-            background-color: var(--panel-bg);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow-y: auto;
-            border-left: 1px solid var(--border-color);
-            height: 100%;
-            box-sizing: border-box;
-        }
-
-        /* Generic Modal Styling */
-        .diff-modal { /* Base class for modals like AI Patcher Diff, Scaffold Import, AI Debrief */
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            overflow: hidden;
-            background-color: rgba(0,0,0,0.65);
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .diff-modal-content {
-            background-color: var(--bg-color);
-            padding: 0; /* Header/footer/content will have their own padding */
-            border: 1px solid #c8c8c8;
-            border-radius: var(--border-radius-medium);
-            width: auto;
-            min-width: 320px;
-            max-width: 90%; /* Default max-width */
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            max-height: 90vh;
-            overflow: hidden; /* Scroll managed by .modal-scrollable-content */
-        }
-        .diff-modal-content > div:first-child:not(.modal-scrollable-content) { /* Modal Header Style */
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 18px;
-            border-bottom: 1px solid var(--border-color);
-            flex-shrink: 0;
-            background-color: var(--panel-bg);
-        }
+        /* Tree Specific */
+        #directoryTree { flex: 1; overflow-y: auto; padding: 10px 0; }
+        .tree-node { list-style: none; padding: 2px 0; position: relative; padding-left: 20px; }
+        .tree-node.folder > .toggle { cursor: pointer; margin-right: 5px; position: absolute; left: 0; }
+        .tree-node.folder > .toggle::before { content: '▶'; color: var(--dim-color); }
+        .tree-node.folder.open > .toggle::before { content: '▼'; }
+        .tree-node.file { cursor: pointer; }
+        .tree-node.file:hover, .tree-node.folder:hover { background: var(--highlight-bg); border-radius: var(--border-radius-small); }
+        .tree-node.selected { background: var(--accent-color); color: white; }
+        .tree-node i { margin-right: 5px; width: 14px; text-align: center; }
+        #searchInput { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); margin-bottom: 10px; font-family: var(--font-main); box-sizing: border-box; }
+        .tree-controls { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+        .tree-btn { background: var(--button-bg); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: var(--border-radius-small); cursor: pointer; font-size: 12px; font-family: var(--font-ui); width: auto; }
+        /* Modals */
+        .diff-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background-color: rgba(0,0,0,0.65); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .diff-modal-content { background-color: var(--bg-color); padding: 0; border: 1px solid #c8c8c8; border-radius: var(--border-radius-medium); width: auto; min-width: 320px; max-width: 90%; box-shadow: 0 8px 16px rgba(0,0,0,0.15); position: relative; display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+        .diff-modal-content > div:first-child:not(.modal-scrollable-content) { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background-color: var(--panel-bg); }
         .diff-modal-content > div:first-child h3 { margin: 0; font-size: 1.15em; color: var(--header-color); font-weight: 500; }
-        .diff-modal-close { /* For the '×' button in modal headers */
-            color: var(--dim-color); font-size: 22px; font-weight: bold;
-            cursor: pointer; line-height:1; background:none; border:none; padding:0 5px;
-        }
+        .diff-modal-close { color: var(--dim-color); font-size: 22px; font-weight: bold; cursor: pointer; line-height: 1; background: none; border: none; padding: 0 5px; }
         .diff-modal-close:hover, .diff-modal-close:focus { color: var(--text-color); }
-
-        .modal-scrollable-content { /* For the main content area of modals */
-            padding: 18px;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
-        .diff-modal-actions { /* Footer for modal action buttons */
-            text-align: right;
-            padding: 12px 18px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            flex-shrink: 0;
-            background-color: var(--panel-bg);
-        }
-        .diff-modal-actions .action-button.secondary {
-            background-color: var(--highlight-bg);
-            color: var(--text-color);
-            border-color: var(--border-color);
-        }
-        .diff-modal-actions .action-button.secondary:hover:not(:disabled) {
-            background-color: var(--border-color);
-        }
-
-        /* AI Patch Diff Modal (pruned) */
-        #aiPatchDiffModal .diff-modal-content { max-width: 900px; }
-        #diffOutputContainer { /* For the diff content itself */
-            white-space: pre-wrap; font-family: var(--font-main); font-size: 0.85em;
-            border: 1px solid var(--border-color); margin: 0;
-            padding: 10px; max-height: 60vh; overflow-y: auto; background-color: var(--bg-color);
-            line-height: 1.5; flex-grow:1;
-        }
-        #diffOutputContainer del { background-color: #ffe6e6; color: #c00; text-decoration: none; padding: 0 1px; }
-        #diffOutputContainer ins { background-color: #e6ffe6; color: #060; text-decoration: none; padding: 0 1px; }
-
-        /* Scaffold Import Modal */
+        .modal-scrollable-content { padding: 18px; overflow-y: auto; flex-grow: 1; }
+        .diff-modal-actions { text-align: right; padding: 12px 18px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background-color: var(--panel-bg); }
+        .diff-modal-actions .action-button.secondary { background-color: var(--highlight-bg); color: var(--text-color); border-color: var(--border-color); }
+        .diff-modal-actions .action-button.secondary:hover:not(:disabled) { background-color: var(--border-color); }
         #scaffoldImportModal .diff-modal-content { max-width: 600px; }
-        #aiScaffoldJsonInput { /* Textarea in scaffold modal */
-            width: 98%;
-            font-family: var(--font-main);
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-small);
-            margin-bottom:15px;
-            min-height: 150px; /* Ensure enough space for typical JSON */
-            resize: vertical;
-        }
-
-        /* AI Debriefing Assistant Modal (pruned) */
-        #aiDebriefingAssistantModal .diff-modal-content { max-width: 750px; }
-        .debrief-step {
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius-small);
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            background-color: var(--bg-color);
-        }
-        .debrief-step legend {
-            font-weight: 500;
-            padding: 0 5px;
-            color: var(--text-color);
-        }
-        .debrief-step p {
-            margin-top: 5px;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-            line-height: 1.5;
-        }
-        .code-block-display {
-            background-color: var(--highlight-bg);
-            padding: 8px 12px;
-            border-radius: var(--border-radius-small);
-            font-family: var(--font-main);
-            font-size: 0.85em;
-            line-height: 1.6;
-            border: 1px solid var(--border-color);
-        }
-        .code-block-display code { display: block; }
-        #aiDebriefingAssistantModal .action-button.secondary.active-profile {
-            background-color: var(--accent-color);
-            color: white;
-            border-color: var(--accent-color);
-            font-weight: bold;
-        }
-        #aiDebriefingAssistantModal .action-button.secondary.active-profile:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-
-        /* File Preview Modal (adapted for inline preview, but keep modal styles if needed) */
-        #filePreview { /* This is an older style modal, might need update to match .diff-modal structure */
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--bg-color);
-            border: 1px solid #c8c8c8;
-            border-radius: var(--border-radius-medium);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-            z-index: 2010;
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            padding: 0; width: 80%; max-width: 900px; height: 80vh; max-height: 700px;
-        }
-        #filePreviewTitle {
-            padding: 12px 18px; margin:0;
-            border-bottom: 1px solid var(--border-color);
-            font-size:1.15em; color: var(--header-color); font-weight:500;
-            background-color:var(--panel-bg);
-        }
-        #filePreviewContentWrapper {
-            flex-grow: 1; overflow: hidden; position: relative; display: flex; padding: 1px;
-        }
-        #filePreviewContent { flex-grow: 1; height: 100%; }
-        #closePreview { /* The 'X' button on the preview modal */
-            position: absolute; top: 10px; right: 15px;
-            background:transparent; border:none;
-            color:var(--dim-color); font-size:1.8em; cursor:pointer; z-index:1;
-        }
-        #closePreview:hover { color:var(--text-color); }
-
-        /* Error Panel Modal (pruned) */
-        .error-panel { /* Also a modal, but with specific error styling */
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--bg-color);
-            border-radius: var(--border-radius-medium);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-            z-index: 2030; /* Higher than other modals */
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid var(--error-color); /* Error color border */
-            width: 80%; max-width: 600px; padding:0;
-        }
-        .error-header {
-            background-color: var(--error-color); color: white;
-            padding: 12px 18px; display: flex;
-            justify-content: space-between; align-items: center; flex-shrink:0;
-        }
-        .error-header h3 { margin: 0; font-size: 1.15em; font-weight: 500; }
-        .error-header button { background: none; border: none; color: white; font-size: 1.6em; cursor: pointer; }
-        .error-content { padding: 18px; font-size: 0.9em; flex-grow:1; overflow-y:auto; }
-        .error-title { font-weight: 500; font-size: 1em; margin-bottom: 8px; color: var(--error-color); }
-        .error-message { margin-bottom: 10px; }
-        .error-details {
-            padding: 10px; background-color: var(--highlight-bg);
-            border-radius: var(--border-radius-small); margin-bottom: 10px;
-            font-family: var(--font-main);
-            color: var(--dim-color); font-size: 0.8em; max-height: 150px; overflow-y: auto;
-            white-space: pre-wrap; /* This is the fix! */
-        }
-        .error-suggestions { border-top: 1px solid var(--border-color); padding-top: 10px; }
-        .error-suggestions ul { padding-left: 18px; margin-top: 4px; }
-        .error-suggestions li { margin-bottom: 4px; }
-
+        #aiScaffoldJsonInput { width: 98%; font-family: var(--font-main); padding: 8px; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); margin-bottom: 15px; min-height: 150px; resize: vertical; box-sizing: border-box; }
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: var(--scroll-thumb-width); height: var(--scroll-thumb-width); }
+        ::-webkit-scrollbar-track { background: var(--scroll-track-color); border-radius: var(--border-radius-small); }
+        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb-color); border-radius: var(--border-radius-small); border: 2px solid var(--scroll-track-color); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover-color); }
         /* Responsive */
-        @media (max-width: 1100px) {
-            #appContainer {
-                flex-direction: column;
-                height: auto;
-                overflow-y: auto; /* Allow body to scroll if content overflows */
-            }
-            body { overflow-y: auto; } /* Ensure body itself can scroll */
-
-            #leftSidebar, #mainView, #rightStatsPanel {
-                width: 100% !important; /* Override inline styles */
-                max-width: 100% !important; /* Override inline styles */
-                height: auto; /* Allow content to define height */
-                max-height: none; /* Allow content to define height */
-                border-right: none;
-                border-left: none;
-                border-bottom: 1px solid var(--border-color);
-                overflow-y: visible; /* Let content flow, parent scrolls */
-            }
-            #sidebarResizer { display: none; }
-            #mainView {
-                padding: 10px;
-                border-left: none;
-                min-height: 400px; /* Give it some initial height */
-            }
-            #tabContentArea .content-panel, #textOutput,
-            #fileEditor {
-                 min-height: 300px; /* Ensure content areas have space */
-                 max-height: 60vh; /* But also limit viewport height usage */
-            }
-            #leftSidebar #visualOutputContainer { /* Tree view container */
-                max-height: 50vh; /* Limit tree view height */
-                min-height: 200px;
-            }
-            #rightStatsPanel {
-                border-bottom: none; /* No border at the very end */
-            }
-        }
-
-        @media (max-width: 768px) {
-            body { font-size: 13px; }
-            #leftSidebar { padding: 10px; gap:10px; }
-            #mainViewTabs {
-                flex-wrap: wrap; /* Allow tabs to wrap */
-                padding-bottom: 5px;
-                height: auto;
-            }
-            .tab-button { padding: 7px 12px; font-size: 0.85em; margin-bottom: 5px; }
-            #rightStatsPanel { padding: 10px; }
-
-            .drop-icon { font-size: 1.6rem; }
-            .drop-text { font-size: 0.8rem; }
-            .folder-select-btn { font-size: 0.75em; }
-
-            .panel-header h2 { font-size: 1.0em; }
-            #leftSidebar #visualOutputContainer .panel-header h2 { font-size: 1.0em; }
-            #aiScaffoldJsonInput { min-height: 60px; font-size: 0.8em; }
-
-            button.action-button, button.utility-button {
-                font-size: 0.8em; padding: 6px 10px;
-            }
-            .editor-button { font-size: 0.8em; }
-
-            /* Modals and Preview panels to take more screen width */
-            #filePreview,
-            #scaffoldImportModal .diff-modal-content,
-            #aiPatchDiffModal .diff-modal-content,
-            #aiBriefingStudioModal .diff-modal-content,
-            .error-panel {
-                width: 95vw !important;
-                max-width: 95vw !important;
-                height: auto; /* Let content define height up to max */
-                max-height: 90vh;
-            }
-             .diff-modal { padding: 10px; } /* Reduce padding on smallest screens */
-        }
+        @media (max-width: 1100px) { #appContainer { flex-direction: column; height: auto; overflow-y: auto; } body { overflow-y: auto; } #leftSidebar, #mainView, #rightStatsPanel { width: 100% !important; max-width: 100% !important; height: auto; max-height: none; border-right: none; border-left: none; border-bottom: 1px solid var(--border-color); overflow-y: visible; } #sidebarResizer { display: none; } #mainView { padding: 10px; border-left: none; min-height: 400px; } #textReport { min-height: 300px; max-height: 60vh; } #directoryTree { max-height: 50vh; min-height: 200px; } #rightStatsPanel { border-bottom: none; } }
+        @media (max-width: 768px) { body { font-size: 13px; } #leftSidebar { padding: 10px; gap: 10px; } .drop-icon { font-size: 1.6rem; } .drop-text { font-size: 0.8rem; } .folder-select-btn { font-size: 0.75em; } .panel-header h2 { font-size: 1.0em; } button.action-button, button.utility-button { font-size: 0.8em; padding: 6px 10px; } .diff-modal { padding: 10px; } .diff-modal-content { width: 95vw !important; max-width: 95vw !important; height: auto; max-height: 90vh; } }
     </style>
 </head>
 <body>
+    <!-- Logo Header: Matches screenshot top -->
+    <div id="logoHeader">
+        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiB2aWV3Qm94PSIwIDAgMjAwIDYwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjMDA3YWZmIiByeD0iOCIvPgo8cGF0aCBkPSJNNSAxNSBMMzAgMTUgTDMwIDQ1IEw1IDQ1IEw1IDE1WiIgZmlsbD0id2hpdGUiLz4KPHRleHQgeD0iNDAiIHk9IjQwIiBmb250LWZhbWlseT0iUm9ib3RvIE1vbm8sIG1vbm9zcGFjZSIgZm9udC1zaXplPSIxOHB4IiBmaWxsPSJ3aGl0ZSI+RGlyQW5hbHl6ZTwvdGV4dD4KPC9zdmc+" alt="DirAnalyze Logo" class="header-logo">
+    </div>
+
     <div id="appContainer">
-        <!-- Left Sidebar: Directory Tree -->
+        <!-- Left Sidebar: Tree + Controls -->
         <div id="leftSidebar">
-            <div id="sidebarHeader">
-                <h1>DirAnalyze</h1>
-            </div>
-            <div id="treeViewControls">
-                <input type="text" id="treeSearchInput" class="action-button" placeholder="Search files/folders..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color);">
-                <div style="display: flex; gap: 5px;">
-                    <button id="expandAllBtn" class="action-button">Expand All</button>
-                    <button id="collapseAllBtn" class="action-button">Collapse All</button>
+            <div class="panel-header">
+                <h2>DIRECTORY TREE</h2>
+                <div class="tree-controls">
+                    <input type="text" id="searchInput" placeholder="Search files/folders...">
+                    <div style="display: flex; gap: 5px;">
+                        <button class="tree-btn action-button" id="expandAllBtn">EXPAND ALL</button>
+                        <button class="tree-btn action-button" id="collapseAllBtn">COLLAPSE ALL</button>
+                    </div>
                 </div>
+            </div>
+            <div id="generalActions">
+                <button class="utility-button action-button" id="importScaffoldBtn">IMPORT AI SCAFFOLD</button>
             </div>
             <hr class="sidebar-hr">
-            <div id="visualOutputContainer">
-                <div class="panel-header">
-                    <h2>Directory Tree</h2>
-                </div>
-                <div id="treeContainer" class="tree"></div>
-            </div>
+            <ul id="directoryTree"></ul>
+            <div class="empty-notice" id="emptyTreeNotice" style="display: none;">No folder loaded</div>
         </div>
 
         <!-- Resizer -->
         <div id="sidebarResizer"></div>
 
-        <!-- Main View: Center Panel -->
+        <!-- Main View: Drop Zone → Report -->
         <div id="mainView">
             <div id="mainAction">
                 <div id="dropZone" class="drop-content">
-                    <div class="drop-icon">📁</div>
+                    <i class="fas fa-folder drop-icon"></i>
                     <div class="drop-text">DROP FOLDER</div>
                     <div class="drop-alternative">- OR -</div>
-                    <button class="folder-select-btn" id="selectFolderBtn">SELECT FOLDER</button>
+                    <button class="folder-select-btn action-button" id="selectFolderBtn">SELECT FOLDER</button>
                 </div>
                 <div id="loader">Scanning...</div>
             </div>
-            <div id="mainViewTabs">
-                <button class="tab-button active" data-tab="report">Text Report</button>
-            </div>
-            <div id="tabContentArea">
-                <div id="reportTab" class="tab-content-item active content-panel">
-                    <div id="textOutputContainerOuter">
-                        <div id="textOutput"></div>
-                    </div>
-                    <div class="button-container">
-                        <button id="exportReportBtn" class="action-button primary">EXPORT COMBINED TEXT</button>
-                    </div>
-                </div>
+            <div id="textReportContainer">
+                <div id="textReport"></div>
+                <button id="exportReportBtn" class="action-button primary" style="display: none; align-self: flex-start; margin: 10px;">EXPORT COMBINED TEXT</button>
             </div>
         </div>
 
         <!-- Right Stats Panel -->
         <div id="rightStatsPanel">
             <div class="panel-header">
-                <h2>Statistics</h2>
+                <h2>STATISTICS</h2>
             </div>
-            <div id="globalStats" class="selection-summary">
-                <div class="stat-item">Files in view: 0</div>
-                <div class="stat-item">Total size (original files in view): 0 KB</div>
-            </div>
+            <div id="globalStats" class="empty-notice">No data yet</div>
             <div class="file-type-stats">
-                <h3>File Type Breakdown</h3>
-                <table>
+                <h3>FILE TYPE BREAKDOWN</h3>
+                <table id="fileTypeTable">
                     <thead><tr><th>Extension</th><th>Count</th><th>Total Size</th></tr></thead>
-                    <tbody id="fileTypeTbody"></tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -933,177 +203,175 @@
     <div id="scaffoldImportModal" class="diff-modal">
         <div class="diff-modal-content">
             <div>
-                <h3>Import AI Scaffold</h3>
-                <button class="diff-modal-close" id="closeScaffoldModal">&times;</button>
+                <h3>Import AI-Generated Project Scaffold</h3>
+                <button class="diff-modal-close" id="closeScaffoldModalBtn">×</button>
             </div>
             <div class="modal-scrollable-content">
-                <p>Paste the JSON array of create_scaffold_file operations from your AI below.</p>
+                <p style="font-size: 0.9em; color: var(--dim-color); margin-top: 0;">Paste the JSON array of <code>create_scaffold_file</code> operations from your AI below. Ensure filePaths are like 'projectName/src/app.js' or 'projectName/index.html'.</p>
                 <textarea id="aiScaffoldJsonInput" placeholder='[{"operation": "create_scaffold_file", "filePath": "my-project/index.html", "content": "&lt;!DOCTYPE html&gt;..."}]'></textarea>
             </div>
             <div class="diff-modal-actions">
-                <button id="createProjectFromScaffoldBtn" class="action-button primary">Write Scaffold</button>
+                <button id="createProjectFromScaffoldBtn" class="action-button primary">Create Project from Scaffold</button>
                 <button id="cancelScaffoldImportBtn" class="action-button secondary">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Import Scaffold Button (add to generalActions if needed, but trigger via global button) -->
-    <button id="importScaffoldBtn" class="action-button" style="display: block; margin: 10px auto;">Import AI Scaffold</button>
-
     <script>
-        // App State
+        // JS: Pruned for kept features. In-memory state, read-only scan, scaffold write, tree with icons, previews, etc. ~400 lines.
         let appState = {
             dirHandle: null,
-            fullScanData: { allFilesList: [], folders: [] },
-            filesMap: new Map(), // path -> File
+            fullScanData: { allFilesList: [] },
+            filesMap: new Map(),
             isScaffoldMode: false,
             projectRootName: '',
-            searchTerm: '',
-            isFilePreview: false
+            searchTerm: ''
         };
 
-        // Notification
         function showNotification(msg, type = 'info') {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
-            notif.classList.add('show');
             notif.style.borderLeftColor = type === 'error' ? 'var(--error-color)' : 'var(--accent-color)';
+            notif.classList.add('show');
         }
 
-        // Recursive Scan
+        // Recursive Scan: Read-only
         async function processDirectoryEntryRecursive(dirHandle, path = '') {
             const files = [];
-            for await (const entry of dirHandle.values()) {
+            for await (const [name, entry] of dirHandle.entries()) {
+                const fullPath = path ? `${path}/${name}` : name;
                 if (entry.kind === 'file') {
                     const file = await entry.getFile();
-                    const fullPath = path ? `${path}/${entry.name}` : entry.name;
-                    files.push({ path: fullPath, size: file.size, type: entry.name.split('.').pop() || '(no ext)' });
+                    if (!file.type.startsWith('text/') && file.type !== '') continue; // Omit binaries for report
+                    files.push({ path: fullPath, size: file.size, type: name.split('.').pop() || '(no ext)' });
                     appState.filesMap.set(fullPath, file);
                 } else if (entry.kind === 'directory') {
-                    const subPath = path ? `${path}/${entry.name}` : entry.name;
-                    const subFiles = await processDirectoryEntryRecursive(entry, subPath);
+                    const subFiles = await processDirectoryEntryRecursive(entry, fullPath);
                     files.push(...subFiles);
                 }
             }
             return files;
         }
 
-        // Build Tree Structure
+        // Tree Structure & Render: With Font Awesome icons
         function buildTreeStructure(files) {
-            const tree = { name: appState.projectRootName || 'Root', children: [], isFolder: true, path: '' };
+            const root = { name: appState.projectRootName || 'Root', children: [], isFolder: true, path: '' };
             files.forEach(f => {
                 const parts = f.path.split('/');
-                let current = tree;
+                let current = root;
                 for (let i = 0; i < parts.length; i++) {
                     const part = parts[i];
-                    let child = current.children.find(c => c.name === part);
+                    let child = current.children.find(c => c.name === part && c.isFolder === (i < parts.length - 1));
                     if (!child) {
-                        const childPath = parts.slice(0, i + 1).join('/');
-                        child = { name: part, path: childPath, children: [], isFolder: i < parts.length - 1 };
-                        if (i === parts.length - 1) child.size = f.size;
+                        child = { name: part, path: parts.slice(0, i + 1).join('/'), children: [], isFolder: i < parts.length - 1, size: i === parts.length - 1 ? f.size : 0 };
                         current.children.sort((a, b) => a.isFolder === b.isFolder ? 0 : a.isFolder ? -1 : 1); // Folders first
                         current.children.push(child);
                     }
                     current = child;
                 }
             });
-            return tree;
+            return root;
         }
 
-        // Render Tree
-        function renderTreeNode(node, parentEl, indent = 0) {
+        function renderTreeNode(node, parentEl) {
             const li = document.createElement('li');
             li.className = `tree-node ${node.isFolder ? 'folder' : 'file'}`;
+            li.dataset.path = node.path;
+            const icon = document.createElement('i');
+            icon.className = node.isFolder ? 'fas fa-folder' : 'fas fa-file';
+            li.appendChild(icon);
             const toggle = document.createElement('span');
-            toggle.className = 'folder-toggle';
-            toggle.textContent = node.isFolder ? '▶ ' : '';
-            toggle.style.paddingLeft = `${indent * 20}px`;
+            toggle.className = 'toggle';
+            if (node.isFolder) toggle.style.marginLeft = '-16px'; // Adjust for icon
             li.appendChild(toggle);
             const nameSpan = document.createElement('span');
-            nameSpan.className = 'name';
-            nameSpan.textContent = node.name + (node.isFolder ? '/' : '');
+            nameSpan.textContent = node.name + (node.isFolder ? ` (${node.children.length} items)` : ` (${(node.size / 1024).toFixed(1)} KB)`);
             li.appendChild(nameSpan);
+            const ul = document.createElement('ul');
+            ul.style.display = 'none';
+            node.children.forEach(child => renderTreeNode(child, ul));
+            li.appendChild(ul);
             if (node.isFolder) {
-                const ul = document.createElement('ul');
-                ul.style.display = 'none';
-                node.children.forEach(child => renderTreeNode(child, ul, indent + 1));
-                li.appendChild(ul);
                 toggle.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const isOpen = ul.style.display === 'block';
-                    ul.style.display = isOpen ? 'none' : 'block';
-                    toggle.textContent = isOpen ? '▶ ' : '▼ ';
-                    li.classList.toggle('open', !isOpen);
+                    li.classList.toggle('open');
+                    ul.style.display = li.classList.contains('open') ? 'block' : 'none';
                 });
             } else {
-                li.addEventListener('click', () => loadFilePreview(node.path));
+                li.addEventListener('click', () => loadFileContent(node.path));
             }
             parentEl.appendChild(li);
         }
 
         function buildTree(files) {
-            const treeContainer = document.getElementById('treeContainer');
-            treeContainer.innerHTML = '';
-            const treeData = buildTreeStructure(files.filter(f => f.path.toLowerCase().includes(appState.searchTerm.toLowerCase())));
-            renderTreeNode(treeData, treeContainer);
+            const treeEl = document.getElementById('directoryTree');
+            treeEl.innerHTML = '';
+            if (files.length === 0) {
+                document.getElementById('emptyTreeNotice').style.display = 'block';
+                return;
+            }
+            document.getElementById('emptyTreeNotice').style.display = 'none';
+            const treeData = buildTreeStructure(files.filter(f => f.path.toLowerCase().includes(appState.searchTerm)));
+            renderTreeNode(treeData, treeEl);
         }
 
-        // File Preview: Replace textOutput with content
-        async function loadFilePreview(path) {
+        // File Preview: Replace report
+        async function loadFileContent(path) {
             const file = appState.filesMap.get(path);
             if (!file) return showNotification('File not found', 'error');
             const text = await file.text();
-            const textOutput = document.getElementById('textOutput');
-            textOutput.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-main);">${escapeHtml(text)}</pre><button id="closeFilePreviewBtn" class="action-button" style="margin-top: 10px;">Close Preview</button>`;
-            document.getElementById('closeFilePreviewBtn').addEventListener('click', generateReport);
-            appState.isFilePreview = true;
-            showNotification(`Viewing: ${path}`);
+            const reportEl = document.getElementById('textReport');
+            reportEl.innerHTML = `<pre style="white-space: pre-wrap; font-family: var(--font-main);">${escapeHtml(text)}</pre><button id="closeFileView" class="action-button primary" style="margin-top: 10px;">Close</button>`;
+            document.getElementById('closeFileView').addEventListener('click', generateReport);
+            reportEl.style.display = 'block';
+            document.getElementById('exportReportBtn').style.display = 'none';
         }
 
         function escapeHtml(unsafe) {
-            return unsafe.replace(/[&<"']/g, match => ({'&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;'}[match]));
+            return unsafe.replace(/[&<"']/g, match => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[match]));
         }
 
-        // Generate Report
+        // Report Generation: Exact format
         function generateReport() {
-            const { allFilesList } = appState.fullScanData;
-            let report = `// DIRANALYZE COMBINED TEXT EXPORT //\n// Project: ${appState.projectRootName}\n// Timestamp: ${new Date().toISOString().split('T')[0]}\n// Files in this export: ${allFilesList.length}\n\n// NOTE: Binary or non-text file(s) were omitted from this export.\n\n// ===== START OF DIRECTORY STRUCTURE =====\n`;
-            const treeStr = buildReportTree(buildTreeStructure(allFilesList));
-            report += treeStr + '\n// ===== END OF FILE ===== //';
-            document.getElementById('textOutput').textContent = report;
-            appState.isFilePreview = false;
+            const { allFilesList } = appState;
+            let report = `// DIRANALYZE COMBINED TEXT EXPORT //\n// Project: ${appState.projectRootName}\n// Timestamp: ${new Date().toISOString()}\n// Files in this export: ${allFilesList.length}\n\n// NOTE: ${appState.filesMap.size - allFilesList.length} binary or non-text file(s) were omitted from this export.\n\n// ===== START OF FILE: ${appState.projectRootName} ===== //\n`;
+            const treeStr = buildTreeString(buildTreeStructure(allFilesList));
+            report += treeStr;
+            report += `\n// ===== END OF FILE: ${appState.projectRootName} ===== //`;
+            document.getElementById('textReport').textContent = report;
+            document.getElementById('textReport').style.display = 'block';
+            document.getElementById('exportReportBtn').style.display = 'block';
         }
 
-        function buildReportTree(node, indent = '') {
-            let str = `${indent}${node.name}${node.isFolder ? '/' : ''}\n`;
-            if (node.children) node.children.forEach(child => str += buildReportTree(child, indent + '  '));
+        function buildTreeString(node, indent = '') {
+            let str = `${indent}- ${node.name}`;
+            if (node.isFolder) str += ` (Folder)`;
+            else str += ` (${(node.size / 1024).toFixed(2)} KB)`;
+            str += '\n';
+            if (node.children) node.children.forEach(child => str += buildTreeString(child, indent + '  '));
             return str;
         }
 
-        // Update Stats
-        function updateStats(filteredFiles = appState.fullScanData.allFilesList) {
-            let totalSize = filteredFiles.reduce((sum, f) => sum + f.size, 0);
-            let typeStats = {};
-            filteredFiles.forEach(f => {
+        // Stats Update
+        function updateStats() {
+            const files = appState.fullScanData.allFilesList;
+            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+            document.getElementById('globalStats').innerHTML = `<p class="stat-item"><strong>Files in View:</strong> ${files.length}</p><p class="stat-item"><strong>Total Size (Original Scan):</strong> ${(totalSize / 1024).toFixed(2)} KB</p><p class="stat-item"><strong>Avg File Size (Original Scan):</strong> ${files.length ? (totalSize / files.length / 1024).toFixed(2) : 0} KB</p><p class="stat-item"><strong>Empty Dirs (Original Scan):</strong> N/A</p>`;
+            const typeStats = {};
+            files.forEach(f => {
                 const ext = f.type;
-                typeStats[ext] = (typeStats[ext] || { count: 0, size: 0 });
+                if (!typeStats[ext]) typeStats[ext] = { count: 0, size: 0 };
                 typeStats[ext].count++;
                 typeStats[ext].size += f.size;
             });
-            document.getElementById('globalStats').innerHTML = `
-                <div class="stat-item"><strong>Files in view:</strong> ${filteredFiles.length}</div>
-                <div class="stat-item"><strong>Total size (original files in view):</strong> ${(totalSize / 1024).toFixed(1)} KB</div>
-            `;
-            const tbody = document.getElementById('fileTypeTbody');
-            tbody.innerHTML = Object.entries(typeStats).map(([ext, data]) => 
-                `<tr><td>${ext}</td><td>${data.count}</td><td>${(data.size / 1024).toFixed(1)} KB</td></tr>`
-            ).join('');
+            const tbody = document.querySelector('#fileTypeTable tbody');
+            tbody.innerHTML = Object.entries(typeStats).sort(([a], [b]) => a.localeCompare(b)).map(([ext, data]) => `<tr><td>${ext}</td><td>${data.count}</td><td>${(data.size / 1024).toFixed(2)} KB</td></tr>`).join('');
         }
 
         // Export
         function exportReport() {
-            const text = document.getElementById('textOutput').textContent;
-            const blob = new Blob([text], { type: 'text/plain' });
+            const reportText = document.getElementById('textReport').textContent;
+            const blob = new Blob([reportText], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1116,92 +384,66 @@
         }
 
         // Search
-        document.getElementById('treeSearchInput').addEventListener('input', (e) => {
-            appState.searchTerm = e.target.value;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            appState.searchTerm = e.target.value.toLowerCase();
             buildTree(appState.fullScanData.allFilesList);
-            updateStats(appState.fullScanData.allFilesList.filter(f => f.path.toLowerCase().includes(appState.searchTerm.toLowerCase())));
+            updateStats();
         });
 
         // Expand/Collapse
-        document.getElementById('expandAllBtn').addEventListener('click', () => {
-            document.querySelectorAll('.folder-toggle').forEach(toggle => {
-                if (toggle.textContent === '▶ ') {
-                    toggle.textContent = '▼ ';
-                    toggle.parentElement.querySelector('ul').style.display = 'block';
-                    toggle.parentElement.classList.add('open');
-                }
-            });
-        });
-        document.getElementById('collapseAllBtn').addEventListener('click', () => {
-            document.querySelectorAll('.folder-toggle').forEach(toggle => {
-                if (toggle.textContent === '▼ ') {
-                    toggle.textContent = '▶ ';
-                    toggle.parentElement.querySelector('ul').style.display = 'none';
-                    toggle.parentElement.classList.remove('open');
-                }
-            });
-        });
+        document.getElementById('expandAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.add('open'); n.querySelector('ul').style.display = 'block'; }));
+        document.getElementById('collapseAllBtn').addEventListener('click', () => document.querySelectorAll('.tree-node.folder').forEach(n => { n.classList.remove('open'); n.querySelector('ul').style.display = 'none'; }));
 
         // Resizer
         let isResizing = false;
         const resizer = document.getElementById('sidebarResizer');
-        resizer.addEventListener('mousedown', () => { isResizing = true; resizer.classList.add('resizing'); });
+        resizer.addEventListener('mousedown', () => { isResizing = true; resizer.classList.add('resizing'); document.body.style.userSelect = 'none'; });
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
-            const leftSidebar = document.getElementById('leftSidebar');
+            const left = document.getElementById('leftSidebar');
             let width = e.clientX;
             width = Math.max(220, Math.min(width, window.innerWidth * 0.6));
-            leftSidebar.style.width = width + 'px';
+            left.style.width = width + 'px';
         });
-        document.addEventListener('mouseup', () => { isResizing = false; resizer.classList.remove('resizing'); });
+        document.addEventListener('mouseup', () => { isResizing = false; resizer.classList.remove('resizing'); document.body.style.userSelect = ''; });
 
-        // Drop/Select
-        const dropZone = document.getElementById('dropZone');
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        dropZone.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            await handleDirectoryLoad();
-        });
-        document.getElementById('selectFolderBtn').addEventListener('click', handleDirectoryLoad);
-
-        async function handleDirectoryLoad() {
+        // Drop/Select: With loader
+        async function handleDirectorySelect() {
+            const loader = document.getElementById('loader');
+            loader.classList.add('visible');
             try {
-                document.getElementById('loader').classList.add('visible');
                 appState.dirHandle = await window.showDirectoryPicker({ mode: 'read' });
                 appState.projectRootName = appState.dirHandle.name;
                 appState.fullScanData.allFilesList = await processDirectoryEntryRecursive(appState.dirHandle);
                 appState.isScaffoldMode = false;
-                appState.filesMap = new Map(); // Reset, but repopulate in scan
+                appState.filesMap.forEach((file, path) => { if (!file.type.startsWith('text/') && file.type !== '') appState.fullScanData.allFilesList = appState.fullScanData.allFilesList.filter(f => f.path !== path); }); // Sync list to text-only
                 buildTree(appState.fullScanData.allFilesList);
                 updateStats();
                 generateReport();
-                dropZone.style.display = 'none';
-                document.getElementById('loader').classList.remove('visible');
+                document.getElementById('dropZone').style.display = 'none';
+                loader.classList.remove('visible');
                 showNotification(`Loaded: ${appState.projectRootName}`);
             } catch (err) {
-                document.getElementById('loader').classList.remove('visible');
+                loader.classList.remove('visible');
                 showNotification('Failed to load: ' + err.message, 'error');
             }
         }
 
-        // Scaffold
-        document.getElementById('importScaffoldBtn').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'flex';
-        });
-        document.getElementById('closeScaffoldModal').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'none';
-        });
-        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'none';
-        });
+        const dropZone = document.getElementById('dropZone');
+        ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); }));
+        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); if (ev === 'drop') handleDirectorySelect(); }));
+        document.getElementById('selectFolderBtn').addEventListener('click', handleDirectorySelect);
 
-        async function writeScaffoldToDir(dirHandle, filePath, content) {
+        // Scaffold: Trigger, parse, write recursive, load virtual
+        document.getElementById('importScaffoldBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'flex');
+        document.getElementById('closeScaffoldModalBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'none');
+        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => document.getElementById('scaffoldImportModal').style.display = 'none');
+
+        async function writeScaffoldRecursive(dirHandle, filePath, content) {
             const parts = filePath.split('/');
             let current = dirHandle;
             for (let i = 0; i < parts.length - 1; i++) {
-                current = await current.getDirectoryHandle(parts[i], { create: true });
+                try { current = await current.getDirectoryHandle(parts[i], { create: true }); } catch { /* Assume created */ }
             }
             const fileH = await current.getFileHandle(parts[parts.length - 1], { create: true });
             const writable = await fileH.createWritable();
@@ -1210,47 +452,39 @@
         }
 
         document.getElementById('createProjectFromScaffoldBtn').addEventListener('click', async () => {
+            const modal = document.getElementById('scaffoldImportModal');
             try {
                 const jsonStr = document.getElementById('aiScaffoldJsonInput').value;
                 const ops = JSON.parse(jsonStr);
                 if (!Array.isArray(ops)) throw new Error('Invalid JSON array');
-
                 const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                const projectName = ops[0]?.filePath.split('/')[0] || 'scaffold-project';
-
+                appState.projectRootName = ops[0]?.filePath.split('/')[0] || 'ScaffoldProject';
                 for (const op of ops) {
-                    if (op.operation === 'create_scaffold_file') {
-                        await writeScaffoldToDir(dirHandle, op.filePath, op.content);
-                    }
+                    if (op.operation === 'create_scaffold_file') await writeScaffoldRecursive(dirHandle, op.filePath, op.content);
                 }
-
-                // Virtual scan from scaffold
-                appState.fullScanData.allFilesList = ops.filter(op => op.operation === 'create_scaffold_file').map(op => ({
-                    path: op.filePath,
-                    size: new Blob([op.content]).size,
-                    type: op.filePath.split('.').pop() || '(no ext)'
-                }));
+                // Virtual load
+                appState.fullScanData.allFilesList = ops.filter(op => op.operation === 'create_scaffold_file').map(op => ({ path: op.filePath, size: op.content.length, type: op.filePath.split('.').pop() || '(no ext)' }));
                 appState.filesMap.clear();
                 ops.forEach(op => appState.filesMap.set(op.filePath, new Blob([op.content], { type: 'text/plain' })));
-                appState.projectRootName = projectName;
                 appState.isScaffoldMode = true;
-
                 buildTree(appState.fullScanData.allFilesList);
                 updateStats();
                 generateReport();
-                dropZone.style.display = 'none';
-                showNotification(`Scaffold written to ${projectName}`);
-                document.getElementById('scaffoldImportModal').style.display = 'none';
+                document.getElementById('dropZone').style.display = 'none';
+                showNotification(`Scaffold created in: ${dirHandle.name}`);
+                modal.style.display = 'none';
+                document.getElementById('aiScaffoldJsonInput').value = '';
             } catch (err) {
-                showNotification('Scaffold failed: ' + err.message, 'error');
+                showNotification('Scaffold error: ' + err.message, 'error');
             }
         });
 
-        // Export
+        // Export Btn
         document.getElementById('exportReportBtn').addEventListener('click', exportReport);
 
         // Init
-        document.getElementById('textOutput').innerHTML = '<div class="empty-notice">Drop a folder or import a scaffold to begin analysis.</div>';
+        document.getElementById('textReport').style.display = 'none';
+        document.getElementById('exportReportBtn').style.display = 'none';
     </script>
 </body>
 </html>
