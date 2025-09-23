@@ -1,256 +1,320 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DirAnalyze</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="base.css">
-    <link rel="stylesheet" href="layout.css">
-    <link rel="stylesheet" href="components.css">
-    <link rel="stylesheet" href="tree.css">
-    <script type="module" src="utils.js" defer></script>
-    <script type="module">
-        // Phase 1.5 Init: Static + Log Stubs (no scan yet)
-        import { showNotification, debounce, logEvent, traceError } from './utils.js';
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <title>DirAnalyze</title>
 
-        console.log('DirAnalyze Init: Phase 1.5 - Visuals + Logging Only');
+  <!-- Fonts & Icons -->
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
 
-        // Drop Zone Logs (no func, just trace events)
-        const dropZone = document.getElementById('dropZone');
-        ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, e => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-            logEvent(`Drag ${ev} fired: Target ${e.target.id}, DataTransfer types: ${e.dataTransfer.types.join(', ')}`);
-        }));
-        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (ev === 'drop') {
-                logEvent(`Drop fired: Items ${e.dataTransfer.items.length}, Types ${Array.from(e.dataTransfer.items).map(i => i.type).join(', ')}`);
-                traceError('Drop stub: Directory API not active yet - Phase 2');
-                showNotification('Drop detected! (Logging only - Phase 2 for full scan)', 'info');
-            } else {
-                logEvent(`Drag leave fired: Target ${e.target.id}`);
-            }
-        }));
+  <!-- Theme & Layout -->
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="layout.css" />
+  <link rel="stylesheet" href="components.css" />
+  <link rel="stylesheet" href="tree.css" />
 
-        // Select Btn Log
-        document.getElementById('selectFolderBtn').addEventListener('click', () => {
-            logEvent('Select Folder clicked - Stub: Browser picker not active (Phase 2)');
-            showNotification('Select clicked! (Logging only - Phase 2)', 'info');
-        });
+  <!-- JS (modules load deferred by default) -->
+  <script type="module" src="utils.js"></script>
+  <script type="module" src="scan.js"></script>
 
-        // Search Stub Log (debounced)
-        const searchInput = document.getElementById('searchInput');
-        searchInput.addEventListener('input', debounce((e) => {
-            logEvent(`Search input: "${e.target.value}" (length ${e.target.value.length}) - Stub: Filter not active (Phase 3)`);
-        }, 250));
+  <!-- Phase 2 UI wiring (logs + non-scan stubs) -->
+  <script type="module">
+    import { showNotification, debounce, logEvent, traceError } from "./utils.js";
 
-        // Tree Buttons Stub Logs
-        document.getElementById('expandAllBtn').addEventListener('click', () => logEvent('Expand All clicked - Stub: Dynamic tree Phase 3'));
-        document.getElementById('collapseAllBtn').addEventListener('click', () => logEvent('Collapse All clicked - Stub: Dynamic tree Phase 3'));
+    // --- INIT ---
+    console.log("DirAnalyze Init: Phase 2 — Dynamic scan + visuals + logging");
 
-        // Import Modal Stub
-        document.getElementById('importScaffoldBtn').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'flex';
-            logEvent('Import Scaffold clicked - Modal opened');
-        });
-        document.getElementById('closeScaffoldModalBtn').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'none';
-            logEvent('Scaffold modal closed via X');
-        });
-        document.getElementById('cancelScaffoldImportBtn').addEventListener('click', () => {
-            document.getElementById('scaffoldImportModal').style.display = 'none';
-            logEvent('Scaffold modal canceled');
-        });
-        document.getElementById('createProjectFromScaffoldBtn').addEventListener('click', () => {
-            logEvent('Create Scaffold clicked - Stub: Write Phase 4');
-            showNotification('Create clicked! (Logging only - Phase 4)', 'info');
-        });
+    // Search (stub; actual filter lands Phase 3)
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+      searchInput.addEventListener(
+        "input",
+        debounce((e) => {
+          const v = e.target.value || "";
+          logEvent(
+            `Search input: "${v}" (length ${v.length}) - Stub: Filter not active (Phase 3)`
+          );
+        }, 250)
+      );
+    }
 
-        // Resizer Log
-        let isResizing = false;
-        const resizer = document.getElementById('sidebarResizer');
-        resizer.addEventListener('mousedown', () => {
-            isResizing = true;
-            resizer.classList.add('resizing');
-            logEvent('Resizer mousedown - Start drag');
-        });
-        document.addEventListener('mousemove', e => {
-            if (isResizing) {
-                const left = document.getElementById('leftSidebar');
-                const oldW = left.style.width;
-                let w = e.clientX;
-                w = Math.max(220, Math.min(w, window.innerWidth * 0.6));
-                left.style.width = w + 'px';
-                logEvent(`Resizer mousemove: Old width ${oldW}, New ${w}px, Mouse X ${e.clientX}`);
-            }
-        });
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                resizer.classList.remove('resizing');
-                logEvent('Resizer mouseup - End drag');
-            }
-        });
+    // Tree expand/collapse (stubs for Phase 3)
+    const expandAllBtn = document.getElementById("expandAllBtn");
+    const collapseAllBtn = document.getElementById("collapseAllBtn");
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener("click", () =>
+        logEvent("Expand All clicked - Stub: Dynamic tree Phase 3")
+      );
+    }
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener("click", () =>
+        logEvent("Collapse All clicked - Stub: Dynamic tree Phase 3")
+      );
+    }
 
-        // Export Stub Log
-        document.getElementById('exportReportBtn').addEventListener('click', () => {
-            logEvent('Export clicked - Stub: Blob Phase 3');
-            showNotification('Export clicked! (Logging only - Phase 3)', 'info');
-        });
+    // Import Scaffold modal (Phase 4)
+    const importBtn = document.getElementById("importScaffoldBtn");
+    const modal = document.getElementById("scaffoldImportModal");
+    const modalClose = document.getElementById("closeScaffoldModalBtn");
+    const modalCancel = document.getElementById("cancelScaffoldImportBtn");
+    const modalCreate = document.getElementById("createProjectFromScaffoldBtn");
 
-        // Init Log
-        console.log('Init complete: Events wired with logs. Open console for traces.');
-        document.getElementById('emptyTreeNotice').style.display = 'none';
-        document.getElementById('textReport').style.display = 'block';
-        document.getElementById('exportReportBtn').style.display = 'block';
-    </script>
+    if (importBtn && modal) {
+      importBtn.addEventListener("click", () => {
+        modal.style.display = "flex";
+        logEvent("Import Scaffold clicked - Modal opened");
+      });
+    }
+    if (modalClose && modal) {
+      modalClose.addEventListener("click", () => {
+        modal.style.display = "none";
+        logEvent("Scaffold modal closed via X");
+      });
+    }
+    if (modalCancel && modal) {
+      modalCancel.addEventListener("click", () => {
+        modal.style.display = "none";
+        logEvent("Scaffold modal canceled");
+      });
+    }
+    if (modalCreate) {
+      modalCreate.addEventListener("click", () => {
+        logEvent("Create Scaffold clicked - Stub: Write Phase 4");
+        showNotification("Create clicked! (Logging only - Phase 4)", "info");
+      });
+    }
+
+    // Resizer logs (visual only)
+    let isResizing = false;
+    const resizer = document.getElementById("sidebarResizer");
+    if (resizer) {
+      resizer.addEventListener("mousedown", () => {
+        isResizing = true;
+        resizer.classList.add("resizing");
+        logEvent("Resizer mousedown - Start drag");
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (isResizing) {
+          const left = document.getElementById("leftSidebar");
+          const oldW = left.style.width;
+          let w = e.clientX;
+          w = Math.max(220, Math.min(w, window.innerWidth * 0.6));
+          left.style.width = w + "px";
+          logEvent(
+            `Resizer mousemove: Old width ${oldW}, New ${w}px, Mouse X ${e.clientX}`
+          );
+        }
+      });
+      document.addEventListener("mouseup", () => {
+        if (isResizing) {
+          isResizing = false;
+          resizer.classList.remove("resizing");
+          logEvent("Resizer mouseup - End drag");
+        }
+      });
+    }
+
+    // Export (Phase 3 stub)
+    const exportBtn = document.getElementById("exportReportBtn");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        logEvent("Export clicked - Stub: Blob Phase 3");
+        showNotification("Export clicked! (Logging only - Phase 3)", "info");
+      });
+    }
+
+    // Folder Select (real scan handled by scan.js attachUI)
+    const selectFolderBtn = document.getElementById("select-folder");
+    if (selectFolderBtn) {
+      selectFolderBtn.addEventListener("click", () => {
+        logEvent("Select Folder clicked");
+      });
+    }
+
+    // Drag visual (scan.js handles actual scanning + logs)
+    const dropZone = document.getElementById("drop-zone");
+    if (dropZone) {
+      ["dragenter", "dragover"].forEach((ev) =>
+        dropZone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropZone.classList.add("dragover");
+        })
+      );
+      ["dragleave", "drop"].forEach((ev) =>
+        dropZone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+        })
+      );
+    }
+
+    // Initial state (keep visuals visible; tree starts empty)
+    console.log("Init complete: Events wired. Open console for traces.");
+  </script>
 </head>
+
 <body>
-    <header id="logoHeader">
-        <svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="200" height="60" fill="#007AFF" rx="8"/>
-            <path d="M5 15H30V45H5V15Z" fill="white"/>
-            <text x="40" y="40" font-family="Roboto Mono, monospace" font-size="18px" fill="white">DirAnalyze</text>
-        </svg>
-    </header>
+  <header id="logoHeader">
+    <svg
+      width="200"
+      height="60"
+      viewBox="0 0 200 60"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="DirAnalyze"
+    >
+      <rect width="200" height="60" fill="#007AFF" rx="8" />
+      <path d="M5 15H30V45H5V15Z" fill="white" />
+      <text
+        x="40"
+        y="40"
+        font-family="Roboto Mono, monospace"
+        font-size="18px"
+        fill="white"
+      >
+        DirAnalyze
+      </text>
+    </svg>
+  </header>
 
-    <div id="appContainer">
-        <aside id="leftSidebar">
-            <div class="panel-header">
-                <h2>DIRECTORY TREE</h2>
-                <div class="tree-controls">
-                    <input type="text" id="searchInput" placeholder="Search files/folders...">
-                    <div style="display: flex; gap: 5px;">
-                        <button class="tree-btn" id="expandAllBtn">EXPAND ALL</button>
-                        <button class="tree-btn" id="collapseAllBtn">COLLAPSE ALL</button>
-                    </div>
-                </div>
-            </div>
-            <div id="generalActions">
-                <button class="utility-button" id="importScaffoldBtn">IMPORT AI SCAFFOLD</button>
-                <button class="utility-button" id="clearProjectBtn" style="display: none;">CLEAR PROJECT</button>
-            </div>
-            <hr class="sidebar-hr">
-            <ul id="directoryTree">
-                <li class="tree-node folder open" data-path="diranalyze">
-                    <i class="fas fa-folder"></i>
-                    <span class="toggle"></span>
-                    <span>diranalyze (52 files, 9 subdirs, 4.5 MB)</span>
-                    <ul style="display: block;">
-                        <li class="tree-node folder open" data-path="backend">
-                            <i class="fas fa-folder"></i>
-                            <span class="toggle"></span>
-                            <span>backend (8 files, 1 subdir, 98.3 KB)</span>
-                            <ul style="display: block;">
-                                <li class="tree-node file" data-path="backend/src/db.sqlite3"><i class="fas fa-file"></i><span>src/db.sqlite3 (24 B)</span></li>
-                                <li class="tree-node file" data-path="backend/src/db_manage.rs"><i class="fas fa-file-code"></i><span>src/db_manage.rs (1.2 KB)</span></li>
-                            </ul>
-                        </li>
-                        <li class="tree-node file" data-path="gitignore"><i class="fas fa-file"></i><span>gitignore (17 B)</span></li>
-                        <li class="tree-node file" data-path="Cargo.lock"><i class="fas fa-file"></i><span>Cargo.lock (53.4 KB)</span></li>
-                        <li class="tree-node file" data-path="Cargo.toml"><i class="fas fa-file"></i><span>Cargo.toml (788 B)</span></li>
-                    </ul>
-                </li>
-            </ul>
-            <div class="empty-notice" id="emptyTreeNotice">No folder loaded</div>
-        </aside>
-
-        <div id="sidebarResizer"></div>
-
-        <main id="mainView">
-            <div id="mainAction">
-                <div id="dropZone">
-                    <i class="fas fa-folder drop-icon"></i>
-                    <div class="drop-text">DROP FOLDER</div>
-                    <div class="drop-alternative">- OR -</div>
-                    <button class="folder-select-btn" id="selectFolderBtn">SELECT FOLDER</button>
-                </div>
-                <div id="loader" style="display: none;"><i class="fas fa-spinner"></i> Scanning...</div>
-            </div>
-            <div style="flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border-color);">
-                <!-- Fixed Report: ASCII tree lines with ├── │ └── -->
-                <div id="textReport" style="display: block;">
-<pre style="white-space: pre-wrap; line-height: 1.4; font-size: 0.85em; font-family: var(--font-main);">
-// DIRANALYZE COMBINED TEXT EXPORT //
-// Project: diranalyze
-// Timestamp: 2025-09-23T17:05:03.052Z
-// Files in this export: 43
-
-// NOTE: 8 binary or non-text file(s) were omitted from this export.
-
-// ===== START OF FILE: diranalyze ===== //
-
-diranalyze
-├── backend
-│   ├── src
-│   │   ├── db.sqlite3 (0.02 KB)
-│   │   └── db_manage.rs (1.23 KB)
-│   └── Cargo.toml (0.79 KB)
-├── gitignore (0.02 KB)
-└── Cargo.lock (53.48 KB)
-
-// ===== END OF FILE ===== //
-</pre>
-                </div>
-                <button id="exportReportBtn" class="action-button primary" style="display: block; align-self: flex-start; margin: 10px 15px 0;">EXPORT COMBINED TEXT</button>
-            </div>
-        </main>
-
-        <aside id="rightStatsPanel">
-            <div class="panel-header"><h2>STATISTICS</h2></div>
-            <div id="globalStats">
-                <p class="stat-item"><strong>Files in View:</strong> 51</p>
-                <p class="stat-item"><strong>Folders in View (Entries):</strong> 10</p>
-                <p class="stat-item"><strong>Total Size (Original Files in View):</strong> 853.94 KB</p>
-                <p class="stat-item"><strong>Avg File Size (Original Scan):</strong> 16.74 KB</p>
-                <p class="stat-item"><strong>Empty Dirs (Original Scan):</strong> N/A</p>
-                <p class="selection-summary">Displaying stats for 51 selected files (853.94 KB). 1 file (3.7 MB) and 0 folder entries were omitted from view.</p>
-            </div>
-            <div class="file-type-stats">
-                <h3>FILE TYPE BREAKDOWN</h3>
-                <table id="fileTypeTable">
-                    <thead><tr><th>Extension</th><th>Count</th><th>Total Size</th></tr></thead>
-                    <tbody>
-                        <tr><td>png</td><td>1</td><td>295.36 KB</td></tr>
-                        <tr><td>js</td><td>18</td><td>266.75 KB</td></tr>
-                        <tr><td>md</td><td>8</td><td>68.9 KB</td></tr>
-                        <tr><td>lock</td><td>1</td><td>53.48 KB</td></tr>
-                        <tr><td>webm</td><td>6</td><td>34.97 KB</td></tr>
-                        <tr><td>sqlite3</td><td>2</td><td>24 KB</td></tr>
-                        <tr><td>py</td><td>2</td><td>22.58 KB</td></tr>
-                        <tr><td>rs</td><td>3</td><td>20.12 KB</td></tr>
-                        <tr><td>html</td><td>1</td><td>15.04 KB</td></tr>
-                        <tr><td>sh</td><td>2</td><td>9.58 KB</td></tr>
-                        <tr><td>(no ext)</td><td>3</td><td>3.32 KB</td></tr>
-                        <tr><td>toml</td><td>1</td><td>788 B</td></tr>
-                        <tr><td>json</td><td>1</td><td>423 B</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </aside>
-    </div>
-
-    <div id="notification" class="notification"></div>
-
-    <div id="scaffoldImportModal" class="diff-modal">
-        <div class="diff-modal-content">
-            <div>
-                <h3>Import AI-Generated Project Scaffold</h3>
-                <button class="diff-modal-close" id="closeScaffoldModalBtn">×</button>
-            </div>
-            <div class="modal-scrollable-content">
-                <p style="font-size: 0.9em; color: var(--dim-color);">Paste the JSON array of <code>create_scaffold_file</code> operations from your AI below. Ensure filePaths are like 'projectName/src/app.js' or 'projectName/index.html'.</p>
-                <textarea id="aiScaffoldJsonInput" placeholder='[{"operation": "create_scaffold_file", "filePath": "my-project/index.html", "content": "&lt;!DOCTYPE html&gt;..."}]'></textarea>
-            </div>
-            <div class="diff-modal-actions">
-                <button id="createProjectFromScaffoldBtn" class="action-button primary">Create Project from Scaffold</button>
-                <button id="cancelScaffoldImportBtn" class="action-button secondary">Cancel</button>
-            </div>
+  <div id="appContainer">
+    <!-- LEFT: Tree -->
+    <aside id="leftSidebar">
+      <div class="panel-header">
+        <h2>DIRECTORY TREE</h2>
+        <div class="tree-controls">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search files/folders..."
+          />
+          <div style="display: flex; gap: 5px">
+            <button class="tree-btn" id="expandAllBtn">EXPAND ALL</button>
+            <button class="tree-btn" id="collapseAllBtn">COLLAPSE ALL</button>
+          </div>
         </div>
+      </div>
+
+      <div id="generalActions">
+        <button class="utility-button" id="importScaffoldBtn">
+          IMPORT AI SCAFFOLD
+        </button>
+        <button
+          class="utility-button"
+          id="clearProjectBtn"
+          style="display: none"
+        >
+          CLEAR PROJECT
+        </button>
+      </div>
+
+      <hr class="sidebar-hr" />
+
+      <!-- Dynamic tree will render inside this container -->
+      <div id="tree" class="tree-container"></div>
+
+      <div class="empty-notice" id="emptyTreeNotice">No folder loaded</div>
+    </aside>
+
+    <!-- RESIZER -->
+    <div id="sidebarResizer"></div>
+
+    <!-- MAIN: Drop/Pick + Report -->
+    <main id="mainView">
+      <div id="mainAction">
+        <div id="drop-zone" class="drop-zone">
+          <i class="fas fa-folder drop-icon"></i>
+          <div class="drop-text">DROP FOLDER</div>
+          <div class="drop-alternative">- OR -</div>
+          <button class="folder-select-btn" id="select-folder">
+            SELECT FOLDER
+          </button>
+        </div>
+        <div id="loader" style="display: none">
+          <i class="fas fa-spinner"></i> Scanning...
+        </div>
+      </div>
+
+      <div
+        style="
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          border-top: 1px solid var(--border-color);
+        "
+      >
+        <!-- Dynamic ASCII report will render here -->
+        <div id="report" style="display: block;"></div>
+
+        <button
+          id="exportReportBtn"
+          class="action-button primary"
+          style="display: block; align-self: flex-start; margin: 10px 15px 0"
+        >
+          EXPORT COMBINED TEXT
+        </button>
+      </div>
+    </main>
+
+    <!-- RIGHT: Stats -->
+    <aside id="rightStatsPanel">
+      <div class="panel-header"><h2>STATISTICS</h2></div>
+
+      <!-- Dynamic stats table -->
+      <table id="stats-table" class="stats-table">
+        <thead>
+          <tr>
+            <th>Metric / Extension</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody><!-- Filled by scan.js --></tbody>
+      </table>
+    </aside>
+  </div>
+
+  <!-- Notification toaster -->
+  <div id="notification" class="notification"></div>
+
+  <!-- Import Scaffold Modal (Phase 4) -->
+  <div id="scaffoldImportModal" class="diff-modal" style="display: none">
+    <div class="diff-modal-content">
+      <div>
+        <h3>Import AI-Generated Project Scaffold</h3>
+        <button class="diff-modal-close" id="closeScaffoldModalBtn">×</button>
+      </div>
+      <div class="modal-scrollable-content">
+        <p style="font-size: 0.9em; color: var(--dim-color)">
+          Paste the JSON array of <code>create_scaffold_file</code> operations
+          from your AI below. Ensure filePaths are like
+          <code>projectName/src/app.js</code> or
+          <code>projectName/index.html</code>.
+        </p>
+        <textarea
+          id="aiScaffoldJsonInput"
+          placeholder='[{"operation":"create_scaffold_file","filePath":"my-project/index.html","content":"&lt;!DOCTYPE html&gt;..."}]'
+        ></textarea>
+      </div>
+      <div class="diff-modal-actions">
+        <button id="createProjectFromScaffoldBtn" class="action-button primary">
+          Create Project from Scaffold
+        </button>
+        <button id="cancelScaffoldImportBtn" class="action-button secondary">
+          Cancel
+        </button>
+      </div>
     </div>
+  </div>
 </body>
 </html>
