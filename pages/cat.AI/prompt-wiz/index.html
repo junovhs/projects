@@ -83,7 +83,7 @@ button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } 
   </main>
 
   <footer class="site-footer">
-    <p>Tip: Select words (click/drag). Shift = range, Ctrl/⌘ = toggle. Release mouse to tag. Press “T” to re-open the tag bubble.</p>
+    <p>Tip: Select words (click/drag). Shift = range, Ctrl/⌘ = toggle. Release to open tag bubble. Bubble closes only on outside click or after tagging.</p>
   </footer>
 
   <script type="module">
@@ -120,6 +120,11 @@ let wordElems = [];                    // index → <span.word>
 let selectedWordIdxs = new Set();      // currently selected words
 let anchorWordIdx = null;              // anchor for shift-range
 let dragState = { active:false, start:null, additive:false, base:new Set() };
+
+/* Tag bubble state (for outside-click close handling) */
+let activeBubbleEl = null;
+let bubbleOutsideListener = null;
+let bubbleGuard = false; // prevents immediate close on the same event that opened it
 
 /* =========================
    Init
@@ -347,6 +352,7 @@ function attachWordSelectionHandlers(){
       if (!additive) {
         selectedWordIdxs.clear();
         updateWordSelectionClasses();
+        // treat as "clicked off" → close bubble
         removeTagBubble();
       }
       return;
@@ -371,7 +377,7 @@ function attachWordSelectionHandlers(){
       anchorWordIdx = idx;
     }
     updateWordSelectionClasses();
-    removeTagBubble();
+    // don't close bubble here; opening/closing is handled by outside-click + tag action
   });
 
   // Drag across words = live range selection
@@ -385,8 +391,8 @@ function attachWordSelectionHandlers(){
     updateWordSelectionClasses();
   });
 
-  // Mouse up ends selection and shows the tag bubble
-  document.addEventListener("mouseup", (e) => {
+  // Mouse up ends selection and shows the tag bubble (no auto-close anymore)
+  document.addEventListener("mouseup", () => {
     if (dragState.active) dragState.active = false;
     maybeShowTagBubble();
   });
@@ -405,10 +411,10 @@ function attachWordSelectionHandlers(){
 }
 
 function maybeShowTagBubble(){
-  if (!selectedWordIdxs.size) { removeTagBubble(); return; }
+  if (!selectedWordIdxs.size) { return; }
   const idxs = [...selectedWordIdxs].sort((a,b)=>a-b);
   const text = idxs.map(i => wordElems[i]?.textContent ?? "").join(" ").trim();
-  if (!text) { removeTagBubble(); return; }
+  if (!text) { return; }
   const rect = unionClientRect(idxs.map(i=>wordElems[i].getBoundingClientRect()));
   showTagBubble(text, rect);
 }
@@ -514,9 +520,10 @@ function toggleEdit(){
   else { runParse(); }
 }
 
-/* Tag bubble: now driven by word selection */
+/* Tag bubble: outside-click guarded */
 function showTagBubble(selectedText,rect){
-  removeTagBubble();
+  removeTagBubble(); // clean any previous
+
   const b=document.createElement("div");
   b.className="floating-tag";
 
@@ -531,25 +538,51 @@ function showTagBubble(selectedText,rect){
   const btn=document.createElement("button"); btn.textContent="Tag";
   btn.onclick=()=>{
     const cat = select.value;
-    foundByCategory[cat]=foundByCategory[cat]||new Set();
-    foundByCategory[cat].add(selectedText);
-    replacements[selectedText]=replacements[selectedText]??selectedText;
-    if(lockCb.checked) lockedSections.add(selectedText);
+    const phrase = selectedText.trim().replace(/\s+/g,' ');
+    if (!phrase) return;
 
-    renderPreview();     // will show highlighted occurrences
-    renderSwapPanel();   // shows panel now that we have terms
-    removeTagBubble();
+    foundByCategory[cat]=foundByCategory[cat]||new Set();
+    foundByCategory[cat].add(phrase);
+    replacements[phrase]=replacements[phrase]??phrase;
+    if(lockCb.checked) lockedSections.add(phrase);
+
+    renderPreview();     // show highlighted occurrences
+    renderSwapPanel();   // panel appears/updates
+    removeTagBubble();   // close bubble only after successful tag
   };
 
   const cancel=document.createElement("button"); cancel.textContent="Cancel";
   cancel.onclick=removeTagBubble;
 
+  // Position + mount
   b.style.top  = `${rect.bottom+window.scrollY+6}px`;
   b.style.left = `${rect.left+window.scrollX}px`;
   b.append(select,lockCb,lockLb,btn,cancel);
   document.body.appendChild(b);
+
+  // Set active bubble + install outside-click guard (capture phase)
+  activeBubbleEl = b;
+  bubbleGuard = true;                   // block the very event cycle that opened us
+  setTimeout(()=>{ bubbleGuard = false; }, 0);
+
+  bubbleOutsideListener = (ev)=>{
+    if (bubbleGuard) return;
+    if (!activeBubbleEl) return;
+    if (!activeBubbleEl.contains(ev.target)) {
+      removeTagBubble();                // close only when clicking off
+    }
+  };
+  document.addEventListener('pointerdown', bubbleOutsideListener, true);
 }
-function removeTagBubble(){ document.querySelectorAll(".floating-tag").forEach(el=>el.remove()); }
+
+function removeTagBubble(){
+  if (activeBubbleEl?.parentNode) activeBubbleEl.parentNode.removeChild(activeBubbleEl);
+  activeBubbleEl = null;
+  if (bubbleOutsideListener) {
+    document.removeEventListener('pointerdown', bubbleOutsideListener, true);
+    bubbleOutsideListener = null;
+  }
+}
 
 /* =========================
    Utils
