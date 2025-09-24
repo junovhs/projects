@@ -35,7 +35,7 @@ button:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
 }
 .card-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 2px; }
 .card-actions { display: flex; gap: 8px; align-items: center; }
-.card-title { font-size: 14px; color: var(--muted); margin: 0; }
+.card-title { font-size: 22px; cursor: text; }
 
 .copy-rail { grid-column: 2 / 3; grid-row: 1 / 4; display: flex; }
 .copy-btn {
@@ -66,11 +66,10 @@ textarea.prompt-input { width: 100%; padding: 12px; border: 1px solid var(--bord
 .swap-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #fff; }
 .swap-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; }
 .swap-card .dot { width: 10px; height: 10px; border-radius: 999px; }
-.swap-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
-.swap-item label { font-size: 12px; color: var(--muted); }
-.swap-item .right { display: flex; align-items: center; gap: 8px; }
-.swap-item input { padding: 8px; border: 1px solid var(--border); border-radius: 8px; font: inherit; min-width: 120px; }
-.swap-item button.x { border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+.swap-item { grid-template-columns: 1fr auto; }
+.swap-item textarea {
+  width: 100%; min-height: 36px; resize: none; overflow: hidden; padding: 8px; border: 1px solid var(--border); border-radius: 8px; font: inherit;
+}
 
 /* Word selection (file-picker style) */
 .highlight-view .word { padding: 0 2px; border-radius: 4px; }
@@ -146,6 +145,26 @@ function rgba(c, a){
   }
   return c;
 }
+function setCategoryColor(key, color){ categoryRegistry.set(key, color); }
+function pickDistinctColor(){
+  const used = [...categoryRegistry.values()].map(parseHue).filter(h=>h!==null);
+  const step = 15; let bestH=0, bestScore=-1;
+  for(let h=0; h<360; h+=step){
+    const score = used.length ? Math.min(...used.map(u=>minHueDist(h,u))) : 180;
+    if (score > bestScore){ bestScore=score; bestH=h; }
+  }
+  return `hsl(${bestH}deg 70% 40%)`;
+}
+function parseHue(c){
+  const hslMatch = /^hsl\(\s*([\d.]+)deg/i.exec(c); if (hslMatch) return +hslMatch[1]%360;
+  const hex = c.trim().match(/^#([0-9a-f]{6})$/i); if (!hex) return null;
+  const r=parseInt(hex[1].slice(0,2),16)/255, g=parseInt(hex[1].slice(2,4),16)/255, b=parseInt(hex[1].slice(4,6),16)/255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+  if(d===0) return 0;
+  let h = mx===r ? ((g-b)/d)%6 : mx===g ? (b-r)/d + 2 : (r-g)/d + 4;
+  h = h*60; if (h<0) h+=360; return h;
+}
+function minHueDist(a,b){ const d=Math.abs(a-b)%360; return Math.min(d, 360-d); }
 
 /* =========================
    Prompt Card Component
@@ -161,6 +180,8 @@ class PromptCard {
     const title = document.createElement("h3");
     title.className = "card-title";
     title.textContent = "Interactive Highlight (Manual)";
+    title.contentEditable = "true";
+    title.addEventListener("click", ()=>title.focus());
     const actions = document.createElement("div");
     actions.className = "card-actions";
 
@@ -484,10 +505,10 @@ class PromptCard {
     });
 
     // keyboard helpers
-    this.root.addEventListener("keydown",(e)=>{
-      if (e.key.toLowerCase() === 't') { e.preventDefault(); this.maybeShowTagBubble(); }
-      if (e.key === 'Escape') this.removeTagBubble();
-    });
+    // this.root.addEventListener("keydown",(e)=>{
+    //   if (e.key.toLowerCase() === 't') { e.preventDefault(); this.maybeShowTagBubble(); }
+    //   if (e.key === 'Escape') this.removeTagBubble();
+    // });
   }
 
   toggleIdx(i){ this.selectedWordIdxs.has(i) ? this.selectedWordIdxs.delete(i) : this.selectedWordIdxs.add(i); }
@@ -580,24 +601,38 @@ class PromptCard {
       cloudRow.appendChild(chip);
     }
 
+    const customChip = document.createElement("button");
+    customChip.type="button"; customChip.className="tag-chip";
+    const cDot=document.createElement("span"); cDot.className="dot"; cDot.style.background="#999";
+    const cLbl=document.createElement("span"); cLbl.textContent="Custom";
+    customChip.append(cDot,cLbl);
+    customChip.addEventListener("click", ()=>{
+      customRow.style.display="flex";
+      customInput.focus();
+    });
+    cloudRow.appendChild(customChip);
+
     // Custom category quick create
     const customRow = document.createElement("div");
     customRow.className = "row";
+    customRow.style.display = "none";
     const customInput = document.createElement("input");
-    customInput.type="text"; customInput.placeholder="New category…"; customInput.style.flex="1 1 auto";
+    customInput.type="text"; customInput.placeholder="Custom tag name…"; customInput.style.flex="1 1 auto";
     const createBtn = document.createElement("button");
-    createBtn.className="discreet"; createBtn.textContent="Create & Tag";
+    createBtn.className="discreet"; createBtn.textContent="Done";
 
-    createBtn.addEventListener("click", ()=>{
+    const commitCustom = ()=>{
       const key = (customInput.value||"").trim();
       if (!key) { customInput.focus(); return; }
-      ensureCategory(key);
+      const color = pickDistinctColor();
+      setCategoryColor(key, color);
       this.addTag(key, phrase);
       this.removeTagBubble();
-    });
-    customInput.addEventListener("keydown",(e)=>{
-      if (e.key==="Enter"){ createBtn.click(); }
-    });
+    };
+    createBtn.addEventListener("click", commitCustom);
+    customInput.addEventListener("keydown",(e)=>{ if (e.key==="Enter"){ commitCustom(); } });
+
+    customRow.append(customInput, createBtn);
 
     // Controls: Lock + Cancel
     const controls = document.createElement("div");
@@ -685,26 +720,18 @@ class PromptCard {
 
       for (const term of set){
         const wrap=document.createElement("div"); wrap.className="swap-item";
-
-        const lab=document.createElement("label"); lab.textContent=term;
-
         const right=document.createElement("div"); right.className="right";
-        const inp=document.createElement("input");
-        inp.value=this.replacements.get(term) ?? term;
-        inp.addEventListener("input",(e)=>{
-          this.replacements.set(term, e.target.value);
-          this.renderPreview();
-        });
-
+        const ta=document.createElement("textarea");
+        ta.value=this.replacements.get(term) ?? term;
+        const autosize=()=>{ ta.style.height="auto"; ta.style.height=(ta.scrollHeight)+"px"; };
+        ta.addEventListener("input",(e)=>{ this.replacements.set(term, e.target.value); this.renderPreview(); autosize(); });
+        autosize();
         const btnX=document.createElement("button");
         btnX.className="x"; btnX.textContent="✕";
         btnX.title = "Remove this tag (keep the word)";
-        btnX.addEventListener("click", ()=>{
-          this.untag(catKey, term);
-        });
-
-        right.append(inp, btnX);
-        wrap.append(lab, right);
+        btnX.addEventListener("click", ()=>{ this.untag(catKey, term); });
+        right.append(ta, btnX);
+        wrap.appendChild(right);
         card.appendChild(wrap);
       }
 
