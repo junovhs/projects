@@ -30,7 +30,8 @@ button:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
 /* Prompt Card */
 .prompt-card {
   border: 1px solid var(--border); border-radius: 14px; background: #fff; padding: 12px;
-  display: grid; grid-template-columns: 1fr 72px; gap: 12px; position: relative;
+  display: grid; grid-template-columns: 1fr; /* single column layout */
+  gap: 12px; position: relative;
 }
 .card-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 2px; }
 .card-actions { display: flex; gap: 8px; align-items: center; }
@@ -61,7 +62,7 @@ textarea.prompt-input { width: 100%; padding: 12px; border: 1px solid var(--bord
 .highlight.locked { opacity: .5; font-style: italic; background: transparent !important; box-shadow: none !important; }
 
 /* Swap panel */
-.swap-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.swap-panel { display: block; } /* full-width stack, not grid */
 .swap-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #fff; }
 .swap-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; }
 .swap-card .dot { width: 10px; height: 10px; border-radius: 999px; }
@@ -171,11 +172,16 @@ class PromptCard {
     this.btnExport.className = "discreet";
     this.btnExport.textContent = "Export JSON";
 
+    this.btnCopy = document.createElement("button");
+    this.btnCopy.className = "discreet";
+    this.btnCopy.textContent = "Copy Prompt";
+    this.btnCopy.title = "Copy current prompt";
+
     this.btnRemove = document.createElement("button");
     this.btnRemove.className = "discreet";
     this.btnRemove.textContent = "✕";
 
-    actions.append(this.btnEdit, this.btnExport, this.btnRemove);
+    actions.append(this.btnEdit, this.btnCopy, this.btnExport, this.btnRemove);
     head.append(title, actions);
 
     // Body (grid: main + copy rail)
@@ -196,16 +202,16 @@ class PromptCard {
     this.swapPanel.className = "swap-panel";
 
     // Copy rail (full height)
-    const rail = document.createElement("div");
-    rail.className = "copy-rail";
-    this.btnCopy = document.createElement("button");
-    this.btnCopy.className = "copy-btn";
-    this.btnCopy.innerHTML = `<span>Copy</span><span>Prompt</span>`;
-    rail.append(this.btnCopy);
+    // const rail = document.createElement("div");
+    // rail.className = "copy-rail";
+    // this.btnCopy = document.createElement("button");
+    // this.btnCopy.className = "copy-btn";
+    // this.btnCopy.innerHTML = `<span>Copy</span><span>Prompt</span>`;
+    // rail.append(this.btnCopy);
 
     // Assemble
     body.append(this.textarea, this.highlightView, this.swapPanel);
-    this.root.append(head, body, rail);
+    this.root.append(head, body);
     listEl.appendChild(this.root);
 
     // State
@@ -226,7 +232,12 @@ class PromptCard {
     this.bubbleGuard = false;
 
     // Wire up events
-    this.textarea.addEventListener("input", debounce(()=>this.runParse(),300));
+    this.textarea.addEventListener("input", debounce(()=>{
+      this.runParse();
+      if (this.isEditing && (this.textarea.value||"").trim().length) {
+        this.isEditing = false; this.updateEditUI();
+      }
+    },300));
     this.btnEdit.addEventListener("click", ()=>this.toggleEdit());
     this.btnCopy.addEventListener("click", ()=>this.copyPrompt());
     this.btnRemove.addEventListener("click", ()=>this.remove());
@@ -318,7 +329,8 @@ class PromptCard {
     for (const [cat,set] of foundMap.entries()){
       for (const term of set){
         if(!term) continue;
-        const re=new RegExp(`\\b${escapeRegExp(term)}\\b`,"gi");
+        const escapedTerm = escapeRegExp(term).replace(/\s+/g, '\\s+');
+        const re=new RegExp(escapedTerm,"gi");
         let m; while((m=re.exec(text))!==null){
           catMatches.push({ start:m.index, end:m.index+m[0].length, category:cat, locked:false, len:m[0].length });
         }
@@ -358,58 +370,49 @@ class PromptCard {
     const words = [];
     let idxCounter = 0;
 
-    const pushWord = (segment, category) => {
+    const makeWord = (segment) => {
       const w = document.createElement("span");
       w.className = "word";
       w.dataset.idx = idxCounter++;
       w.textContent = segment;
       words.push(w);
-
-      if (category) {
-        if (category === "__LOCKED__") {
-          const h = document.createElement("span");
-          h.className = "highlight locked";
-          h.dataset.category = category;
-          h.appendChild(w);
-          return h;
-        } else {
-          const h = document.createElement("span");
-          h.className = "highlight";
-          h.dataset.category = category;
-          const c = ensureCategory(category);
-          h.style.background = rgba(c, 0.08);
-          h.style.boxShadow = `inset 0 -2px 0 0 ${c}`;
-          h.appendChild(w);
-          return h;
-        }
-      }
       return w;
     };
 
-    const processText = (text, category) => {
+    const processInto = (parent, text) => {
       if (!text) return;
       if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
         const seg = new Intl.Segmenter(undefined, { granularity: "word" });
         for (const { segment, isWordLike } of seg.segment(text)) {
-          if (isWordLike) frag.appendChild(pushWord(segment, category));
-          else frag.appendChild(document.createTextNode(segment));
+          parent.appendChild(isWordLike ? makeWord(segment) : document.createTextNode(segment));
         }
       } else {
         const re = /([\p{L}\p{M}\p{N}]+(?:['’\-][\p{L}\p{M}\p{N}]+)*)/gu;
         let last = 0, m;
         while ((m = re.exec(text))) {
-          if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
-          frag.appendChild(pushWord(m[1], category));
+          if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+          parent.appendChild(makeWord(m[1]));
           last = re.lastIndex;
         }
-        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
       }
     };
 
     segments.forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) processText(node.nodeValue, null);
-      else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("highlight"))
-        processText(node.textContent, node.dataset.category || null);
+      if (node.nodeType === Node.TEXT_NODE) {
+        processInto(frag, node.nodeValue);
+      } else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("highlight")) {
+        const h = document.createElement("span");
+        h.className = node.className;
+        h.dataset.category = node.dataset.category || "";
+        if (!h.classList.contains("locked") && h.dataset.category) {
+          const c = ensureCategory(h.dataset.category);
+          h.style.background = rgba(c, 0.08);
+          h.style.boxShadow = `inset 0 -2px 0 0 ${c}`;
+        }
+        processInto(h, node.textContent);
+        frag.appendChild(h);
+      }
     });
 
     return { fragment: frag, words };
@@ -496,12 +499,23 @@ class PromptCard {
   /* ---------- Tag Bubble (chips + custom category + LOCK) ---------- */
   maybeShowTagBubble(){
     if (!this.selectedWordIdxs.size) return;
-    const idxs = [...this.selectedWordIdxs].sort((a,b)=>a-b);
-    
-    // Get the exact text from the original source including punctuation
+    let idxs = [...this.selectedWordIdxs].sort((a,b)=>a-b);
+
+    // Expand to entire tagged phrase if selection is inside a highlight
+    const firstWord = this.wordElems[idxs[0]];
+    const container = firstWord?.closest(".highlight");
+    if (container && container.dataset.category && container.dataset.category !== "__LOCKED__") {
+      const all = [...container.querySelectorAll(".word")].map(w=>+w.dataset.idx).sort((a,b)=>a-b);
+      if (all.length) {
+        idxs = all;
+        this.selectedWordIdxs = new Set(all);
+        this.updateWordSelectionClasses();
+      }
+    }
+
     const text = this.getExactSelectedText(idxs);
     if (!text) return;
-    
+
     const rect = this.unionClientRect(idxs.map(i=>this.wordElems[i].getBoundingClientRect()));
     this.showTagBubble(text, rect);
   }
@@ -622,12 +636,14 @@ class PromptCard {
 
   addTag(categoryKey, phrase){
     const key = categoryKey;
+    // remove from any existing categories first (reassign)
+    for (const [k,set] of this.foundByCategory.entries()){
+      if (k !== key && set.has(phrase)) set.delete(phrase);
+    }
     const set = this.foundByCategory.get(key) || new Set();
-    set.add(phrase);
-    this.foundByCategory.set(key, set);
+    set.add(phrase); this.foundByCategory.set(key, set);
     if (!this.replacements.has(phrase)) this.replacements.set(phrase, phrase);
-    this.renderSwapPanel();
-    this.renderPreview();
+    this.renderSwapPanel(); this.renderPreview();
   }
 
   addLock(phrase){
@@ -721,7 +737,10 @@ class PromptCard {
   }
   updateEditUI(){
     this.textarea.style.display = this.isEditing ? "block" : "none";
+    this.highlightView.style.display = this.isEditing ? "none" : "block";
+    this.swapPanel.style.display = this.isEditing ? "none" : "grid";
     this.btnEdit.textContent = this.isEditing ? "Done" : "Edit";
+    this.btnCopy.style.display = this.isEditing ? "none" : "inline-flex";
   }
 
   copyPrompt(){
