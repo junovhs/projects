@@ -15,13 +15,14 @@ textarea { width: 100%; padding: 14px; border: 1px solid var(--border); border-r
 .row.actions { display: flex; gap: 12px; margin-top: 12px; }
 button { border: 1px solid var(--border); background: #fff; color: var(--fg); padding: 10px 14px; border-radius: 12px; font: inherit; cursor: pointer; transition: transform .06s ease, box-shadow .12s ease; }
 button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } button.ghost { background: transparent; } button:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+
 .parsed-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; } .legend { display: flex; flex-wrap: wrap; gap: 10px; }
 .legend .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; font-size: 12px; background: #fff; } .legend .dot { width: 10px; height: 10px; border-radius: 999px; }
 
-/* Existing category highlight look */
+/* Highlight container */
 .highlight-view { border: 1px dashed var(--border); border-radius: 12px; padding: 14px; min-height: 100px; background: var(--hl-bg); white-space: pre-wrap; }
 
-/* Category-specific underline strip */
+/* Category highlights */
 .highlight { position: relative; padding: 1px 3px; border-radius: 6px; cursor: help; white-space: pre-wrap; }
 .highlight[data-category="Lighting"] { background: rgba(31,41,55,.08); box-shadow: inset 0 -2px 0 0 var(--c-lighting); }
 .highlight[data-category="Mood"] { background: rgba(124,58,237,.08); box-shadow: inset 0 -2px 0 0 var(--c-mood); }
@@ -39,11 +40,13 @@ button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } 
 
 .preview { background: #fff; border-style: solid; }
 .site-footer { padding: 16px 20px 40px; color: var(--muted); text-align: center; border-top: 1px solid var(--border); }
-.floating-tag { position: absolute; z-index: 10; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; gap: 8px; align-items: center; }
+
+/* Tag bubble */
+.floating-tag { position: absolute; z-index: 10; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; gap: 8px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
 
 /* ===== Whole-word selection UI (file-picker style) ===== */
 .highlight-view { user-select: none; cursor: text; }           /* Prevent partial-character selection */
-.highlight-view .word { padding: 0 2px; border-radius: 4px; }  /* Hit target per word */
+.highlight-view .word { padding: 0 2px; border-radius: 4px; }
 .highlight-view .word.selected {
   background: rgba(17,17,17,.08);
   box-shadow: inset 0 -2px 0 0 var(--ring);
@@ -80,12 +83,12 @@ button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } 
   </main>
 
   <footer class="site-footer">
-    <p>Tip: Click, Shift-click for ranges, and Ctrl/⌘-click for non-contiguous selection. Drag to select whole-word ranges.</p>
+    <p>Tip: Select words (click/drag). Shift = range, Ctrl/⌘ = toggle. Release mouse to tag. Press “T” to re-open the tag bubble.</p>
   </footer>
 
   <script type="module">
 /* =========================
-   Categories & elements
+   Categories & DOM
    ========================= */
 const categories = [
   { key: "Lighting",    colorVar: "--c-lighting",    terms: [] },
@@ -95,7 +98,6 @@ const categories = [
   { key: "Effects",     colorVar: "--c-effects",     terms: [] },
   { key: "Subject",     colorVar: "--c-subject",     terms: [] }
 ];
-
 const elements = {
   input: document.getElementById("promptInput"),
   highlightView: document.getElementById("highlightView"),
@@ -125,22 +127,15 @@ let dragState = { active:false, start:null, additive:false, base:new Set() };
 function init(){
   buildLegend();
   elements.input.addEventListener("input", debounce(runParse,300));
-
-  // Old bubble logic used native selection; keep it only to auto-hide
-  document.addEventListener("selectionchange", ()=>{
-    const sel=window.getSelection();
-    if (!sel||sel.isCollapsed||!sel.toString().trim()) removeTagBubble();
-  });
-
   elements.copyPlain.addEventListener("click", ()=>copyOutput(false));
   elements.editToggle.addEventListener("click", toggleEdit);
 
-  attachWordSelectionHandlers();   // NEW: enable word picker
+  attachWordSelectionHandlers();   // enable file-picker selection
   runParse();
 }
 
 /* =========================
-   Legend (shows category chips until user types)
+   Legend
    ========================= */
 function buildLegend(){
   elements.highlightView.innerHTML="";
@@ -174,7 +169,7 @@ function runParse(){
     return;
   }
 
-  // Maintain previous manual tags, but reset per-run container sets
+  // Keep any existing manual tags
   foundByCategory = Object.fromEntries(categories.map(c=>[c.key, foundByCategory[c.key]||new Set()]));
 
   // Ensure replacements map contains all tagged terms
@@ -192,18 +187,17 @@ function runParse(){
 function renderPreview(){
   const remixed = applyReplacements(originalPrompt, replacements);
 
-  // Clone found sets so preview highlights include both originals and their replacements
+  // Include replacements in preview highlighting
   const foundPreview = Object.fromEntries(Object.entries(foundByCategory)
     .map(([k,set]) => [k,new Set(set)]));
   for(const [term,repl] of Object.entries(replacements)){
     for(const set of Object.values(foundPreview)) if(set?.has?.(term)) set.add(repl);
   }
-
   renderHighlight(remixed, foundPreview, elements.livePreview);
 }
 
 /* =========================
-   Replacement helpers
+   Replace helpers
    ========================= */
 function applyReplacements(text,map){
   const placeholders=[];
@@ -234,25 +228,23 @@ function applyReplacements(text,map){
 }
 
 /* =========================
-   Rendering: category highlights + per-word spans
+   Rendering: highlights + per-word spans
    ========================= */
 function renderHighlight(text,found,container){
   // Rebuild selection state for each render
   selectedWordIdxs.clear();
   anchorWordIdx = null;
 
-  const segments = buildHighlightSpans(text,found); // existing logic → array of nodes (Text or <span.highlight>)
+  const segments = buildHighlightSpans(text,found);
   container.innerHTML = "";
 
   const { fragment, words } = tokenizeSegmentsToWords(segments);
   container.appendChild(fragment);
 
-  // keep a reference for selection system
   wordElems = words;
   updateWordSelectionClasses();
 }
 
-/* Build highlight spans based on tagged terms (unchanged from your logic) */
 function buildHighlightSpans(text,found){
   const matches=[];
   for (const [cat,set] of Object.entries(found)){
@@ -283,7 +275,6 @@ function buildHighlightSpans(text,found){
   return nodes;
 }
 
-/* Split segments into <span.word> tokens, preserving highlight wrappers */
 function tokenizeSegmentsToWords(segments){
   const frag = document.createDocumentFragment();
   const words = [];
@@ -320,7 +311,6 @@ function tokenizeSegmentsToWords(segments){
         }
       }
     } else {
-      // Fallback for broader Unicode word-ish chunks
       const re = /([\p{L}\p{M}\p{N}]+(?:['’\-][\p{L}\p{M}\p{N}]+)*)/gu;
       let last = 0, m;
       while ((m = re.exec(text))) {
@@ -347,17 +337,17 @@ function tokenizeSegmentsToWords(segments){
    Word selection (click / shift / ctrl-cmd / drag)
    ========================= */
 function attachWordSelectionHandlers(){
-  // Mouse down starts a selection cycle
   elements.highlightView.addEventListener("mousedown", (e) => {
     const w = e.target.closest(".word");
     const additive = e.ctrlKey || e.metaKey;
     const shift = e.shiftKey;
 
-    // Clicked on empty area: clear selection unless additive mode
+    // Clicked empty area: clear selection unless additive mode
     if (!w) {
       if (!additive) {
         selectedWordIdxs.clear();
         updateWordSelectionClasses();
+        removeTagBubble();
       }
       return;
     }
@@ -368,7 +358,7 @@ function attachWordSelectionHandlers(){
     dragState.active   = true;
     dragState.start    = idx;
     dragState.additive = additive;
-    dragState.base     = new Set(selectedWordIdxs); // snapshot before drag
+    dragState.base     = new Set(selectedWordIdxs);
 
     if (shift && anchorWordIdx !== null) {
       selectRange(anchorWordIdx, idx, additive);
@@ -381,6 +371,7 @@ function attachWordSelectionHandlers(){
       anchorWordIdx = idx;
     }
     updateWordSelectionClasses();
+    removeTagBubble();
   });
 
   // Drag across words = live range selection
@@ -394,9 +385,10 @@ function attachWordSelectionHandlers(){
     updateWordSelectionClasses();
   });
 
-  // Mouse up ends selection
-  document.addEventListener("mouseup", () => {
+  // Mouse up ends selection and shows the tag bubble
+  document.addEventListener("mouseup", (e) => {
     if (dragState.active) dragState.active = false;
+    maybeShowTagBubble();
   });
 
   // Keep anchor in sync on clicks
@@ -404,6 +396,21 @@ function attachWordSelectionHandlers(){
     const w = e.target.closest(".word");
     if (w) anchorWordIdx = +w.dataset.idx;
   });
+
+  // Press 't' to reopen the tag bubble for current selection
+  document.addEventListener("keydown",(e)=>{
+    if (e.key.toLowerCase() === 't') maybeShowTagBubble();
+    if (e.key === 'Escape') removeTagBubble();
+  });
+}
+
+function maybeShowTagBubble(){
+  if (!selectedWordIdxs.size) { removeTagBubble(); return; }
+  const idxs = [...selectedWordIdxs].sort((a,b)=>a-b);
+  const text = idxs.map(i => wordElems[i]?.textContent ?? "").join(" ").trim();
+  if (!text) { removeTagBubble(); return; }
+  const rect = unionClientRect(idxs.map(i=>wordElems[i].getBoundingClientRect()));
+  showTagBubble(text, rect);
 }
 
 // Selection helpers
@@ -414,7 +421,7 @@ function updateWordSelectionClasses(){ wordElems.forEach((el,i)=>el.classList.to
 function selectRange(a,b,add){ const r=buildRangeSet(a,b); selectedWordIdxs = add ? unionSets(selectedWordIdxs,r) : r; updateWordSelectionClasses(); }
 
 /* =========================
-   Inline editing (kept from your version)
+   Inline editing (kept)
    ========================= */
 function enableInlineEditing(){
   elements.highlightView.onclick=(e)=>{
@@ -436,9 +443,6 @@ function enableInlineEditing(){
     input.addEventListener("blur",commit);
     input.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"){ input.blur(); } });
   };
-
-  // Old native selection bubble removal
-  elements.highlightView.onmouseup=()=>{ /* handled by file-picker selection now */ };
 }
 
 /* =========================
@@ -510,44 +514,42 @@ function toggleEdit(){
   else { runParse(); }
 }
 
-/* Tag bubble from your original code (unchanged) */
-function showTagBubble(word,rect){
+/* Tag bubble: now driven by word selection */
+function showTagBubble(selectedText,rect){
   removeTagBubble();
   const b=document.createElement("div");
   b.className="floating-tag";
+
   const select=document.createElement("select");
   ["Lighting","Mood","Subject","Style","Composition","Effects"].forEach(k=>{
     const o=document.createElement("option"); o.value=k; o.textContent=k; select.appendChild(o);
   });
+
   const lockCb=document.createElement("input"); lockCb.type="checkbox"; lockCb.id="lockSec";
   const lockLb=document.createElement("label"); lockLb.htmlFor="lockSec"; lockLb.textContent="Lock section";
+
   const btn=document.createElement("button"); btn.textContent="Tag";
   btn.onclick=()=>{
-    foundByCategory[select.value]=foundByCategory[select.value]||new Set();
-    foundByCategory[select.value].add(word);
-    replacements[word]=replacements[word]??word;
-    if(lockCb.checked) lockedSections.add(word);
-    renderPreview();
-    renderSwapPanel();
+    const cat = select.value;
+    foundByCategory[cat]=foundByCategory[cat]||new Set();
+    foundByCategory[cat].add(selectedText);
+    replacements[selectedText]=replacements[selectedText]??selectedText;
+    if(lockCb.checked) lockedSections.add(selectedText);
+
+    renderPreview();     // will show highlighted occurrences
+    renderSwapPanel();   // shows panel now that we have terms
     removeTagBubble();
   };
+
+  const cancel=document.createElement("button"); cancel.textContent="Cancel";
+  cancel.onclick=removeTagBubble;
+
   b.style.top  = `${rect.bottom+window.scrollY+6}px`;
   b.style.left = `${rect.left+window.scrollX}px`;
+  b.append(select,lockCb,lockLb,btn,cancel);
   document.body.appendChild(b);
-  b.append(select,lockCb,lockLb,btn);
 }
 function removeTagBubble(){ document.querySelectorAll(".floating-tag").forEach(el=>el.remove()); }
-
-/* OPTIONAL: press 't' to pop the tag bubble for the current word selection */
-document.addEventListener("keydown",(e)=>{
-  if (e.key.toLowerCase() !== 't') return;
-  if (!selectedWordIdxs.size) return;
-  const idxs = [...selectedWordIdxs].sort((a,b)=>a-b);
-  const text = idxs.map(i => wordElems[i]?.textContent ?? "").join(" ").trim();
-  if (!text) return;
-  const rect = unionClientRect(idxs.map(i=>wordElems[i].getBoundingClientRect()));
-  showTagBubble(text, rect);
-});
 
 /* =========================
    Utils
