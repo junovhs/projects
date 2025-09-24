@@ -56,7 +56,9 @@ textarea.prompt-input { width: 100%; padding: 12px; border: 1px solid var(--bord
 
 /* Category highlight chip look */
 .highlight { position: relative; padding: 1px 3px; border-radius: 6px; cursor: help; white-space: pre-wrap; }
-.highlight.locked { font-style: italic; opacity: 0.5; cursor: default; }
+
+/* Locked highlight look */
+.highlight.locked { opacity: .5; font-style: italic; background: transparent !important; box-shadow: none !important; }
 
 /* Swap panel */
 .swap-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
@@ -73,7 +75,7 @@ textarea.prompt-input { width: 100%; padding: 12px; border: 1px solid var(--bord
 .highlight-view .word { padding: 0 2px; border-radius: 4px; }
 .highlight-view .word.selected { background: rgba(17,17,17,.08); box-shadow: inset 0 -2px 0 0 var(--ring); }
 
-/* Tag bubble (chip cloud + custom input) */
+/* Tag bubble (chip cloud + custom category + lock) */
 .floating-tag {
   position: absolute; z-index: 10; background: #fff; border: 1px solid var(--border); border-radius: 10px;
   padding: 10px; display: grid; gap: 10px; align-items: start; box-shadow: 0 8px 24px rgba(0,0,0,.08); min-width: 300px;
@@ -101,7 +103,7 @@ textarea.prompt-input { width: 100%; padding: 12px; border: 1px solid var(--bord
   </main>
 
   <footer class="site-footer">
-    <p>Tip: Click/drag to select words. Shift = range, Ctrl/⌘ = toggle. Tag via chips or create a custom category.</p>
+    <p>Tip: Click/drag to select words. Shift = range, Ctrl/⌘ = toggle. Tag via chips or create a custom category. "Lock selection" makes the phrase italic + 50% opacity and immune to swaps.</p>
   </footer>
 
   <script type="module">
@@ -124,7 +126,6 @@ const colorPalette = [
 ];
 function ensureCategory(key){
   if (categoryRegistry.has(key)) return categoryRegistry.get(key);
-  // assign next palette color not used, else generate HSL
   const used = new Set([...categoryRegistry.values()]);
   const next = colorPalette.find(c=>!used.has(c)) || hslFromString(key);
   categoryRegistry.set(key, next);
@@ -138,12 +139,11 @@ function cssVar(name){
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#111111";
 }
 function rgba(c, a){
-  // accept hex or rgb/hsl; hex path: #rrggbb
   if(/^#([0-9a-f]{6})$/i.test(c)){
     const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
     return `rgba(${r},${g},${b},${a})`;
   }
-  return c; // fallback (no alpha)
+  return c;
 }
 
 /* =========================
@@ -212,7 +212,7 @@ class PromptCard {
     this.originalPrompt = initialText.trim();
     this.foundByCategory = new Map();   // cat -> Set<string>
     this.replacements = new Map();      // term -> replacement
-    this.lockedSections = [];    // Array of {start, end} character indices
+    this.lockedSections = new Set();    // Set<string>
     // Selection state
     this.wordElems = [];
     this.selectedWordIdxs = new Set();
@@ -242,48 +242,23 @@ class PromptCard {
   /* ---------- Core Flow ---------- */
   runParse(){
     this.originalPrompt = (this.textarea.value||"").trim();
-    // Always re-render from current state
-    this.renderHighlight(this.originalPrompt, this.foundByCategory);
     this.renderSwapPanel();
+    this.renderPreview();
   }
 
   renderPreview(){
     const remixed = this.applyReplacements(this.originalPrompt);
-    this.renderHighlight(remixed, new Map());
+    const previewCat = new Map();
+    for (const [cat,set] of this.foundByCategory.entries()){
+      previewCat.set(cat, new Set(set));
+    }
+    for (const [term, repl] of this.replacements.entries()){
+      for (const set of previewCat.values()){ if (set.has(term)) set.add(repl); }
+    }
+    this.renderDOM(remixed, previewCat);
   }
 
-  applyReplacements(text){
-    // protect locked sections by character index
-    const placeholders=[];
-    let out=text;
-    const sortedLocks = [...this.lockedSections].sort((a,b)=>b.start - a.start);
-
-    for(const [i,lock] of sortedLocks.entries()){
-      const token=`__LOCK_${i}__`;
-      if (lock.start < 0 || lock.end > out.length) continue;
-      const originalText = out.substring(lock.start, lock.end);
-      placeholders.push({token, originalText});
-      out = out.substring(0, lock.start) + token + out.substring(lock.end);
-    }
-    
-    // longest-first replacements
-    const terms=[...this.replacements.keys()].sort((a,b)=>b.length-a.length);
-    for(const t of terms){
-      const repl=this.replacements.get(t);
-      const re=new RegExp(`\\b${escapeRegExp(t)}\\b`,"gi");
-      out=out.replace(re,match=>{
-        if(/^[A-Z][a-z]/.test(match)) return toTitleCase(repl);
-        if(match===match.toUpperCase()) return repl.toUpperCase();
-        if(match===match.toLowerCase()) return repl.toLowerCase();
-        return repl;
-      });
-    }
-    placeholders.forEach(({token,originalText})=>{ out=out.replaceAll(token,originalText || ""); });
-    return out;
-  }
-
-  /* ---------- Rendering ---------- */
-  renderHighlight(text, foundMap){
+  renderDOM(text, foundMap){
     // clear selection on each render
     this.selectedWordIdxs.clear();
     this.anchorWordIdx = null;
@@ -296,53 +271,81 @@ class PromptCard {
 
     this.wordElems = words;
     this.updateWordSelectionClasses();
-
-    // The infinite recursion was caused by renderPreview calling renderHighlight,
-    // which then called renderPreview again. This is now fixed.
   }
 
+  applyReplacements(text){
+    // protect locked sections
+    const placeholders=[];
+    let out=text;
+    Array.from(this.lockedSections).forEach((lock,i)=>{
+      const token=`__LOCK_${i}__`;
+      placeholders.push({token,lock});
+      out=out.replace(new RegExp(escapeRegExp(lock),"g"),token);
+    });
+    // longest-first replacements
+    const terms=[...this.replacements.keys()].sort((a,b)=>b.length-a.length);
+    for(const t of terms){
+      const repl=this.replacements.get(t);
+      const re=new RegExp(`\\b${escapeRegExp(t)}\\b`,"gi");
+      out=out.replace(re,match=>{
+        if(/^[A-Z][a-z]/.test(match)) return toTitleCase(repl);
+        if(match===match.toUpperCase()) return repl.toUpperCase();
+        if(match===match.toLowerCase()) return repl.toLowerCase();
+        return repl;
+      });
+    }
+    placeholders.forEach(({token,lock})=>{ out=out.replace(new RegExp(token,"g"),lock); });
+    return out;
+  }
+
+  /* ---------- Rendering Helpers ---------- */
   buildHighlightSpans(text, foundMap){
-    const matches=[];
-    // Add tagged terms
+    // Build locked intervals first
+    const lockedMatches = [];
+    for (const term of this.lockedSections){
+      if (!term) continue;
+      // For locked sections, do exact string matching without word boundaries
+      // since they can contain punctuation
+      const escapedTerm = escapeRegExp(term).replace(/\s+/g, '\\s*');
+      const re = new RegExp(escapedTerm, "gi");
+      let m; while((m=re.exec(text))!==null){
+        lockedMatches.push({ start:m.index, end:m.index+m[0].length, category:"__LOCKED__", locked:true, len:m[0].length });
+      }
+    }
+
+    // Build category matches
+    const catMatches = [];
     for (const [cat,set] of foundMap.entries()){
       for (const term of set){
         if(!term) continue;
         const re=new RegExp(`\\b${escapeRegExp(term)}\\b`,"gi");
         let m; while((m=re.exec(text))!==null){
-          matches.push({start:m.index,end:m.index+m[0].length,category:cat,term,len:m[0].length, type: 'tag'});
+          catMatches.push({ start:m.index, end:m.index+m[0].length, category:cat, locked:false, len:m[0].length });
         }
       }
     }
-    // Add locked sections
-    this.lockedSections.forEach(lock => {
-        matches.push({ start: lock.start, end: lock.end, len: lock.end - lock.start, type: 'lock' });
-    });
 
-    matches.sort((a,b)=> a.start-b.start || b.len-a.len);
+    // Remove any category matches that overlap a locked interval (locked wins)
+    const overlaps = (a,b)=> a.start < b.end && b.start < a.end;
+    const filteredCat = catMatches.filter(m => !lockedMatches.some(L => overlaps(m,L)));
+
+    // Combine and pick non-overlapping
+    const all = lockedMatches.concat(filteredCat);
+    all.sort((a,b)=> a.start - b.start || b.len - a.len);
 
     const picked=[]; let lastEnd=-1;
-    for(const m of matches){ if(m.start>=lastEnd){ picked.push(m); lastEnd=m.end; } }
+    for(const m of all){
+      if(m.start>=lastEnd){ picked.push(m); lastEnd=m.end; }
+    }
 
+    // Build nodes (simple span carriers; tokenization will restyle)
     const nodes=[]; let cursor=0;
     for(const m of picked){
       if(cursor<m.start) nodes.push(document.createTextNode(text.slice(cursor,m.start)));
       const span=document.createElement("span");
-      span.className="highlight";
+      span.className="highlight" + (m.locked ? " locked" : "");
+      span.dataset.category=m.category;
       span.textContent=text.slice(m.start,m.end);
-
-      if (m.type === 'tag') {
-        span.dataset.category=m.category;
-        span.title=m.category;
-        const c = ensureCategory(m.category);
-        span.style.background = rgba(c, 0.08);
-        span.style.boxShadow = `inset 0 -2px 0 0 ${c}`;
-      } else if (m.type === 'lock') {
-        span.classList.add('locked');
-        // Prevent selection/interaction with locked text
-        span.style.userSelect = 'none';
-        span.style.pointerEvents = 'none';
-      }
-
       nodes.push(span);
       cursor=m.end;
     }
@@ -363,15 +366,22 @@ class PromptCard {
       words.push(w);
 
       if (category) {
-        const h = document.createElement("span");
-        h.className = "highlight";
-        h.dataset.category = category;
-        h.title = category;
-        const c = ensureCategory(category);
-        h.style.background = rgba(c, 0.08);
-        h.style.boxShadow = `inset 0 -2px 0 0 ${c}`;
-        h.appendChild(w);
-        return h;
+        if (category === "__LOCKED__") {
+          const h = document.createElement("span");
+          h.className = "highlight locked";
+          h.dataset.category = category;
+          h.appendChild(w);
+          return h;
+        } else {
+          const h = document.createElement("span");
+          h.className = "highlight";
+          h.dataset.category = category;
+          const c = ensureCategory(category);
+          h.style.background = rgba(c, 0.08);
+          h.style.boxShadow = `inset 0 -2px 0 0 ${c}`;
+          h.appendChild(w);
+          return h;
+        }
       }
       return w;
     };
@@ -483,17 +493,55 @@ class PromptCard {
   updateWordSelectionClasses(){ this.wordElems.forEach((el,i)=>el.classList.toggle("selected", this.selectedWordIdxs.has(i))); }
   selectRange(a,b,add){ const r=this.buildRangeSet(a,b); this.selectedWordIdxs = add ? this.unionSets(this.selectedWordIdxs,r) : r; this.updateWordSelectionClasses(); }
 
-  /* ---------- Tag Bubble (chips + custom category) ---------- */
+  /* ---------- Tag Bubble (chips + custom category + LOCK) ---------- */
   maybeShowTagBubble(){
     if (!this.selectedWordIdxs.size) return;
     const idxs = [...this.selectedWordIdxs].sort((a,b)=>a-b);
-    const text = idxs.map(i => this.wordElems[i]?.textContent ?? "").join(" ").trim();
+    
+    // Get the exact text from the original source including punctuation
+    const text = this.getExactSelectedText(idxs);
     if (!text) return;
+    
     const rect = this.unionClientRect(idxs.map(i=>this.wordElems[i].getBoundingClientRect()));
-    this.showTagBubble(text, rect, idxs);
+    this.showTagBubble(text, rect);
   }
 
-  showTagBubble(phrase, rect, selectedWordIndices){
+  getExactSelectedText(sortedWordIdxs) {
+    if (!sortedWordIdxs.length) return "";
+    
+    // Get the current text being displayed (after replacements)
+    const displayText = this.highlightView.textContent || "";
+    
+    // Find start and end positions in the actual text
+    let textPos = 0;
+    let startPos = -1;
+    let endPos = -1;
+    
+    // Walk through all words to find positions
+    for (let i = 0; i < this.wordElems.length; i++) {
+      const wordEl = this.wordElems[i];
+      const wordText = wordEl.textContent || "";
+      
+      // Find this word in the display text starting from textPos
+      const wordStart = displayText.indexOf(wordText, textPos);
+      if (wordStart === -1) continue;
+      
+      if (i === sortedWordIdxs[0]) {
+        startPos = wordStart;
+      }
+      if (i === sortedWordIdxs[sortedWordIdxs.length - 1]) {
+        endPos = wordStart + wordText.length;
+        break;
+      }
+      
+      textPos = wordStart + wordText.length;
+    }
+    
+    if (startPos === -1 || endPos === -1) return "";
+    return displayText.slice(startPos, endPos);
+  }
+
+  showTagBubble(phrase, rect){
     this.removeTagBubble();
     const b = document.createElement("div");
     b.className = "floating-tag";
@@ -537,20 +585,17 @@ class PromptCard {
       if (e.key==="Enter"){ createBtn.click(); }
     });
 
-    customRow.append(customInput, createBtn);
-
-    // Controls (lock + cancel)
+    // Controls: Lock + Cancel
     const controls = document.createElement("div");
     controls.className = "row";
-    
     const lockBtn = document.createElement("button");
-    lockBtn.className="discreet"; 
-    lockBtn.textContent="Lock Selection";
-    lockBtn.addEventListener("click", () => {
-        this.lockSelection(selectedWordIndices);
-        this.removeTagBubble();
+    lockBtn.className = "discreet";
+    lockBtn.textContent = "Lock selection";
+    lockBtn.title = "Make this phrase immutable (italic + 50% opacity)";
+    lockBtn.addEventListener("click", ()=>{
+      this.addLock(phrase);      // lock + close + re-render
+      this.removeTagBubble();
     });
-
     const cancel = document.createElement("button");
     cancel.textContent="Cancel"; cancel.type="button"; cancel.className="discreet";
     cancel.addEventListener("click", ()=>this.removeTagBubble());
@@ -581,52 +626,16 @@ class PromptCard {
     set.add(phrase);
     this.foundByCategory.set(key, set);
     if (!this.replacements.has(phrase)) this.replacements.set(phrase, phrase);
-    this.runParse();
     this.renderSwapPanel();
+    this.renderPreview();
   }
 
-  lockSelection(wordIndices) {
-    if (!wordIndices || wordIndices.length === 0) return;
-    const sortedIndices = [...wordIndices].sort((a, b) => a - b);
-    
-    // Use the original prompt as the source of truth for character indices
-    const textContent = this.originalPrompt;
-
-    const findStartIndex = () => {
-        let wordCount = 0;
-        let charIndex = 0;
-        const re = /([\p{L}\p{M}\p{N}]+(?:['’\-][\p{L}\p{M}\p{N}]+)*)/gu;
-        let match;
-        while ((match = re.exec(textContent)) !== null) {
-            if (wordCount === sortedIndices[0]) {
-                return match.index;
-            }
-            wordCount++;
-        }
-        return -1;
-    };
-
-    const findEndIndex = () => {
-        let wordCount = 0;
-        let endIndex = -1;
-        const re = /([\p{L}\p{M}\p{N}]+(?:['’\-][\p{L}\p{M}\p{N}]+)*)/gu;
-        let match;
-        while ((match = re.exec(textContent)) !== null) {
-            if (wordCount === sortedIndices[sortedIndices.length - 1]) {
-                return match.index + match[0].length;
-            }
-            wordCount++;
-        }
-        return -1;
-    };
-    
-    const start = findStartIndex();
-    const end = findEndIndex();
-
-    if (start !== -1 && end !== -1) {
-        this.lockedSections.push({ start, end });
-        this.runParse();
-    }
+  addLock(phrase){
+    const p = (phrase||"").trim().replace(/\s+/g,' ');
+    if (!p) return;
+    this.lockedSections.add(p);
+    // lock means: immune to swaps + styled; no need to be in any category
+    this.renderPreview();
   }
 
   removeTagBubble(){
@@ -693,14 +702,15 @@ class PromptCard {
     set.delete(term);
     if (!set.size) this.foundByCategory.delete(catKey);
 
-    // If this term is not tagged in any category anymore, remove replacement & lock
+    // If this term is not tagged in any category anymore, remove replacement & (optionally keep lock)
     const stillTagged = [...this.foundByCategory.values()].some(s=>s.has(term));
     if (!stillTagged){
       this.replacements.delete(term);
+      // NOTE: locking is independent of tagging; we do NOT auto-unlock here.
     }
 
-    this.runParse();
     this.renderSwapPanel();
+    this.renderPreview();
   }
 
   /* ---------- Edit / Copy / Export / Remove ---------- */
@@ -717,7 +727,6 @@ class PromptCard {
   copyPrompt(){
     const content = this.highlightView.textContent || "";
     navigator.clipboard.writeText(content);
-    // brief visual feedback
     this.btnCopy.style.opacity = "0.85";
     setTimeout(()=>{ this.btnCopy.style.opacity = "1"; }, 250);
   }
@@ -725,12 +734,12 @@ class PromptCard {
   exportJSON(){
     const payload = {
       prompt: this.originalPrompt,
-      categories: Object.fromEntries(categoryRegistry), // color map (includes custom)
+      categories: Object.fromEntries(categoryRegistry),
       tags: [...this.foundByCategory.entries()].reduce((acc,[k,set])=>{
         acc[k]=[...set]; return acc;
       },{}),
       replacements: Object.fromEntries(this.replacements),
-      locked: this.lockedSections
+      locked: [...this.lockedSections]
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
     const url = URL.createObjectURL(blob);
@@ -770,7 +779,6 @@ function debounce(fn,ms=250){ let t; return (...args)=>{ clearTimeout(t); t=setT
    ========================= */
 const list = document.getElementById("promptList");
 document.getElementById("addPrompt").addEventListener("click", ()=>{
-  // Create a new empty card; the card starts in edit mode so you can paste your prompt
   new PromptCard(list, "");
 });
   </script>
