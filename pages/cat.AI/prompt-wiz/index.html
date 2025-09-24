@@ -9,48 +9,58 @@
   <style>
 :root { --bg: #ffffff; --fg: #111111; --muted: #6b7280; --border: #e5e7eb; --ring: #111111; --c-lighting: #1f2937; --c-mood: #7c3aed; --c-subject: #047857; --c-style: #2563eb; --c-composition: #b45309; --c-effects: #be185d; --hl-bg: #f8fafc; }
 body { background: var(--bg); color: var(--fg); font-family: "Noto Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; margin: 0; }
-.site-header { padding: 32px 20px 12px; border-bottom: 1px solid var(--border); } .site-header h1 { font-family: "Space Mono", monospace; margin: 0 0 6px; font-size: 28px; } .tagline { margin: 0; color: var(--muted); }
-.layout { max-width: 1100px; margin: 0 auto; padding: 20px; display: grid; gap: 28px; } .stage h2 { margin: 0 0 10px; font-size: 18px; }
+.site-header { padding: 32px 20px 12px; border-bottom: 1px solid var(--border); }
+.site-header h1 { font-family: "Space Mono", monospace; margin: 0 0 6px; font-size: 28px; }
+.tagline { margin: 0; color: var(--muted); }
+.layout { max-width: 1100px; margin: 0 auto; padding: 20px; display: grid; gap: 28px; }
+.stage h2 { margin: 0 0 10px; font-size: 18px; }
 textarea { width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 10px; font: inherit; resize: vertical; background: var(--bg); color: var(--fg); }
 .row.actions { display: flex; gap: 12px; margin-top: 12px; }
 button { border: 1px solid var(--border); background: #fff; color: var(--fg); padding: 10px 14px; border-radius: 12px; font: inherit; cursor: pointer; transition: transform .06s ease, box-shadow .12s ease; }
-button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } button.ghost { background: transparent; } button:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+button.primary { background: var(--fg); color: #fff; border-color: var(--fg); }
+button.ghost { background: transparent; }
+button:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
 
-.parsed-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; } .legend { display: flex; flex-wrap: wrap; gap: 10px; }
-.legend .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; font-size: 12px; background: #fff; } .legend .dot { width: 10px; height: 10px; border-radius: 999px; }
+.parsed-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; }
+.legend .chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; font-size: 12px; background: #fff; }
+.legend .dot { width: 10px; height: 10px; border-radius: 999px; }
 
 /* Highlight container */
 .highlight-view { border: 1px dashed var(--border); border-radius: 12px; padding: 14px; min-height: 100px; background: var(--hl-bg); white-space: pre-wrap; }
 
 /* Category highlights */
 .highlight { position: relative; padding: 1px 3px; border-radius: 6px; cursor: help; white-space: pre-wrap; }
-.highlight[data-category="Lighting"] { background: rgba(31,41,55,.08); box-shadow: inset 0 -2px 0 0 var(--c-lighting); }
-.highlight[data-category="Mood"] { background: rgba(124,58,237,.08); box-shadow: inset 0 -2px 0 0 var(--c-mood); }
-.highlight[data-category="Subject"] { background: rgba(4,120,87,.08); box-shadow: inset 0 -2px 0 0 var(--c-subject); }
-.highlight[data-category="Style"] { background: rgba(37,99,235,.08); box-shadow: inset 0 -2px 0 0 var(--c-style); }
-.highlight[data-category="Composition"] { background: rgba(180,83,9,.1); box-shadow: inset 0 -2px 0 0 var(--c-composition); }
-.highlight[data-category="Effects"] { background: rgba(190,24,93,.08); box-shadow: inset 0 -2px 0 0 var(--c-effects); }
+.highlight[data-category="Lighting"]    { background: rgba(31,41,55,.08);  box-shadow: inset 0 -2px 0 0 var(--c-lighting); }
+.highlight[data-category="Mood"]        { background: rgba(124,58,237,.08); box-shadow: inset 0 -2px 0 0 var(--c-mood); }
+.highlight[data-category="Subject"]     { background: rgba(4,120,87,.08);  box-shadow: inset 0 -2px 0 0 var(--c-subject); }
+.highlight[data-category="Style"]       { background: rgba(37,99,235,.08); box-shadow: inset 0 -2px 0 0 var(--c-style); }
+.highlight[data-category="Composition"] { background: rgba(180,83,9,.1);   box-shadow: inset 0 -2px 0 0 var(--c-composition); }
+.highlight[data-category="Effects"]     { background: rgba(190,24,93,.08); box-shadow: inset 0 -2px 0 0 var(--c-effects); }
 
 /* Swap panel */
 .swap-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
 .swap-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #fff; }
-.swap-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; } .swap-card .dot { width: 10px; height: 10px; border-radius: 999px; }
-.swap-item { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; } .swap-item label { font-size: 12px; color: var(--muted); }
+.swap-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; }
+.swap-card .dot { width: 10px; height: 10px; border-radius: 999px; }
+.swap-item { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+.swap-item label { font-size: 12px; color: var(--muted); }
 .swap-item input { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font: inherit; }
 
 .preview { background: #fff; border-style: solid; }
 .site-footer { padding: 16px 20px 40px; color: var(--muted); text-align: center; border-top: 1px solid var(--border); }
 
-/* Tag bubble */
-.floating-tag { position: absolute; z-index: 10; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; gap: 8px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+/* Tag bubble (chip-based) */
+.floating-tag { position: absolute; z-index: 10; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: grid; gap: 10px; align-items: start; box-shadow: 0 8px 24px rgba(0,0,0,.08); min-width: 260px; }
+.floating-tag .sel { font-size: 12px; color: var(--muted); }
+.floating-tag .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tag-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; font-size: 12px; cursor: pointer; }
+.tag-chip .dot { width: 10px; height: 10px; border-radius: 999px; }
 
 /* ===== Whole-word selection UI (file-picker style) ===== */
-.highlight-view { user-select: none; cursor: text; }           /* Prevent partial-character selection */
+.highlight-view { user-select: none; cursor: text; }      /* prevent partial character selection */
 .highlight-view .word { padding: 0 2px; border-radius: 4px; }
-.highlight-view .word.selected {
-  background: rgba(17,17,17,.08);
-  box-shadow: inset 0 -2px 0 0 var(--ring);
-}
+.highlight-view .word.selected { background: rgba(17,17,17,.08); box-shadow: inset 0 -2px 0 0 var(--ring); }
   </style>
 </head>
 <body>
@@ -71,19 +81,19 @@ button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } 
 
     <section class="stage parsed-stage">
       <div class="parsed-top">
-        <h2>2–3. Auto-Parse & Interactive Highlight</h2>
+        <h2>Interactive Highlight (Manual)</h2>
       </div>
       <div id="highlightView" class="highlight-view" aria-live="polite"></div>
     </section>
 
     <section class="stage">
-      <h2>4. Swap Panel</h2>
+      <h2>Swap Panel</h2>
       <div id="swapPanel" class="swap-panel"></div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>Tip: Select words (click/drag). Shift = range, Ctrl/⌘ = toggle. Release to open tag bubble. Bubble closes only on outside click or after tagging.</p>
+    <p>Tip: Click/drag to select words. Shift = range, Ctrl/⌘ = toggle. Tag via the chips; bubble closes on outside click or after tagging.</p>
   </footer>
 
   <script type="module">
@@ -91,13 +101,14 @@ button.primary { background: var(--fg); color: #fff; border-color: var(--fg); } 
    Categories & DOM
    ========================= */
 const categories = [
-  { key: "Lighting",    colorVar: "--c-lighting",    terms: [] },
-  { key: "Mood",        colorVar: "--c-mood",        terms: [] },
-  { key: "Style",       colorVar: "--c-style",       terms: [] },
-  { key: "Composition", colorVar: "--c-composition", terms: [] },
-  { key: "Effects",     colorVar: "--c-effects",     terms: [] },
-  { key: "Subject",     colorVar: "--c-subject",     terms: [] }
+  { key: "Lighting",    colorVar: "--c-lighting" },
+  { key: "Mood",        colorVar: "--c-mood" },
+  { key: "Style",       colorVar: "--c-style" },
+  { key: "Composition", colorVar: "--c-composition" },
+  { key: "Effects",     colorVar: "--c-effects" },
+  { key: "Subject",     colorVar: "--c-subject" }
 ];
+
 const elements = {
   input: document.getElementById("promptInput"),
   highlightView: document.getElementById("highlightView"),
@@ -111,20 +122,21 @@ const elements = {
    App state
    ========================= */
 let originalPrompt = "";
-let foundByCategory = {};
-let replacements = {};
-let lockedSections = new Set();
+let foundByCategory = {};      // {Category -> Set<string>}
+let replacements = {};         // {term -> replacement}
+let lockedSections = new Set();// Set<string> exact phrase locks
 
-/* Word-selection state (file-picker style) */
+/* Word-selection state */
 let wordElems = [];                    // index → <span.word>
-let selectedWordIdxs = new Set();      // currently selected words
-let anchorWordIdx = null;              // anchor for shift-range
+let selectedWordIdxs = new Set();      // selected indices
+let anchorWordIdx = null;              // for shift-range
 let dragState = { active:false, start:null, additive:false, base:new Set() };
+let selectionDirty = false;            // only open bubble on *new* selection
 
-/* Tag bubble state (for outside-click close handling) */
+/* Tag bubble state */
 let activeBubbleEl = null;
 let bubbleOutsideListener = null;
-let bubbleGuard = false; // prevents immediate close on the same event that opened it
+let bubbleGuard = false;
 
 /* =========================
    Init
@@ -135,7 +147,7 @@ function init(){
   elements.copyPlain.addEventListener("click", ()=>copyOutput(false));
   elements.editToggle.addEventListener("click", toggleEdit);
 
-  attachWordSelectionHandlers();   // enable file-picker selection
+  attachWordSelectionHandlers();
   runParse();
 }
 
@@ -151,8 +163,7 @@ function buildLegend(){
     chip.className="chip";
     const dot=document.createElement("span");
     dot.className="dot";
-    dot.style.background=getComputedStyle(document.documentElement)
-      .getPropertyValue(c.colorVar);
+    dot.style.background=getColor(c.key);
     const label=document.createElement("span");
     label.textContent=c.key;
     chip.append(dot,label);
@@ -169,18 +180,16 @@ function runParse(){
   if(!originalPrompt){
     buildLegend();
     elements.swapPanel.innerHTML="";
-    // Reset selection state
     selectedWordIdxs.clear(); anchorWordIdx=null; wordElems=[];
     return;
   }
 
-  // Keep any existing manual tags
+  // Persist existing manual tags
   foundByCategory = Object.fromEntries(categories.map(c=>[c.key, foundByCategory[c.key]||new Set()]));
 
-  // Ensure replacements map contains all tagged terms
+  // Ensure replacements include all tagged terms
   replacements = Object.fromEntries(
-    Object.values(foundByCategory).flatMap(set => [...set])
-      .map(t => [t, replacements[t] ?? t])
+    Object.values(foundByCategory).flatMap(set => [...set]).map(t => [t, replacements[t] ?? t])
   );
 
   renderHighlight(originalPrompt, foundByCategory, elements.highlightView);
@@ -192,9 +201,8 @@ function runParse(){
 function renderPreview(){
   const remixed = applyReplacements(originalPrompt, replacements);
 
-  // Include replacements in preview highlighting
-  const foundPreview = Object.fromEntries(Object.entries(foundByCategory)
-    .map(([k,set]) => [k,new Set(set)]));
+  // Preview highlights show originals + replacements
+  const foundPreview = Object.fromEntries(Object.entries(foundByCategory).map(([k,set])=>[k,new Set(set)]));
   for(const [term,repl] of Object.entries(replacements)){
     for(const set of Object.values(foundPreview)) if(set?.has?.(term)) set.add(repl);
   }
@@ -226,9 +234,7 @@ function applyReplacements(text,map){
     });
   }
 
-  placeholders.forEach(({token,lock})=>{
-    out=out.replace(new RegExp(token,"g"),lock);
-  });
+  placeholders.forEach(({token,lock})=>{ out=out.replace(new RegExp(token,"g"),lock); });
   return out;
 }
 
@@ -236,7 +242,7 @@ function applyReplacements(text,map){
    Rendering: highlights + per-word spans
    ========================= */
 function renderHighlight(text,found,container){
-  // Rebuild selection state for each render
+  // Clear selection on re-render
   selectedWordIdxs.clear();
   anchorWordIdx = null;
 
@@ -291,7 +297,6 @@ function tokenizeSegmentsToWords(segments){
     w.dataset.idx = idxCounter++;
     w.textContent = segment;
     words.push(w);
-
     if (category) {
       const h = document.createElement("span");
       h.className = "highlight";
@@ -305,15 +310,11 @@ function tokenizeSegmentsToWords(segments){
 
   const processText = (text, category) => {
     if (!text) return;
-
     if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
       const seg = new Intl.Segmenter(undefined, { granularity: "word" });
       for (const { segment, isWordLike } of seg.segment(text)) {
-        if (isWordLike) {
-          frag.appendChild(pushWord(segment, category));
-        } else {
-          frag.appendChild(document.createTextNode(segment));
-        }
+        if (isWordLike) frag.appendChild(pushWord(segment, category));
+        else frag.appendChild(document.createTextNode(segment));
       }
     } else {
       const re = /([\p{L}\p{M}\p{N}]+(?:['’\-][\p{L}\p{M}\p{N}]+)*)/gu;
@@ -328,11 +329,9 @@ function tokenizeSegmentsToWords(segments){
   };
 
   segments.forEach(node => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      processText(node.nodeValue, null);
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("highlight")) {
+    if (node.nodeType === Node.TEXT_NODE) processText(node.nodeValue, null);
+    else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("highlight"))
       processText(node.textContent, node.dataset.category || null);
-    }
   });
 
   return { fragment: frag, words };
@@ -347,19 +346,18 @@ function attachWordSelectionHandlers(){
     const additive = e.ctrlKey || e.metaKey;
     const shift = e.shiftKey;
 
-    // Clicked empty area: clear selection unless additive mode
     if (!w) {
       if (!additive) {
         selectedWordIdxs.clear();
         updateWordSelectionClasses();
-        // treat as "clicked off" → close bubble
-        removeTagBubble();
+        removeTagBubble(); // clicking off closes bubble
       }
       return;
     }
 
-    e.preventDefault(); // force whole-word behavior
+    e.preventDefault();
     const idx = +w.dataset.idx;
+    selectionDirty = true;
 
     dragState.active   = true;
     dragState.start    = idx;
@@ -377,10 +375,8 @@ function attachWordSelectionHandlers(){
       anchorWordIdx = idx;
     }
     updateWordSelectionClasses();
-    // don't close bubble here; opening/closing is handled by outside-click + tag action
   });
 
-  // Drag across words = live range selection
   elements.highlightView.addEventListener("mouseover", (e) => {
     if (!dragState.active) return;
     const w = e.target.closest(".word");
@@ -391,64 +387,113 @@ function attachWordSelectionHandlers(){
     updateWordSelectionClasses();
   });
 
-  // Mouse up ends selection and shows the tag bubble (no auto-close anymore)
-  document.addEventListener("mouseup", () => {
+  // Only show bubble when a selection gesture ended on the page (and not inside the bubble)
+  document.addEventListener("mouseup", (e) => {
     if (dragState.active) dragState.active = false;
+    if (!selectionDirty) return;
+    selectionDirty = false;
+    if (activeBubbleEl && activeBubbleEl.contains(e.target)) return; // don't rebuild while interacting with bubble
     maybeShowTagBubble();
   });
 
-  // Keep anchor in sync on clicks
+  // Keep anchor in sync
   elements.highlightView.addEventListener("click", (e) => {
     const w = e.target.closest(".word");
     if (w) anchorWordIdx = +w.dataset.idx;
   });
 
-  // Press 't' to reopen the tag bubble for current selection
+  // Optional: press 't' to open bubble for current selection
   document.addEventListener("keydown",(e)=>{
     if (e.key.toLowerCase() === 't') maybeShowTagBubble();
-    if (e.key === 'Escape') removeTagBubble();
+    if (e.key === 'Escape') removeTagBubble(); // easy close; remove if undesired
   });
 }
 
 function maybeShowTagBubble(){
-  if (!selectedWordIdxs.size) { return; }
+  if (!selectedWordIdxs.size) return;
   const idxs = [...selectedWordIdxs].sort((a,b)=>a-b);
   const text = idxs.map(i => wordElems[i]?.textContent ?? "").join(" ").trim();
-  if (!text) { return; }
+  if (!text) return;
   const rect = unionClientRect(idxs.map(i=>wordElems[i].getBoundingClientRect()));
   showTagBubble(text, rect);
 }
 
-// Selection helpers
-function toggleIdx(i){ selectedWordIdxs.has(i) ? selectedWordIdxs.delete(i) : selectedWordIdxs.add(i); }
-function buildRangeSet(a,b){ const s=new Set(); const [lo,hi]=a<=b?[a,b]:[b,a]; for(let i=lo;i<=hi;i++) s.add(i); return s; }
-function unionSets(a,b){ const s=new Set(a); for(const x of b) s.add(x); return s; }
-function updateWordSelectionClasses(){ wordElems.forEach((el,i)=>el.classList.toggle("selected", selectedWordIdxs.has(i))); }
-function selectRange(a,b,add){ const r=buildRangeSet(a,b); selectedWordIdxs = add ? unionSets(selectedWordIdxs,r) : r; updateWordSelectionClasses(); }
-
 /* =========================
-   Inline editing (kept)
+   Tag bubble (chip cloud)
    ========================= */
-function enableInlineEditing(){
-  elements.highlightView.onclick=(e)=>{
-    const span=e.target.closest(".highlight");
-    if(!span || elements.input.disabled===false) return;
-    const original=span.textContent;
-    const input=document.createElement("input");
-    input.value=original;
-    input.style.minWidth="120px";
-    span.replaceWith(input);
-    input.focus();
-    const commit=()=>{
-      for(const k of Object.keys(replacements)){
-        if(k.toLowerCase()===original.toLowerCase()) replacements[k]=input.value;
-      }
+function showTagBubble(selectedText, rect){
+  removeTagBubble(); // clean any previous
+  const phrase = selectedText.trim().replace(/\s+/g,' ');
+  if (!phrase) return;
+
+  const b = document.createElement("div");
+  b.className = "floating-tag";
+
+  const selLabel = document.createElement("div");
+  selLabel.className = "sel";
+  selLabel.textContent = `Selection: “${phrase}”`;
+
+  const cloudRow = document.createElement("div");
+  cloudRow.className = "row";
+  categories.forEach(c=>{
+    const chip = document.createElement("button");
+    chip.type="button";
+    chip.className="tag-chip";
+    const dot = document.createElement("span");
+    dot.className="dot";
+    dot.style.background = getColor(c.key);
+    const lbl = document.createElement("span");
+    lbl.textContent = c.key;
+    chip.append(dot,lbl);
+    chip.addEventListener("click", ()=>{
+      foundByCategory[c.key] = foundByCategory[c.key] || new Set();
+      foundByCategory[c.key].add(phrase);
+      replacements[phrase] = replacements[phrase] ?? phrase;
+      if (lockCb.checked) lockedSections.add(phrase);
       renderPreview();
       renderSwapPanel();
-    };
-    input.addEventListener("blur",commit);
-    input.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"){ input.blur(); } });
+      removeTagBubble(); // close after successful tag
+    });
+    cloudRow.appendChild(chip);
+  });
+
+  const controls = document.createElement("div");
+  controls.className = "row";
+  const lockCb = document.createElement("input");
+  lockCb.type="checkbox"; lockCb.id="lockSel";
+  const lockLb = document.createElement("label");
+  lockLb.htmlFor="lockSel"; lockLb.textContent="Lock selection";
+  const cancel = document.createElement("button");
+  cancel.textContent="Cancel";
+  cancel.type="button";
+  cancel.addEventListener("click", removeTagBubble);
+  controls.append(lockCb, lockLb, cancel);
+
+  // Position + mount
+  b.style.top  = `${rect.bottom+window.scrollY+6}px`;
+  b.style.left = `${rect.left+window.scrollX}px`;
+  b.append(selLabel, cloudRow, controls);
+  document.body.appendChild(b);
+
+  // Outside-click handling (don’t immediately close on the same event)
+  activeBubbleEl = b;
+  bubbleGuard = true;
+  setTimeout(()=>{ bubbleGuard = false; }, 0);
+  bubbleOutsideListener = (ev)=>{
+    if (bubbleGuard) return;
+    if (!activeBubbleEl) return;
+    if (!activeBubbleEl.contains(ev.target)) removeTagBubble();
   };
+  document.addEventListener('pointerdown', bubbleOutsideListener, true);
+}
+
+function removeTagBubble(){
+  if (activeBubbleEl?.parentNode) activeBubbleEl.parentNode.removeChild(activeBubbleEl);
+  activeBubbleEl = null;
+  if (bubbleOutsideListener) {
+    document.removeEventListener('pointerdown', bubbleOutsideListener, true);
+    bubbleOutsideListener = null;
+  }
 }
 
 /* =========================
@@ -457,12 +502,6 @@ function enableInlineEditing(){
 function renderSwapPanel(){
   const panel=elements.swapPanel;
   panel.innerHTML="";
-
-  const getColor=(key)=>{
-    const cat=categories.find(c=>c.key===key);
-    return getComputedStyle(document.documentElement)
-      .getPropertyValue(cat?.colorVar||"--border");
-  };
 
   for (const c of categories){
     const terms=Array.from(foundByCategory[c.key]||[]);
@@ -501,7 +540,7 @@ function renderSwapPanel(){
 }
 
 /* =========================
-   Copy / edit / tagging bubble
+   Copy / edit / inline edit
    ========================= */
 function copyOutput(){
   const content=elements.livePreview.textContent;
@@ -520,73 +559,42 @@ function toggleEdit(){
   else { runParse(); }
 }
 
-/* Tag bubble: outside-click guarded */
-function showTagBubble(selectedText,rect){
-  removeTagBubble(); // clean any previous
-
-  const b=document.createElement("div");
-  b.className="floating-tag";
-
-  const select=document.createElement("select");
-  ["Lighting","Mood","Subject","Style","Composition","Effects"].forEach(k=>{
-    const o=document.createElement("option"); o.value=k; o.textContent=k; select.appendChild(o);
-  });
-
-  const lockCb=document.createElement("input"); lockCb.type="checkbox"; lockCb.id="lockSec";
-  const lockLb=document.createElement("label"); lockLb.htmlFor="lockSec"; lockLb.textContent="Lock section";
-
-  const btn=document.createElement("button"); btn.textContent="Tag";
-  btn.onclick=()=>{
-    const cat = select.value;
-    const phrase = selectedText.trim().replace(/\s+/g,' ');
-    if (!phrase) return;
-
-    foundByCategory[cat]=foundByCategory[cat]||new Set();
-    foundByCategory[cat].add(phrase);
-    replacements[phrase]=replacements[phrase]??phrase;
-    if(lockCb.checked) lockedSections.add(phrase);
-
-    renderPreview();     // show highlighted occurrences
-    renderSwapPanel();   // panel appears/updates
-    removeTagBubble();   // close bubble only after successful tag
+function enableInlineEditing(){
+  elements.highlightView.onclick=(e)=>{
+    const span=e.target.closest(".highlight");
+    if(!span || elements.input.disabled===false) return;
+    const original=span.textContent;
+    const input=document.createElement("input");
+    input.value=original;
+    input.style.minWidth="120px";
+    span.replaceWith(input);
+    input.focus();
+    const commit=()=>{
+      for(const k of Object.keys(replacements)){
+        if(k.toLowerCase()===original.toLowerCase()) replacements[k]=input.value;
+      }
+      renderPreview();
+      renderSwapPanel();
+    };
+    input.addEventListener("blur",commit);
+    input.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"){ input.blur(); } });
   };
-
-  const cancel=document.createElement("button"); cancel.textContent="Cancel";
-  cancel.onclick=removeTagBubble;
-
-  // Position + mount
-  b.style.top  = `${rect.bottom+window.scrollY+6}px`;
-  b.style.left = `${rect.left+window.scrollX}px`;
-  b.append(select,lockCb,lockLb,btn,cancel);
-  document.body.appendChild(b);
-
-  // Set active bubble + install outside-click guard (capture phase)
-  activeBubbleEl = b;
-  bubbleGuard = true;                   // block the very event cycle that opened us
-  setTimeout(()=>{ bubbleGuard = false; }, 0);
-
-  bubbleOutsideListener = (ev)=>{
-    if (bubbleGuard) return;
-    if (!activeBubbleEl) return;
-    if (!activeBubbleEl.contains(ev.target)) {
-      removeTagBubble();                // close only when clicking off
-    }
-  };
-  document.addEventListener('pointerdown', bubbleOutsideListener, true);
-}
-
-function removeTagBubble(){
-  if (activeBubbleEl?.parentNode) activeBubbleEl.parentNode.removeChild(activeBubbleEl);
-  activeBubbleEl = null;
-  if (bubbleOutsideListener) {
-    document.removeEventListener('pointerdown', bubbleOutsideListener, true);
-    bubbleOutsideListener = null;
-  }
 }
 
 /* =========================
-   Utils
+   Selection helpers & utils
    ========================= */
+function toggleIdx(i){ selectedWordIdxs.has(i) ? selectedWordIdxs.delete(i) : selectedWordIdxs.add(i); }
+function buildRangeSet(a,b){ const s=new Set(); const [lo,hi]=a<=b?[a,b]:[b,a]; for(let i=lo;i<=hi;i++) s.add(i); return s; }
+function unionSets(a,b){ const s=new Set(a); for(const x of b) s.add(x); return s; }
+function updateWordSelectionClasses(){ wordElems.forEach((el,i)=>el.classList.toggle("selected", selectedWordIdxs.has(i))); }
+function selectRange(a,b,add){ const r=buildRangeSet(a,b); selectedWordIdxs = add ? unionSets(selectedWordIdxs,r) : r; updateWordSelectionClasses(); }
+
+function getColor(key){
+  const cat=categories.find(c=>c.key===key);
+  return getComputedStyle(document.documentElement).getPropertyValue(cat?.colorVar||"--border");
+}
+
 function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
 function isTitleCase(s){ return /^[A-Z][a-z]/.test(s); }
 function toTitleCase(s){ return s.replace(/\w\S*/g,t=>t[0].toUpperCase()+t.slice(1).toLowerCase()); }
