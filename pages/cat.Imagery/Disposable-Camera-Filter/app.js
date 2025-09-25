@@ -47,6 +47,13 @@ const S = {
   grainChroma:1.00,
   grainMagnify:0.82,
 
+  // Handheld shake (new)
+  shakeHandheld: 0.30,  // Intensity (0-1)
+  shakeFreq: 2.0,       // Hz (0.1-5)
+  shakeAmpX: 8.0,       // Pixels (0-50)
+  shakeAmpY: 6.0,       // Pixels (0-50)
+  shakeRot: 0.4,        // Degrees max (0-2)
+
   // View state
   viewMode:'fit',  // 'fit' | '1:1'
   panX:0,
@@ -55,7 +62,7 @@ const S = {
   needsRender:true, showOriginal:false
 };
 
-const $  = s => document.querySelector(s);
+const  $  = s => document.querySelector(s);
 const CAN= $('#gl');
 const GL = CAN.getContext('webgl2', {premultipliedAlpha:false, preserveDrawingBuffer:true})
         || CAN.getContext('webgl',  {premultipliedAlpha:false, preserveDrawingBuffer:true});
@@ -98,13 +105,13 @@ function layout(){
     if (CAN.width !== W || CAN.height !== H){
       CAN.width = W; CAN.height = H;
       gl.viewport(0,0,W,H);
-      ensureRTs(); S.needsRender = true;
+      ensureRTs(); showDot(); showDot(); S.needsRender = true;
     }
   } else { // '1x' (1 image pixel == 1 CSS pixel) with pan
     if (CAN.width !== S.mediaW || CAN.height !== S.mediaH){
       CAN.width = S.mediaW; CAN.height = S.mediaH;
       gl.viewport(0,0,S.mediaW,S.mediaH);
-      ensureRTs(); S.needsRender = true;
+      ensureRTs(); showDot(); showDot(); S.needsRender = true;
     }
 
     CAN.style.width  = S.mediaW + 'px';
@@ -140,6 +147,11 @@ function bindRange(id,key){
   'vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify'
 ].forEach(id=>bindRange(id,id));
 (()=>{ const el=$('#shutterUI'), lbl=$('#shutterLabel'); const set=v=>{ S.shutterUI=+v; lbl.textContent=formatShutter(sliderToShutterSeconds(S.shutterUI)); S.needsRender=true; }; el.addEventListener('input', e=>set(e.target.value)); set(S.shutterUI); })();
+
+// Handheld shake binders (new section)
+[
+  'shakeHandheld','shakeFreq','shakeAmpX','shakeAmpY','shakeRot'
+].forEach(id => bindRange(id, id));
 
 /* ---------- flash pad (drag; UI matches image) ---------- */
 (()=>{ const pad=$('#flashPad'), dot=$('#flashDot');
@@ -186,7 +198,7 @@ function loadVideo(file){
     S.isVideo=true; S.mediaW=V.videoWidth; S.mediaH=V.videoHeight;
     S.tex=createTex(S.mediaW,S.mediaH);
     $('#play').disabled=false; $('#play').textContent='Pause';
-    layout(); V.play().catch(()=>{});
+    layout(); V.play().catch(()=>{}); 
     const upload=()=>{
       gl.bindTexture(gl.TEXTURE_2D,S.tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,V);
@@ -219,7 +231,7 @@ $('#save-png').onclick = async ()=>{
   CAN.width  = S.mediaW;
   CAN.height = S.mediaH;
   gl.viewport(0,0,CAN.width,CAN.height);
-  ensureRTs(); S.needsRender = true;
+  ensureRTs(); showDot(); showDot(); S.needsRender = true;
 
   // If video, upload current frame
   if (S.isVideo){
@@ -239,7 +251,7 @@ $('#save-png').onclick = async ()=>{
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW; CAN.height = prevH;
   gl.viewport(0,0,prevW,prevH);
-  ensureRTs(); S.needsRender = true;
+  ensureRTs(); showDot(); showDot(); S.needsRender = true;
 };
 
 /* ---------- Export MP4 (ffmpeg.wasm) + progress overlay ---------- */
@@ -255,7 +267,7 @@ $('#export-mp4').onclick = async ()=>{
   CAN.width  = S.mediaW;
   CAN.height = S.mediaH;
   gl.viewport(0,0,CAN.width,CAN.height);
-  ensureRTs(); S.needsRender = true;
+  ensureRTs(); showDot(); S.needsRender = true;
 
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Export: grabbing frames… 0%';
@@ -346,7 +358,7 @@ $('#export-mp4').onclick = async ()=>{
   // restore preview size & video state
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW;  CAN.height = prevH;
-  gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
+  gl.viewport(0,0,prevW,prevH); ensureRTs(); showDot(); S.needsRender = true;
   V.loop=wasLoop; V.playbackRate=prevRate; if (wasPaused) V.pause();
 };
 
@@ -362,7 +374,7 @@ $('#export-pngs').onclick = async ()=>{
   CAN.width  = S.mediaW;
   CAN.height = S.mediaH;
   gl.viewport(0,0,CAN.width,CAN.height);
-  ensureRTs(); S.needsRender = true;
+  ensureRTs(); showDot(); S.needsRender = true;
 
   const ov=$('#overlay'), txt=$('#overlayText');
   ov.classList.remove('hidden'); txt.textContent='Exporting PNGs… 0%';
@@ -425,7 +437,7 @@ $('#export-pngs').onclick = async ()=>{
 
   CAN.style.width = prevCssW; CAN.style.height = prevCssH;
   CAN.width = prevW; CAN.height = prevH;
-  gl.viewport(0,0,prevW,prevH); ensureRTs(); S.needsRender = true;
+  gl.viewport(0,0,prevW,prevH); ensureRTs(); showDot(); S.needsRender = true;
 
   toast('PNG sequence exported');
 };
@@ -517,6 +529,66 @@ function ensureRTs(){
   rtQ_A=mk(rtQ_A,W>>2||1,H>>2||1); rtQ_B=mk(rtQ_B,W>>2||1,H>>2||1);
   rtE_A=mk(rtE_A,W>>3||1,H>>3||1); rtE_B=mk(rtE_B,W>>3||1,H>>3||1);
   rtBloom=mk(rtBloom,W,H);
+}
+
+/* ---------- Handheld scale computation (new: per-frame exact crop) ---------- */
+function computeShakeScale(offsetX, offsetY, rot) {
+  const duvs = [
+    [-0.5, -0.5],
+    [ 0.5, -0.5],
+    [-0.5,  0.5],
+    [ 0.5,  0.5]
+  ];
+  const cosR = Math.cos(rot);
+  const sinR = Math.sin(rot);
+  const Rx = [cosR, -sinR];
+  const Ry = [sinR, cosR];
+
+  function inBoundsX(s) {
+    let minX = Infinity, maxX = -Infinity;
+    for (let i=0; i<4; i++) {
+      const dx = s * duvs[i][0];
+      const dy = s * duvs[i][1];
+      const rx = Rx[0] * dx + Rx[1] * dy;
+      const tx = 0.5 + rx + offsetX;
+      minX = Math.min(minX, tx);
+      maxX = Math.max(maxX, tx);
+    }
+    return minX >= 0 && maxX <= 1;
+  }
+
+  function inBoundsY(s) {
+    let minY = Infinity, maxY = -Infinity;
+    for (let i=0; i<4; i++) {
+      const dx = s * duvs[i][0];
+      const dy = s * duvs[i][1];
+      const ry = Ry[0] * dx + Ry[1] * dy;
+      const ty = 0.5 + ry + offsetY;
+      minY = Math.min(minY, ty);
+      maxY = Math.max(maxY, ty);
+    }
+    return minY >= 0 && maxY <= 1;
+  }
+
+  // Binary search max s_x <=1 where inBoundsX(s)
+  let lowX = 0, highX = 1;
+  for (let iter=0; iter<30; iter++) {
+    const midX = (lowX + highX) / 2;
+    if (inBoundsX(midX)) lowX = midX;
+    else highX = midX;
+  }
+  const sx = Math.max(0.01, lowX);
+
+  // Same for y
+  let lowY = 0, highY = 1;
+  for (let iter=0; iter<30; iter++) {
+    const midY = (lowY + highY) / 2;
+    if (inBoundsY(midY)) lowY = midY;
+    else highY = midY;
+  }
+  const sy = Math.max(0.01, lowY);
+
+  return [sx, sy];
 }
 
 /* ---------- shaders ---------- */
@@ -636,12 +708,29 @@ void main(){
   float n = fract(sin(dot(v_uv*uRes, vec2(12.9898,78.233))) * 43758.5453);
   outc += (uDither) * (n-0.5)/255.0;
   gl_FragColor=vec4(outc,1.0);
-}`; 
+}`;
+
+// Handheld shake shader (updated: uScale <=1 for exact per-frame crop zoom-in)
+const FS_SHAKE = COMMON + `
+uniform sampler2D uTex;
+uniform vec2 uShakeOffset;
+uniform float uShakeRot;
+uniform vec2 uScale;  // <=1: zoom-in factor to fit shake without artifacts
+void main(){
+  vec2 center = vec2(0.5);
+  vec2 duv = (v_uv - center) * uScale;
+  float r = uShakeRot;
+  mat2 R = mat2(cos(r), -sin(r), sin(r), cos(r));
+  duv = R * duv;
+  vec2 new_uv = clamp(center + duv + uShakeOffset, 0.0, 1.0);
+  gl_FragColor = texture2D(uTex, new_uv);
+}`;
 
 const P={copy:makeProg(FS_COPY),pre:makeProg(FS_PRE),flash:makeProg(FS_FLASH),motion:makeProg(FS_MOTION),
   tone:makeProg(FS_TONE),split:makeProg(FS_SPLIT),cast:makeProg(FS_CAST),vig:makeProg(FS_VIG),
   bright:makeProg(FS_BRIGHT),down:makeProg(FS_DOWNS),blur:makeProg(FS_BLUR),upadd:makeProg(FS_UPADD),
-  bcomp:makeProg(FS_BCOMP),clar:makeProg(FS_CLAR),ca:makeProg(FS_CA),grain:makeProg(FS_GRAIN)};
+  bcomp:makeProg(FS_BCOMP),clar:makeProg(FS_CLAR),ca:makeProg(FS_CA),grain:makeProg(FS_GRAIN),
+  shake: makeProg(FS_SHAKE)};
 
 /* ---------- render ---------- */
 let lastT=0;
@@ -658,7 +747,8 @@ function render(t=performance.now()){
     S.vignette === 0 && S.bloomIntensity === 0 && S.halation === 0 &&
     S.clarity === 0 && S.ca === 0 &&
     S.shake === 0 && S.motionAngle === 0 && S.shutterUI === 0 &&
-    S.grainDevelop === 0 && S.grainStock === 0 && S.grainChroma === 0 && S.grainMagnify === 1.0;
+    S.grainDevelop === 0 && S.grainStock === 0 && S.grainChroma === 0 && S.grainMagnify === 1.0 &&
+    S.shakeHandheld === 0;
 
   if (S.showOriginal || identity){ draw(P.copy,{uTex:S.tex},null); S.needsRender=false; requestAnimationFrame(render); return; }
 
@@ -667,6 +757,48 @@ function render(t=performance.now()){
   // Linearize + EV
   draw(P.pre,{uTex:S.tex},rtA,p=> gl.uniform1f(gl.getUniformLocation(p,'uEV'),S.ev));
   let cur = rtA.tex;
+
+  // Handheld shake (updated: per-frame exact scale crop)
+  const shakeIntensity = S.shakeHandheld;
+  let scaleX = 1, scaleY = 1;
+  if (shakeIntensity > 0.001) {
+    const time = S.isVideo ? S.frameSeed * 0.033 : (t * 0.001);
+    const freq = S.shakeFreq;
+
+    const phaseBase = time * freq;
+    const offsetX = (
+      Math.sin(phaseBase * 1.0) * 0.6 +
+      Math.sin(phaseBase * 2.3) * 0.3 +
+      Math.sin(phaseBase * 4.1) * 0.1
+    ) * (S.shakeAmpX / CAN.width) * shakeIntensity;
+
+    const phaseY = phaseBase + 0.7;
+    const offsetY = (
+      Math.sin(phaseY * 1.0) * 0.6 +
+      Math.sin(phaseY * 2.7) * 0.3 +
+      Math.sin(phaseY * 3.9) * 0.1
+    ) * (S.shakeAmpY / CAN.height) * shakeIntensity;
+
+    const phaseRot = phaseBase + 1.3;
+    const rot = (
+      Math.sin(phaseRot * 1.0) * 0.6 +
+      Math.sin(phaseRot * 1.8) * 0.3 +
+      Math.sin(phaseRot * 3.2) * 0.1
+    ) * (S.shakeRot * Math.PI / 180) * shakeIntensity;
+
+    [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rot);
+
+    const shakeDst = (cur === rtA.tex) ? rtB : rtA;
+    draw(P.shake, {uTex: cur}, shakeDst, p => {
+      const locOffset = gl.getUniformLocation(p, 'uShakeOffset');
+      const locRot = gl.getUniformLocation(p, 'uShakeRot');
+      const locScale = gl.getUniformLocation(p, 'uScale');
+      gl.uniform2f(locOffset, offsetX, offsetY);
+      gl.uniform1f(locRot, rot);
+      gl.uniform2f(locScale, scaleX, scaleY);
+    });
+    cur = shakeDst.tex;
+  }
 
   // Motion blur (optional)
   const sh=sliderToShutterSeconds(S.shutterUI), amt=shutterToPixels(sh,S.shake);
@@ -683,7 +815,7 @@ function render(t=performance.now()){
   // Flash (mirror BOTH axes so UI & canvas match)
   const flashDst = (cur===rtA.tex) ? rtB : rtA;
   draw(P.flash,{uTex:cur},flashDst,p=>{
-    gl.uniform2f(gl.getUniformLocation(p,'uCenter'), 1.0 - S.flashCenterX, 1.0 - S.flashCenterY);
+    gl.uniform2f(gl.getUniformLocation(p,'uCenter'), 1.0 - S.flashCenterX, S.flashCenterY);
     gl.uniform1f(gl.getUniformLocation(p,'uStrength'), S.flashStrength);
     gl.uniform1f(gl.getUniformLocation(p,'uFall'), S.flashFalloff);
   });
@@ -766,7 +898,7 @@ layout(); ensureRTs(); requestAnimationFrame(render);
     const fx=(x-r.left)/r.width, fy=(y-r.top)/r.height;
     S.flashCenterX = 1.0 - Math.max(0,Math.min(1,fx));
     S.flashCenterY = 1.0 - Math.max(0,Math.min(1,fy));
-    S.needsRender = true;
+    showDot(); showDot(); S.needsRender = true;
   }
   function ppos(e){ const t=e.touches?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
 
@@ -801,12 +933,16 @@ $('#reset').onclick=()=>{
     scurve:0.0, blacks:0.0, blackLift:0.0, knee:0.0, shadowCool:0.0, highlightWarm:0.0,
     greenShadows:0.0, magentaMids:0.0, bloomThreshold:1.0, bloomRadius:48.9, bloomIntensity:0.0, bloomWarm:0.0, halation:0.0,
     vignette:0.0, vignettePower:2.5, ca:0.0, clarity:0.0, shutterUI:0.0, shake:0.0, motionAngle:0.0,
-    grainASA:800, grainDevelop:0.0, grainStock:0.0, grainChroma:0.0, grainMagnify:1.0
+    grainASA:800, grainDevelop:0.0, grainStock:0.0, grainChroma:0.0, grainMagnify:1.0,
+    // Handheld shake reset (new)
+    shakeHandheld: 0.3, shakeFreq: 2.0, shakeAmpX: 8.0, shakeAmpY: 6.0, shakeRot: 0.4
   });
   [
     'ev','flashStrength','flashFalloff','scurve','blacks','blackLift','knee','shadowCool','highlightWarm',
     'greenShadows','magentaMids','bloomThreshold','bloomRadius','bloomIntensity','bloomWarm','halation',
-    'vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify'
+    'vignette','vignettePower','ca','clarity','shake','motionAngle','grainASA','grainDevelop','grainStock','grainChroma','grainMagnify',
+    // Handheld shake UI reset (new)
+    'shakeHandheld','shakeFreq','shakeAmpX','shakeAmpY','shakeRot'
   ].forEach(id=>{
     const el=$('#'+id), lbl=$(`.val[data-for="${id}"]`); if(el&&lbl){ el.value=S[id]; lbl.textContent=(id==='motionAngle'?S[id].toFixed(0):fmt(S[id],el.step)); }
   });
