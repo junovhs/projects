@@ -755,63 +755,22 @@ layout(); ensureRTs(); requestAnimationFrame(render);
   window.addEventListener('mouseup', onUp);
 
   CAN.addEventListener('touchstart', onDown, { passive: false });
-  window.addEventListener('touchmove', e => { if (dragging) { e.preventDefault();       onMove(e);
-    }
-  }, { passive: false });
+  window.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); onMove(e); } }, { passive: false });
   window.addEventListener('touchend', onUp);
 })();
 
 /* Reset */
 $('#reset').onclick = () => {
   Object.assign(S, {
-    // No-effect baseline
-    ev: 0.0,
-    flashStrength: 0.0,
-    flashFalloff: 4.5,
-    flashCenterX: 0.50,
-    flashCenterY: 0.50,
-
-    scurve: 0.0,
-    blacks: 0.0,
-    blackLift: 0.0,
-    knee: 0.0,
-
-    shadowCool: 0.0,
-    highlightWarm: 0.0,
-    greenShadows: 0.0,
-    magentaMids: 0.0,
-
-    bloomThreshold: 1.0,
-    bloomRadius: 48.9,
-    bloomIntensity: 0.0,
-    bloomWarm: 0.0,
-    halation: 0.0,
-
-    vignette: 0.0,
-    vignettePower: 2.5,
-    ca: 0.0,
-    clarity: 0.0,
-
-    // Motion blur (off)
-    shutterUI: 0.0,
-    shake: 0.0,
-    motionAngle: 0.0,
-
-    // Grain neutral
-    grainASA: 800,
-    grainDevelop: 0.0,
-    grainStock: 0.0,
-    grainChroma: 0.0,
-    grainMagnify: 1.0,
-
-    // Handheld (VIDEO ONLY) off on reset
-    shakeHandheld: 0.0,
-    shakeFreq: 2.0,
-    shakeAmpX: 8.0,
-    shakeAmpY: 6.0,
-    shakeRot: 0.4
+    ev: 0.0, flashStrength: 0.0, flashFalloff: 4.5, flashCenterX: 0.50, flashCenterY: 0.50,
+    scurve: 0.0, blacks: 0.0, blackLift: 0.0, knee: 0.0,
+    shadowCool: 0.0, highlightWarm: 0.0, greenShadows: 0.0, magentaMids: 0.0,
+    bloomThreshold: 1.0, bloomRadius: 48.9, bloomIntensity: 0.0, bloomWarm: 0.0, halation: 0.0,
+    vignette: 0.0, vignettePower: 2.5, ca: 0.0, clarity: 0.0,
+    shutterUI: 0.0, shake: 0.0, motionAngle: 0.0,
+    grainASA: 800, grainDevelop: 0.0, grainStock: 0.0, grainChroma: 0.0, grainMagnify: 1.0,
+    shakeHandheld: 0.3, shakeFreq: 2.0, shakeAmpX: 8.0, shakeAmpY: 6.0, shakeRot: 0.4
   });
-
   [
     'ev', 'flashStrength', 'flashFalloff',
     'scurve', 'blacks', 'blackLift', 'knee',
@@ -825,31 +784,26 @@ $('#reset').onclick = () => {
     const el = $('#' + id), lbl = $(`.val[data-for="${id}"]`);
     if (el && lbl) {
       el.value = S[id];
-      lbl.textContent = (id === 'motionAngle') ? S[id].toFixed(0) : fmt(S[id], el.step);
+      lbl.textContent = id === 'motionAngle' ? S[id].toFixed(0) : fmt(S[id], el.step);
     }
   });
-
   $('#shutterUI').value = S.shutterUI;
   $('#shutterLabel').textContent = formatShutter(sliderToShutterSeconds(S.shutterUI));
-
-  // Refresh flash pad dot
-  (() => {
-    const r = $('#flashPad').getBoundingClientRect();
-    $('#flashDot').style.left = ((1.0 - S.flashCenterX) * r.width) + 'px';
-    $('#flashDot').style.top = ((1.0 - S.flashCenterY) * r.height) + 'px';
-  })();
-
   S.needsRender = true;
 };
 
 /* Tar Builder */
 function buildTar(entries) {
   const blocks = [];
-  function padOctal(n, len) { const s = n.toString(8); return ('000000000000'.slice(s.length) + s).slice(-len) + '\0'; }
-  function putString(buf, off, str) { for (let i = 0; i < str.length; i++) buf[off + i] = str.charCodeAt(i) & 0xFF; }
+  function padOctal(n, len) {
+    const s = n.toString(8);
+    return ('000000000000'.slice(s.length) + s).slice(-len) + '\0';
+  }
+  function putString(buf, off, str) {
+    for (let i = 0; i < str.length; i++) buf[off + i] = str.charCodeAt(i) & 0xFF;
+  }
   function headerFor(name, size) {
-    const buf = new Uint8Array(512);
-    const prefix = name.length > 100 ? name.slice(0, name.lastIndexOf('/')) : '';
+    const buf = new Uint8Array(512), prefix = name.length > 100 ? name.slice(0, name.lastIndexOf('/')) : '';
     putString(buf, 0, name.slice(0, 100));
     putString(buf, 100, '0000777\0');
     putString(buf, 108, '0000000\0');
@@ -863,13 +817,13 @@ function buildTar(entries) {
     putString(buf, 297, 'user');
     if (prefix) putString(buf, 345, prefix.slice(0, 155));
     for (let i = 148; i < 156; i++) buf[i] = 0x20;
-    let sum = 0; for (let i = 0; i < 512; i++) sum += buf[i];
+    let sum = 0;
+    for (let i = 0; i < 512; i++) sum += buf[i];
     const chk = (sum.toString(8).padStart(6, '0')).slice(-6) + '\0 ';
     putString(buf, 148, chk);
     return buf;
   }
   function padBlock(n) { return (512 - (n % 512)) % 512; }
-
   for (const { name, data } of entries) {
     const size = data.byteLength;
     blocks.push(headerFor(name, size));
@@ -877,11 +831,8 @@ function buildTar(entries) {
     const pad = padBlock(size);
     if (pad) blocks.push(new Uint8Array(pad));
   }
-  blocks.push(new Uint8Array(512));
-  blocks.push(new Uint8Array(512));
-
-  const total = blocks.reduce((a, b) => a + b.length, 0);
-  const out = new Uint8Array(total);
+  blocks.push(new Uint8Array(512)); blocks.push(new Uint8Array(512));
+  const total = blocks.reduce((a, b) => a + b.length, 0), out = new Uint8Array(total);
   let off = 0;
   for (const b of blocks) { out.set(b, off); off += b.length; }
   return new Blob([out], { type: 'application/x-tar' });
@@ -892,7 +843,6 @@ document.getElementById('view-fit').onclick = () => {
   S.viewMode = 'fit';
   document.getElementById('view-fit').classList.add('on');
   document.getElementById('view-1x').classList.remove('on');
-  S.needsRender = true;
   layout();
 };
 document.getElementById('view-1x').onclick = () => {
@@ -900,7 +850,6 @@ document.getElementById('view-1x').onclick = () => {
   document.getElementById('view-1x').classList.add('on');
   document.getElementById('view-fit').classList.remove('on');
   S.panX = undefined; S.panY = undefined;
-  S.needsRender = true;
   layout();
 };
 layout();
