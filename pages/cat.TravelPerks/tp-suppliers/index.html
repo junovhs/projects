@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Quick Reference</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 15px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter {
+            padding: 6px 12px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            width: 200px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend button {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .legend button:hover {
+            background: #3a3a3a;
+        }
+
+        .legend button.active {
+            background: #444;
+            border-color: #666;
+        }
+
+        .legend .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 2px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .supplier {
+            background: #2a2a2a;
+            padding: 8px 10px;
+            font-size: 12px;
+            text-decoration: none;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.15s ease;
+            border: 1px solid #333;
+            position: relative;
+        }
+
+        .supplier:hover {
+            background: #3a3a3a;
+            transform: translateX(2px);
+            border-color: #666;
+        }
+
+        .supplier-name {
+            flex: 1;
+            margin-right: 8px;
+        }
+
+        .tags {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tag {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* HIGHLY CONTRASTING COLORS */
+        .tag.pop { background: #FFD700; } /* Bright Gold */
+        .tag.lux { background: #FF00FF; } /* Magenta */
+        .tag.riv { background: #00FFFF; } /* Cyan */
+        .tag.adv { background: #00FF00; } /* Lime Green */
+        .tag.dis { background: #FF0000; } /* Pure Red */
+        .tag.res { background: #FF8C00; } /* Dark Orange */
+        .tag.tour { background: #FFFFFF; } /* White */
+        .tag.rail { background: #9370DB; } /* Medium Purple */
+
+        .filtered-out {
+            opacity: 0.1;
+            display: none;
+        }
+
+        .highlight {
+            background: #444 !important;
+            border-color: #FFD700 !important;
+        }
+
+        .count {
+            font-size: 11px;
+            opacity: 0.7;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .clear-btn {
+            padding: 4px 10px;
+            background: #555;
+            border: 1px solid #666;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .clear-btn:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>All Suppliers - Quick Reference</h1>
+    </div>
+
+    <div class="controls">
+        <input type="text" class="filter" id="filter" placeholder="Filter by name..." autocomplete="off">
+        <button class="clear-btn" id="clearAll">Clear All Filters</button>
+    </div>
+    
+    <div class="legend" id="legend">
+        <button data-cat="pop"><span class="dot" style="background:#FFD700"></span>Popular</button>
+        <button data-cat="lux"><span class="dot" style="background:#FF00FF"></span>Luxury</button>
+        <button data-cat="riv"><span class="dot" style="background:#00FFFF"></span>River</button>
+        <button data-cat="adv"><span class="dot" style="background:#00FF00"></span>Adventure</button>
+        <button data-cat="dis"><span class="dot" style="background:#FF0000"></span>Disney</button>
+        <button data-cat="res"><span class="dot" style="background:#FF8C00"></span>Resort</button>
+        <button data-cat="tour"><span class="dot" style="background:#FFFFFF"></span>Tour</button>
+        <button data-cat="rail"><span class="dot" style="background:#9370DB"></span>Rail</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+    
+    <div class="count">Showing <span id="count">82</span> of 82</div>
+
+    <script>
+        const suppliers = [
+            {name: "Abercrombie & Kent", url: "abercrombie-kent", cats: ["tour"]},
+            {name: "Adventures by Disney", url: "adventures-by-disney", cats: ["dis", "tour"]},
+            {name: "African Travel", url: "african-travel", cats: ["tour"]},
+            {name: "Ama Waterways", url: "ama", cats: ["riv"]},
+            {name: "American Airline Vacations", url: "american-airline-vacations", cats: ["res"]},
+            {name: "American Cruise Line", url: "american-cruise-line", cats: ["lux", "riv"]},
+            {name: "Atlantis Paradise Island Bahamas", url: "atlantis", cats: ["res"]},
+            {name: "Atlas Ocean Voyages", url: "atlas", cats: ["lux"]},
+            {name: "Aulani, A Disney Resort & Spa", url: "disney-aulani", cats: ["dis", "res"]},
+            {name: "Avalon Waterways", url: "avalon", cats: ["riv"]},
+            {name: "Azamara", url: "azamara", cats: ["lux"]},
+            {name: "Beaches", url: "beaches", cats: ["res"]},
+            {name: "BlueSky Tours", url: "bluesky-tours", cats: ["tour"]},
+            {name: "Breathless", url: "breathless", cats: ["res"]},
+            {name: "Carnival", url: "carnival", cats: ["pop"]},
+            {name: "Celebrity Cruises", url: "celebrity", cats: ["pop"]},
+            {name: "CIE Tours", url: "cie", cats: ["tour"]},
+            {name: "Club Med", url: "club-med", cats: ["res"]},
+            {name: "Collette", url: "collette", cats: ["tour"]},
+            {name: "Costa Cruises", url: "costa", cats: ["pop"]},
+            {name: "CroisiEurope", url: "croisieurope", cats: ["riv"]},
+            {name: "Crystal Cruises", url: "crystal", cats: ["lux"]},
+            {name: "Cunard", url: "cunard", cats: ["lux"]},
+            {name: "Delta Vacations", url: "delta-vacations", cats: ["res"]},
+            {name: "Disney Cruise Line", url: "disney-cruise-line", cats: ["pop", "dis"]},
+            {name: "Disneyland", url: "disneyland", cats: ["dis", "res"]},
+            {name: "DisneyWorld", url: "disneyworld", cats: ["dis", "res"]},
+            {name: "Dreams", url: "dreams", cats: ["res"]},
+            {name: "El Dorado Spa Resorts & Hotels", url: "el-dorado", cats: ["res"]},
+            {name: "Emerald Cruises", url: "emerald", cats: ["lux"]},
+            {name: "Excellence Resorts", url: "excellence", cats: ["res"]},
+            {name: "Explora Journeys", url: "explora", cats: ["lux"]},
+            {name: "Four Seasons Yachts", url: "four-seasons-yachts", cats: ["lux"]},
+            {name: "Funjet", url: "funjet", cats: ["res"]},
+            {name: "G Adventures", url: "g-adventures", cats: ["tour"]},
+            {name: "Globus Journeys", url: "globus", cats: ["tour"]},
+            {name: "Great Safaris", url: "great-safaris", cats: ["tour"]},
+            {name: "Hard Rock Hotels", url: "hardrock", cats: ["res"]},
+            {name: "Holland America Line", url: "holland-america", cats: ["pop"]},
+            {name: "HX Expeditions", url: "hurtigruten", cats: ["adv"]},
+            {name: "Iberostar Hotels & Resorts", url: "iberostar", cats: ["res"]},
+            {name: "Karisma Hotels & Resorts", url: "karisma", cats: ["res"]},
+            {name: "Lindblad Expeditions & National Geographic", url: "lindblad-national-geographic", cats: ["adv"]},
+            {name: "Meet & Greet Italy", url: "meet-and-greet-italy", cats: ["tour"]},
+            {name: "Melia", url: "melia", cats: ["res"]},
+            {name: "MSC Cruises", url: "msc", cats: ["pop"]},
+            {name: "Norwegian", url: "norwegian", cats: ["pop"]},
+            {name: "Oceania Cruises", url: "oceania", cats: ["lux"]},
+            {name: "Outrigger Hotels & Resorts", url: "outrigger", cats: ["res"]},
+            {name: "Palace Resorts", url: "palace-resorts", cats: ["res"]},
+            {name: "Paul Gauguin Cruises", url: "paul-gauguin", cats: ["lux"]},
+            {name: "Ponant", url: "ponant", cats: ["lux"]},
+            {name: "Princess", url: "princess", cats: ["pop"]},
+            {name: "Regent Seven Seas Cruises", url: "regent", cats: ["lux"]},
+            {name: "Ritz-Carlton Yacht Collection", url: "ritz-carlton-yacht-collection", cats: ["lux"]},
+            {name: "RIU Hotels & Resorts", url: "riu", cats: ["res"]},
+            {name: "Riverside Cruises", url: "riverside", cats: ["riv"]},
+            {name: "Riviera River Cruises", url: "riviera", cats: ["riv"]},
+            {name: "Roadtrips", url: "roadtrips", cats: ["tour"]},
+            {name: "Rocky Mountaineer", url: "rocky-mountaineer", cats: ["tour", "rail"]},
+            {name: "Royal Caribbean", url: "royal-caribbean", cats: ["pop"]},
+            {name: "Sandals", url: "sandals", cats: ["res"]},
+            {name: "Scenic Eclipse Ocean Voyages", url: "scenic-eclipse", cats: ["lux", "adv"]},
+            {name: "Scenic River", url: "scenic", cats: ["riv"]},
+            {name: "Seabourn", url: "seabourn", cats: ["lux"]},
+            {name: "Secrets", url: "secrets", cats: ["res"]},
+            {name: "Silversea", url: "silversea", cats: ["lux"]},
+            {name: "Southwest Vacations", url: "southwest-vacations", cats: ["res"]},
+            {name: "Star Clippers", url: "star-clippers", cats: ["lux"]},
+            {name: "Tauck Cruises", url: "tauck-cruises", cats: ["lux"]},
+            {name: "Tauck Tours", url: "tauck-tours", cats: ["tour", "riv"]},
+            {name: "Trafalgar", url: "trafalgar", cats: ["tour"]},
+            {name: "UnCruise Adventures", url: "uncruise", cats: ["adv"]},
+            {name: "United Vacations", url: "united-vacations", cats: ["res"]},
+            {name: "Uniworld", url: "uniworld", cats: ["riv"]},
+            {name: "Viking Ocean", url: "viking-ocean", cats: ["lux", "adv"]},
+            {name: "Viking River", url: "viking-river", cats: ["riv"]},
+            {name: "Villas of Distinction", url: "villas-of-distinction", cats: ["res"]},
+            {name: "Virgin Voyages", url: "virgin", cats: ["pop"]},
+            {name: "Windstar", url: "windstar", cats: ["lux"]},
+            {name: "Zoëtry Wellness & Spa Resorts", url: "zoetry", cats: ["res"]}
+        ];
+
+        // Sort alphabetically
+        suppliers.sort((a, b) => a.name.localeCompare(b.name));
+
+        const grid = document.getElementById('grid');
+        const filterInput = document.getElementById('filter');
+        const count = document.getElementById('count');
+        const legend = document.getElementById('legend');
+        const clearBtn = document.getElementById('clearAll');
+        
+        let activeCategories = new Set();
+        let textFilter = '';
+
+        // Render grid
+        function renderGrid() {
+            grid.innerHTML = suppliers.map(s => {
+                const tags = s.cats.map(cat => `<span class="tag ${cat}"></span>`).join('');
+                return `<a href="https://travelperks.com/${s.url}" class="supplier" target="_blank" data-cats="${s.cats.join(' ')}">
+                    <span class="supplier-name">${s.name}</span>
+                    <span class="tags">${tags}</span>
+                </a>`;
+            }).join('');
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const items = document.querySelectorAll('.supplier');
+            let visible = 0;
+            
+            items.forEach(item => {
+                const name = item.querySelector('.supplier-name').textContent.toLowerCase();
+                const cats = item.dataset.cats.split(' ');
+                
+                // Check text filter
+                const matchesText = !textFilter || name.includes(textFilter);
+                
+                // Check category filter
+                const matchesCategory = activeCategories.size === 0 || 
+                    cats.some(cat => activeCategories.has(cat));
+                
+                if (matchesText && matchesCategory) {
+                    item.classList.remove('filtered-out');
+                    if (textFilter && name.includes(textFilter)) {
+                        item.classList.add('highlight');
+                    } else {
+                        item.classList.remove('highlight');
+                    }
+                    visible++;
+                } else {
+                    item.classList.add('filtered-out');
+                }
+            });
+            
+            count.textContent = visible;
+        }
+
+        // Category filter buttons
+        legend.addEventListener('click', function(e) {
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            const cat = button.dataset.cat;
+            if (activeCategories.has(cat)) {
+                activeCategories.delete(cat);
+                button.classList.remove('active');
+            } else {
+                activeCategories.add(cat);
+                button.classList.add('active');
+            }
+            
+            applyFilters();
+        });
+
+        // Text filter
+        filterInput.addEventListener('input', function() {
+            textFilter = this.value.toLowerCase();
+            applyFilters();
+        });
+
+        // Clear all filters
+        clearBtn.addEventListener('click', function() {
+            activeCategories.clear();
+            textFilter = '';
+            filterInput.value = '';
+            document.querySelectorAll('.legend button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            applyFilters();
+        });
+
+        renderGrid();
+    </script>
+</body>
+</html>
