@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>No‑Deal Suppliers Checker</title>
+  <style>
+    :root{
+      --primary:#1a73e8;--primary-dark:#1557b0;--bg:#0f172a;--panel:#111827;--text:#e5e7eb;--muted:#9ca3af;--border:#1f2937;--chip:#374151;--danger:#dc2626;--ok:#16a34a
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial}
+    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{font-size:28px;font-weight:650;margin:0 0 8px;color:#fff}
+    p.lead{color:var(--muted);margin:0 0 20px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin:14px 0;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+    .grid{display:grid;gap:14px}
+    @media(min-width:960px){.grid{grid-template-columns:1.2fr .8fr}}
+
+    label{display:block;font-size:13px;letter-spacing:.2px;color:var(--muted);margin-bottom:6px}
+    textarea, input[type="text"]{width:100%;background:#0b1220;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 12px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,"Liberation Mono","Courier New",monospace}
+    textarea{min-height:180px;resize:vertical}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{appearance:none;border:none;background:var(--primary);color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;transition:.2s box-shadow,.2s transform,.2s background}
+    .btn:hover{background:var(--primary-dark);box-shadow:0 8px 20px rgba(26,115,232,.25);transform:translateY(-1px)}
+    .btn.secondary{background:#0b1220;color:#cbd5e1;border:1px solid var(--border)}
+    .btn.ghost{background:transparent;border:1px dashed var(--border);color:#cbd5e1}
+    small.hint{color:var(--muted)}
+
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}
+    .stat{display:flex;gap:10px;align-items:center}
+    .stat b{font-size:18px}
+
+    .list{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow:auto;margin-top:8px}
+    .item{display:flex;align-items:center;gap:10px;background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.missing{background:var(--danger)}
+    .dot.ok{background:var(--ok)}
+    .muted{color:var(--muted)}
+    .kicker{font-size:12px;color:var(--muted)}
+    .code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:12px;background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:8px}
+    .pill{border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:12px;background:#0b1220}
+
+    .test-pass{color:#22c55e}
+    .test-fail{color:#ef4444}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>No‑Deal Suppliers Checker</h1>
+    <p class="lead">Paste your site’s deals JSON and instantly see which suppliers from your master list currently have <em>no live deals</em>.</p>
+
+    <div class="panel grid">
+      <div>
+        <label for="json">Deals JSON (array of objects; uses <span class="pill">status</span> and <span class="pill">shopOverline</span>)</label>
+        <textarea id="json" placeholder='[
+  {"status":"live","shopOverline":"Princess Cruises",...},
+  {"status":"draft","shopOverline":"Sandals",...}
+]'></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="checkBtn">Check Suppliers</button>
+          <button class="btn secondary" id="copyMissingBtn">Copy Missing</button>
+          <button class="btn ghost" id="insertTestBtn">Insert Demo JSON</button>
+          <button class="btn ghost" id="clearBtn">Clear</button>
+        </div>
+        <div style="margin-top:8px"><small class="hint">Only items with <code class="code">status === "live"</code> are considered.</small></div>
+      </div>
+      <div>
+        <label for="customSuppliers">Optional: custom supplier list (one per line). Leave blank to use the built‑in master list.</label>
+        <textarea id="customSuppliers" placeholder="(optional)\nRoyal Caribbean\nPrincess\nSandals\n...\n"></textarea>
+        <div class="row" style="margin-top:8px">
+          <span class="kicker">Active source:</span>
+          <div id="sourceChips" class="chips"></div>
+        </div>
+        <div style="margin-top:10px" class="kicker">Name reconciliation uses smart aliases so “Princess Cruises” counts toward “Princess”, etc.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div class="stat"><span class="dot missing"></span> <b id="missingCount">0</b> <span class="muted">with no live deals</span></div>
+        <div class="stat"><span class="dot ok"></span> <b id="coveredCount">0</b> <span class="muted">covered</span></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
+        <div>
+          <div class="kicker">Suppliers with <strong>no live deals</strong></div>
+          <div id="missingList" class="list"></div>
+        </div>
+        <div>
+          <div class="kicker">Suppliers with live deals</div>
+          <div id="coveredList" class="list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="kicker" style="margin-bottom:6px">Unmatched inputs (FYI)</div>
+      <div id="unmatched" class="list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="kicker">Built‑in test cases</div>
+        <button class="btn secondary" id="runTestsBtn">Run tests</button>
+      </div>
+      <div id="testResults" class="list" style="margin-top:8px"></div>
+    </div>
+
+    <div class="kicker">Tip: Keep this file as <code class="code">no-deal-suppliers.html</code> and open locally—no build tools required.</div>
+  </div>
+
+  <script>
+    // ---- Master supplier list (from your "Supplier Quick Reference" app) ----
+    // Only the names are needed here.
+    const MASTER_SUPPLIERS = [
+      "Abercrombie & Kent","Adventures by Disney","African Travel","Ama Waterways","American Airline Vacations","American Cruise Line","Atlantis Paradise Island Bahamas","Atlas Ocean Voyages","Aulani, A Disney Resort & Spa","Avalon Waterways","Azamara","Beaches","BlueSky Tours","Breathless","Carnival","Celebrity Cruises","CIE Tours","Club Med","Collette","Costa Cruises","CroisiEurope","Crystal Cruises","Cunard","Delta Vacations","Disney Cruise Line","Disneyland","DisneyWorld","Dreams","El Dorado Spa Resorts & Hotels","Emerald Cruises","Excellence Resorts","Explora Journeys","Four Seasons Yachts","Funjet","G Adventures","Globus Journeys","Great Safaris","Hard Rock Hotels","Holland America Line","HX Expeditions","Iberostar Hotels & Resorts","Karisma Hotels & Resorts","Lindblad Expeditions & National Geographic","Meet & Greet Italy","Melia","MSC Cruises","Norwegian","Oceania Cruises","Outrigger Hotels & Resorts","Palace Resorts","Paul Gauguin Cruises","Ponant","Princess","Regent Seven Seas Cruises","Ritz-Carlton Yacht Collection","RIU Hotels & Resorts","Riverside Cruises","Riviera River Cruises","Roadtrips","Rocky Mountaineer","Royal Caribbean","Sandals","Scenic Eclipse Ocean Voyages","Scenic River","Seabourn","Secrets","Silversea","Southwest Vacations","Star Clippers","Tauck Cruises","Tauck Tours","Trafalgar","UnCruise Adventures","United Vacations","Uniworld","Viking Ocean","Viking River","Villas of Distinction","Virgin Voyages","Windstar","Zoëtry Wellness & Spa Resorts"
+    ];
+
+    // ---- Name normalizer (keep in sync with your other tool’s approach) ----
+    const normalize = (s) => (s||"")
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Build a quick lookup map for supplier list
+    const supplierLookup = (()=>{
+      const map = new Map();
+      MASTER_SUPPLIERS.forEach(name => {
+        map.set(normalize(name), name);
+      });
+      return map;
+    })();
+
+    // ---- Smart alias map so deal-side labels can map to supplier list names ----
+    // Keys are normalized deal-side names; values are display names from MASTER_SUPPLIERS.
+    // Values may be a single string or an array of strings to cover umbrella brands.
+    const DEAL_TO_SUPPLIER_ALIAS = new Map([
+      // Cruise line variants
+      ["norwegian cruise line","Norwegian"],
+      ["princess cruises","Princess"],
+      ["viking ocean","Viking Ocean"],["viking ocean cruises","Viking Ocean"],
+      ["viking river","Viking River"],["viking river cruises","Viking River"],
+      ["windstar cruises","Windstar"],
+      ["american cruise lines","American Cruise Line"],
+      ["scenic eclipse","Scenic Eclipse Ocean Voyages"],
+
+      // River brands & nuances
+      ["amawaterways","Ama Waterways"],
+      ["uniworld boutique river cruises","Uniworld"],
+      ["scenic river cruises","Scenic River"],
+      ["tauck river cruising","Tauck Tours"],
+
+      // Resorts & tours naming quirks
+      ["beaches resorts","Beaches"],["secrets resorts","Secrets"],["dreams resorts","Dreams"],
+      ["el dorado spa resorts","El Dorado Spa Resorts & Hotels"],
+      ["iberostar","Iberostar Hotels & Resorts"],
+      ["melia hotels","Melia"],
+      ["hard rock hotels","Hard Rock Hotels"],
+      ["atlantis paradise island","Atlantis Paradise Island Bahamas"],
+      ["zoetry wellness spa resorts","Zoëtry Wellness & Spa Resorts"],
+      ["aulan i","Aulani, A Disney Resort & Spa"],
+      ["aulani","Aulani, A Disney Resort & Spa"],
+      ["american airlines vacations","American Airline Vacations"],
+
+      // Disney variants
+      ["disney cruises","Disney Cruise Line"],
+      ["walt disney world","DisneyWorld"],
+
+      // Exact matches we still include for clarity
+      ["msc cruises","MSC Cruises"],["royal caribbean","Royal Caribbean"],["celebrity cruises","Celebrity Cruises"],
+      ["holland america line","Holland America Line"],["carnival cruise line","Carnival"],["carnival","Carnival"],
+      ["costa cruises","Costa Cruises"],["azamara","Azamara"],["cunard","Cunard"],["seabourn","Seabourn"],
+      ["regent seven seas cruises","Regent Seven Seas Cruises"],["oceania cruises","Oceania Cruises"],["oceania","Oceania Cruises"],["silversea","Silversea"],
+      ["explora journeys","Explora Journeys"],["crystal cruises","Crystal Cruises"],["ritz carlton yacht collection","Ritz-Carlton Yacht Collection"],
+      ["atlas ocean voyages","Atlas Ocean Voyages"],["emerald cruises","Emerald Cruises"],["paul gauguin cruises","Paul Gauguin Cruises"],["paul gauguin","Paul Gauguin Cruises"],
+      ["ponant","Ponant"],["star clippers","Star Clippers"],["tauck cruises","Tauck Cruises"],
+      ["lindblad expeditions","Lindblad Expeditions & National Geographic"],["hurtigruten","HX Expeditions"],
+      ["uncruise adventures","UnCruise Adventures"],
+      ["abercrombie and kent","Abercrombie & Kent"],["g adventures","G Adventures"],["globus journeys","Globus Journeys"],["globus","Globus Journeys"],
+      ["trafalgar","Trafalgar"],["collette","Collette"],["cie tours","CIE Tours"],["great safaris","Great Safaris"],
+      ["rocky mountaineer","Rocky Mountaineer"],["riverside cruises","Riverside Cruises"],["riviera river cruises","Riviera River Cruises"],
+      ["croisieurope","CroisiEurope"],["avalon waterways","Avalon Waterways"],
+      ["outrigger hotels resorts","Outrigger Hotels & Resorts"],["palace resorts","Palace Resorts"],["riu hotels resorts","RIU Hotels & Resorts"],
+      ["villas of distinction","Villas of Distinction"],
+      ["delta vacations","Delta Vacations"],["united vacations","United Vacations"],["southwest vacations","Southwest Vacations"],
+      ["funjet","Funjet"],["bluesky tours","BlueSky Tours"],
+      ["meet and greet italy","Meet & Greet Italy"],
+      ["african travel","African Travel"],
+      ["atlantis","Atlantis Paradise Island Bahamas"],
+      ["disneyland","Disneyland"],["disneyworld","DisneyWorld"],
+
+      // Umbrella / multi-target
+      ["scenic", ["Scenic River","Scenic Eclipse Ocean Voyages"]],
+      ["scenic and emerald cruises", ["Scenic River","Scenic Eclipse Ocean Voyages","Emerald Cruises"]],
+      ["viking expedition","Viking Ocean"]
+    ]);
+
+    // Umbrella brand → multiple suppliers (covers both river and ocean)
+    DEAL_TO_SUPPLIER_ALIAS.set("viking cruises", ["Viking Ocean", "Viking River"]);
+
+    // Helper: resolve a deal-side supplier label to one or more master supplier names
+    function resolveToMaster(dealLabel){
+      const n = normalize(dealLabel);
+      // exact alias first (may return string or array)
+      if (DEAL_TO_SUPPLIER_ALIAS.has(n)) return DEAL_TO_SUPPLIER_ALIAS.get(n);
+      // direct lookup against master list
+      if (supplierLookup.has(n)) return supplierLookup.get(n);
+      // heuristic fallbacks (strip common suffixes)
+      const soft = n
+        .replace(/ cruise lines?$/, '')
+        .replace(/ cruises?$/, '')
+        .replace(/ resorts?$/, '')
+        .replace(/ hotels?$/, '')
+        .trim();
+      if (DEAL_TO_SUPPLIER_ALIAS.has(soft)) return DEAL_TO_SUPPLIER_ALIAS.get(soft);
+      if (supplierLookup.has(soft)) return supplierLookup.get(soft);
+
+      // final attempt: split on connectors and resolve parts, then merge
+      const aggregate = new Set();
+      const tryParts = (str) => {
+        const parts = str.split(/\s*(?:,|\/|&|\band\b)\s*/);
+        if (parts.length <= 1) return;
+        for (const p of parts){
+          const pp = p.trim();
+          if (!pp) continue;
+          const ppSoft = pp
+            .replace(/ cruise lines?$/, '')
+            .replace(/ cruises?$/, '')
+            .replace(/ resorts?$/, '')
+            .replace(/ hotels?$/, '')
+            .trim();
+          let r = DEAL_TO_SUPPLIER_ALIAS.get(pp) || supplierLookup.get(pp) || DEAL_TO_SUPPLIER_ALIAS.get(ppSoft) || supplierLookup.get(ppSoft);
+          if (Array.isArray(r)) r.forEach(v=>aggregate.add(v));
+          else if (r) aggregate.add(r);
+        }
+      };
+      tryParts(n);
+      tryParts(soft);
+      if (aggregate.size) return [...aggregate];
+
+      return null; // unmatched
+    }
+
+    // Pure function so we can unit‑test the core logic
+    function computeCoverage(deals, activeSuppliers){
+      const masterSet = new Set(activeSuppliers);
+      const covered = new Set();
+      const unmatched = new Map(); // normalized -> Set of original strings
+
+      for (const d of deals){
+        if(!d || typeof d !== 'object') continue;
+        if(String(d.status).toLowerCase() !== 'live') continue;
+        const raw = d.shopOverline ?? d.supplier ?? d.brand ?? '';
+        if(!raw) continue;
+
+        const resolved = resolveToMaster(raw); // string | array | null
+        const names = Array.isArray(resolved) ? resolved : (resolved ? [resolved] : []);
+
+        if (names.length){
+          names.forEach(name => { if(masterSet.has(name)) covered.add(name); });
+        } else {
+          const key = normalize(raw);
+          if(!unmatched.has(key)) unmatched.set(key, new Set());
+          unmatched.get(key).add(String(raw));
+        }
+      }
+
+      const missing = [...masterSet].filter(name => !covered.has(name)).sort((a,b)=>a.localeCompare(b));
+      const coveredArr = [...covered].sort((a,b)=>a.localeCompare(b));
+
+      // Derive a simple unmatched list (skip ones that would resolve after final pass)
+      const unmatchedRows = [];
+      unmatched.forEach((examples) => {
+        const first = [...examples][0];
+        const trySoft = resolveToMaster(first);
+        const tryList = Array.isArray(trySoft) ? trySoft : (trySoft ? [trySoft] : []);
+        if (!tryList.some(n => masterSet.has(n))) unmatchedRows.push(first);
+      });
+
+      return {missing, coveredArr, unmatchedRows};
+    }
+
+    // In‑UI render helpers
+    const el = id => document.getElementById(id);
+    const missingList = el('missingList');
+    const coveredList = el('coveredList');
+    const unmatchedList = el('unmatched');
+
+    function renderList(container, items, type){
+      container.innerHTML = '';
+      if (!items || items.length === 0){
+        const d = document.createElement('div');
+        d.className = 'item';
+        d.innerHTML = `<span class="muted">— none —</span>`;
+        container.appendChild(d);
+        return;
+      }
+      items.forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.innerHTML = `<span class="dot ${type==='missing'?'missing':'ok'}"></span><span>${name}</span>`;
+        container.appendChild(row);
+      });
+    }
+
+    function parseCustomSupplierList(){
+      const raw = el('customSuppliers').value.trim();
+      if (!raw) return null;
+      return raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    }
+
+    function refreshSourceChips(usingCustom){
+      const chips = el('sourceChips');
+      chips.innerHTML = '';
+      const span = (txt)=>{const c=document.createElement('div');c.className='chip';c.textContent=txt;return c};
+      chips.appendChild(span(usingCustom? 'Custom supplier list' : 'Built‑in master list'));
+    }
+
+    function clearAll(){
+      el('json').value='';
+      el('customSuppliers').value='';
+      refreshSourceChips(false);
+      renderList(missingList,[], 'missing');
+      renderList(coveredList,[], 'ok');
+      renderList(unmatchedList,[], 'missing');
+      el('missingCount').textContent='0';
+      el('coveredCount').textContent='0';
+    }
+
+    function run(){
+      let deals; try{ deals = JSON.parse(el('json').value || '[]'); }catch(e){
+        alert('Invalid JSON. Paste an array of deal objects.'); return;
+      }
+      if(!Array.isArray(deals)) { alert('JSON must be an array.'); return; }
+
+      const custom = parseCustomSupplierList();
+      const activeSuppliers = (custom && custom.length>0) ? custom : MASTER_SUPPLIERS;
+      refreshSourceChips(!!custom);
+
+      const {missing, coveredArr, unmatchedRows} = computeCoverage(deals, activeSuppliers);
+
+      // Render
+      renderList(missingList, missing, 'missing');
+      renderList(coveredList, coveredArr, 'ok');
+      renderList(unmatchedList, unmatchedRows.sort((a,b)=>a.localeCompare(b)), 'missing');
+
+      el('missingCount').textContent = String(missing.length);
+      el('coveredCount').textContent = String(coveredArr.length);
+
+      // Hook copy button
+      el('copyMissingBtn').onclick = () => {
+        if(missing.length===0){alert('No missing suppliers.');return;}
+        navigator.clipboard.writeText(missing.join('\n')).then(()=>{
+          alert(`${missing.length} missing supplier name(s) copied to clipboard.`);
+        }).catch(err=>alert('Copy failed: '+err));
+      };
+    }
+
+    // ---------- Demo JSON & Tests ----------
+    const DEMO_JSON = [
+      // 1) Umbrella brand should count for both river & ocean
+      {"status":"live","shopOverline":"Viking Cruises","title":"EXCLUSIVE! Get maximum discounts & bonuses on your next Viking sailing!"},
+      // 2) Standard alias mapping should work
+      {"status":"live","shopOverline":"Princess Cruises","title":"Princess Deal"},
+      // 3) Non-live should be ignored
+      {"status":"draft","shopOverline":"Sandals","title":"Draft should not count"},
+      // 4) Heuristic suffix removal (e.g., "Cruise Line")
+      {"status":"live","shopOverline":"Carnival Cruise Line","title":"Carnival Deal"},
+      // 5) Unmatched brand to exercise unmatched bucket
+      {"status":"live","shopOverline":"Totally Unknown Brand","title":"Unknown"},
+      // 6) Short-name aliases
+      {"status":"live","shopOverline":"Aulani","title":"Aulani Short"},
+      {"status":"live","shopOverline":"Globus","title":"Globus Short"},
+      {"status":"live","shopOverline":"Oceania","title":"Oceania Short"},
+      {"status":"live","shopOverline":"Paul Gauguin","title":"Paul Gauguin Short"},
+      // 7) Multi-brand connectors
+      {"status":"live","shopOverline":"Scenic & Emerald Cruises","title":"Scenic + Emerald Combo"},
+      {"status":"live","shopOverline":"Viking Ocean & Expedition","title":"Viking Ocean + Expedition"},
+      // 8) Known combo with & that should still resolve to the full brand name
+      {"status":"live","shopOverline":"Lindblad Expeditions & National Geographic","title":"Lindblad Full"}
+    ];
+
+    function insertDemo(){
+      el('json').value = JSON.stringify(DEMO_JSON, null, 2);
+    }
+
+    function runTests(){
+      const results = el('testResults');
+      results.innerHTML = '';
+      const push = (ok, msg) => {
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.innerHTML = `<span class="${ok?'test-pass':'test-fail'}">${ok?'✔':'✖'}</span> <span>${msg}</span>`;
+        results.appendChild(row);
+      };
+
+      // Use master list by default
+      const {missing, coveredArr, unmatchedRows} = computeCoverage(DEMO_JSON, MASTER_SUPPLIERS);
+
+      // T1: Viking umbrella → both covered
+      push(coveredArr.includes('Viking Ocean') && coveredArr.includes('Viking River'), 'Viking umbrella label covers both Ocean and River');
+
+      // T2: Princess Cruises → Princess
+      push(coveredArr.includes('Princess'), 'Princess Cruises resolves to Princess');
+
+      // T3: Draft Sandals should NOT cover
+      push(!coveredArr.includes('Sandals'), 'Non-live Sandals (draft) is ignored');
+
+      // T4: Carnival Cruise Line heuristic → Carnival
+      push(coveredArr.includes('Carnival'), 'Carnival Cruise Line resolves to Carnival');
+
+      // T5: Unknown should remain unmatched
+      push(unmatchedRows.some(x=>x.toLowerCase().includes('unknown')), 'Unknown brand appears in unmatched list');
+
+      // T6: Sanity — covered should not contain duplicates
+      const uniqueCovered = new Set(coveredArr);
+      push(uniqueCovered.size === coveredArr.length, 'Covered list contains no duplicates');
+
+      // T7: Short-name aliases
+      push(coveredArr.includes('Aulani, A Disney Resort & Spa'), '"Aulani" resolves to full resort name');
+      push(coveredArr.includes('Globus Journeys'), '"Globus" resolves to Globus Journeys');
+      push(coveredArr.includes('Oceania Cruises'), '"Oceania" resolves to Oceania Cruises');
+      push(coveredArr.includes('Paul Gauguin Cruises'), '"Paul Gauguin" resolves to Paul Gauguin Cruises');
+
+      // T8: Multi-brand connectors
+      push(coveredArr.includes('Emerald Cruises') && coveredArr.includes('Scenic River') && coveredArr.includes('Scenic Eclipse Ocean Voyages'), 'Split multi-brand: Scenic & Emerald → Scenic River, Scenic Eclipse, Emerald');
+      push(coveredArr.includes('Viking Ocean'), 'Split multi-brand: Viking Ocean & Expedition → Viking Ocean');
+
+      // T9: Known combo with ampersand should still resolve to full name
+      push(coveredArr.includes('Lindblad Expeditions & National Geographic'), 'Known combo with & resolves to full brand');
+    }
+
+    // Wire up UI
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshSourceChips(false);
+      document.getElementById('checkBtn').addEventListener('click', run);
+      document.getElementById('clearBtn').addEventListener('click', clearAll);
+      document.getElementById('insertTestBtn').addEventListener('click', insertDemo);
+      document.getElementById('runTestsBtn').addEventListener('click', runTests);
+    });
+  </script>
+</body>
+</html>
