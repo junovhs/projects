@@ -446,10 +446,13 @@
             }
           });
 
-          console.log('Loading core files from ./lib/...');
+          const baseURL = window.location.origin;
+          console.log('Base URL:', baseURL);
+          console.log('Loading core files from:', `${baseURL}/lib/`);
+          
           await this.ffmpeg.load({
-            coreURL: './lib/ffmpeg-core.js',
-            wasmURL: './lib/ffmpeg-core.wasm',
+            coreURL: `${baseURL}/lib/ffmpeg-core.js`,
+            wasmURL: `${baseURL}/lib/ffmpeg-core.wasm`,
           });
 
           console.log('FFmpeg loaded successfully!');
