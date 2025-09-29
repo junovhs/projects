@@ -1,132 +1,139 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>ffmpeg.wasm CDN MVP</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      :root { color-scheme: light dark; }
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 24px; max-width: 720px; margin: 0 auto; }
-      h1 { margin: 0 0 12px; font-size: 1.4rem; }
-      p.small { opacity: .75; margin-top: 0; }
-      button { padding: 10px 14px; margin-right: 8px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; cursor: pointer; }
-      button[disabled] { opacity: .5; cursor: not-allowed; }
-      progress { width: 240px; vertical-align: middle; }
-      video { width: 100%; margin-top: 16px; border-radius: 12px; }
-      pre { background:#111; color:#0f0; padding:12px; overflow:auto; max-height: 240px; border-radius: 10px; }
-      footer { margin-top: 16px; opacity: .65; font-size: 0.9rem; }
-      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .badge { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(127,127,127,.2); padding: 4px 8px; border-radius: 999px; }
-    </style>
-  </head>
-  <body>
-    <h1>ffmpeg.wasm CDN MVP</h1>
-    <p class="small">Goal: prove we can load <code>ffmpeg.wasm</code> over CDN and run a tiny transcode in-browser.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FFmpeg.wasm Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #2d3748;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transition: all 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f7fafc;
+      color: #4a5568;
+      font-size: 0.9rem;
+    }
+    .success {
+      background: #e8f8f5;
+      color: #196f3d;
+    }
+    .error {
+      background: #fef5e7;
+      color: #7d6608;
+    }
+    .loader {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FFmpeg.wasm Test</h1>
+    <p>Click the button to load FFmpeg</p>
+    <button class="btn" id="loadBtn">Load FFmpeg</button>
+    <div class="status" id="status" style="display: none;"></div>
+  </div>
 
-    <div class="row">
-      <button id="load">1) Load core</button>
-      <progress id="p" max="1" value="0" style="display:none"></progress>
-      <span class="badge" id="v"></span>
-    </div>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+  
+  <script>
+    const { FFmpeg } = FFmpegWASM;
+    const { toBlobURL } = FFmpegUtil;
 
-    <div class="row" style="margin-top:10px">
-      <button id="run" disabled>2) Convert sample (webm → mp4)</button>
-      <button id="pick" disabled>…or choose a file</button>
-      <input id="file" type="file" accept="video/*,image/*,audio/*" style="display:none" />
-    </div>
+    const loadBtn = document.getElementById('loadBtn');
+    const status = document.getElementById('status');
 
-    <video id="out" controls></video>
-    <pre id="log"></pre>
+    function showStatus(message, type = '') {
+      status.style.display = 'block';
+      status.textContent = message;
+      status.className = 'status ' + type;
+    }
 
-    <!-- UMD builds (small). Heavy core is fetched from CDN in load() -->
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/umd/index.js"></script>
-    <script>
-      const { FFmpeg } = window.FFmpegWASM;
-      const { fetchFile, toBlobURL } = window.FFmpegUtil;
+    loadBtn.onclick = async () => {
+      loadBtn.disabled = true;
+      showStatus('Loading FFmpeg... this takes about 10-15 seconds');
+      status.innerHTML = 'Loading FFmpeg... <span class="loader"></span>';
 
-      const ffmpeg = new FFmpeg();
-      const logEl = document.getElementById('log');
-      const btnLoad = document.getElementById('load');
-      const btnRun  = document.getElementById('run');
-      const btnPick = document.getElementById('pick');
-      const fileIn  = document.getElementById('file');
-      const videoEl = document.getElementById('out');
-      const prog    = document.getElementById('p');
-      const ver     = document.getElementById('v');
+      try {
+        const ffmpeg = new FFmpeg();
+        
+        ffmpeg.on('log', ({ message }) => {
+          console.log(message);
+        });
 
-      // Wire basic logs + progress
-      ffmpeg.on('log', ({ message }) => { logEl.textContent += message + '\n'; });
-      ffmpeg.on('progress', ({ progress, time }) => {
-        prog.style.display = 'inline-block';
-        prog.value = progress;
-      });
+        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+        
+        // Use toBlobURL to bypass CORS - this is the key!
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
 
-      // Keep versions in one place
-      const CORE_VER = '0.12.10'; // single-thread core
-      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VER}/dist/umd`;
-
-      // -- 1) Load the core from CDN (single-thread; no special headers needed)
-      btnLoad.onclick = async () => {
-        btnLoad.disabled = true;
-        logEl.textContent = 'Loading core (first time ~31 MB)…\n';
-        try {
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true, (r)=>{}),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true, (r)=>{}),
-          });
-          ver.textContent = 'core ' + CORE_VER;
-          logEl.textContent += 'Core loaded.\n';
-          btnRun.disabled = false;
-          btnPick.disabled = false;
-        } catch (e) {
-          console.error(e);
-          logEl.textContent += '\nERROR loading core: ' + e.message + '\n';
-          btnLoad.disabled = false;
-        } finally {
-          prog.style.display = 'none';
-        }
-      };
-
-      // Helper: run a simple conversion on either a built-in webm or picked file
-      async function transcode(inputBytes, inputName='input.webm') {
-        logEl.textContent += `\nWriting ${inputName}…\n`;
-        await ffmpeg.writeFile(inputName, inputBytes);
-        logEl.textContent += 'Converting (keep defaults)…\n';
-        await ffmpeg.exec(['-i', inputName, '-t', '2', 'output.mp4']);
-        const data = await ffmpeg.readFile('output.mp4');
-        const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-        videoEl.src = url;
-        logEl.textContent += 'Done.\n';
-        videoEl.scrollIntoView({ behavior: 'smooth' });
+        showStatus('✅ SUCCESS! FFmpeg loaded and ready to use!', 'success');
+        console.log('FFmpeg loaded successfully!');
+        
+      } catch (err) {
+        console.error('Error:', err);
+        showStatus(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        loadBtn.disabled = false;
       }
-
-      // -- 2a) Convert a tiny sample from GitHub (no file picker needed)
-      btnRun.onclick = async () => {
-        try {
-          const sample = 'https://raw.githubusercontent.com/ffmpegwasm/testdata/master/Big_Buck_Bunny_180_10s.webm';
-          await transcode(await fetchFile(sample), 'input.webm');
-        } catch (e) {
-          logEl.textContent += '\nERROR during transcode: ' + e.message + '\n';
-          console.error(e);
-        }
-      };
-
-      // -- 2b) Let the user pick a file instead
-      btnPick.onclick = () => fileIn.click();
-      fileIn.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        try {
-          await transcode(await fetchFile(file), file.name);
-        } catch (e) {
-          logEl.textContent += '\nERROR during transcode: ' + e.message + '\n';
-          console.error(e);
-        }
-      };
-    </script>
-    <footer>
-      Single‑thread core via CDN. For multithread speedups, add COOP/COEP headers and switch to <code>@ffmpeg/core-mt</code>.
-    </footer>
-  </body>
+    };
+  </script>
+</body>
 </html>
