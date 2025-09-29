@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Media Converter - Images/Video to MP4/WebM/WebP</title>
+  <meta charset="UTF-8">
+  <title>Media Converter - MP4/WebM/WebP</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * {
@@ -10,7 +10,7 @@
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -20,7 +20,7 @@
       align-items: center;
       padding: 20px;
     }
-    
+
     .container {
       background: white;
       border-radius: 16px;
@@ -29,22 +29,22 @@
       width: 100%;
       padding: 40px;
     }
-    
+
     h1 {
       font-size: 2rem;
       margin-bottom: 10px;
       color: #2d3748;
     }
-    
+
     .subtitle {
       color: #718096;
       margin-bottom: 30px;
     }
-    
+
     .section {
       margin-bottom: 30px;
     }
-    
+
     .section-title {
       font-size: 1.1rem;
       font-weight: 600;
@@ -54,40 +54,7 @@
       align-items: center;
       gap: 8px;
     }
-    
-    .input-group {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-    
-    .input-field {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    label {
-      font-size: 0.9rem;
-      color: #4a5568;
-      margin-bottom: 5px;
-      font-weight: 500;
-    }
-    
-    input[type="number"], select {
-      padding: 10px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: all 0.2s;
-    }
-    
-    input[type="number"]:focus, select:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
+
     .btn {
       padding: 12px 24px;
       border: none;
@@ -100,38 +67,34 @@
       align-items: center;
       gap: 8px;
     }
-    
+
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-    
+
     .btn-primary {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
     }
-    
+
     .btn-primary:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }
-    
+
     .btn-secondary {
       background: #f7fafc;
       color: #4a5568;
       border: 2px solid #e2e8f0;
     }
-    
-    .btn-secondary:hover:not(:disabled) {
-      background: #edf2f7;
-    }
-    
+
     .btn-group {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
     }
-    
+
     .file-info {
       background: #f7fafc;
       border: 2px dashed #cbd5e0;
@@ -139,15 +102,75 @@
       padding: 20px;
       text-align: center;
       color: #718096;
-      margin-bottom: 20px;
+      margin-top: 15px;
     }
-    
+
     .file-info.has-files {
       border-color: #667eea;
       background: #f0f4ff;
       color: #4a5568;
     }
-    
+
+    .input-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .input-field {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: #4a5568;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input[type="number"], select {
+      padding: 10px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .format-pills {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .format-pill {
+      padding: 8px 16px;
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .format-pill:hover {
+      border-color: #cbd5e0;
+    }
+
+    .format-pill.selected {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
     .progress-bar {
       width: 100%;
       height: 8px;
@@ -155,27 +178,28 @@
       border-radius: 4px;
       overflow: hidden;
       margin-bottom: 10px;
+      display: none;
     }
-    
+
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
       transition: width 0.3s ease;
       width: 0%;
     }
-    
+
     .status {
       font-size: 0.9rem;
       color: #718096;
       margin-bottom: 20px;
       min-height: 20px;
     }
-    
+
     .preview-container {
       margin-top: 30px;
       display: none;
     }
-    
+
     video, img {
       width: 100%;
       border-radius: 8px;
@@ -184,23 +208,44 @@
       max-height: 500px;
       object-fit: contain;
     }
-    
-    .export-buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    
+
     .hidden {
       display: none;
     }
-    
-    .quick-settings {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
+
+    .ffmpeg-status {
+      background: #fef5e7;
+      border: 1px solid #f9e79f;
+      color: #7d6608;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
     }
-    
+
+    .ffmpeg-status.ready {
+      background: #e8f8f5;
+      border-color: #a9dfbf;
+      color: #196f3d;
+    }
+
+    .loader {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     .preset-btn {
       padding: 8px 16px;
       background: #f7fafc;
@@ -210,94 +255,37 @@
       font-size: 0.9rem;
       transition: all 0.2s;
     }
-    
+
     .preset-btn:hover {
       background: #edf2f7;
-      border-color: #cbd5e0;
     }
-    
+
     .preset-btn.active {
       background: #667eea;
       color: white;
       border-color: #667eea;
     }
-    
-    .ffmpeg-status {
-      background: #fef5e7;
-      border: 1px solid #f9e79f;
-      color: #7d6608;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 0.9rem;
-      display: none;
-    }
-    
-    .ffmpeg-status.ready {
-      background: #e8f8f5;
-      border-color: #a9dfbf;
-      color: #196f3d;
-    }
-    
-    .format-pills {
+
+    .quick-settings {
       display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    
-    .format-pill {
-      padding: 6px 12px;
-      background: white;
-      border: 2px solid #e2e8f0;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      color: #4a5568;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .format-pill:hover {
-      border-color: #cbd5e0;
-    }
-    
-    .format-pill.selected {
-      background: #667eea;
-      color: white;
-      border-color: #667eea;
-    }
-    
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🎬 Media Converter</h1>
-    <p class="subtitle">Convert image sequences or videos to MP4/WebM/WebP - all in your browser!</p>
-    
+    <p class="subtitle">Convert image sequences or videos to MP4/WebM/WebP</p>
+
     <div class="ffmpeg-status" id="ffmpegStatus">
-      Initializing FFmpeg... <span class="loader"></span>
+      Loading FFmpeg... <span class="loader"></span>
     </div>
-    
+
     <!-- Input Section -->
     <div class="section">
-      <div class="section-title">
-        <span>📁</span> Step 1: Choose Input
-      </div>
+      <div class="section-title">📁 Step 1: Choose Input</div>
       <div class="btn-group">
         <button class="btn btn-primary" id="btnImageFolder">📁 Image Folder</button>
         <button class="btn btn-secondary" id="btnImageFiles">🖼️ Select Images</button>
@@ -308,148 +296,118 @@
       <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
       <input type="file" id="videoFile" accept="video/*" class="hidden">
       
-      <div class="file-info" id="fileInfo">
-        No files selected
-      </div>
+      <div class="file-info" id="fileInfo">No files selected</div>
     </div>
-    
+
     <!-- Settings Section -->
     <div class="section">
-      <div class="section-title">
-        <span>⚙️</span> Step 2: Configure Output
-      </div>
+      <div class="section-title">⚙️ Step 2: Configure Output</div>
       
       <div class="quick-settings">
-        <button class="preset-btn" data-preset="low">Low Quality (Fast)</button>
-        <button class="preset-btn" data-preset="medium">Medium Quality</button>
-        <button class="preset-btn" data-preset="high">High Quality</button>
-        <button class="preset-btn" data-preset="ultra">Ultra (4K)</button>
+        <button class="preset-btn" data-preset="social">Social Media (720p)</button>
+        <button class="preset-btn" data-preset="hq">High Quality (1080p)</button>
+        <button class="preset-btn" data-preset="small">Small File (480p)</button>
       </div>
       
       <div class="input-group">
         <div class="input-field">
           <label for="fps">Frame Rate (FPS)</label>
-          <input type="number" id="fps" min="1" max="60" value="10">
+          <input type="number" id="fps" min="1" max="60" value="24">
         </div>
         <div class="input-field">
           <label for="width">Width (px)</label>
-          <input type="number" id="width" min="100" max="3840" placeholder="Auto">
+          <input type="number" id="width" min="100" max="3840" value="1280">
         </div>
         <div class="input-field">
-          <label for="height">Height (px)</label>
-          <input type="number" id="height" min="100" max="2160" placeholder="Auto">
-        </div>
-        <div class="input-field">
-          <label for="quality">Quality/Bitrate</label>
+          <label for="quality">Quality</label>
           <select id="quality">
-            <option value="low">Low (1 Mbps)</option>
-            <option value="medium" selected>Medium (2.5 Mbps)</option>
-            <option value="high">High (5 Mbps)</option>
-            <option value="ultra">Ultra (10 Mbps)</option>
+            <option value="low">Low (Fast, Smaller)</option>
+            <option value="medium" selected>Medium (Balanced)</option>
+            <option value="high">High (Slow, Larger)</option>
           </select>
         </div>
       </div>
     </div>
-    
+
     <!-- Export Section -->
     <div class="section">
-      <div class="section-title">
-        <span>💾</span> Step 3: Export Format
-      </div>
+      <div class="section-title">💾 Step 3: Export Format</div>
       
       <div class="format-pills">
-        <div class="format-pill selected" data-format="mp4">MP4 (H.264)</div>
-        <div class="format-pill" data-format="webm">WebM (VP9)</div>
-        <div class="format-pill" data-format="webp">WebP Animation</div>
+        <div class="format-pill selected" data-format="mp4">MP4 (Universal)</div>
+        <div class="format-pill" data-format="webm">WebM (Web)</div>
+        <div class="format-pill" data-format="webp">WebP (Animation)</div>
       </div>
       
-      <div class="btn-group">
-        <button class="btn btn-primary" id="btnExport" disabled>
-          <span id="exportBtnText">Export as MP4</span>
-        </button>
-        <button class="btn btn-secondary" id="btnCancel" style="display: none;">Cancel</button>
-      </div>
+      <button class="btn btn-primary" id="btnExport" disabled>
+        <span id="exportText">Export as MP4</span>
+      </button>
       
-      <div class="progress-bar" id="progressBar" style="display: none; margin-top: 20px;">
+      <div class="progress-bar" id="progressBar">
         <div class="progress-fill" id="progressFill"></div>
       </div>
       <div class="status" id="status"></div>
     </div>
-    
+
     <!-- Preview Section -->
     <div class="preview-container" id="previewContainer">
-      <div class="section-title">
-        <span>👁️</span> Preview
-      </div>
-      <video id="videoPreview" controls loop muted style="display: none;"></video>
+      <div class="section-title">👁️ Preview</div>
+      <video id="videoPreview" controls loop style="display: none;"></video>
       <img id="imagePreview" style="display: none;">
-      <div class="export-buttons">
-        <a class="btn btn-primary" id="downloadBtn" download>⬇️ Download</a>
-      </div>
+      <a class="btn btn-primary" id="downloadBtn" download>⬇️ Download</a>
     </div>
   </div>
+
+  <script src="/lib/ffmpeg.js"></script>
+  <script src="/lib/index.js"></script>
   
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
   <script>
     const { FFmpeg } = FFmpegWASM;
     const { fetchFile } = FFmpegUtil;
-    
+
     class MediaConverter {
       constructor() {
-        this.frames = [];
-        this.videoSrc = null;
-        this.isVideo = false;
         this.ffmpeg = null;
+        this.files = [];
+        this.isVideo = false;
         this.selectedFormat = 'mp4';
-        this.isProcessing = false;
-        this.initElements();
-        this.initEvents();
-        this.initFFmpeg();
+        this.processing = false;
+        
+        this.init();
       }
-      
-      initElements() {
-        // Buttons
+
+      init() {
+        // Elements
         this.btnImageFolder = document.getElementById('btnImageFolder');
         this.btnImageFiles = document.getElementById('btnImageFiles');
         this.btnVideo = document.getElementById('btnVideo');
         this.btnExport = document.getElementById('btnExport');
-        this.btnCancel = document.getElementById('btnCancel');
-        this.exportBtnText = document.getElementById('exportBtnText');
-        
-        // Inputs
         this.imageFiles = document.getElementById('imageFiles');
         this.folderInput = document.getElementById('folderInput');
         this.videoFile = document.getElementById('videoFile');
-        this.fpsInput = document.getElementById('fps');
-        this.widthInput = document.getElementById('width');
-        this.heightInput = document.getElementById('height');
-        this.qualityInput = document.getElementById('quality');
-        
-        // Display
         this.fileInfo = document.getElementById('fileInfo');
+        this.status = document.getElementById('status');
         this.progressBar = document.getElementById('progressBar');
         this.progressFill = document.getElementById('progressFill');
-        this.status = document.getElementById('status');
         this.previewContainer = document.getElementById('previewContainer');
         this.videoPreview = document.getElementById('videoPreview');
         this.imagePreview = document.getElementById('imagePreview');
         this.downloadBtn = document.getElementById('downloadBtn');
         this.ffmpegStatus = document.getElementById('ffmpegStatus');
-      }
-      
-      initEvents() {
+        this.exportText = document.getElementById('exportText');
+        this.fpsInput = document.getElementById('fps');
+        this.widthInput = document.getElementById('width');
+        this.qualityInput = document.getElementById('quality');
+
+        // Events
         this.btnImageFolder.onclick = () => this.folderInput.click();
         this.btnImageFiles.onclick = () => this.imageFiles.click();
         this.btnVideo.onclick = () => this.videoFile.click();
-        
-        this.folderInput.onchange = (e) => this.loadImageFiles(Array.from(e.target.files));
-        this.imageFiles.onchange = (e) => this.loadImageFiles(Array.from(e.target.files));
+        this.folderInput.onchange = (e) => this.loadImages(e.target.files);
+        this.imageFiles.onchange = (e) => this.loadImages(e.target.files);
         this.videoFile.onchange = (e) => this.loadVideo(e.target.files[0]);
-        
         this.btnExport.onclick = () => this.export();
-        this.btnCancel.onclick = () => this.cancelExport();
-        
+
         // Format selection
         document.querySelectorAll('.format-pill').forEach(pill => {
           pill.onclick = () => {
@@ -459,487 +417,311 @@
             this.updateExportButton();
           };
         });
-        
+
         // Presets
         document.querySelectorAll('.preset-btn').forEach(btn => {
-          btn.onclick = () => this.applyPreset(btn.dataset.preset);
+          btn.onclick = (e) => {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            this.applyPreset(btn.dataset.preset);
+          };
         });
+
+        this.loadFFmpeg();
       }
-      
-      async initFFmpeg() {
+
+      async loadFFmpeg() {
         try {
-          this.ffmpegStatus.style.display = 'block';
           this.ffmpeg = new FFmpeg();
           
           this.ffmpeg.on('log', ({ message }) => {
             console.log(message);
           });
-          
+
           this.ffmpeg.on('progress', ({ progress }) => {
-            if (this.isProcessing) {
-              this.showProgress(Math.round(progress * 100));
+            if (this.processing) {
+              const percent = Math.round(progress * 100);
+              this.updateProgress(percent);
             }
           });
-          
+
           await this.ffmpeg.load({
-            coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.js',
-            wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/umd/ffmpeg-core.wasm',
+            coreURL: '/lib/ffmpeg-core.js',
+            wasmURL: '/lib/ffmpeg-core.wasm',
           });
-          
-          this.ffmpegStatus.innerHTML = '✅ FFmpeg ready! Full MP4/WebM/WebP support loaded.';
+
+          this.ffmpegStatus.innerHTML = '✅ Ready to convert!';
           this.ffmpegStatus.classList.add('ready');
-          
         } catch (err) {
-          console.error('FFmpeg init error:', err);
-          this.ffmpegStatus.innerHTML = '⚠️ FFmpeg failed to load. WebM export still available.';
+          console.error('FFmpeg load error:', err);
+          this.ffmpegStatus.innerHTML = '⚠️ FFmpeg failed to load. Please refresh the page.';
         }
       }
-      
-      updateExportButton() {
-        const formats = {
-          'mp4': 'Export as MP4',
-          'webm': 'Export as WebM',
-          'webp': 'Export as WebP Animation'
-        };
-        this.exportBtnText.textContent = formats[this.selectedFormat];
-      }
-      
+
       applyPreset(preset) {
-        document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-        
-        const settings = {
-          low: { fps: 10, width: 480, quality: 'low' },
-          medium: { fps: 15, width: 720, quality: 'medium' },
-          high: { fps: 24, width: 1080, quality: 'high' },
-          ultra: { fps: 30, width: 1920, quality: 'ultra' }
+        const presets = {
+          social: { fps: 30, width: 1280, quality: 'medium' },
+          hq: { fps: 24, width: 1920, quality: 'high' },
+          small: { fps: 24, width: 854, quality: 'low' }
         };
-        
-        const s = settings[preset];
-        this.fpsInput.value = s.fps;
-        this.widthInput.value = s.width;
-        this.heightInput.value = '';
-        this.qualityInput.value = s.quality;
+        const p = presets[preset];
+        this.fpsInput.value = p.fps;
+        this.widthInput.value = p.width;
+        this.qualityInput.value = p.quality;
       }
-      
-      naturalSort(a, b) {
-        return a.name.localeCompare(b.name, undefined, { numeric: true });
-      }
-      
-      async loadImageFiles(files) {
-        const imageFiles = files.filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f.name));
-        imageFiles.sort(this.naturalSort);
+
+      loadImages(fileList) {
+        const files = Array.from(fileList).filter(f => 
+          /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
+        );
         
-        if (imageFiles.length === 0) {
+        if (files.length === 0) {
           this.setStatus('No valid image files found');
           return;
         }
+
+        files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
         
-        this.frames = imageFiles; // Store files, not bitmaps for FFmpeg
+        this.files = files;
         this.isVideo = false;
-        
-        this.fileInfo.textContent = `${this.frames.length} images loaded`;
+        this.fileInfo.textContent = `${files.length} images loaded`;
         this.fileInfo.classList.add('has-files');
         this.btnExport.disabled = false;
-        this.setStatus(`Loaded ${this.frames.length} images`);
+        this.setStatus(`Ready to export ${files.length} images`);
       }
-      
-      async loadVideo(file) {
+
+      loadVideo(file) {
         if (!file) return;
         
+        this.files = [file];
         this.isVideo = true;
-        this.videoFile = file;
-        this.videoSrc = URL.createObjectURL(file);
-        
         this.fileInfo.textContent = `Video: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`;
         this.fileInfo.classList.add('has-files');
         this.btnExport.disabled = false;
-        this.setStatus('Video loaded');
+        this.setStatus('Ready to convert video');
       }
-      
+
+      updateExportButton() {
+        const labels = {
+          mp4: 'Export as MP4',
+          webm: 'Export as WebM',
+          webp: 'Export as WebP Animation'
+        };
+        this.exportText.textContent = labels[this.selectedFormat];
+      }
+
       async export() {
-        if (this.selectedFormat === 'webm' && !this.ffmpeg) {
-          // Fallback to native WebM export
-          return this.exportWebMNative();
-        }
-        
-        if (!this.ffmpeg) {
-          this.setStatus('FFmpeg not loaded yet, please wait...');
-          return;
-        }
-        
-        this.isProcessing = true;
+        if (!this.ffmpeg || this.processing) return;
+
+        this.processing = true;
         this.btnExport.disabled = true;
-        this.btnCancel.style.display = 'inline-block';
-        
+        this.progressBar.style.display = 'block';
+
         try {
+          const fps = parseInt(this.fpsInput.value) || 24;
+          const width = parseInt(this.widthInput.value) || 1280;
+          const quality = this.qualityInput.value;
+
           if (this.selectedFormat === 'mp4') {
-            await this.exportMP4();
+            await this.exportMP4(fps, width, quality);
           } else if (this.selectedFormat === 'webm') {
-            await this.exportWebMFFmpeg();
+            await this.exportWebM(fps, width, quality);
           } else if (this.selectedFormat === 'webp') {
-            await this.exportWebP();
+            await this.exportWebP(fps, width, quality);
           }
         } catch (err) {
           console.error('Export error:', err);
           this.setStatus(`Error: ${err.message}`);
         } finally {
-          this.isProcessing = false;
+          this.processing = false;
           this.btnExport.disabled = false;
-          this.btnCancel.style.display = 'none';
-          this.hideProgress();
         }
       }
-      
-      async exportMP4() {
-        this.setStatus('Preparing MP4 export...');
-        this.showProgress(0);
+
+      async exportMP4(fps, width, quality) {
+        this.setStatus('Preparing files...');
         
-        const fps = parseInt(this.fpsInput.value) || 10;
-        const width = parseInt(this.widthInput.value) || 720;
-        const height = parseInt(this.heightInput.value) || '';
-        
-        const qualityMap = {
-          'low': '1000k',
-          'medium': '2500k',
-          'high': '5000k',
-          'ultra': '10000k'
+        const qualitySettings = {
+          low: { crf: '28', preset: 'veryfast' },
+          medium: { crf: '23', preset: 'medium' },
+          high: { crf: '18', preset: 'slow' }
         };
-        const bitrate = qualityMap[this.qualityInput.value];
-        
-        // Write files to FFmpeg filesystem
+        const q = qualitySettings[quality];
+
         if (this.isVideo) {
-          this.setStatus('Loading video into FFmpeg...');
-          const videoData = await fetchFile(this.videoFile);
+          const videoData = await fetchFile(this.files[0]);
           await this.ffmpeg.writeFile('input.mp4', videoData);
+          
+          this.setStatus('Converting to MP4...');
+          await this.ffmpeg.exec([
+            '-i', 'input.mp4',
+            '-t', '20',
+            '-vf', `scale=${width}:-2`,
+            '-c:v', 'libx264',
+            '-preset', q.preset,
+            '-crf', q.crf,
+            '-pix_fmt', 'yuv420p',
+            '-movflags', '+faststart',
+            '-an',
+            'output.mp4'
+          ]);
+          
+          await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus('Loading images into FFmpeg...');
-          for (let i = 0; i < this.frames.length; i++) {
-            const imgData = await fetchFile(this.frames[i]);
-            await this.ffmpeg.writeFile(`frame_${String(i).padStart(4, '0')}.png`, imgData);
-            this.showProgress((i / this.frames.length) * 30);
+          this.setStatus('Loading images...');
+          for (let i = 0; i < this.files.length; i++) {
+            const data = await fetchFile(this.files[i]);
+            await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
+            this.updateProgress((i / this.files.length) * 30);
+          }
+          
+          this.setStatus('Creating MP4...');
+          await this.ffmpeg.exec([
+            '-framerate', String(fps),
+            '-i', 'img%04d.png',
+            '-t', '20',
+            '-vf', `scale=${width}:-2`,
+            '-c:v', 'libx264',
+            '-preset', q.preset,
+            '-crf', q.crf,
+            '-pix_fmt', 'yuv420p',
+            '-movflags', '+faststart',
+            'output.mp4'
+          ]);
+          
+          for (let i = 0; i < this.files.length; i++) {
+            await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
         }
-        
-        this.setStatus('Encoding MP4...');
-        
-        // Build FFmpeg command
-        let cmd;
-        if (this.isVideo) {
-          cmd = [
-            '-i', 'input.mp4',
-            '-r', String(fps),
-            '-vf', height ? `scale=${width}:${height}` : `scale=${width}:-1`,
-            '-c:v', 'libx264',
-            '-preset', 'medium',
-            '-crf', '23',
-            '-b:v', bitrate,
-            '-pix_fmt', 'yuv420p',
-            '-movflags', '+faststart',
-            'output.mp4'
-          ];
-        } else {
-          cmd = [
-            '-framerate', String(fps),
-            '-i', 'frame_%04d.png',
-            '-vf', height ? `scale=${width}:${height}` : `scale=${width}:-1`,
-            '-c:v', 'libx264',
-            '-preset', 'medium',
-            '-crf', '23',
-            '-b:v', bitrate,
-            '-pix_fmt', 'yuv420p',
-            '-movflags', '+faststart',
-            'output.mp4'
-          ];
-        }
-        
-        await this.ffmpeg.exec(cmd);
-        
+
         const data = await this.ffmpeg.readFile('output.mp4');
-        const blob = new Blob([data.buffer], { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
-        
-        this.showPreview('video', url, blob, 'output.mp4');
-        this.setStatus(`MP4 ready (${(blob.size/1024/1024).toFixed(2)} MB)`);
-        
-        // Cleanup
-        if (this.isVideo) {
-          await this.ffmpeg.deleteFile('input.mp4');
-        } else {
-          for (let i = 0; i < this.frames.length; i++) {
-            await this.ffmpeg.deleteFile(`frame_${String(i).padStart(4, '0')}.png`);
-          }
-        }
         await this.ffmpeg.deleteFile('output.mp4');
+        
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        this.showResult(blob, 'output.mp4', 'video');
       }
-      
-      async exportWebMFFmpeg() {
-        this.setStatus('Preparing WebM export...');
-        this.showProgress(0);
+
+      async exportWebM(fps, width, quality) {
+        this.setStatus('Preparing files...');
         
-        const fps = parseInt(this.fpsInput.value) || 10;
-        const width = parseInt(this.widthInput.value) || 720;
-        const height = parseInt(this.heightInput.value) || '';
-        
-        const qualityMap = {
-          'low': '1000k',
-          'medium': '2500k',
-          'high': '5000k',
-          'ultra': '10000k'
+        const qualitySettings = {
+          low: { crf: '35', cpuUsed: '5' },
+          medium: { crf: '31', cpuUsed: '2' },
+          high: { crf: '24', cpuUsed: '0' }
         };
-        const bitrate = qualityMap[this.qualityInput.value];
-        
-        // Write files to FFmpeg filesystem
+        const q = qualitySettings[quality];
+
         if (this.isVideo) {
-          this.setStatus('Loading video into FFmpeg...');
-          const videoData = await fetchFile(this.videoFile);
+          const videoData = await fetchFile(this.files[0]);
           await this.ffmpeg.writeFile('input.mp4', videoData);
+          
+          this.setStatus('Converting to WebM...');
+          await this.ffmpeg.exec([
+            '-i', 'input.mp4',
+            '-t', '20',
+            '-vf', `scale=${width}:-2`,
+            '-c:v', 'libvpx-vp9',
+            '-crf', q.crf,
+            '-b:v', '0',
+            '-cpu-used', q.cpuUsed,
+            '-an',
+            'output.webm'
+          ]);
+          
+          await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus('Loading images into FFmpeg...');
-          for (let i = 0; i < this.frames.length; i++) {
-            const imgData = await fetchFile(this.frames[i]);
-            await this.ffmpeg.writeFile(`frame_${String(i).padStart(4, '0')}.png`, imgData);
-            this.showProgress((i / this.frames.length) * 30);
+          this.setStatus('Loading images...');
+          for (let i = 0; i < this.files.length; i++) {
+            const data = await fetchFile(this.files[i]);
+            await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
+            this.updateProgress((i / this.files.length) * 30);
+          }
+          
+          this.setStatus('Creating WebM...');
+          await this.ffmpeg.exec([
+            '-framerate', String(fps),
+            '-i', 'img%04d.png',
+            '-t', '20',
+            '-vf', `scale=${width}:-2`,
+            '-c:v', 'libvpx-vp9',
+            '-crf', q.crf,
+            '-b:v', '0',
+            '-cpu-used', q.cpuUsed,
+            'output.webm'
+          ]);
+          
+          for (let i = 0; i < this.files.length; i++) {
+            await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
         }
-        
-        this.setStatus('Encoding WebM...');
-        
-        // Build FFmpeg command for WebM
-        let cmd;
-        if (this.isVideo) {
-          cmd = [
-            '-i', 'input.mp4',
-            '-r', String(fps),
-            '-vf', height ? `scale=${width}:${height}` : `scale=${width}:-1`,
-            '-c:v', 'libvpx-vp9',
-            '-b:v', bitrate,
-            '-quality', 'good',
-            '-cpu-used', '2',
-            'output.webm'
-          ];
-        } else {
-          cmd = [
-            '-framerate', String(fps),
-            '-i', 'frame_%04d.png',
-            '-vf', height ? `scale=${width}:${height}` : `scale=${width}:-1`,
-            '-c:v', 'libvpx-vp9',
-            '-b:v', bitrate,
-            '-quality', 'good',
-            '-cpu-used', '2',
-            'output.webm'
-          ];
-        }
-        
-        await this.ffmpeg.exec(cmd);
-        
+
         const data = await this.ffmpeg.readFile('output.webm');
-        const blob = new Blob([data.buffer], { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        
-        this.showPreview('video', url, blob, 'output.webm');
-        this.setStatus(`WebM ready (${(blob.size/1024/1024).toFixed(2)} MB)`);
-        
-        // Cleanup
-        if (this.isVideo) {
-          await this.ffmpeg.deleteFile('input.mp4');
-        } else {
-          for (let i = 0; i < this.frames.length; i++) {
-            await this.ffmpeg.deleteFile(`frame_${String(i).padStart(4, '0')}.png`);
-          }
-        }
         await this.ffmpeg.deleteFile('output.webm');
+        
+        const blob = new Blob([data.buffer], { type: 'video/webm' });
+        this.showResult(blob, 'output.webm', 'video');
       }
-      
-      async exportWebP() {
-        this.setStatus('Preparing animated WebP export...');
-        this.showProgress(0);
+
+      async exportWebP(fps, width, quality) {
+        this.setStatus('Preparing files...');
         
-        const fps = parseInt(this.fpsInput.value) || 10;
-        const width = parseInt(this.widthInput.value) || 512;
-        const height = parseInt(this.heightInput.value) || '';
-        
-        const qualityMap = {
-          'low': '60',
-          'medium': '75',
-          'high': '85',
-          'ultra': '95'
+        const qualitySettings = {
+          low: '60',
+          medium: '75',
+          high: '90'
         };
-        const quality = qualityMap[this.qualityInput.value];
-        
-        // Write files to FFmpeg filesystem
+        const q = qualitySettings[quality];
+
         if (this.isVideo) {
-          this.setStatus('Loading video into FFmpeg...');
-          const videoData = await fetchFile(this.videoFile);
+          const videoData = await fetchFile(this.files[0]);
           await this.ffmpeg.writeFile('input.mp4', videoData);
-        } else {
-          this.setStatus('Loading images into FFmpeg...');
-          for (let i = 0; i < this.frames.length; i++) {
-            const imgData = await fetchFile(this.frames[i]);
-            await this.ffmpeg.writeFile(`frame_${String(i).padStart(4, '0')}.png`, imgData);
-            this.showProgress((i / this.frames.length) * 30);
-          }
-        }
-        
-        this.setStatus('Creating animated WebP...');
-        
-        // Build FFmpeg command for animated WebP
-        let cmd;
-        const frameDelay = Math.round(1000 / fps); // milliseconds per frame
-        
-        if (this.isVideo) {
-          cmd = [
+          
+          this.setStatus('Creating animated WebP...');
+          await this.ffmpeg.exec([
             '-i', 'input.mp4',
-            '-vf', height ? `scale=${width}:${height},fps=${fps}` : `scale=${width}:-1,fps=${fps}`,
+            '-t', '20',
+            '-vf', `scale=${width}:-2,fps=${fps}`,
             '-loop', '0',
-            '-preset', 'picture',
-            '-quality', quality,
-            '-compression_level', '6',
+            '-quality', q,
             'output.webp'
-          ];
-        } else {
-          cmd = [
-            '-framerate', String(fps),
-            '-i', 'frame_%04d.png',
-            '-vf', height ? `scale=${width}:${height}` : `scale=${width}:-1`,
-            '-loop', '0',
-            '-preset', 'picture',
-            '-quality', quality,
-            '-compression_level', '6',
-            'output.webp'
-          ];
-        }
-        
-        await this.ffmpeg.exec(cmd);
-        
-        const data = await this.ffmpeg.readFile('output.webp');
-        const blob = new Blob([data.buffer], { type: 'image/webp' });
-        const url = URL.createObjectURL(blob);
-        
-        this.showPreview('image', url, blob, 'animation.webp');
-        this.setStatus(`Animated WebP ready (${(blob.size/1024/1024).toFixed(2)} MB)`);
-        
-        // Cleanup
-        if (this.isVideo) {
+          ]);
+          
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          for (let i = 0; i < this.frames.length; i++) {
-            await this.ffmpeg.deleteFile(`frame_${String(i).padStart(4, '0')}.png`);
+          this.setStatus('Loading images...');
+          for (let i = 0; i < this.files.length; i++) {
+            const data = await fetchFile(this.files[i]);
+            await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
+            this.updateProgress((i / this.files.length) * 30);
+          }
+          
+          this.setStatus('Creating animated WebP...');
+          await this.ffmpeg.exec([
+            '-framerate', String(fps),
+            '-i', 'img%04d.png',
+            '-t', '20',
+            '-vf', `scale=${width}:-2`,
+            '-loop', '0',
+            '-quality', q,
+            'output.webp'
+          ]);
+          
+          for (let i = 0; i < this.files.length; i++) {
+            await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
         }
+
+        const data = await this.ffmpeg.readFile('output.webp');
         await this.ffmpeg.deleteFile('output.webp');
+        
+        const blob = new Blob([data.buffer], { type: 'image/webp' });
+        this.showResult(blob, 'animation.webp', 'image');
       }
-      
-      async exportWebMNative() {
-        // Native browser WebM export (fallback)
-        this.setStatus('Using native WebM encoder...');
-        this.showProgress(0);
-        
-        const fps = parseInt(this.fpsInput.value) || 10;
-        let width = parseInt(this.widthInput.value);
-        let height = parseInt(this.heightInput.value);
-        
-        // Load frames as bitmaps for native encoding
-        const bitmaps = [];
-        if (this.isVideo) {
-          // Extract frames from video
-          const video = document.createElement('video');
-          video.src = this.videoSrc;
-          await new Promise(resolve => video.onloadedmetadata = resolve);
-          
-          if (!width && !height) {
-            width = video.videoWidth;
-            height = video.videoHeight;
-          } else if (width && !height) {
-            height = Math.round(video.videoHeight * (width / video.videoWidth));
-          } else if (!width && height) {
-            width = Math.round(video.videoWidth * (height / video.videoHeight));
-          }
-          
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          
-          const duration = video.duration;
-          const frameCount = Math.ceil(duration * fps);
-          
-          for (let i = 0; i < frameCount; i++) {
-            video.currentTime = i / fps;
-            await new Promise(resolve => video.onseeked = resolve);
-            ctx.drawImage(video, 0, 0);
-            const bitmap = await createImageBitmap(canvas);
-            bitmaps.push(bitmap);
-            this.showProgress((i + 1) / frameCount * 50);
-          }
-        } else {
-          for (let i = 0; i < this.frames.length; i++) {
-            const bitmap = await createImageBitmap(this.frames[i]);
-            bitmaps.push(bitmap);
-            this.showProgress((i + 1) / this.frames.length * 50);
-          }
-          
-          if (!width && !height) {
-            width = bitmaps[0].width;
-            height = bitmaps[0].height;
-          } else if (width && !height) {
-            height = Math.round(bitmaps[0].height * (width / bitmaps[0].width));
-          } else if (!width && height) {
-            width = Math.round(bitmaps[0].width * (height / bitmaps[0].height));
-          }
-        }
-        
-        // Create canvas and record
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        
-        const stream = canvas.captureStream(fps);
-        const qualityMap = { low: 500000, medium: 2500000, high: 5000000, ultra: 10000000 };
-        const bitrate = qualityMap[this.qualityInput.value];
-        
-        const recorder = new MediaRecorder(stream, {
-          mimeType: 'video/webm;codecs=vp9',
-          videoBitsPerSecond: bitrate
-        });
-        
-        const chunks = [];
-        recorder.ondataavailable = e => chunks.push(e.data);
-        
-        recorder.start();
-        
-        for (let i = 0; i < bitmaps.length; i++) {
-          ctx.clearRect(0, 0, width, height);
-          ctx.drawImage(bitmaps[i], 0, 0, width, height);
-          await new Promise(resolve => setTimeout(resolve, 1000 / fps));
-          this.showProgress(50 + (i + 1) / bitmaps.length * 50);
-        }
-        
-        recorder.stop();
-        await new Promise(resolve => recorder.onstop = resolve);
-        
-        const blob = new Blob(chunks, { type: 'video/webm' });
+
+      showResult(blob, filename, type) {
         const url = URL.createObjectURL(blob);
+        const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
         
-        this.showPreview('video', url, blob, 'output.webm');
-        this.setStatus(`WebM ready (${(blob.size/1024/1024).toFixed(2)} MB)`);
-      }
-      
-      cancelExport() {
-        // FFmpeg doesn't have a direct cancel, but we can try to terminate
-        if (this.ffmpeg) {
-          this.ffmpeg.terminate();
-          this.initFFmpeg(); // Reinitialize
-        }
-        this.isProcessing = false;
-        this.btnExport.disabled = false;
-        this.btnCancel.style.display = 'none';
-        this.setStatus('Export canceled');
-        this.hideProgress();
-      }
-      
-      showPreview(type, url, blob, filename) {
         this.previewContainer.style.display = 'block';
         
         if (type === 'video') {
@@ -954,26 +736,20 @@
         
         this.downloadBtn.href = url;
         this.downloadBtn.download = filename;
+        this.setStatus(`✅ Ready! File size: ${sizeMB} MB`);
+        this.progressBar.style.display = 'none';
       }
-      
+
       setStatus(text) {
         this.status.textContent = text;
       }
-      
-      showProgress(percent) {
-        this.progressBar.style.display = 'block';
+
+      updateProgress(percent) {
         this.progressFill.style.width = `${percent}%`;
       }
-      
-      hideProgress() {
-        setTimeout(() => {
-          this.progressBar.style.display = 'none';
-        }, 500);
-      }
     }
-    
-    // Initialize the app
-    const converter = new MediaConverter();
+
+    new MediaConverter();
   </script>
 </body>
 </html>
