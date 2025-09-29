@@ -1,139 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>FFmpeg.wasm Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
-    .container {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      max-width: 600px;
-      width: 100%;
-      padding: 40px;
-      text-align: center;
-    }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 20px;
-      color: #2d3748;
-    }
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      transition: all 0.2s;
-    }
-    .btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    }
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .status {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 8px;
-      background: #f7fafc;
-      color: #4a5568;
-      font-size: 0.9rem;
-    }
-    .success {
-      background: #e8f8f5;
-      color: #196f3d;
-    }
-    .error {
-      background: #fef5e7;
-      color: #7d6608;
-    }
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg.wasm MVP Test</title>
+
+    <!-- 1. Minimal Styling (All Inline) -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #uploader {
+            margin-bottom: 20px;
+        }
+        #message {
+            font-weight: bold;
+            color: #0056b3;
+            min-height: 20px;
+        }
+        #download-link {
+            display: none; /* Hidden by default */
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        #download-link:hover {
+            background-color: #218838;
+        }
+    </style>
+
+    <!-- 2. Include FFmpeg.wasm from a CDN -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+
 </head>
 <body>
-  <div class="container">
-    <h1>FFmpeg.wasm Test</h1>
-    <p>Click the button to load FFmpeg</p>
-    <button class="btn" id="loadBtn">Load FFmpeg</button>
-    <div class="status" id="status" style="display: none;"></div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
-  
-  <script>
-    const { FFmpeg } = FFmpegWASM;
-    const { toBlobURL } = FFmpegUtil;
-
-    const loadBtn = document.getElementById('loadBtn');
-    const status = document.getElementById('status');
-
-    function showStatus(message, type = '') {
-      status.style.display = 'block';
-      status.textContent = message;
-      status.className = 'status ' + type;
-    }
-
-    loadBtn.onclick = async () => {
-      loadBtn.disabled = true;
-      showStatus('Loading FFmpeg... this takes about 10-15 seconds');
-      status.innerHTML = 'Loading FFmpeg... <span class="loader"></span>';
-
-      try {
-        const ffmpeg = new FFmpeg();
+    <div class="container">
+        <h1>FFmpeg.wasm MP4 to MP3 Converter</h1>
+        <p>Select a video file to extract its audio.</p>
         
-        ffmpeg.on('log', ({ message }) => {
-          console.log(message);
+        <input type="file" id="uploader" accept="video/mp4" />
+        <p id="message">Waiting for FFmpeg to load...</p>
+        
+        <a id="download-link" download="output.mp3">Download MP3</a>
+    </div>
+
+    <!-- 3. All JavaScript Logic (Inline) -->
+    <script>
+        const uploader = document.getElementById('uploader');
+        const message = document.getElementById('message');
+        const downloadLink = document.getElementById('download-link');
+
+        let ffmpeg;
+
+        // Initialize and load the FFmpeg library
+        const loadFFmpeg = async () => {
+            message.textContent = 'Loading FFmpeg library...';
+            ffmpeg = new FFmpeg.FFmpeg();
+            
+            // Log FFmpeg's output for debugging
+            ffmpeg.on('log', ({ message }) => {
+                console.log(message);
+            });
+            
+            // Display conversion progress to the user
+            ffmpeg.on('progress', ({ progress }) => {
+                const percentage = Math.round(progress * 100);
+                message.innerHTML = `Processing: ${percentage}%`;
+            });
+
+            // Load the core WASM module from the CDN
+            await ffmpeg.load({
+                coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+            });
+
+            message.textContent = 'FFmpeg Loaded. Ready to convert.';
+        };
+
+        // The main conversion function
+        const convertToMp3 = async (videoFile) => {
+            message.textContent = 'Reading file...';
+            
+            // Write the uploaded video file to FFmpeg's virtual file system
+            const fileData = await FFmpeg.fetchFile(videoFile);
+            await ffmpeg.writeFile(videoFile.name, fileData);
+
+            message.textContent = 'Starting conversion...';
+
+            // Run the FFmpeg command to extract audio and convert to MP3
+            await ffmpeg.exec([
+                '-i', videoFile.name, // Input file
+                '-vn',                // No video output
+                '-acodec', 'libmp3lame', // Use the LAME MP3 audio codec
+                '-q:a', '2',          // Set audio quality (0-9, lower is better)
+                'output.mp3'          // Output file name
+            ]);
+
+            message.textContent = 'Conversion complete!';
+
+            // Read the resulting MP3 file from the virtual file system
+            const data = await ffmpeg.readFile('output.mp3');
+
+            // Create a Blob and generate a URL for downloading
+            const mp3Url = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/mpeg' }));
+            
+            // Make the download link visible and set its URL
+            downloadLink.href = mp3Url;
+            downloadLink.style.display = 'inline-block';
+        };
+
+        // Listen for the user selecting a file
+        uploader.addEventListener('change', async (event) => {
+            const videoFile = event.target.files[0];
+            if (videoFile) {
+                downloadLink.style.display = 'none'; // Hide any previous download link
+                await convertToMp3(videoFile);
+            }
         });
 
-        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
-        
-        // Use toBlobURL to bypass CORS - this is the key!
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        });
-
-        showStatus('✅ SUCCESS! FFmpeg loaded and ready to use!', 'success');
-        console.log('FFmpeg loaded successfully!');
-        
-      } catch (err) {
-        console.error('Error:', err);
-        showStatus(`❌ Error: ${err.message}`, 'error');
-      } finally {
-        loadBtn.disabled = false;
-      }
-    };
-  </script>
+        // Load FFmpeg as soon as the page is ready
+        loadFFmpeg();
+    </script>
 </body>
 </html>
