@@ -358,8 +358,8 @@
     </div>
   </div>
 
-  <script src="/lib/ffmpeg.js"></script>
-  <script src="/lib/index.js"></script>
+  <script src="./lib/ffmpeg.js"></script>
+  <script src="./lib/index.js"></script>
   
   <script>
     const { FFmpeg } = FFmpegWASM;
@@ -446,8 +446,8 @@
           });
 
           await this.ffmpeg.load({
-            coreURL: '/lib/ffmpeg-core.js',
-            wasmURL: '/lib/ffmpeg-core.wasm',
+            coreURL: './lib/ffmpeg-core.js',
+            wasmURL: './lib/ffmpeg-core.wasm',
           });
 
           this.ffmpegStatus.innerHTML = '✅ Ready to convert!';
