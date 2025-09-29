@@ -229,6 +229,12 @@
       color: #196f3d;
     }
 
+    .ffmpeg-status.error {
+      background: #fee;
+      border-color: #fcc;
+      color: #c00;
+    }
+
     .loader {
       display: inline-block;
       width: 14px;
@@ -280,7 +286,7 @@
     <p class="subtitle">Convert image sequences or videos to MP4/WebM/WebP</p>
 
     <div class="ffmpeg-status" id="ffmpegStatus">
-      Loading FFmpeg... <span class="loader"></span>
+      Loading video encoder... <span class="loader"></span>
     </div>
 
     <!-- Input Section -->
@@ -358,12 +364,14 @@
     </div>
   </div>
 
-  <script src="./lib/ffmpeg.js"></script>
-  <script src="./lib/index.js"></script>
+  <!-- Load local FFmpeg files -->
+  <script src="/lib/ffmpeg.js"></script>
+  <script src="/lib/index.js"></script>
   
   <script>
-    const { FFmpeg } = FFmpegWASM;
-    const { fetchFile } = FFmpegUtil;
+    // Access FFmpeg from global scope (UMD modules)
+    const { FFmpeg } = window.FFmpegWASM || window.FFmpeg || {};
+    const { fetchFile } = window.FFmpegUtil || {};
 
     class MediaConverter {
       constructor() {
@@ -432,11 +440,17 @@
 
       async loadFFmpeg() {
         try {
-          console.log('Starting FFmpeg load...');
+          console.log('Starting FFmpeg load from local files...');
+          
+          // Check if FFmpeg is available
+          if (!FFmpeg) {
+            throw new Error('FFmpeg not found in global scope');
+          }
+          
           this.ffmpeg = new FFmpeg();
           
           this.ffmpeg.on('log', ({ message }) => {
-            console.log('FFmpeg log:', message);
+            console.log(message);
           });
 
           this.ffmpeg.on('progress', ({ progress }) => {
@@ -446,23 +460,53 @@
             }
           });
 
-          const baseURL = window.location.origin;
-          console.log('Base URL:', baseURL);
-          console.log('Loading core files from CDN (testing)...');
-          
+          // Load from local files with absolute paths
+          console.log('Loading FFmpeg core from local /lib directory...');
           await this.ffmpeg.load({
-            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
+            coreURL: '/lib/ffmpeg-core.js',
+            wasmURL: '/lib/ffmpeg-core.wasm'
           });
 
           console.log('FFmpeg loaded successfully!');
           this.ffmpegStatus.innerHTML = '✅ Ready to convert!';
           this.ffmpegStatus.classList.add('ready');
+          
         } catch (err) {
           console.error('FFmpeg load error:', err);
           console.error('Error details:', err.message);
-          console.error('Stack:', err.stack);
-          this.ffmpegStatus.innerHTML = `⚠️ FFmpeg failed to load: ${err.message}`;
+          
+          // Try alternative approach - load with full URL
+          try {
+            console.log('Trying with full URL...');
+            const baseURL = window.location.origin;
+            
+            this.ffmpeg = new FFmpeg();
+            
+            this.ffmpeg.on('log', ({ message }) => {
+              console.log(message);
+            });
+
+            this.ffmpeg.on('progress', ({ progress }) => {
+              if (this.processing) {
+                const percent = Math.round(progress * 100);
+                this.updateProgress(percent);
+              }
+            });
+            
+            await this.ffmpeg.load({
+              coreURL: `${baseURL}/lib/ffmpeg-core.js`,
+              wasmURL: `${baseURL}/lib/ffmpeg-core.wasm`
+            });
+            
+            console.log('FFmpeg loaded successfully with full URL!');
+            this.ffmpegStatus.innerHTML = '✅ Ready to convert!';
+            this.ffmpegStatus.classList.add('ready');
+            
+          } catch (err2) {
+            console.error('Second attempt failed:', err2);
+            this.ffmpegStatus.innerHTML = `⚠️ Video encoder failed to load. Try refreshing.`;
+            this.ffmpegStatus.classList.add('error');
+          }
         }
       }
 
@@ -519,7 +563,10 @@
       }
 
       async export() {
-        if (!this.ffmpeg || this.processing) return;
+        if (!this.ffmpeg || this.processing) {
+          this.setStatus('Encoder not ready. Please wait or refresh the page.');
+          return;
+        }
 
         this.processing = true;
         this.btnExport.disabled = true;
@@ -576,16 +623,14 @@
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus(`Loading ${this.files.length} images into memory...`);
+          this.setStatus(`Loading ${this.files.length} images...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
             this.updateProgress((i / this.files.length) * 40);
-            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
           this.setStatus('Encoding MP4 video...');
-          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -599,7 +644,6 @@
             'output.mp4'
           ]);
           
-          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
@@ -641,16 +685,14 @@
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus(`Loading ${this.files.length} images into memory...`);
+          this.setStatus(`Loading ${this.files.length} images...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
             this.updateProgress((i / this.files.length) * 40);
-            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
           this.setStatus('Encoding WebM video...');
-          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -663,7 +705,6 @@
             'output.webm'
           ]);
           
-          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
@@ -697,21 +738,20 @@
             '-vf', `scale=${width}:-2,fps=${fps}`,
             '-loop', '0',
             '-quality', q,
+            '-preset', 'default',
             'output.webp'
           ]);
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus(`Loading ${this.files.length} images into memory...`);
+          this.setStatus(`Loading ${this.files.length} images...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
             this.updateProgress((i / this.files.length) * 40);
-            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
           this.setStatus('Creating animated WebP...');
-          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -719,10 +759,10 @@
             '-vf', `scale=${width}:-2`,
             '-loop', '0',
             '-quality', q,
+            '-preset', 'default',
             'output.webp'
           ]);
           
-          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
@@ -766,7 +806,10 @@
       }
     }
 
-    new MediaConverter();
+    // Wait for scripts to load
+    window.addEventListener('load', () => {
+      new MediaConverter();
+    });
   </script>
 </body>
 </html>
