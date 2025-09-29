@@ -448,11 +448,11 @@
 
           const baseURL = window.location.origin;
           console.log('Base URL:', baseURL);
-          console.log('Loading core files from:', `${baseURL}/lib/`);
+          console.log('Loading core files from CDN (testing)...');
           
           await this.ffmpeg.load({
-            coreURL: `${baseURL}/lib/ffmpeg-core.js`,
-            wasmURL: `${baseURL}/lib/ffmpeg-core.wasm`,
+            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
           });
 
           console.log('FFmpeg loaded successfully!');
