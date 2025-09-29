@@ -432,10 +432,11 @@
 
       async loadFFmpeg() {
         try {
+          console.log('Starting FFmpeg load...');
           this.ffmpeg = new FFmpeg();
           
           this.ffmpeg.on('log', ({ message }) => {
-            console.log(message);
+            console.log('FFmpeg log:', message);
           });
 
           this.ffmpeg.on('progress', ({ progress }) => {
@@ -445,16 +446,20 @@
             }
           });
 
+          console.log('Loading core files from ./lib/...');
           await this.ffmpeg.load({
             coreURL: './lib/ffmpeg-core.js',
             wasmURL: './lib/ffmpeg-core.wasm',
           });
 
+          console.log('FFmpeg loaded successfully!');
           this.ffmpegStatus.innerHTML = '✅ Ready to convert!';
           this.ffmpegStatus.classList.add('ready');
         } catch (err) {
           console.error('FFmpeg load error:', err);
-          this.ffmpegStatus.innerHTML = '⚠️ FFmpeg failed to load. Please refresh the page.';
+          console.error('Error details:', err.message);
+          console.error('Stack:', err.stack);
+          this.ffmpegStatus.innerHTML = `⚠️ FFmpeg failed to load: ${err.message}`;
         }
       }
 
@@ -568,14 +573,16 @@
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus('Loading images...');
+          this.setStatus(`Loading ${this.files.length} images into memory...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
-            this.updateProgress((i / this.files.length) * 30);
+            this.updateProgress((i / this.files.length) * 40);
+            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
-          this.setStatus('Creating MP4...');
+          this.setStatus('Encoding MP4 video...');
+          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -589,6 +596,7 @@
             'output.mp4'
           ]);
           
+          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
@@ -630,14 +638,16 @@
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus('Loading images...');
+          this.setStatus(`Loading ${this.files.length} images into memory...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
-            this.updateProgress((i / this.files.length) * 30);
+            this.updateProgress((i / this.files.length) * 40);
+            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
-          this.setStatus('Creating WebM...');
+          this.setStatus('Encoding WebM video...');
+          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -650,6 +660,7 @@
             'output.webm'
           ]);
           
+          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
@@ -688,14 +699,16 @@
           
           await this.ffmpeg.deleteFile('input.mp4');
         } else {
-          this.setStatus('Loading images...');
+          this.setStatus(`Loading ${this.files.length} images into memory...`);
           for (let i = 0; i < this.files.length; i++) {
             const data = await fetchFile(this.files[i]);
             await this.ffmpeg.writeFile(`img${String(i).padStart(4, '0')}.png`, data);
-            this.updateProgress((i / this.files.length) * 30);
+            this.updateProgress((i / this.files.length) * 40);
+            this.setStatus(`Loading images... ${i + 1}/${this.files.length}`);
           }
           
           this.setStatus('Creating animated WebP...');
+          this.updateProgress(45);
           await this.ffmpeg.exec([
             '-framerate', String(fps),
             '-i', 'img%04d.png',
@@ -706,6 +719,7 @@
             'output.webp'
           ]);
           
+          this.setStatus('Cleaning up...');
           for (let i = 0; i < this.files.length; i++) {
             await this.ffmpeg.deleteFile(`img${String(i).padStart(4, '0')}.png`);
           }
