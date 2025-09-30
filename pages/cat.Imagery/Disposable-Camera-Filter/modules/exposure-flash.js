@@ -1,7 +1,7 @@
 // Exposure and Flash Module
 // Everything related to exposure and flash effects in one place
 
-import { compileShader, createProgram, bindProgram } from '../gl-context.js';
+import { compileShader, bindProgram } from '../gl-context.js';
 
 // Shader sources
 const VERTEX_SHADER = `
