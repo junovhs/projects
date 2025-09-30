@@ -7,56 +7,17 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Mobile-first layout: Canvas on top, controls below in tabs -->
-  <div id="viewer-container">
+  <div id="viewer">
     <canvas id="gl"></canvas>
-    <div class="viewer-overlay">
-      <button id="view-mode" class="overlay-btn">Fit</button>
-    </div>
   </div>
 
-  <div id="controls-container">
-    <!-- Tab navigation -->
-    <nav class="tabs">
-      <button class="tab active" data-tab="exposure">Exposure</button>
-      <button class="tab" data-tab="color">Color</button>
-      <button class="tab" data-tab="bloom">Bloom</button>
-      <button class="tab" data-tab="motion">Motion</button>
-      <button class="tab" data-tab="grain">Grain</button>
-      <button class="tab" data-tab="file">File</button>
-    </nav>
-
-    <!-- Tab content - dynamically populated -->
-    <div class="tab-content">
-      <div class="tab-pane active" data-pane="exposure"></div>
-      <div class="tab-pane" data-pane="color"></div>
-      <div class="tab-pane" data-pane="bloom"></div>
-      <div class="tab-pane" data-pane="motion"></div>
-      <div class="tab-pane" data-pane="grain"></div>
-      <div class="tab-pane" data-pane="file">
-        <div class="file-actions">
-          <label class="btn-primary">
-            <input id="file" type="file" accept="image/*,video/*" style="display:none" />
-            Open File
-          </label>
-          <button id="play" class="btn-secondary" disabled>Play</button>
-          <button id="original" class="btn-secondary">Show Original</button>
-          <button id="reset" class="btn-secondary">Reset All</button>
-          <div class="divider"></div>
-          <button id="save-png" class="btn-primary">Save PNG</button>
-          <button id="export-pngs" class="btn-secondary">Export Frames</button>
-          <button id="export-mp4" class="btn-secondary">Export MP4</button>
-        </div>
-      </div>
-    </div>
+  <div id="controls">
+    <nav class="tabs" id="tab-nav"></nav>
+    <div class="tab-content" id="tab-content"></div>
   </div>
 
   <video id="vid" playsinline muted style="display:none"></video>
-  
-  <div id="overlay" class="loading-overlay hidden">
-    <div id="overlayText">Processing…</div>
-  </div>
-  
+  <div id="overlay" class="overlay hidden"><div id="overlayText">Processing…</div></div>
   <div id="toast" class="toast hidden"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js"></script>

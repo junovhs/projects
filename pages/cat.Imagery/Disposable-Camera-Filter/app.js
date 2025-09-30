@@ -194,76 +194,159 @@ function layout() {
 
 window.addEventListener('resize', layout);
 
-// Auto-generate UI from module parameters into tabs
+// Auto-generate UI with intelligent tab organization
 function generateUI() {
-  const tabMapping = {
-    exposure: [
-      { title: 'Exposure & Flash', params: EXPOSURE_FLASH_PARAMS, hasFlashPad: true }
-    ],
-    color: [
-      { title: 'Tone', params: TONE_PARAMS },
-      { title: 'Split & Casts', params: SPLIT_CAST_PARAMS }
-    ],
-    bloom: [
-      { title: 'Bloom & Optics', params: BLOOM_VIGNETTE_OPTICS_PARAMS }
-    ],
-    motion: [
-      { title: 'Motion Blur', params: MOTION_BLUR_PARAMS },
-      { title: 'Handheld Camera', params: HANDHELD_PARAMS }
-    ],
-    grain: [
-      { title: 'Film Grain', params: GRAIN_PARAMS }
-    ]
-  };
+  // Organize controls into tabs - max 4 controls per tab on mobile
+  const tabGroups = [
+    {
+      id: 'exposure',
+      label: 'Exposure',
+      controls: [
+        { params: EXPOSURE_FLASH_PARAMS, keys: ['ev', 'flashStrength', 'flashFalloff'], hasFlashPad: true }
+      ]
+    },
+    {
+      id: 'tone',
+      label: 'Tone',
+      controls: [
+        { params: TONE_PARAMS, keys: ['scurve', 'blacks', 'blackLift', 'knee'] }
+      ]
+    },
+    {
+      id: 'color',
+      label: 'Color',
+      controls: [
+        { params: SPLIT_CAST_PARAMS, keys: ['shadowCool', 'highlightWarm', 'greenShadows', 'magentaMids'] }
+      ]
+    },
+    {
+      id: 'bloom',
+      label: 'Bloom',
+      controls: [
+        { params: BLOOM_VIGNETTE_OPTICS_PARAMS, keys: ['bloomThreshold', 'bloomRadius', 'bloomIntensity', 'bloomWarm'] }
+      ]
+    },
+    {
+      id: 'optics',
+      label: 'Optics',
+      controls: [
+        { params: BLOOM_VIGNETTE_OPTICS_PARAMS, keys: ['halation', 'vignette', 'vignettePower', 'ca', 'clarity'] }
+      ]
+    },
+    {
+      id: 'motion1',
+      label: 'Motion',
+      controls: [
+        { params: MOTION_BLUR_PARAMS, keys: ['shutterUI', 'shake', 'motionAngle'] }
+      ]
+    },
+    {
+      id: 'motion2',
+      label: 'Handheld',
+      controls: [
+        { params: HANDHELD_PARAMS, keys: ['shakeHandheld', 'shakeFreq', 'shakeAmpX', 'shakeAmpY', 'shakeRot'] }
+      ]
+    },
+    {
+      id: 'grain',
+      label: 'Grain',
+      controls: [
+        { params: GRAIN_PARAMS, keys: Object.keys(GRAIN_PARAMS) }
+      ]
+    },
+    {
+      id: 'file',
+      label: 'File',
+      special: 'file'
+    }
+  ];
   
-  for (const [tabId, sections] of Object.entries(tabMapping)) {
-    const pane = document.querySelector(`[data-pane="${tabId}"]`);
-    if (!pane) continue;
+  const tabNav = document.getElementById('tab-nav');
+  const tabContent = document.getElementById('tab-content');
+  
+  tabGroups.forEach(({ id, label, controls, special }) => {
+    // Create tab button
+    const tabBtn = document.createElement('button');
+    tabBtn.className = 'tab';
+    tabBtn.textContent = label;
+    tabBtn.dataset.tab = id;
+    tabNav.appendChild(tabBtn);
     
-    sections.forEach(({ title, params, hasFlashPad }) => {
-      // Add flash pad if needed
-      if (hasFlashPad) {
-        const flashPadContainer = document.createElement('div');
-        flashPadContainer.className = 'control-group';
-        flashPadContainer.innerHTML = `
-          <div class="control-label">Flash Position</div>
-          <div class="flash-pad" id="flashPad">
-            <div class="flash-dot" id="flashDot"></div>
-          </div>
-        `;
-        pane.appendChild(flashPadContainer);
-      }
-      
-      // Generate sliders
-      for (const [key, config] of Object.entries(params)) {
-        const group = document.createElement('div');
-        group.className = 'control-group';
-        
-        if (config.special === 'shutter') {
-          group.innerHTML = `
-            <div class="control-label">
-              <span>${config.label}</span>
-              <span class="control-value" id="${key}Label">${formatShutter(sliderToShutterSeconds(config.default))}</span>
+    // Create tab pane
+    const pane = document.createElement('div');
+    pane.className = 'tab-pane';
+    pane.dataset.pane = id;
+    
+    if (special === 'file') {
+      // File tab
+      pane.innerHTML = `
+        <div class="file-grid">
+          <label class="btn btn-primary btn-full">
+            <input id="file" type="file" accept="image/*,video/*" style="display:none" />
+            Open File
+          </label>
+          <button id="play" class="btn btn-secondary" disabled>Play</button>
+          <button id="original" class="btn btn-secondary">Original</button>
+          <button id="reset" class="btn btn-secondary btn-full">Reset All</button>
+          <button id="save-png" class="btn btn-primary btn-full">Save PNG</button>
+          <button id="export-pngs" class="btn btn-secondary">Frames</button>
+          <button id="export-mp4" class="btn btn-secondary">MP4</button>
+        </div>
+      `;
+    } else {
+      // Control tab
+      controls.forEach(({ params, keys, hasFlashPad }) => {
+        if (hasFlashPad) {
+          const flashControl = document.createElement('div');
+          flashControl.className = 'control';
+          flashControl.innerHTML = `
+            <div class="control-label">Flash Position</div>
+            <div class="flash-pad" id="flashPad">
+              <div class="flash-dot" id="flashDot"></div>
             </div>
-            <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
           `;
-        } else {
-          const displayValue = config.step < 0.01 ? config.default.toFixed(3) : 
-                              config.step < 1 ? config.default.toFixed(2) : 
-                              config.default.toFixed(0);
-          group.innerHTML = `
-            <div class="control-label">
-              <span>${config.label}</span>
-              <span class="control-value" data-for="${key}">${displayValue}</span>
-            </div>
-            <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
-          `;
+          pane.appendChild(flashControl);
         }
         
-        pane.appendChild(group);
-      }
-    });
-  }
+        keys.forEach(key => {
+          const config = params[key];
+          if (!config) return;
+          
+          const control = document.createElement('div');
+          control.className = 'control';
+          
+          if (config.special === 'shutter') {
+            control.innerHTML = `
+              <div class="control-header">
+                <span class="control-label">${config.label}</span>
+                <span class="control-value" id="${key}Label">${formatShutter(sliderToShutterSeconds(config.default))}</span>
+              </div>
+              <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+            `;
+          } else {
+            const displayValue = config.step < 0.01 ? config.default.toFixed(3) : 
+                                config.step < 1 ? config.default.toFixed(2) : 
+                                config.default.toFixed(0);
+            control.innerHTML = `
+              <div class="control-header">
+                <span class="control-label">${config.label}</span>
+                <span class="control-value" data-for="${key}">${displayValue}</span>
+              </div>
+              <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+            `;
+          }
+          
+          pane.appendChild(control);
+        });
+      });
+    }
+    
+    tabContent.appendChild(pane);
+  });
+  
+  // Activate first tab
+  tabNav.querySelector('.tab').classList.add('active');
+  tabContent.querySelector('.tab-pane').classList.add('active');
 }
 
 // Tab switching
