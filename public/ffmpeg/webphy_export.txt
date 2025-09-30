@@ -1,0 +1,412 @@
+// DIRANALYSE COMBINED TEXT EXPORT //
+// Project: webphy
+// Timestamp: 2025-09-29T20:27:21.589Z
+// Files in this export: 6
+
+// ===== START OF FILE: webphy/pages/app/index.css ===== //
+.component-spin {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  background-color: hsla(0, 0%, 100%, 0.9);
+}
+
+.command-text {
+  border: 1px solid #eee;
+  padding: 3px 6px;
+  color: #ccc;
+  border-radius: 3px;
+  background-color: #f5f5f5;
+  font-family: monospace;
+  font-size: 14px;
+  margin: 10px 0;
+  padding: 10px;
+}
+
+.ant-spin-nested-loading > div > .ant-spin {
+  max-height: none !important;
+}
+
+.ant-spin-nested-loading {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.page-app {
+  width: 500px;
+  padding-top: 20px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.ant-upload.ant-upload {
+  width: 500px;
+  padding: 10px;
+}
+
+.exec {
+  width: 500px;
+}
+
+.ant-input {
+  margin: 10px 0;
+}
+
+h4 {
+  margin-top: 20px;
+}
+
+.github-corner:hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+@keyframes octocat-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20%,
+  60% {
+    transform: rotate(-25deg);
+  }
+  40%,
+  80% {
+    transform: rotate(10deg);
+  }
+}
+@media (max-width: 500px) {
+  .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+// ===== END OF FILE: webphy/pages/app/index.css ===== //
+
+
+// ===== START OF FILE: webphy/pages/app/index.jsx ===== //
+import { Spin, Upload, Button, message } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
+import { InboxOutlined } from "@ant-design/icons";
+import { fileTypeFromBuffer } from "file-type";
+import { Analytics } from "@vercel/analytics/react";
+import numerify from "numerify/lib/index.cjs";
+
+const { Dragger } = Upload;
+
+const App = () => {
+  const [spinning, setSpinning] = useState(false);
+  const [tip, setTip] = useState(false);
+  const [file, setFile] = useState();
+  const [fileList, setFileList] = useState([]);
+  const [name, setName] = useState("input.mp4");
+  const [href, setHref] = useState("");
+  const [downloadFileName, setDownloadFileName] = useState("output.mp3");
+  const ffmpeg = useRef();
+
+  const handleExec = async () => {
+    if (!file) {
+      message.error("Please select an MP4 file first.");
+      return;
+    }
+    setHref("");
+    setDownloadFileName("");
+    try {
+      setTip("Loading file into browser");
+      setSpinning(true);
+      ffmpeg.current.FS("writeFile", name, await fetchFile(file));
+      setTip("Starting conversion to MP3...");
+      // Hardcoded MP3 conversion: extract audio only, high quality MP3
+      await ffmpeg.current.run(
+        "-i",
+        name,
+        "-vn", // No video
+        "-acodec",
+        "libmp3lame",
+        "-q:a",
+        "2", // High quality (VBR ~190kbps)
+        "output.mp3"
+      );
+      setSpinning(false);
+      const data = ffmpeg.current.FS("readFile", "output.mp3");
+      const type = await fileTypeFromBuffer(data.buffer);
+
+      const objectURL = URL.createObjectURL(
+        new Blob([data.buffer], { type: type.mime })
+      );
+      setHref(objectURL);
+      setDownloadFileName("output.mp3");
+      message.success(
+        "Conversion successful! Click the download button to get your MP3.",
+        10
+      );
+    } catch (err) {
+      console.error(err);
+      setSpinning(false);
+      message.error(
+        "Conversion failed. Check the console for details or try a smaller file.",
+        10
+      );
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      ffmpeg.current = createFFmpeg({
+        log: true,
+        corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js',
+      });
+      ffmpeg.current.setProgress(({ ratio }) => {
+        console.log(ratio);
+        setTip(numerify(ratio, "0.0%"));
+      });
+      setTip("Loading FFmpeg library (~31MB)...");
+      setSpinning(true);
+      await ffmpeg.current.load();
+      setSpinning(false);
+      setTip("Ready! Upload an MP4 to convert to MP3.");
+    })();
+  }, []);
+
+  return (
+    <div className="page-app">
+      {spinning && (
+        <Spin spinning={spinning} tip={tip}>
+          <div className="component-spin" />
+        </Spin>
+      )}
+
+      <h2 align="center">MP4 to MP3 Converter</h2>
+      <p style={{ color: "gray", textAlign: "center" }}>
+        Powered by FFmpeg.wasm – processes files entirely in your browser (no upload to server).
+      </p>
+
+      <h4>1. Select MP4 File</h4>
+      <Dragger
+        multiple={false}
+        accept="video/mp4"
+        beforeUpload={(file) => {
+          setFile(file);
+          setFileList([file]);
+          setName(file.name);
+          message.success(`${file.name} selected for conversion.`);
+          return false;
+        }}
+      >
+        <p className="ant-upload-drag-icon">
+          <InboxOutlined />
+        </p>
+        <p className="ant-upload-text">Click or drag your MP4 file here</p>
+        <p className="ant-upload-hint">Supports MP4 files up to ~100MB (browser memory limits apply).</p>
+      </Dragger>
+
+      <h4>2. Convert to MP3</h4>
+      <div className="exec">
+        <div className="command-text">
+          ffmpeg -i {name} -vn -acodec libmp3lame -q:a 2 output.mp3
+        </div>
+        <p style={{ color: "gray", fontSize: "12px" }}>
+          (Extracts audio only, high-quality MP3 ~190kbps)
+        </p>
+      </div>
+
+      <h4>3. Download MP3</h4>
+      <Button type="primary" disabled={!Boolean(file)} onClick={handleExec} block>
+        Convert to MP3
+      </Button>
+      <br />
+      <br />
+      {href && (
+        <a href={href} download={downloadFileName}>
+          <Button type="success" block>Download {downloadFileName}</Button>
+        </a>
+      )}
+
+      <br />
+      <br />
+      <a
+        href="https://github.com/xiguaxigua/ffmpeg-online"
+        target="_blank"
+        className="github-corner"
+        aria-label="View source on GitHub"
+        rel="noreferrer"
+      >
+        <svg
+          width="80"
+          height="80"
+          viewBox="0 0 250 250"
+          style={{
+            fill: "#151513",
+            color: "#fff",
+            position: "absolute",
+            top: 0,
+            border: 0,
+            right: 0,
+          }}
+          aria-hidden="true"
+        >
+          <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+          <path
+            d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2"
+            fill="currentColor"
+            style={{
+              transformOrigin: "130px 106px",
+            }}
+            className="octo-arm"
+          ></path>
+          <path
+            d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z"
+            fill="currentColor"
+            className="octo-body"
+          ></path>
+        </svg>
+      </a>
+      <Analytics />
+    </div>
+  );
+};
+
+export default App;
+// ===== END OF FILE: webphy/pages/app/index.jsx ===== //
+
+
+// ===== START OF FILE: webphy/pages/index.js ===== //
+import App from "./app";
+
+export default function Home() {
+  return <App />;
+}
+// ===== END OF FILE: webphy/pages/index.js ===== //
+
+
+// ===== START OF FILE: webphy/pages/_app.js ===== //
+import "antd/dist/antd.css";
+import "./app/index.css";
+import Script from "next/script";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <Script
+        strategy="lazyOnload"
+        src={`https://www.googletagmanager.com/gtag/js?id=G-M4JFD2DM29`}
+      />
+
+      <Script strategy="lazyOnload" id="ga">
+        {`
+          window.ga_user_id = window.localStorage.getItem('ga_user_id') || '' + Date.now() + Math.floor(Math.random()*1e4);
+          window.localStorage.setItem('ga_user_id', window.ga_user_id);
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-M4JFD2DM29', {
+            page_path: window.location.pathname,
+            user_id: window.ga_user_id
+          });
+        `}
+      </Script>
+      <Component {...pageProps} />
+    </>
+  );
+}
+
+export default MyApp;
+// ===== END OF FILE: webphy/pages/_app.js ===== //
+
+
+// ===== START OF FILE: webphy/package.json ===== //
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@vercel/analytics": "^0.1.6",
+    "antd": "^4.20.7",
+    "file-type": "^17.1.2",
+    "next": "12.1.4",
+    "react": "18.0.0",
+    "react-dom": "18.0.0"
+  },
+  "devDependencies": {
+    "eslint": "8.12.0",
+    "eslint-config-next": "12.1.4"
+  }
+}
+// ===== END OF FILE: webphy/package.json ===== //
+
+
+// ===== START OF FILE: webphy/next.config.js ===== //
+const webpack = require("webpack");
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  webpack: (config) => {
+    config.plugins.push(
+      new webpack.ProvidePlugin({
+        process: "process/browser",
+        Buffer: ["buffer", "Buffer"],
+      }),
+      new webpack.NormalModuleReplacementPlugin(/node:/, (resource) => {
+        const mod = resource.request.replace(/^node:/, "");
+        switch (mod) {
+          case "buffer":
+            resource.request = "buffer";
+            break;
+          case "stream":
+            resource.request = "readable-stream";
+            break;
+          default:
+            throw new Error(`Not found ${mod}`);
+        }
+      })
+    );
+
+    return config;
+  },
+  async headers() {
+    return [
+      {
+        source: "/",
+        headers: [
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+        ],
+      },
+      {
+        source: "/static/:all*",
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=9999999999, must-revalidate',
+          }
+        ],
+      },
+    ];
+  },
+};
+
+module.exports = nextConfig;
+// ===== END OF FILE: webphy/next.config.js ===== //
+
+

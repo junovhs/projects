@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Disposable Night — v5 (Mobile-friendly exports)</title>
+  <title>Disposable Night – Modular</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -20,11 +20,8 @@
       <button id="play" disabled>Play</button>
       <button id="original">Original</button>
       <button id="reset">Reset</button>
-
-      <!-- NEW: view mode toggles -->
       <button id="view-fit" class="toggle on">Fit</button>
       <button id="view-1x" class="toggle">1:1</button>
-
       <button id="save-png">Save PNG</button>
       <button id="export-pngs">Export PNGs (.tar)</button>
       <button id="export-mp4">Export MP4</button>
@@ -79,7 +76,6 @@
         <div class="row"><label>Trail Angle (°)</label><input type="range" id="motionAngle" min="0" max="180" step="1" value="0"><span class="val" data-for="motionAngle">0</span></div>
       </section>
 
-      <!-- NEW: Handheld Camera section -->
       <section>
         <h3>Handheld Camera</h3>
         <div class="row"><label>Intensity</label><input type="range" id="shakeHandheld" min="0" max="1" step="0.01" value="0.3"><span class="val" data-for="shakeHandheld">0.30</span></div>
@@ -111,10 +107,7 @@
 
   <video id="vid" playsinline muted style="display:none"></video>
 
-  <!-- Load ffmpeg.wasm UMD first -->
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js"></script>
-
-  <!-- Then your app -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
