@@ -129,14 +129,17 @@ function layout() {
   const containerH = container.clientHeight;
   
   if (state.viewMode === 'fit') {
+    // Fit mode - scale to container
+    canvas.style.position = 'static';
+    canvas.style.left = '';
+    canvas.style.top = '';
+    canvas.style.transform = '';
+    
     const scale = Math.min(containerW / state.mediaW, containerH / state.mediaH);
     const cssW = Math.max(1, Math.round(state.mediaW * scale));
     const cssH = Math.max(1, Math.round(state.mediaH * scale));
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
-    canvas.style.position = 'static';
-    canvas.style.left = '';
-    canvas.style.top = '';
     
     const W = Math.round(cssW * state.dpr);
     const H = Math.round(cssH * state.dpr);
@@ -148,29 +151,40 @@ function layout() {
       state.needsRender = true;
     }
   } else {
-    // 1:1 mode
-    if (canvas.width !== state.mediaW || canvas.height !== state.mediaH) {
-      canvas.width = state.mediaW;
-      canvas.height = state.mediaH;
-      gl.viewport(0, 0, state.mediaW, state.mediaH);
+    // 1:1 mode - render only visible area
+    canvas.style.position = 'absolute';
+    
+    // Canvas buffer is only the size of the viewport
+    const viewW = Math.min(state.mediaW, containerW);
+    const viewH = Math.min(state.mediaH, containerH);
+    
+    if (canvas.width !== viewW || canvas.height !== viewH) {
+      canvas.width = viewW;
+      canvas.height = viewH;
+      gl.viewport(0, 0, viewW, viewH);
       ensureRenderTargets();
       state.needsRender = true;
     }
-    canvas.style.width = state.mediaW + 'px';
-    canvas.style.height = state.mediaH + 'px';
-    canvas.style.position = 'absolute';
     
+    // CSS size matches actual pixels (1:1)
+    canvas.style.width = viewW + 'px';
+    canvas.style.height = viewH + 'px';
+    
+    // Initialize pan position
     if (typeof state.panX !== 'number' || typeof state.panY !== 'number') {
       state.panX = Math.round((containerW - state.mediaW) / 2);
       state.panY = Math.round((containerH - state.mediaH) / 2);
     }
     
-    const minX = Math.min(0, containerW - state.mediaW);
-    const maxX = Math.max(0, containerW - state.mediaW);
-    const minY = Math.min(0, containerH - state.mediaH);
-    const maxY = Math.max(0, containerH - state.mediaH);
+    // Constrain pan
+    const minX = containerW - state.mediaW;
+    const maxX = 0;
+    const minY = containerH - state.mediaH;
+    const maxY = 0;
     state.panX = Math.max(minX, Math.min(maxX, state.panX));
     state.panY = Math.max(minY, Math.min(maxY, state.panY));
+    
+    // Position canvas
     canvas.style.left = state.panX + 'px';
     canvas.style.top = state.panY + 'px';
   }

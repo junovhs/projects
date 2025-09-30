@@ -341,6 +341,9 @@ input[type="range"]::-moz-range-thumb {
 
   #viewer-container {
     flex: 1;
+    max-width: 1200px;
+    max-height: 800px;
+    margin: auto;
   }
 
   #controls-container {
@@ -355,6 +358,8 @@ input[type="range"]::-moz-range-thumb {
     border-bottom: none;
     border-right: 1px solid var(--border);
     width: 120px;
+    max-height: 80vh;
+    overflow-y: auto;
   }
 
   .tab {
