@@ -124,7 +124,7 @@ function layout() {
     return;
   }
   
-  const container = document.getElementById('viewer-container');
+  const container = document.getElementById('viewer');
   const containerW = container.clientWidth;
   const containerH = container.clientHeight;
   
@@ -413,7 +413,7 @@ function bindAllSliders() {
         state.needsRender = true;
       });
     } else {
-      const lbl = $(`.val[data-for="${key}"]`);
+      const lbl = $(`.control-value[data-for="${key}"]`);
       el.addEventListener('input', e => {
         state[key] = parseFloat(e.target.value);
         if (lbl) {
@@ -484,7 +484,7 @@ function setupFlashPad() {
 
 // Setup canvas interaction
 function setupCanvasInteraction() {
-  const container = document.getElementById('viewer-container');
+  const container = document.getElementById('viewer');
   
   function showFlashDot() {
     const pad = document.getElementById('flashPad');
@@ -695,7 +695,7 @@ $('#reset').onclick = () => {
       const lbl = $(`#${key}Label`);
       if (lbl) lbl.textContent = formatShutter(sliderToShutterSeconds(config.default));
     } else {
-      const lbl = $(`.val[data-for="${key}"]`);
+      const lbl = $(`.control-value[data-for="${key}"]`);
       if (lbl) {
         const val = config.step < 0.01 ? config.default.toFixed(3) :
                     config.step < 1 ? config.default.toFixed(2) :
