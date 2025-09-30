@@ -89,3 +89,31 @@ export function ensureFramebuffer(rt, gl, caps, w, h) {
   }
   return rt;
 }
+
+export function compileShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  
+  return shader;
+}
+
+export function bindProgram(gl, program, quad, canvasWidth, canvasHeight) {
+  gl.useProgram(program);
+  
+  const posLoc = gl.getAttribLocation(program, 'a_pos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+  
+  const resLoc = gl.getUniformLocation(program, 'uRes');
+  if (resLoc) {
+    gl.uniform2f(resLoc, canvasWidth, canvasHeight);
+  }
+}

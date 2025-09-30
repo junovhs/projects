@@ -1,23 +1,38 @@
 // Main application orchestrator
 
-import { initGL, getCapabilities, createQuadBuffer, createTexture, createFramebuffer, ensureFramebuffer } from './gl-context.js';
-import { SHADERS, initPrograms, drawQuad } from './shaders.js';
-import { applyExposure, applyFlash } from './exposure-flash.js';
-import { applyTone } from './tone.js';
-import { applySplitToning, applyColorCast } from './split-cast.js';
-import {
-  extractBright, downsample, blurHorizontalVertical, upsampleAdd,
-  compositeBloom, applyVignette, applyClarity, applyChromaticAberration
-} from './bloom-vignette-optics.js';
-import { sliderToShutterSeconds, formatShutter, shutterToPixels, applyMotionBlur } from './motion-blur.js';
-import { applyHandheldShake } from './handheld-camera.js';
-import { applyGrain } from './film-grain.js';
+import { initGL, getCapabilities, createQuadBuffer, createTexture, createFramebuffer, ensureFramebuffer, compileShader, bindProgram } from './gl-context.js';
+import { ExposureFlashModule } from './modules/exposure-flash.js';
+import { ToneModule } from './modules/tone.js';
+import { SplitCastModule } from './modules/split-cast.js';
+import { BloomVignetteOpticsModule } from './modules/bloom-vignette-optics.js';
+import { MotionBlurModule, sliderToShutterSeconds, formatShutter, shutterToPixels } from './modules/motion-blur.js';
+import { HandheldCameraModule } from './modules/handheld-camera.js';
+import { FilmGrainModule } from './modules/film-grain.js';
 import { buildTar, exportPNGSequence } from './export-images.js';
 import { initFFmpeg, exportMP4 } from './export-video.js';
 import { setupRangeBindings, setupShutterBinding, setupFlashPad, setupCanvasInteraction } from './ui-bindings.js';
 import { download, toast, waitForVideoSeeked } from './utils.js';
 
 const $ = s => document.querySelector(s);
+
+// Copy shader for showing original
+const COPY_VERTEX = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0, 1);
+}
+`;
+
+const COPY_FRAGMENT = `
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D uTex;
+void main() {
+  gl_FragColor = vec4(texture2D(uTex, v_uv).rgb, 1.0);
+}
+`;
 
 // Application state
 const state = {
@@ -80,7 +95,23 @@ if (!gl) throw new Error('WebGL initialization failed');
 
 const caps = getCapabilities(gl);
 const quad = createQuadBuffer(gl);
-const programs = initPrograms(gl);
+
+// Initialize effect modules
+const exposureFlash = new ExposureFlashModule(gl, quad);
+const tone = new ToneModule(gl, quad);
+const splitCast = new SplitCastModule(gl, quad);
+const bloomVignetteOptics = new BloomVignetteOpticsModule(gl, quad);
+const motionBlur = new MotionBlurModule(gl, quad);
+const handheldCamera = new HandheldCameraModule(gl, quad);
+const filmGrain = new FilmGrainModule(gl, quad);
+
+// Copy program for original view
+const vs = compileShader(gl, gl.VERTEX_SHADER, COPY_VERTEX);
+const fs = compileShader(gl, gl.FRAGMENT_SHADER, COPY_FRAGMENT);
+const copyProgram = gl.createProgram();
+gl.attachShader(copyProgram, vs);
+gl.attachShader(copyProgram, fs);
+gl.linkProgram(copyProgram);
 
 const video = $('#vid');
 
@@ -473,7 +504,12 @@ function render(t = performance.now()) {
   }
   
   if (state.showOriginal) {
-    drawQuad(gl, programs.copy, quad, { uTex: state.tex }, null, null, canvas.width, canvas.height);
+    bindProgram(gl, copyProgram, quad, canvas.width, canvas.height);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, state.tex);
+    gl.uniform1i(gl.getUniformLocation(copyProgram, 'uTex'), 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
     state.needsRender = false;
     requestAnimationFrame(render);
     return;
@@ -483,14 +519,14 @@ function render(t = performance.now()) {
   const pxY = 1 / canvas.height;
   
   // Pre-exposure
-  applyExposure(gl, programs, quad, state.tex, rtA, state.ev, canvas.width, canvas.height, drawQuad);
+  exposureFlash.applyExposure(state.tex, rtA, state.ev, canvas.width, canvas.height);
   let currentTex = rtA.tex;
   
   // Handheld shake (video only)
   if (state.isVideo && state.shakeHandheld > 0.001) {
     const shakeDst = (currentTex === rtA.tex) ? rtB : rtA;
-    applyHandheldShake(
-      gl, programs, quad, currentTex, shakeDst,
+    handheldCamera.apply(
+      currentTex, shakeDst,
       {
         intensity: state.shakeHandheld,
         frequency: state.shakeFreq,
@@ -499,8 +535,7 @@ function render(t = performance.now()) {
         rotation: state.shakeRot
       },
       state.frameSeed,
-      canvas.width, canvas.height,
-      drawQuad
+      canvas.width, canvas.height
     );
     currentTex = shakeDst.tex;
   }
@@ -510,128 +545,118 @@ function render(t = performance.now()) {
   const motionAmt = shutterToPixels(sh, state.shake);
   if (motionAmt > 0.05) {
     const motionDst = (currentTex === rtA.tex) ? rtB : rtA;
-    applyMotionBlur(
-      gl, programs, quad, currentTex, motionDst,
+    motionBlur.apply(
+      currentTex, motionDst,
       { amount: motionAmt, angle: state.motionAngle, shake: state.shake },
       pxX, pxY,
-      canvas.width, canvas.height,
-      drawQuad
+      canvas.width, canvas.height
     );
     currentTex = motionDst.tex;
   }
   
   // Flash
   const flashDst = (currentTex === rtA.tex) ? rtB : rtA;
-  applyFlash(
-    gl, programs, quad, currentTex, flashDst,
+  exposureFlash.applyFlash(
+    currentTex, flashDst,
     {
       centerX: state.flashCenterX,
       centerY: state.flashCenterY,
       strength: state.flashStrength,
       falloff: state.flashFalloff
     },
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   currentTex = flashDst.tex;
   
   // Bloom prepass
   const brightDst = (currentTex === rtA.tex) ? rtB : rtA;
-  extractBright(
-    gl, programs, quad, currentTex, brightDst,
+  bloomVignetteOptics.extractBright(
+    currentTex, brightDst,
     state.bloomThreshold, state.bloomWarm,
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
-  downsample(gl, programs, quad, brightDst.tex, brightDst.w, brightDst.h, rtH_A, canvas.width, canvas.height, drawQuad);
-  downsample(gl, programs, quad, rtH_A.tex, rtH_A.w, rtH_A.h, rtQ_A, canvas.width, canvas.height, drawQuad);
-  downsample(gl, programs, quad, rtQ_A.tex, rtQ_A.w, rtQ_A.h, rtE_A, canvas.width, canvas.height, drawQuad);
+  bloomVignetteOptics.downsample(brightDst.tex, brightDst.w, brightDst.h, rtH_A, canvas.width, canvas.height);
+  bloomVignetteOptics.downsample(rtH_A.tex, rtH_A.w, rtH_A.h, rtQ_A, canvas.width, canvas.height);
+  bloomVignetteOptics.downsample(rtQ_A.tex, rtQ_A.w, rtQ_A.h, rtE_A, canvas.width, canvas.height);
   
-  blurHorizontalVertical(gl, programs, quad, rtE_A, rtE_B, state.bloomRadius * 0.6, canvas.width, canvas.height, drawQuad);
-  blurHorizontalVertical(gl, programs, quad, rtQ_A, rtQ_B, state.bloomRadius * 0.8, canvas.width, canvas.height, drawQuad);
-  blurHorizontalVertical(gl, programs, quad, rtH_A, rtH_B, state.bloomRadius * 1.0, canvas.width, canvas.height, drawQuad);
+  bloomVignetteOptics.blurHorizontalVertical(rtE_A, rtE_B, state.bloomRadius * 0.6, canvas.width, canvas.height);
+  bloomVignetteOptics.blurHorizontalVertical(rtQ_A, rtQ_B, state.bloomRadius * 0.8, canvas.width, canvas.height);
+  bloomVignetteOptics.blurHorizontalVertical(rtH_A, rtH_B, state.bloomRadius * 1.0, canvas.width, canvas.height);
   
-  upsampleAdd(gl, programs, quad, rtE_A.tex, rtQ_A.tex, rtQ_B, canvas.width, canvas.height, drawQuad);
-  upsampleAdd(gl, programs, quad, rtQ_B.tex, rtH_A.tex, rtH_B, canvas.width, canvas.height, drawQuad);
-  upsampleAdd(gl, programs, quad, rtH_B.tex, brightDst.tex, rtBloom, canvas.width, canvas.height, drawQuad);
+  bloomVignetteOptics.upsampleAdd(rtE_A.tex, rtQ_A.tex, rtQ_B, canvas.width, canvas.height);
+  bloomVignetteOptics.upsampleAdd(rtQ_B.tex, rtH_A.tex, rtH_B, canvas.width, canvas.height);
+  bloomVignetteOptics.upsampleAdd(rtH_B.tex, brightDst.tex, rtBloom, canvas.width, canvas.height);
   
   // Tone
   const toneDst1 = (currentTex === rtA.tex) ? rtB : rtA;
-  applyTone(
-    gl, programs, quad, currentTex, toneDst1,
+  tone.apply(
+    currentTex, toneDst1,
     {
       scurve: state.scurve,
       blacks: state.blacks,
       knee: state.knee,
       blackLift: state.blackLift
     },
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
   // Split toning
   const splitDst = (toneDst1 === rtA) ? rtB : rtA;
-  applySplitToning(
-    gl, programs, quad, toneDst1.tex, splitDst,
+  splitCast.applySplit(
+    toneDst1.tex, splitDst,
     { shadowCool: state.shadowCool, highlightWarm: state.highlightWarm },
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
   // Color cast
   const castDst = (splitDst === rtA) ? rtB : rtA;
-  applyColorCast(
-    gl, programs, quad, splitDst.tex, castDst,
+  splitCast.applyCast(
+    splitDst.tex, castDst,
     { greenShadows: state.greenShadows, magentaMids: state.magentaMids },
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
   // Vignette
   const vigDst = (castDst === rtA) ? rtB : rtA;
-  applyVignette(
-    gl, programs, quad, castDst.tex, vigDst,
+  bloomVignetteOptics.applyVignette(
+    castDst.tex, vigDst,
     state.vignette, state.vignettePower,
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
   // Bloom composite
   const bloomCompDst = (vigDst === rtA) ? rtB : rtA;
-  compositeBloom(
-    gl, programs, quad, vigDst.tex, rtBloom.tex, bloomCompDst,
+  bloomVignetteOptics.compositeBloom(
+    vigDst.tex, rtBloom.tex, bloomCompDst,
     state.bloomIntensity, state.halation,
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   let currentFB = bloomCompDst;
   
   // Clarity
   if (state.clarity > 0.001) {
     const clarDst = (currentFB === rtA) ? rtB : rtA;
-    applyClarity(
-      gl, programs, quad, currentFB.tex, clarDst,
+    bloomVignetteOptics.applyClarity(
+      currentFB.tex, clarDst,
       state.clarity, pxX, pxY,
-      canvas.width, canvas.height,
-      drawQuad
+      canvas.width, canvas.height
     );
     currentFB = clarDst;
   }
   
   // Chromatic aberration
   const caDst = (currentFB === rtA) ? rtB : rtA;
-  applyChromaticAberration(
-    gl, programs, quad, currentFB.tex, caDst,
+  bloomVignetteOptics.applyChromaticAberration(
+    currentFB.tex, caDst,
     state.ca, pxX, pxY,
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   currentFB = caDst;
   
   // Grain and output to screen
-  applyGrain(
-    gl, programs, quad, currentFB.tex,
+  filmGrain.apply(
+    currentFB.tex,
     {
       asa: state.grainASA,
       develop: state.grainDevelop,
@@ -641,8 +666,7 @@ function render(t = performance.now()) {
     },
     t,
     state.isVideo ? state.frameSeed : 0,
-    canvas.width, canvas.height,
-    drawQuad
+    canvas.width, canvas.height
   );
   
   state.needsRender = false;
