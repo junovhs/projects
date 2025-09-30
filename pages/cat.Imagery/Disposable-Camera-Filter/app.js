@@ -180,63 +180,113 @@ function layout() {
 
 window.addEventListener('resize', layout);
 
-// Auto-generate UI from module parameters
+// Auto-generate UI from module parameters into tabs
 function generateUI() {
-  const panel = $('.panel');
-  panel.innerHTML = ''; // Clear existing
+  const tabMapping = {
+    exposure: [
+      { title: 'Exposure & Flash', params: EXPOSURE_FLASH_PARAMS, hasFlashPad: true }
+    ],
+    color: [
+      { title: 'Tone', params: TONE_PARAMS },
+      { title: 'Split & Casts', params: SPLIT_CAST_PARAMS }
+    ],
+    bloom: [
+      { title: 'Bloom & Optics', params: BLOOM_VIGNETTE_OPTICS_PARAMS }
+    ],
+    motion: [
+      { title: 'Motion Blur', params: MOTION_BLUR_PARAMS },
+      { title: 'Handheld Camera', params: HANDHELD_PARAMS }
+    ],
+    grain: [
+      { title: 'Film Grain', params: GRAIN_PARAMS }
+    ]
+  };
   
-  const modules = [
-    { title: 'Exposure & Flash', params: EXPOSURE_FLASH_PARAMS, hasFlashPad: true },
-    { title: 'Tone', params: TONE_PARAMS },
-    { title: 'Split & Casts', params: SPLIT_CAST_PARAMS },
-    { title: 'Bloom, Vignette, Optics', params: BLOOM_VIGNETTE_OPTICS_PARAMS },
-    { title: 'Motion', params: MOTION_BLUR_PARAMS },
-    { title: 'Handheld Camera', params: HANDHELD_PARAMS },
-    { title: 'Film Grain', params: GRAIN_PARAMS }
-  ];
-  
-  modules.forEach(({ title, params, hasFlashPad }) => {
-    const section = document.createElement('section');
-    section.innerHTML = `<h3>${title}</h3>`;
+  for (const [tabId, sections] of Object.entries(tabMapping)) {
+    const pane = document.querySelector(`[data-pane="${tabId}"]`);
+    if (!pane) continue;
     
-    // Add flash pad if needed
-    if (hasFlashPad) {
-      const flashRow = document.createElement('div');
-      flashRow.className = 'row';
-      flashRow.innerHTML = `
-        <label>Flash Position</label>
-        <div class="pad" id="flashPad"><div class="dot" id="flashDot"></div></div>
-      `;
-      section.appendChild(flashRow);
-    }
-    
-    // Generate sliders
-    for (const [key, config] of Object.entries(params)) {
-      const row = document.createElement('div');
-      row.className = 'row';
-      
-      if (config.special === 'shutter') {
-        // Special shutter display
-        row.innerHTML = `
-          <label>${config.label}</label>
-          <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
-          <span class="val" id="${key}Label">${formatShutter(sliderToShutterSeconds(config.default))}</span>
+    sections.forEach(({ title, params, hasFlashPad }) => {
+      // Add flash pad if needed
+      if (hasFlashPad) {
+        const flashPadContainer = document.createElement('div');
+        flashPadContainer.className = 'control-group';
+        flashPadContainer.innerHTML = `
+          <div class="control-label">Flash Position</div>
+          <div class="flash-pad" id="flashPad">
+            <div class="flash-dot" id="flashDot"></div>
+          </div>
         `;
-      } else {
-        const displayValue = config.step < 0.01 ? config.default.toFixed(3) : 
-                            config.step < 1 ? config.default.toFixed(2) : 
-                            config.default.toFixed(0);
-        row.innerHTML = `
-          <label>${config.label}</label>
-          <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
-          <span class="val" data-for="${key}">${displayValue}</span>
-        `;
+        pane.appendChild(flashPadContainer);
       }
       
-      section.appendChild(row);
+      // Generate sliders
+      for (const [key, config] of Object.entries(params)) {
+        const group = document.createElement('div');
+        group.className = 'control-group';
+        
+        if (config.special === 'shutter') {
+          group.innerHTML = `
+            <div class="control-label">
+              <span>${config.label}</span>
+              <span class="control-value" id="${key}Label">${formatShutter(sliderToShutterSeconds(config.default))}</span>
+            </div>
+            <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+          `;
+        } else {
+          const displayValue = config.step < 0.01 ? config.default.toFixed(3) : 
+                              config.step < 1 ? config.default.toFixed(2) : 
+                              config.default.toFixed(0);
+          group.innerHTML = `
+            <div class="control-label">
+              <span>${config.label}</span>
+              <span class="control-value" data-for="${key}">${displayValue}</span>
+            </div>
+            <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+          `;
+        }
+        
+        pane.appendChild(group);
+      }
+    });
+  }
+}
+
+// Tab switching
+function setupTabs() {
+  const tabs = document.querySelectorAll('.tab');
+  const panes = document.querySelectorAll('.tab-pane');
+  
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const targetTab = tab.dataset.tab;
+      
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      
+      tab.classList.add('active');
+      document.querySelector(`[data-pane="${targetTab}"]`).classList.add('active');
+    });
+  });
+}
+
+// View mode toggle
+function setupViewModeToggle() {
+  const btn = document.getElementById('view-mode');
+  
+  btn.addEventListener('click', () => {
+    if (state.viewMode === 'fit') {
+      state.viewMode = '1x';
+      btn.textContent = '1:1';
+      canvas.classList.add('grabbable');
+      state.panX = undefined;
+      state.panY = undefined;
+    } else {
+      state.viewMode = 'fit';
+      btn.textContent = 'Fit';
+      canvas.classList.remove('grabbable');
     }
-    
-    panel.appendChild(section);
+    layout();
   });
 }
 
@@ -419,9 +469,11 @@ function setupCanvasInteraction() {
 
 // Initialize UI
 generateUI();
+setupTabs();
 bindAllSliders();
 setupFlashPad();
 setupCanvasInteraction();
+setupViewModeToggle();
 
 // File loading
 $('#open').onclick = () => $('#file').click();

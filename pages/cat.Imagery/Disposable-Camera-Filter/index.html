@@ -2,47 +2,62 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Disposable Night – Modular</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Disposable Night</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <strong>Disposable Night</strong>
-      <span>flash • bloom • grain</span>
+  <!-- Mobile-first layout: Canvas on top, controls below in tabs -->
+  <div id="viewer-container">
+    <canvas id="gl"></canvas>
+    <div class="viewer-overlay">
+      <button id="view-mode" class="overlay-btn">Fit</button>
     </div>
-    <div class="actions">
-      <label class="file">
-        <input id="file" type="file" accept="image/*,video/*" />
-        <button id="open">Open</button>
-      </label>
-      <button id="play" disabled>Play</button>
-      <button id="original">Original</button>
-      <button id="reset">Reset</button>
-      <button id="view-fit" class="toggle on">Fit</button>
-      <button id="view-1x" class="toggle">1:1</button>
-      <button id="save-png">Save PNG</button>
-      <button id="export-pngs">Export PNGs (.tar)</button>
-      <button id="export-mp4">Export MP4</button>
-    </div>
-  </header>
-  <main id="app">
-    <aside class="panel">
-      <!-- UI auto-generated from module params -->
-    </aside>
+  </div>
 
-    <section class="stage">
-      <div id="viewport">
-        <canvas id="gl"></canvas>
+  <div id="controls-container">
+    <!-- Tab navigation -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="exposure">Exposure</button>
+      <button class="tab" data-tab="color">Color</button>
+      <button class="tab" data-tab="bloom">Bloom</button>
+      <button class="tab" data-tab="motion">Motion</button>
+      <button class="tab" data-tab="grain">Grain</button>
+      <button class="tab" data-tab="file">File</button>
+    </nav>
+
+    <!-- Tab content - dynamically populated -->
+    <div class="tab-content">
+      <div class="tab-pane active" data-pane="exposure"></div>
+      <div class="tab-pane" data-pane="color"></div>
+      <div class="tab-pane" data-pane="bloom"></div>
+      <div class="tab-pane" data-pane="motion"></div>
+      <div class="tab-pane" data-pane="grain"></div>
+      <div class="tab-pane" data-pane="file">
+        <div class="file-actions">
+          <label class="btn-primary">
+            <input id="file" type="file" accept="image/*,video/*" style="display:none" />
+            Open File
+          </label>
+          <button id="play" class="btn-secondary" disabled>Play</button>
+          <button id="original" class="btn-secondary">Show Original</button>
+          <button id="reset" class="btn-secondary">Reset All</button>
+          <div class="divider"></div>
+          <button id="save-png" class="btn-primary">Save PNG</button>
+          <button id="export-pngs" class="btn-secondary">Export Frames</button>
+          <button id="export-mp4" class="btn-secondary">Export MP4</button>
+        </div>
       </div>
-      <div class="hint">Tip: click the image to place the flash.</div>
-      <div id="overlay" class="overlay hidden"><div id="overlayText">Exporting… 0%</div></div>
-      <div id="toast" class="toast hidden"></div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <video id="vid" playsinline muted style="display:none"></video>
+  
+  <div id="overlay" class="loading-overlay hidden">
+    <div id="overlayText">Processing…</div>
+  </div>
+  
+  <div id="toast" class="toast hidden"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.min.js"></script>
   <script type="module" src="app.js"></script>
