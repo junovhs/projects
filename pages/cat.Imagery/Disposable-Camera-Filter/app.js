@@ -572,23 +572,6 @@ if (originalBtn) {
   };
 }
 
-// View mode toggles
-$('#view-fit').onclick = () => {
-  state.viewMode = 'fit';
-  $('#view-fit').classList.add('on');
-  $('#view-1x').classList.remove('on');
-  layout();
-};
-
-$('#view-1x').onclick = () => {
-  state.viewMode = '1x';
-  $('#view-1x').classList.add('on');
-  $('#view-fit').classList.remove('on');
-  state.panX = undefined;
-  state.panY = undefined;
-  layout();
-};
-
 // Reset
 $('#reset').onclick = () => {
   initStateFromModules();
