@@ -118,18 +118,15 @@ function ensureRenderTargets() {
   rtBloom = ensureFramebuffer(rtBloom, gl, caps, W, H);
 }
 
-// Layout management
 function layout() {
-  const containerW = Math.max(50, Math.floor(window.innerWidth * 0.70));
-  const containerH = Math.max(50, Math.floor(window.innerHeight * 0.70));
-  const vp = $('#viewport');
-  vp.style.width = containerW + 'px';
-  vp.style.height = containerH + 'px';
-  
   if (!state.mediaW || !state.mediaH) {
     canvas.style.width = canvas.style.height = '0px';
     return;
   }
+  
+  const container = document.getElementById('viewer-container');
+  const containerW = container.clientWidth;
+  const containerH = container.clientHeight;
   
   if (state.viewMode === 'fit') {
     const scale = Math.min(containerW / state.mediaW, containerH / state.mediaH);
@@ -137,8 +134,9 @@ function layout() {
     const cssH = Math.max(1, Math.round(state.mediaH * scale));
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
-    canvas.style.left = ((containerW - cssW) / 2) + 'px';
-    canvas.style.top = ((containerH - cssH) / 2) + 'px';
+    canvas.style.position = 'static';
+    canvas.style.left = '';
+    canvas.style.top = '';
     
     const W = Math.round(cssW * state.dpr);
     const H = Math.round(cssH * state.dpr);
@@ -150,6 +148,7 @@ function layout() {
       state.needsRender = true;
     }
   } else {
+    // 1:1 mode
     if (canvas.width !== state.mediaW || canvas.height !== state.mediaH) {
       canvas.width = state.mediaW;
       canvas.height = state.mediaH;
@@ -159,6 +158,7 @@ function layout() {
     }
     canvas.style.width = state.mediaW + 'px';
     canvas.style.height = state.mediaH + 'px';
+    canvas.style.position = 'absolute';
     
     if (typeof state.panX !== 'number' || typeof state.panY !== 'number') {
       state.panX = Math.round((containerW - state.mediaW) / 2);
@@ -385,11 +385,11 @@ function setupFlashPad() {
 
 // Setup canvas interaction
 function setupCanvasInteraction() {
-  const vp = $('#viewport');
+  const container = document.getElementById('viewer-container');
   
   function showFlashDot() {
-    const pad = $('#flashPad');
-    const dot = $('#flashDot');
+    const pad = document.getElementById('flashPad');
+    const dot = document.getElementById('flashDot');
     if (!pad || !dot) return;
     const r = pad.getBoundingClientRect();
     dot.style.left = ((1.0 - state.flashCenterX) * r.width) + 'px';
@@ -422,7 +422,7 @@ function setupCanvasInteraction() {
     if (state.viewMode === '1x') {
       mode = 'pan';
       dragging = true;
-      vp.classList.add('dragging');
+      container.classList.add('dragging');
       sx = p.x;
       sy = p.y;
       ox = state.panX || 0;
@@ -450,7 +450,7 @@ function setupCanvasInteraction() {
   
   const onUp = () => {
     dragging = false;
-    vp.classList.remove('dragging');
+    container.classList.remove('dragging');
   };
   
   canvas.addEventListener('mousedown', onDown);
@@ -459,7 +459,7 @@ function setupCanvasInteraction() {
   
   canvas.addEventListener('touchstart', onDown, { passive: false });
   window.addEventListener('touchmove', e => {
-    if (dragging) {
+    if (dragging && mode === 'pan') {
       e.preventDefault();
       onMove(e);
     }
@@ -549,22 +549,28 @@ function loadVideo(file) {
 }
 
 // Transport controls
-$('#play').onclick = () => {
-  if (!state.isVideo) return;
-  if (video.paused) {
-    video.play();
-    $('#play').textContent = 'Pause';
-  } else {
-    video.pause();
-    $('#play').textContent = 'Play';
-  }
-};
+const playBtn = document.getElementById('play');
+if (playBtn) {
+  playBtn.onclick = () => {
+    if (!state.isVideo) return;
+    if (video.paused) {
+      video.play();
+      playBtn.textContent = 'Pause';
+    } else {
+      video.pause();
+      playBtn.textContent = 'Play';
+    }
+  };
+}
 
-$('#original').onclick = () => {
-  state.showOriginal = !state.showOriginal;
-  $('#original').classList.toggle('active', state.showOriginal);
-  state.needsRender = true;
-};
+const originalBtn = document.getElementById('original');
+if (originalBtn) {
+  originalBtn.onclick = () => {
+    state.showOriginal = !state.showOriginal;
+    originalBtn.classList.toggle('active', state.showOriginal);
+    state.needsRender = true;
+  };
+}
 
 // View mode toggles
 $('#view-fit').onclick = () => {
