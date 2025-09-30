@@ -55,24 +55,19 @@ vec3 hash3(vec2 p) {
   return fract((p3.xxy + p3.yzz) * p3.zyx);
 }
 
-// Simplified AR process - models spatial correlation
-// G(x,y) = a0*n + sum(ai*G(neighbors))
+// Simplified AR process
 float arGrain(vec2 p, float seed, float character) {
-  // Current position Gaussian noise
   float n = hash1(p + seed) - 0.5;
+  float a0 = mix(0.85, 0.6, character);
+  float a1 = mix(0.08, 0.25, character);
   
-  // AR coefficients - stronger correlation = chunkier grain
-  float a0 = mix(0.85, 0.6, character);  // Noise weight
-  float a1 = mix(0.08, 0.25, character); // Neighbor weight
-  
-  // Sample neighbors (simplified 2-tap AR for performance)
   float g_left = (hash1(p + vec2(-1, 0) + seed) - 0.5);
   float g_up = (hash1(p + vec2(0, -1) + seed) - 0.5);
   
   return a0 * n + a1 * (g_left + g_up);
 }
 
-// Gradient noise for fine detail
+// Gradient noise
 float gradNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -91,7 +86,7 @@ float gradNoise(vec2 p) {
   return mix(mix(va, vb, u.x), mix(vc, vd, u.x), u.y);
 }
 
-// Worley for shadow clumping
+// Worley
 float worley(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -109,23 +104,19 @@ float worley(vec2 p) {
   return minDist;
 }
 
-// Multi-octave grain generation
+// Multi-octave grain
 float grainLayer(vec2 p, float seed, float character) {
   float sum = 0.0;
   float amp = 0.5;
   float freq = 1.0;
   
-  // Temporal offset with sub-pixel jitter
   vec2 offset = hash2(vec2(seed, seed * 1.234)) * 100.0;
   vec2 jitter = (hash2(vec2(seed * 0.1234, seed * 0.5678)) - 0.5) * 0.8;
   p += offset + jitter;
   
-  // 3 octaves for performance
   for (int i = 0; i < 3; i++) {
-    // Mix AR process (chunky) with gradient noise (smooth)
     float ar = arGrain(p * freq, seed + float(i), character);
     float grad = gradNoise(p * freq * 1.3);
-    
     float n = mix(grad, ar, character);
     
     sum += amp * n;
@@ -141,58 +132,49 @@ void main() {
   vec3 linear = toLinear(color);
   float luma = dot(linear, vec3(0.2126, 0.7152, 0.0722));
   
-  // === GRAIN COORDINATE SPACE ===
+  // Grain coordinate space
   float grainPixelSize = mix(0.8, 4.0, uSize);
   vec2 grainUV = (v_uv * uRes) / grainPixelSize;
   
-  // === LUMINANCE-DEPENDENT RESPONSE ===
-  // Research shows grain is most visible in midtones
+  // Luminance response
   float midtones = 1.0 - pow(abs(luma - 0.5) * 2.0, 1.5);
   midtones = mix(0.3, 1.0, midtones);
   
-  // Shadow behavior - grain clumps in underexposed areas
   float shadows = smoothstep(0.35, 0.0, luma);
-  
-  // Highlight compression - overexposed areas show less grain
   float highlights = smoothstep(0.8, 1.0, luma);
   
-  // === GENERATE LUMA GRAIN ===
+  // Generate luma grain
   float lumaGrain = grainLayer(grainUV, uSeed, uCharacter);
   
-  // Add shadow clumping
+  // Shadow clumping
   float clumps = worley(grainUV * 0.6 + hash2(vec2(uSeed)) * 10.0);
   clumps = (clumps * 2.0 - 1.0) * 0.7;
   lumaGrain = mix(lumaGrain, clumps, shadows * uCharacter * 0.6);
   
-  // === CHROMATIC GRAIN ===
-  // Each color channel has different grain (per research)
+  // Chromatic grain
   vec3 chromaGrain = vec3(
     grainLayer(grainUV * 0.85 + vec2(12.34, 56.78), uSeed * 1.1, uCharacter * 0.7),
     grainLayer(grainUV * 0.85 + vec2(91.01, 23.45), uSeed * 1.2, uCharacter * 0.7),
     grainLayer(grainUV * 0.85 + vec2(67.89, 34.56), uSeed * 1.3, uCharacter * 0.7)
   );
   
-  // Blend luma and chroma grain
   vec3 grain = mix(vec3(lumaGrain), chromaGrain, uChroma);
   
-  // === GRAIN SHARPNESS/DEFINITION ===
-  // Controls contrast of grain pattern
+  // Sharpness
   float contrast = mix(0.5, 2.0, uSharpness);
   grain = grain * contrast;
   
-  // === INTENSITY MODULATION ===
-  // Grain strength varies with luminance (from research)
-  float intensity = uAmount * 0.025;
+  // Intensity modulation - MUCH stronger base value
+  float intensity = uAmount * 0.08; // Increased from 0.025
   intensity *= midtones;
   intensity *= (1.0 - highlights * 0.6);
   intensity *= (1.0 + shadows * 0.4);
   
-  // === APPLY GRAIN AS DENSITY MODULATION ===
-  // This is the key: grain modulates density, not just adds brightness
-  vec3 grainedLinear = linear * (1.0 + grain * intensity);
+  // Apply as density modulation
+  vec3 grainedLinear = linear + (grain * intensity);
   grainedLinear = max(grainedLinear, 0.0);
   
-  // === OUTPUT ===
+  // Output
   vec3 finalColor = toSRGB(grainedLinear);
   
   // Dithering
