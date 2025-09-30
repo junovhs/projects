@@ -287,6 +287,7 @@ function generateUI() {
           </label>
           <button id="play" class="btn btn-secondary" disabled>Play</button>
           <button id="original" class="btn btn-secondary">Original</button>
+          <button id="view-mode" class="btn btn-secondary">Fit</button>
           <button id="reset" class="btn btn-secondary btn-full">Reset All</button>
           <button id="save-png" class="btn btn-primary btn-full">Save PNG</button>
           <button id="export-pngs" class="btn btn-secondary">Frames</button>
@@ -370,6 +371,7 @@ function setupTabs() {
 // View mode toggle
 function setupViewModeToggle() {
   const btn = document.getElementById('view-mode');
+if (!btn) return;
   
   btn.addEventListener('click', () => {
     if (state.viewMode === 'fit') {
