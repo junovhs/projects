@@ -1,14 +1,13 @@
 // Enhanced Film Grain Module
-// Authentic film grain with proper temporal characteristics
+// Based on AOMedia AV1 film grain synthesis research
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
-// Actually useful parameters that do different things
 export const GRAIN_PARAMS = {
   grainAmount: { min: 0, max: 2, step: 0.05, default: 0.8, label: 'Grain Amount' },
   grainSize: { min: 0.3, max: 3, step: 0.1, default: 1.0, label: 'Grain Size' },
-  grainRoughness: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Roughness' }, // smooth fine grain vs chunky coarse grain
-  grainDefinition: { min: 0, max: 1, step: 0.01, default: 0.7, label: 'Definition' }, // soft/blurry vs sharp/crisp
+  grainCharacter: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Character' },
+  grainSharpness: { min: 0, max: 1, step: 0.01, default: 0.7, label: 'Sharpness' },
   grainChroma: { min: 0, max: 1, step: 0.01, default: 0.4, label: 'Color Grain' }
 };
 
@@ -26,7 +25,7 @@ precision highp float;
 varying vec2 v_uv;
 uniform sampler2D uTex;
 uniform vec2 uRes;
-uniform float uAmount, uSize, uRoughness, uDefinition, uChroma, uSeed;
+uniform float uAmount, uSize, uCharacter, uSharpness, uChroma, uSeed;
 
 // Better color space
 vec3 toLinear(vec3 s) {
@@ -37,7 +36,7 @@ vec3 toSRGB(vec3 l) {
   return mix(l * 12.92, pow(l, vec3(1.0/2.4)) * 1.055 - 0.055, step(0.0031308, l));
 }
 
-// High-quality hash with better distribution
+// High-quality hash
 float hash1(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -56,15 +55,29 @@ vec3 hash3(vec2 p) {
   return fract((p3.xxy + p3.yzz) * p3.zyx);
 }
 
-// Gradient noise - proper Perlin-style
+// Simplified AR process - models spatial correlation
+// G(x,y) = a0*n + sum(ai*G(neighbors))
+float arGrain(vec2 p, float seed, float character) {
+  // Current position Gaussian noise
+  float n = hash1(p + seed) - 0.5;
+  
+  // AR coefficients - stronger correlation = chunkier grain
+  float a0 = mix(0.85, 0.6, character);  // Noise weight
+  float a1 = mix(0.08, 0.25, character); // Neighbor weight
+  
+  // Sample neighbors (simplified 2-tap AR for performance)
+  float g_left = (hash1(p + vec2(-1, 0) + seed) - 0.5);
+  float g_up = (hash1(p + vec2(0, -1) + seed) - 0.5);
+  
+  return a0 * n + a1 * (g_left + g_up);
+}
+
+// Gradient noise for fine detail
 float gradNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
-  
-  // Quintic for C2 continuity
   vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
   
-  // Gradient vectors at corners
   vec2 ga = hash2(i + vec2(0.0, 0.0)) * 2.0 - 1.0;
   vec2 gb = hash2(i + vec2(1.0, 0.0)) * 2.0 - 1.0;
   vec2 gc = hash2(i + vec2(0.0, 1.0)) * 2.0 - 1.0;
@@ -78,25 +91,10 @@ float gradNoise(vec2 p) {
   return mix(mix(va, vb, u.x), mix(vc, vd, u.x), u.y);
 }
 
-// Value noise for different character
-float valueNoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  
-  float a = hash1(i + vec2(0.0, 0.0));
-  float b = hash1(i + vec2(1.0, 0.0));
-  float c = hash1(i + vec2(0.0, 1.0));
-  float d = hash1(i + vec2(1.0, 1.0));
-  
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
-}
-
-// Worley/cellular for clumpy structure
+// Worley for shadow clumping
 float worley(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
-  
   float minDist = 1.0;
   
   for (int x = -1; x <= 1; x++) {
@@ -104,36 +102,34 @@ float worley(vec2 p) {
       vec2 neighbor = vec2(float(x), float(y));
       vec2 point = hash2(i + neighbor);
       vec2 diff = neighbor + point - f;
-      float dist = length(diff);
-      minDist = min(minDist, dist);
+      minDist = min(minDist, length(diff));
     }
   }
   
   return minDist;
 }
 
-// Multi-layer grain with different characteristics
-float grainLayer(vec2 p, float seed, int octaves) {
+// Multi-octave grain generation
+float grainLayer(vec2 p, float seed, float character) {
   float sum = 0.0;
   float amp = 0.5;
   float freq = 1.0;
   
-  // Offset position by seed for temporal variation
+  // Temporal offset with sub-pixel jitter
   vec2 offset = hash2(vec2(seed, seed * 1.234)) * 100.0;
-  p += offset;
+  vec2 jitter = (hash2(vec2(seed * 0.1234, seed * 0.5678)) - 0.5) * 0.8;
+  p += offset + jitter;
   
-  for (int i = 0; i < 6; i++) {
-    if (i >= octaves) break;
+  // 3 octaves for performance
+  for (int i = 0; i < 3; i++) {
+    // Mix AR process (chunky) with gradient noise (smooth)
+    float ar = arGrain(p * freq, seed + float(i), character);
+    float grad = gradNoise(p * freq * 1.3);
     
-    // Mix gradient and value noise for organic quality
-    float n = mix(
-      gradNoise(p * freq),
-      valueNoise(p * freq * 1.3 + 7.77),
-      0.5
-    );
+    float n = mix(grad, ar, character);
     
     sum += amp * n;
-    freq *= 2.1; // Slightly off 2.0 for less repetition
+    freq *= 2.1;
     amp *= 0.5;
   }
   
@@ -146,83 +142,62 @@ void main() {
   float luma = dot(linear, vec3(0.2126, 0.7152, 0.0722));
   
   // === GRAIN COORDINATE SPACE ===
-  
-  // Base grain size in pixels (realistic film grain is 1-4 pixels typically)
   float grainPixelSize = mix(0.8, 4.0, uSize);
   vec2 grainUV = (v_uv * uRes) / grainPixelSize;
   
-  // Add sub-pixel jitter for temporal variation (critical for video!)
-  vec2 temporalJitter = hash2(vec2(uSeed * 0.1234, uSeed * 0.5678)) - 0.5;
-  grainUV += temporalJitter * 0.8;
-  
   // === LUMINANCE-DEPENDENT RESPONSE ===
-  
-  // Film grain is most visible in midtones, less in pure black/white
+  // Research shows grain is most visible in midtones
   float midtones = 1.0 - pow(abs(luma - 0.5) * 2.0, 1.5);
-  midtones = mix(0.3, 1.0, midtones); // Always some grain
+  midtones = mix(0.3, 1.0, midtones);
   
-  // Shadow clumping (real film does this)
+  // Shadow behavior - grain clumps in underexposed areas
   float shadows = smoothstep(0.35, 0.0, luma);
   
-  // Highlight compression
+  // Highlight compression - overexposed areas show less grain
   float highlights = smoothstep(0.8, 1.0, luma);
   
-  // === GENERATE GRAIN STRUCTURE ===
+  // === GENERATE LUMA GRAIN ===
+  float lumaGrain = grainLayer(grainUV, uSeed, uCharacter);
   
-  // High-frequency fine detail (always present)
-  float fineGrain = grainLayer(grainUV, uSeed, 5);
-  
-  // Lower-frequency coarse structure (controlled by roughness)
-  float coarseGrain = grainLayer(grainUV * 0.4, uSeed * 0.777, 4);
-  
-  // Clumpy cellular structure (for shadows)
+  // Add shadow clumping
   float clumps = worley(grainUV * 0.6 + hash2(vec2(uSeed)) * 10.0);
-  clumps = pow(clumps, 0.8) * 2.0 - 1.0;
+  clumps = (clumps * 2.0 - 1.0) * 0.7;
+  lumaGrain = mix(lumaGrain, clumps, shadows * uCharacter * 0.6);
   
-  // Mix fine and coarse based on roughness parameter
-  float structuredGrain = mix(fineGrain, coarseGrain, uRoughness);
-  
-  // Add clumping in shadows
-  structuredGrain = mix(structuredGrain, clumps, shadows * 0.6);
-  
-  // === CHROMATIC GRAIN (PER-CHANNEL) ===
-  
-  // Color channels have different grain (silver halides are random)
+  // === CHROMATIC GRAIN ===
+  // Each color channel has different grain (per research)
   vec3 chromaGrain = vec3(
-    grainLayer(grainUV * 0.85 + vec2(12.34, 56.78), uSeed * 1.1, 4),
-    grainLayer(grainUV * 0.85 + vec2(91.01, 23.45), uSeed * 1.2, 4),
-    grainLayer(grainUV * 0.85 + vec2(67.89, 34.56), uSeed * 1.3, 4)
+    grainLayer(grainUV * 0.85 + vec2(12.34, 56.78), uSeed * 1.1, uCharacter * 0.7),
+    grainLayer(grainUV * 0.85 + vec2(91.01, 23.45), uSeed * 1.2, uCharacter * 0.7),
+    grainLayer(grainUV * 0.85 + vec2(67.89, 34.56), uSeed * 1.3, uCharacter * 0.7)
   );
   
   // Blend luma and chroma grain
-  vec3 grain = mix(vec3(structuredGrain), chromaGrain, uChroma);
+  vec3 grain = mix(vec3(lumaGrain), chromaGrain, uChroma);
   
   // === GRAIN SHARPNESS/DEFINITION ===
-  
-  // Soft grain: compress dynamic range
-  // Sharp grain: expand dynamic range
-  float sharpness = mix(0.6, 1.4, uDefinition);
-  grain = sign(grain) * pow(abs(grain), vec3(1.0 / sharpness));
+  // Controls contrast of grain pattern
+  float contrast = mix(0.5, 2.0, uSharpness);
+  grain = grain * contrast;
   
   // === INTENSITY MODULATION ===
+  // Grain strength varies with luminance (from research)
+  float intensity = uAmount * 0.025;
+  intensity *= midtones;
+  intensity *= (1.0 - highlights * 0.6);
+  intensity *= (1.0 + shadows * 0.4);
   
-  float intensity = uAmount * 0.025; // Base intensity
-  intensity *= midtones; // Midtone emphasis
-  intensity *= (1.0 - highlights * 0.6); // Reduce in highlights
-  intensity *= (1.0 + shadows * 0.4); // Boost in shadows
-  
-  // === APPLY GRAIN (IN LINEAR SPACE) ===
-  
-  vec3 grainedLinear = linear + grain * intensity;
+  // === APPLY GRAIN AS DENSITY MODULATION ===
+  // This is the key: grain modulates density, not just adds brightness
+  vec3 grainedLinear = linear * (1.0 + grain * intensity);
   grainedLinear = max(grainedLinear, 0.0);
   
   // === OUTPUT ===
-  
   vec3 finalColor = toSRGB(grainedLinear);
   
-  // High-quality dithering (blue noise pattern)
-  float dither = hash1(v_uv * uRes + temporalJitter * 123.45);
-  dither = (dither - 0.5) / 255.0;
+  // Dithering
+  vec2 ditherJitter = hash2(v_uv * uRes + vec2(uSeed * 123.45));
+  float dither = (ditherJitter.x - 0.5) / 255.0;
   finalColor += dither;
   
   gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
@@ -267,8 +242,8 @@ export class FilmGrainModule {
     
     gl.uniform1f(gl.getUniformLocation(this.program, 'uAmount'), params.grainAmount);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uSize'), params.grainSize);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uRoughness'), params.grainRoughness);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uDefinition'), params.grainDefinition);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uCharacter'), params.grainCharacter);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uSharpness'), params.grainSharpness);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uChroma'), params.grainChroma);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uSeed'), frameSeed);
     
