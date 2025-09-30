@@ -1,15 +1,21 @@
-// Film Grain Module
-// Complete film grain simulation with procedural noise
+// Enhanced Film Grain Module
+// Physically-based film grain simulation with authentic film stock characteristics
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
-// Parameter definitions - add new params here and UI auto-generates
 export const GRAIN_PARAMS = {
-  grainASA: { min: 50, max: 3200, step: 50, default: 800, label: 'ASA' },
-  grainDevelop: { min: -2, max: 2, step: 0.1, default: 0, label: 'Develop' },
-  grainStock: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Stock Type' },
-  grainChroma: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Color Grain' },
-  grainMagnify: { min: 0.5, max: 3, step: 0.01, default: 1.0, label: 'Print Size' }
+  grainASA: { min: 50, max: 3200, step: 50, default: 400, label: 'Film Speed (ISO)' },
+  grainDevelop: { min: -2, max: 2, step: 0.1, default: 0, label: 'Push/Pull' },
+  grainStock: { 
+    min: 0, 
+    max: 3, 
+    step: 1, 
+    default: 0, 
+    label: 'Film Stock',
+    labels: ['Kodak Gold', 'Fuji Superia', 'Kodak Portra', 'Agfa Vista']
+  },
+  grainIntensity: { min: 0, max: 2, step: 0.05, default: 1.0, label: 'Grain Amount' },
+  grainSize: { min: 0.5, max: 2.5, step: 0.1, default: 1.0, label: 'Scan Resolution' }
 };
 
 const VERTEX_SHADER = `
@@ -21,90 +27,215 @@ void main() {
 }
 `;
 
-const COMMON = `
+const GRAIN_SHADER = `
 precision highp float;
 varying vec2 v_uv;
-uniform vec2 uRes;
-vec3 toLin(vec3 c) { return pow(c, vec3(2.2)); }
-vec3 toSRGB(vec3 c) { return pow(max(c, 0.0), vec3(1.0/2.2)); }
-`;
-
-const GRAIN_SHADER = COMMON + `
 uniform sampler2D uTex;
-uniform float uASA, uDev, uStock, uChroma, uMag, uShadow, uTime, uSeed, uDither;
+uniform vec2 uRes;
+uniform float uASA, uDev, uStock, uIntensity, uGrainSize, uSeed;
 
-float h(vec2 p) {
+// Physically accurate color space conversion
+vec3 toLinear(vec3 srgb) {
+  return mix(
+    srgb / 12.92,
+    pow((srgb + 0.055) / 1.055, vec3(2.4)),
+    step(0.04045, srgb)
+  );
+}
+
+vec3 toSRGB(vec3 linear) {
+  return mix(
+    linear * 12.92,
+    pow(linear, vec3(1.0/2.4)) * 1.055 - 0.055,
+    step(0.0031308, linear)
+  );
+}
+
+// High-quality hash for grain generation
+vec3 hash3(vec2 p) {
+  vec3 q = vec3(
+    dot(p, vec2(127.1, 311.7)),
+    dot(p, vec2(269.5, 183.3)),
+    dot(p, vec2(419.2, 371.9))
+  );
+  return fract(sin(q) * 43758.5453);
+}
+
+float hash1(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-float vnoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p);
-  float a = h(i), b = h(i + vec2(1, 0));
-  float c = h(i + vec2(0, 1)), d = h(i + vec2(1, 1));
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+// Improved gradient noise (better than value noise)
+float gradientNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  
+  // Quintic interpolation for C2 continuity
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  
+  float a = hash1(i + vec2(0.0, 0.0));
+  float b = hash1(i + vec2(1.0, 0.0));
+  float c = hash1(i + vec2(0.0, 1.0));
+  float d = hash1(i + vec2(1.0, 1.0));
+  
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
 }
 
-float fbm(vec2 p) {
-  float s = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) {
-    s += a * vnoise(p);
-    p *= 2.0;
-    a *= 0.5;
+// Multi-scale grain texture
+float grainFBM(vec2 p, int octaves, float lacunarity, float gain) {
+  float sum = 0.0;
+  float amp = 0.5;
+  float freq = 1.0;
+  
+  for (int i = 0; i < 6; i++) {
+    if (i >= octaves) break;
+    sum += amp * gradientNoise(p * freq);
+    freq *= lacunarity;
+    amp *= gain;
   }
-  return s;
+  
+  return sum;
 }
 
-mat2 R(float a) {
-  float c = cos(a), s = sin(a);
-  return mat2(c, -s, s, c);
+// Simulate clumpy/clustered grain structure (realistic for shadows)
+float clumpyGrain(vec2 p) {
+  // Large-scale clumping
+  float clumps = grainFBM(p * 0.3, 3, 2.0, 0.5);
+  // Fine detail
+  float detail = grainFBM(p, 4, 2.3, 0.48);
+  // Clumps modulate detail
+  return detail * (0.5 + 0.5 * clumps);
 }
 
-vec2 seedOf(float s) {
-  return vec2(
-    fract(sin((s + 1.0) * 12.99) * 43758.54),
-    fract(sin((s + 2.0) * 78.23) * 12345.67)
-  ) * 173.0;
+// Film stock characteristics based on real films
+struct FilmStock {
+  float grainScale;      // Base grain size
+  float chromaRatio;     // Color grain vs luma grain
+  float clumpiness;      // Grain clustering
+  float shadowBoost;     // Extra shadow grain
+  float sharpness;       // Grain edge sharpness
+  vec3 colorBias;        // Per-channel grain color
+};
+
+FilmStock getFilmStock(float id) {
+  // Kodak Gold 200 - consumer film, warm, visible grain
+  if (id < 0.5) {
+    return FilmStock(1.1, 0.75, 0.45, 0.9, 0.8, vec3(1.08, 1.0, 0.94));
+  }
+  // Fuji Superia 400 - cooler tones, fine uniform grain
+  else if (id < 1.5) {
+    return FilmStock(0.9, 0.65, 0.25, 0.6, 0.9, vec3(0.96, 1.0, 1.06));
+  }
+  // Kodak Portra 400 - professional, very fine grain
+  else if (id < 2.5) {
+    return FilmStock(0.75, 0.5, 0.15, 0.4, 1.0, vec3(1.0, 1.0, 1.0));
+  }
+  // Agfa Vista 400 - discontinued, punchy, grainy
+  else {
+    return FilmStock(1.35, 0.85, 0.55, 1.1, 0.75, vec3(1.12, 0.96, 0.88));
+  }
 }
 
 void main() {
-  vec3 c = texture2D(uTex, v_uv).rgb;
-  float Y = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  vec3 color = texture2D(uTex, v_uv).rgb;
+  vec3 linear = toLinear(color);
   
-  float asaN = clamp(
-    (log2(uASA) - log2(50.0)) / (log2(3200.0) - log2(50.0)),
-    0.0, 1.0
+  // Luminance in linear space (physically correct)
+  float luma = dot(linear, vec3(0.2126, 0.7152, 0.0722));
+  
+  FilmStock stock = getFilmStock(uStock);
+  
+  // ISO grain relationship (logarithmic)
+  float isoFactor = log2(uASA / 100.0) / log2(32.0);
+  isoFactor = clamp(isoFactor, 0.0, 1.0);
+  
+  // Push/pull processing affects grain structure
+  float pushPull = 1.0 + uDev * 0.25;
+  
+  // Calculate grain size in pixels (simulates silver halide crystal size)
+  float baseGrainSize = mix(0.6, 5.0, pow(isoFactor, 0.9));
+  float grainPixels = baseGrainSize * stock.grainScale * uGrainSize * pushPull;
+  
+  // Grain space UV with temporal seed
+  vec2 grainUV = (v_uv * uRes) / grainPixels;
+  vec2 seedOffset = hash3(vec2(uSeed * 123.45, uSeed * 678.90)).xy * 999.0;
+  grainUV += seedOffset;
+  
+  // === LUMINANCE-DEPENDENT GRAIN RESPONSE ===
+  
+  // Midtone response (grain most visible in midtones)
+  float midtoneCurve = 1.0 - pow(abs(luma - 0.5) * 2.0, 1.5);
+  midtoneCurve = max(midtoneCurve, 0.2); // Always some grain
+  
+  // Shadow grain characteristics (clumpy, more visible)
+  float shadowMask = pow(max(0.0, 1.0 - luma * 2.5), 2.5);
+  float shadowGrainBoost = shadowMask * stock.shadowBoost;
+  
+  // Highlight compression (blown highlights show less grain)
+  float highlightRolloff = smoothstep(0.85, 1.0, luma);
+  
+  // === GENERATE GRAIN TEXTURE ===
+  
+  // Luminance grain (shared across channels)
+  float lumaGrain;
+  
+  if (luma < 0.35) {
+    // Shadows: clumpy, irregular grain
+    lumaGrain = mix(
+      grainFBM(grainUV, 5, 2.2, 0.5),
+      clumpyGrain(grainUV),
+      stock.clumpiness
+    );
+  } else {
+    // Midtones/highlights: clean, regular grain
+    lumaGrain = grainFBM(grainUV, 5, 2.1, 0.5);
+  }
+  
+  // Chromatic grain (coarser, per-channel)
+  float chromaticScale = 0.7; // Chroma grain is coarser
+  vec3 chromaGrain = vec3(
+    grainFBM(grainUV * chromaticScale + vec2(127.3, 311.7), 4, 2.0, 0.5),
+    grainFBM(grainUV * chromaticScale + vec2(269.5, 183.3), 4, 2.0, 0.5),
+    grainFBM(grainUV * chromaticScale + vec2(419.2, 371.9), 4, 2.0, 0.5)
   );
-  float cell = mix(0.6, 3.2, asaN) * uMag;
-  float base = mix(0.006, 0.040, asaN);
   
-  float aniso = mix(0.55, 1.0, uStock);
-  mat2 A = R(1.13) * mat2(1.0, 0.0, 0.0, aniso);
-  vec2 uv = (v_uv * uRes) / cell;
-  uv = A * uv + seedOf(uSeed);
+  // Blend luma and chroma grain based on film stock
+  vec3 grain = mix(vec3(lumaGrain), chromaGrain, stock.chromaRatio);
   
-  float dev = clamp((uDev + 2.0) / 4.0, 0.0, 1.0);
-  float gain = mix(0.9, 1.8, dev);
+  // Apply film stock color bias
+  grain *= stock.colorBias;
   
-  float gL = fbm(uv) - 0.5;
-  vec3 gC = vec3(
-    fbm(uv + vec2(17.2, 3.1)),
-    fbm(uv + vec2(-9.7, 11.4)),
-    fbm(uv + vec2(6.3, -21.7))
-  ) - 0.5;
+  // Sharpen grain slightly (film grain has crisp edges)
+  grain = sign(grain) * pow(abs(grain), vec3(1.0 / stock.sharpness));
   
-  vec3 g = mix(vec3(gL), mix(vec3(gL), gC, 0.35), uChroma);
+  // === CALCULATE GRAIN INTENSITY ===
   
-  float shadow = pow(max(0.0, 1.0 - Y), 1.0 + 1.2 * uShadow);
-  float amp = base * gain * (0.55 + uShadow * shadow);
+  // Base intensity from ISO
+  float baseIntensity = mix(0.001, 0.04, pow(isoFactor, 1.2));
   
-  vec3 outc = toSRGB(clamp(c + g * amp, 0.0, 16.0));
-  outc = clamp(outc, 0.0, 1.0);
+  // Modulate by luminance response
+  float intensity = baseIntensity * uIntensity * pushPull;
+  intensity *= midtoneCurve;
+  intensity *= (1.0 + shadowGrainBoost * 1.8);
+  intensity *= (1.0 - highlightRolloff * 0.7);
   
-  float n = fract(sin(dot(v_uv * uRes, vec2(12.9898, 78.233))) * 43758.5453);
-  outc += (uDither) * (n - 0.5) / 255.0;
+  // === APPLY GRAIN IN LINEAR SPACE (PHYSICALLY CORRECT) ===
   
-  gl_FragColor = vec4(outc, 1.0);
+  // Film grain is additive in linear light (density is additive)
+  vec3 grainedLinear = linear + grain * intensity;
+  
+  // Prevent negative values
+  grainedLinear = max(grainedLinear, 0.0);
+  
+  // === CONVERT BACK TO DISPLAY SPACE ===
+  
+  vec3 output = toSRGB(grainedLinear);
+  
+  // Subtle dithering to prevent banding in smooth gradients
+  float dither = hash1(v_uv * uRes + seedOffset) - 0.5;
+  output += dither / 255.0;
+  
+  gl_FragColor = vec4(clamp(output, 0.0, 1.0), 1.0);
 }
 `;
 
@@ -147,12 +278,9 @@ export class FilmGrainModule {
     gl.uniform1f(gl.getUniformLocation(this.program, 'uASA'), params.grainASA);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uDev'), params.grainDevelop);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uStock'), params.grainStock);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uChroma'), params.grainChroma);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uMag'), params.grainMagnify);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uShadow'), 0.70);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uTime'), time * 0.001);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uIntensity'), params.grainIntensity);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uGrainSize'), params.grainSize);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uSeed'), frameSeed);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uDither'), 0.5);
     
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
