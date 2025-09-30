@@ -212,13 +212,13 @@ void main() {
   grainedLinear = max(grainedLinear, 0.0);
   
   // Convert back to sRGB
-  vec3 output = toSRGB(grainedLinear);
+  vec3 finalColor = toSRGB(grainedLinear);
   
   // Dithering to prevent banding
   float dither = hash1(v_uv * uRes + seedOffset) - 0.5;
-  output += dither / 255.0;
+  finalColor += dither / 255.0;
   
-  gl_FragColor = vec4(clamp(output, 0.0, 1.0), 1.0);
+  gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
 }
 `;
 
