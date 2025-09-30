@@ -475,9 +475,7 @@ setupFlashPad();
 setupCanvasInteraction();
 setupViewModeToggle();
 
-// File loading
-$('#open').onclick = () => $('#file').click();
-
+// File loading - the label already triggers the file input, no need for separate handler
 $('#file').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
