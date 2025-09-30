@@ -1,14 +1,12 @@
 // Handheld Camera Module
-// Simulates handheld camera shake (video only)
+// Simulates realistic handheld camera shake using Perlin noise
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const HANDHELD_PARAMS = {
-  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
-  shakeFreq: { min: 0.1, max: 5, step: 0.1, default: 2, label: 'Frequency (Hz)' },
-  shakeAmpX: { min: 0, max: 50, step: 1, default: 8, label: 'X Amp (px)' },
-  shakeAmpY: { min: 0, max: 50, step: 1, default: 6, label: 'Y Amp (px)' },
-  shakeRot: { min: 0, max: 2, step: 0.1, default: 0.4, label: 'Rotation (°)' }
+  shakeIntensity: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
+  shakeFrequency: { min: 0.5, max: 8, step: 0.1, default: 2.5, label: 'Frequency' },
+  shakeTremor: { min: 0, max: 1, step: 0.01, default: 0.4, label: 'Tremor' }
 };
 
 const VERTEX_SHADER = `
@@ -20,75 +18,108 @@ void main() {
 }
 `;
 
-const COMMON = `
+const SHAKE_SHADER = `
 precision highp float;
 varying vec2 v_uv;
 uniform vec2 uRes;
-`;
-
-const SHAKE_SHADER = COMMON + `
 uniform sampler2D uTex;
-uniform vec2 uShakeOffset;
-uniform float uShakeRot;
-uniform vec2 uScale;
+uniform float uTime;
+uniform float uIntensity;
+uniform float uFrequency;
+uniform float uTremor;
+
+// Perlin noise implementation
+vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
+
+float perlinNoise(vec2 v) {
+  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  
+  vec2 i = floor(v + dot(v, C.yy));
+  vec2 x0 = v - i + dot(i, C.xx);
+  
+  vec2 i1;
+  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+  
+  i = mod289(i);
+  vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+  
+  vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+  m = m * m;
+  m = m * m;
+  
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+  
+  m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+  
+  vec3 g;
+  g.x = a0.x * x0.x + h.x * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  
+  return 130.0 * dot(m, g);
+}
+
+// Multi-octave Perlin for layered realism
+float layeredNoise(float t, float seed, int octaves) {
+  float total = 0.0;
+  float amplitude = 1.0;
+  float frequency = 1.0;
+  float maxValue = 0.0;
+  
+  for (int i = 0; i < 4; i++) {
+    if (i >= octaves) break;
+    total += perlinNoise(vec2(t * frequency, seed)) * amplitude;
+    maxValue += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2.0;
+  }
+  
+  return total / maxValue;
+}
+
 void main() {
+  // Time-based noise sampling
+  float time = uTime * uFrequency;
+  
+  // Low-frequency sway (breathing, weight shifts)
+  float swayX = layeredNoise(time * 0.5, 0.0, 2);
+  float swayY = layeredNoise(time * 0.5, 10.0, 2);
+  
+  // High-frequency tremor (muscle micro-movements)
+  float tremorX = layeredNoise(time * 4.0, 20.0, 3) * uTremor;
+  float tremorY = layeredNoise(time * 4.0, 30.0, 3) * uTremor;
+  
+  // Combine - tremor rides on top of sway
+  float offsetX = (swayX * 0.7 + tremorX * 0.3) * uIntensity * 0.015;
+  float offsetY = (swayY * 0.7 + tremorY * 0.3) * uIntensity * 0.012; // Slightly more vertical
+  
+  // Subtle rotation (from hand twist)
+  float rotation = layeredNoise(time * 0.8, 40.0, 2) * uIntensity * 0.008;
+  
+  // Apply rotation around center
   vec2 center = vec2(0.5);
-  vec2 duv = (v_uv - center) * uScale;
-  float r = uShakeRot;
-  mat2 R = mat2(cos(r), -sin(r), sin(r), cos(r));
-  duv = R * duv;
-  vec2 new_uv = clamp(center + duv + uShakeOffset, 0.0, 1.0);
-  gl_FragColor = texture2D(uTex, new_uv);
+  vec2 pos = v_uv - center;
+  
+  float c = cos(rotation);
+  float s = sin(rotation);
+  mat2 rotMat = mat2(c, -s, s, c);
+  pos = rotMat * pos;
+  
+  // Apply translation
+  vec2 uv = center + pos + vec2(offsetX, offsetY);
+  
+  // Simple edge handling - clamp to avoid black borders
+  uv = clamp(uv, vec2(0.001), vec2(0.999));
+  
+  gl_FragColor = texture2D(uTex, uv);
 }
 `;
-
-function computeShakeScale(offsetX, offsetY, rot) {
-  const duvs = [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
-  const cosR = Math.cos(rot), sinR = Math.sin(rot);
-  const Rx = [cosR, -sinR], Ry = [sinR, cosR];
-  
-  function inBoundsX(s) {
-    let minX = Infinity, maxX = -Infinity;
-    for (let i = 0; i < 4; i++) {
-      const dx = s * duvs[i][0], dy = s * duvs[i][1];
-      const rx = Rx[0] * dx + Rx[1] * dy;
-      const tx = 0.5 + rx + offsetX;
-      minX = Math.min(minX, tx);
-      maxX = Math.max(maxX, tx);
-    }
-    return minX >= 0 && maxX <= 1;
-  }
-  
-  function inBoundsY(s) {
-    let minY = Infinity, maxY = -Infinity;
-    for (let i = 0; i < 4; i++) {
-      const dx = s * duvs[i][0], dy = s * duvs[i][1];
-      const ry = Ry[0] * dx + Ry[1] * dy;
-      const ty = 0.5 + ry + offsetY;
-      minY = Math.min(minY, ty);
-      maxY = Math.max(maxY, ty);
-    }
-    return minY >= 0 && maxY <= 1;
-  }
-  
-  let lowX = 0, highX = 1;
-  for (let iter = 0; iter < 30; iter++) {
-    const midX = (lowX + highX) / 2;
-    if (inBoundsX(midX)) lowX = midX;
-    else highX = midX;
-  }
-  const sx = Math.max(0.01, lowX);
-  
-  let lowY = 0, highY = 1;
-  for (let iter = 0; iter < 30; iter++) {
-    const midY = (lowY + highY) / 2;
-    if (inBoundsY(midY)) lowY = midY;
-    else highY = midY;
-  }
-  const sy = Math.max(0.01, lowY);
-  
-  return [sx, sy];
-}
 
 export class HandheldCameraModule {
   constructor(gl, quad) {
@@ -118,32 +149,6 @@ export class HandheldCameraModule {
   apply(inputTex, outputFB, params, frameSeed, canvasW, canvasH) {
     const gl = this.gl;
     
-    const time = frameSeed * 0.033;
-    const freq = params.frequency;
-    const phaseBase = time * freq;
-    
-    const offsetX = (
-      Math.sin(phaseBase * 1.0) * 0.6 +
-      Math.sin(phaseBase * 2.3) * 0.3 +
-      Math.sin(phaseBase * 4.1) * 0.1
-    ) * (params.ampX / canvasW) * params.intensity;
-    
-    const phaseY = phaseBase + 0.7;
-    const offsetY = (
-      Math.sin(phaseY * 1.0) * 0.6 +
-      Math.sin(phaseY * 2.7) * 0.3 +
-      Math.sin(phaseY * 3.9) * 0.1
-    ) * (params.ampY / canvasH) * params.intensity;
-    
-    const phaseRot = phaseBase + 1.3;
-    const rot = (
-      Math.sin(phaseRot * 1.0) * 0.6 +
-      Math.sin(phaseRot * 1.8) * 0.3 +
-      Math.sin(phaseRot * 3.2) * 0.1
-    ) * (params.rotation * Math.PI / 180) * params.intensity;
-    
-    const [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rot);
-    
     bindProgram(gl, this.program, this.quad, canvasW, canvasH);
     
     gl.activeTexture(gl.TEXTURE0);
@@ -152,12 +157,14 @@ export class HandheldCameraModule {
     
     gl.bindFramebuffer(gl.FRAMEBUFFER, outputFB ? outputFB.fbo : null);
     
-    gl.uniform2f(gl.getUniformLocation(this.program, 'uShakeOffset'), offsetX, offsetY);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uShakeRot'), rot);
-    gl.uniform2f(gl.getUniformLocation(this.program, 'uScale'), scaleX, scaleY);
+    // Time in seconds (assuming 30fps)
+    const time = frameSeed * 0.033;
+    
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uTime'), time);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uIntensity'), params.intensity);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uFrequency'), params.frequency);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uTremor'), params.tremor);
     
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    
-    return [scaleX, scaleY];
   }
 }
