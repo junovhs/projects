@@ -3,6 +3,18 @@
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
+export const BLOOM_VIGNETTE_OPTICS_PARAMS = {
+  bloomThreshold: { min: 0.2, max: 1, step: 0.001, default: 0.529, label: 'Bloom Threshold' },
+  bloomRadius: { min: 1, max: 60, step: 0.1, default: 48.9, label: 'Bloom Radius' },
+  bloomIntensity: { min: 0, max: 3, step: 0.01, default: 1.69, label: 'Bloom Intensity' },
+  bloomWarm: { min: 0, max: 1, step: 0.01, default: 0.18, label: 'Bloom Warmth' },
+  halation: { min: 0, max: 2, step: 0.01, default: 1.22, label: 'Halation' },
+  vignette: { min: 0, max: 0.5, step: 0.001, default: 0.18, label: 'Vignette' },
+  vignettePower: { min: 1, max: 5, step: 0.01, default: 2.5, label: 'Vignette Power' },
+  ca: { min: 0, max: 2, step: 0.01, default: 1.0, label: 'Chromatic Aberration' },
+  clarity: { min: 0, max: 0.3, step: 0.01, default: 0.00, label: 'Clarity' }
+};
+
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
@@ -145,7 +157,6 @@ export class BloomVignetteOpticsModule {
     this.gl = gl;
     this.quad = quad;
     
-    // Compile all programs
     this.programs = {
       bloomExtract: this.createProgram(BLOOM_EXTRACT_SHADER),
       downsample: this.createProgram(DOWNSAMPLE_SHADER),
@@ -187,6 +198,7 @@ export class BloomVignetteOpticsModule {
     gl.uniform1i(gl.getUniformLocation(prog, 'uTex'), 0);
     
     gl.bindFramebuffer(gl.FRAMEBUFFER, outputFB ? outputFB.fbo : null);
+    
     gl.uniform1f(gl.getUniformLocation(prog, 'uT'), threshold);
     gl.uniform1f(gl.getUniformLocation(prog, 'uWarm'), warmth);
     
@@ -214,7 +226,6 @@ export class BloomVignetteOpticsModule {
     const gl = this.gl;
     const prog = this.programs.blur;
     
-    // Horizontal pass
     bindProgram(gl, prog, this.quad, canvasW, canvasH);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, srcFB.tex);
@@ -224,7 +235,6 @@ export class BloomVignetteOpticsModule {
     gl.uniform1f(gl.getUniformLocation(prog, 'uR'), radius);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     
-    // Vertical pass
     bindProgram(gl, prog, this.quad, canvasW, canvasH);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, dstFB.tex);

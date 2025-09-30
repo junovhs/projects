@@ -3,6 +3,14 @@
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
+export const HANDHELD_PARAMS = {
+  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
+  shakeFreq: { min: 0.1, max: 5, step: 0.1, default: 2, label: 'Frequency (Hz)' },
+  shakeAmpX: { min: 0, max: 50, step: 1, default: 8, label: 'X Amp (px)' },
+  shakeAmpY: { min: 0, max: 50, step: 1, default: 6, label: 'Y Amp (px)' },
+  shakeRot: { min: 0, max: 2, step: 0.1, default: 0.4, label: 'Rotation (°)' }
+};
+
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
@@ -34,7 +42,6 @@ void main() {
 }
 `;
 
-// Calculate scale to keep image within bounds after rotation/offset
 function computeShakeScale(offsetX, offsetY, rot) {
   const duvs = [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
   const cosR = Math.cos(rot), sinR = Math.sin(rot);
@@ -111,7 +118,6 @@ export class HandheldCameraModule {
   apply(inputTex, outputFB, params, frameSeed, canvasW, canvasH) {
     const gl = this.gl;
     
-    // Multi-frequency sine wave for natural camera shake
     const time = frameSeed * 0.033;
     const freq = params.frequency;
     const phaseBase = time * freq;

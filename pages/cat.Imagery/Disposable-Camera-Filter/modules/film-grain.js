@@ -3,6 +3,15 @@
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
+// Parameter definitions - add new params here and UI auto-generates
+export const GRAIN_PARAMS = {
+  grainASA: { min: 50, max: 3200, step: 50, default: 800, label: 'ASA' },
+  grainDevelop: { min: -2, max: 2, step: 0.1, default: 0, label: 'Develop' },
+  grainStock: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Stock Type' },
+  grainChroma: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Color Grain' },
+  grainMagnify: { min: 0.5, max: 3, step: 0.01, default: 1.0, label: 'Print Size' }
+};
+
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
@@ -62,7 +71,6 @@ void main() {
   vec3 c = texture2D(uTex, v_uv).rgb;
   float Y = dot(c, vec3(0.2126, 0.7152, 0.0722));
   
-  // Map ASA to grain parameters
   float asaN = clamp(
     (log2(uASA) - log2(50.0)) / (log2(3200.0) - log2(50.0)),
     0.0, 1.0
@@ -70,17 +78,14 @@ void main() {
   float cell = mix(0.6, 3.2, asaN) * uMag;
   float base = mix(0.006, 0.040, asaN);
   
-  // Anisotropic grain based on film stock
   float aniso = mix(0.55, 1.0, uStock);
   mat2 A = R(1.13) * mat2(1.0, 0.0, 0.0, aniso);
   vec2 uv = (v_uv * uRes) / cell;
   uv = A * uv + seedOf(uSeed);
   
-  // Development affects grain intensity
   float dev = clamp((uDev + 2.0) / 4.0, 0.0, 1.0);
   float gain = mix(0.9, 1.8, dev);
   
-  // Generate luminance and color grain
   float gL = fbm(uv) - 0.5;
   vec3 gC = vec3(
     fbm(uv + vec2(17.2, 3.1)),
@@ -90,14 +95,12 @@ void main() {
   
   vec3 g = mix(vec3(gL), mix(vec3(gL), gC, 0.35), uChroma);
   
-  // More grain in shadows (real film characteristic)
   float shadow = pow(max(0.0, 1.0 - Y), 1.0 + 1.2 * uShadow);
   float amp = base * gain * (0.55 + uShadow * shadow);
   
   vec3 outc = toSRGB(clamp(c + g * amp, 0.0, 16.0));
   outc = clamp(outc, 0.0, 1.0);
   
-  // Dithering to avoid banding
   float n = fract(sin(dot(v_uv * uRes, vec2(12.9898, 78.233))) * 43758.5453);
   outc += (uDither) * (n - 0.5) / 255.0;
   
@@ -139,13 +142,13 @@ export class FilmGrainModule {
     gl.bindTexture(gl.TEXTURE_2D, inputTex);
     gl.uniform1i(gl.getUniformLocation(this.program, 'uTex'), 0);
     
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null); // Draw to screen
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uASA'), params.asa);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uDev'), params.develop);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uStock'), params.stock);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uChroma'), params.chroma);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uMag'), params.magnify);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uASA'), params.grainASA);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uDev'), params.grainDevelop);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uStock'), params.grainStock);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uChroma'), params.grainChroma);
+    gl.uniform1f(gl.getUniformLocation(this.program, 'uMag'), params.grainMagnify);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uShadow'), 0.70);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uTime'), time * 0.001);
     gl.uniform1f(gl.getUniformLocation(this.program, 'uSeed'), frameSeed);

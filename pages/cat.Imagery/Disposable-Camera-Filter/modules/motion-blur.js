@@ -3,6 +3,12 @@
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
+export const MOTION_BLUR_PARAMS = {
+  shutterUI: { min: 0, max: 1, step: 0.001, default: 0.3, label: 'Shutter', special: 'shutter' },
+  shake: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Shake' },
+  motionAngle: { min: 0, max: 180, step: 1, default: 0, label: 'Trail Angle (°)' }
+};
+
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
 varying vec2 v_uv;

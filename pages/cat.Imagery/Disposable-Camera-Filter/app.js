@@ -1,16 +1,15 @@
-// Main application orchestrator
+// Main application orchestrator with auto-generated UI
 
 import { initGL, getCapabilities, createQuadBuffer, createTexture, createFramebuffer, ensureFramebuffer, compileShader, bindProgram } from './gl-context.js';
-import { ExposureFlashModule } from './modules/exposure-flash.js';
-import { ToneModule } from './modules/tone.js';
-import { SplitCastModule } from './modules/split-cast.js';
-import { BloomVignetteOpticsModule } from './modules/bloom-vignette-optics.js';
-import { MotionBlurModule, sliderToShutterSeconds, formatShutter, shutterToPixels } from './modules/motion-blur.js';
-import { HandheldCameraModule } from './modules/handheld-camera.js';
-import { FilmGrainModule } from './modules/film-grain.js';
+import { ExposureFlashModule, EXPOSURE_FLASH_PARAMS } from './modules/exposure-flash.js';
+import { ToneModule, TONE_PARAMS } from './modules/tone.js';
+import { SplitCastModule, SPLIT_CAST_PARAMS } from './modules/split-cast.js';
+import { BloomVignetteOpticsModule, BLOOM_VIGNETTE_OPTICS_PARAMS } from './modules/bloom-vignette-optics.js';
+import { MotionBlurModule, MOTION_BLUR_PARAMS, sliderToShutterSeconds, formatShutter, shutterToPixels } from './modules/motion-blur.js';
+import { HandheldCameraModule, HANDHELD_PARAMS } from './modules/handheld-camera.js';
+import { FilmGrainModule, GRAIN_PARAMS } from './modules/film-grain.js';
 import { buildTar, exportPNGSequence } from './export-images.js';
 import { initFFmpeg, exportMP4 } from './export-video.js';
-import { setupRangeBindings, setupShutterBinding, setupFlashPad, setupCanvasInteraction } from './ui-bindings.js';
 import { download, toast, waitForVideoSeeked } from './utils.js';
 
 const $ = s => document.querySelector(s);
@@ -34,7 +33,7 @@ void main() {
 }
 `;
 
-// Application state
+// Application state - will be populated from module params
 const state = {
   mediaW: 960,
   mediaH: 540,
@@ -43,42 +42,9 @@ const state = {
   isVideo: false,
   frameSeed: 0,
   
-  // Processing params
-  ev: 0.0,
-  flashStrength: 0.19,
-  flashFalloff: 10.0,
+  // Special params
   flashCenterX: 0.5,
   flashCenterY: 0.5,
-  scurve: 0.18,
-  blacks: 0.011,
-  blackLift: 0.009,
-  knee: 0.0,
-  shadowCool: 0.0,
-  highlightWarm: 0.0,
-  greenShadows: 0.5,
-  magentaMids: 0.31,
-  bloomThreshold: 1.0,
-  bloomRadius: 48.9,
-  bloomIntensity: 0.0,
-  bloomWarm: 0.0,
-  halation: 0.0,
-  vignette: 0.5,
-  vignettePower: 2.5,
-  ca: 0.59,
-  clarity: 0.0,
-  shutterUI: 0.214,
-  shake: 0.18,
-  motionAngle: 0,
-  grainASA: 700,
-  grainDevelop: -2.0,
-  grainStock: 1.0,
-  grainChroma: 1.0,
-  grainMagnify: 0.82,
-  shakeHandheld: 0.3,
-  shakeFreq: 2.0,
-  shakeAmpX: 8.0,
-  shakeAmpY: 6.0,
-  shakeRot: 0.4,
   
   // View state
   viewMode: 'fit',
@@ -87,6 +53,25 @@ const state = {
   needsRender: true,
   showOriginal: false
 };
+
+// Initialize state from module params
+function initStateFromModules() {
+  const allParams = {
+    ...EXPOSURE_FLASH_PARAMS,
+    ...TONE_PARAMS,
+    ...SPLIT_CAST_PARAMS,
+    ...BLOOM_VIGNETTE_OPTICS_PARAMS,
+    ...MOTION_BLUR_PARAMS,
+    ...HANDHELD_PARAMS,
+    ...GRAIN_PARAMS
+  };
+  
+  for (const [key, config] of Object.entries(allParams)) {
+    state[key] = config.default;
+  }
+}
+
+initStateFromModules();
 
 // Initialize WebGL
 const canvas = $('#gl');
@@ -165,7 +150,6 @@ function layout() {
       state.needsRender = true;
     }
   } else {
-    // 1:1 mode
     if (canvas.width !== state.mediaW || canvas.height !== state.mediaH) {
       canvas.width = state.mediaW;
       canvas.height = state.mediaH;
@@ -196,22 +180,248 @@ function layout() {
 
 window.addEventListener('resize', layout);
 
-// UI Setup
-const rangeParams = [
-  'ev', 'flashStrength', 'flashFalloff',
-  'scurve', 'blacks', 'blackLift', 'knee',
-  'shadowCool', 'highlightWarm', 'greenShadows', 'magentaMids',
-  'bloomThreshold', 'bloomRadius', 'bloomIntensity', 'bloomWarm', 'halation',
-  'vignette', 'vignettePower', 'ca', 'clarity',
-  'shake', 'motionAngle',
-  'grainASA', 'grainDevelop', 'grainStock', 'grainChroma', 'grainMagnify',
-  'shakeHandheld', 'shakeFreq', 'shakeAmpX', 'shakeAmpY', 'shakeRot'
-];
+// Auto-generate UI from module parameters
+function generateUI() {
+  const panel = $('.panel');
+  panel.innerHTML = ''; // Clear existing
+  
+  const modules = [
+    { title: 'Exposure & Flash', params: EXPOSURE_FLASH_PARAMS, hasFlashPad: true },
+    { title: 'Tone', params: TONE_PARAMS },
+    { title: 'Split & Casts', params: SPLIT_CAST_PARAMS },
+    { title: 'Bloom, Vignette, Optics', params: BLOOM_VIGNETTE_OPTICS_PARAMS },
+    { title: 'Motion', params: MOTION_BLUR_PARAMS },
+    { title: 'Handheld Camera', params: HANDHELD_PARAMS },
+    { title: 'Film Grain', params: GRAIN_PARAMS }
+  ];
+  
+  modules.forEach(({ title, params, hasFlashPad }) => {
+    const section = document.createElement('section');
+    section.innerHTML = `<h3>${title}</h3>`;
+    
+    // Add flash pad if needed
+    if (hasFlashPad) {
+      const flashRow = document.createElement('div');
+      flashRow.className = 'row';
+      flashRow.innerHTML = `
+        <label>Flash Position</label>
+        <div class="pad" id="flashPad"><div class="dot" id="flashDot"></div></div>
+      `;
+      section.appendChild(flashRow);
+    }
+    
+    // Generate sliders
+    for (const [key, config] of Object.entries(params)) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      
+      if (config.special === 'shutter') {
+        // Special shutter display
+        row.innerHTML = `
+          <label>${config.label}</label>
+          <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+          <span class="val" id="${key}Label">${formatShutter(sliderToShutterSeconds(config.default))}</span>
+        `;
+      } else {
+        const displayValue = config.step < 0.01 ? config.default.toFixed(3) : 
+                            config.step < 1 ? config.default.toFixed(2) : 
+                            config.default.toFixed(0);
+        row.innerHTML = `
+          <label>${config.label}</label>
+          <input type="range" id="${key}" min="${config.min}" max="${config.max}" step="${config.step}" value="${config.default}">
+          <span class="val" data-for="${key}">${displayValue}</span>
+        `;
+      }
+      
+      section.appendChild(row);
+    }
+    
+    panel.appendChild(section);
+  });
+}
 
-const bindings = setupRangeBindings(state, rangeParams);
-const shutterBinding = setupShutterBinding(state);
-const flashPad = setupFlashPad(state);
-setupCanvasInteraction(canvas, state);
+// Bind all sliders
+function bindAllSliders() {
+  const allParams = {
+    ...EXPOSURE_FLASH_PARAMS,
+    ...TONE_PARAMS,
+    ...SPLIT_CAST_PARAMS,
+    ...BLOOM_VIGNETTE_OPTICS_PARAMS,
+    ...MOTION_BLUR_PARAMS,
+    ...HANDHELD_PARAMS,
+    ...GRAIN_PARAMS
+  };
+  
+  for (const [key, config] of Object.entries(allParams)) {
+    const el = $(`#${key}`);
+    if (!el) continue;
+    
+    if (config.special === 'shutter') {
+      const lbl = $(`#${key}Label`);
+      el.addEventListener('input', e => {
+        state[key] = parseFloat(e.target.value);
+        lbl.textContent = formatShutter(sliderToShutterSeconds(state[key]));
+        state.needsRender = true;
+      });
+    } else {
+      const lbl = $(`.val[data-for="${key}"]`);
+      el.addEventListener('input', e => {
+        state[key] = parseFloat(e.target.value);
+        if (lbl) {
+          const val = config.step < 0.01 ? state[key].toFixed(3) :
+                      config.step < 1 ? state[key].toFixed(2) :
+                      state[key].toFixed(0);
+          lbl.textContent = val;
+        }
+        state.needsRender = true;
+      });
+    }
+  }
+}
+
+// Setup flash pad
+function setupFlashPad() {
+  const pad = $('#flashPad');
+  const dot = $('#flashDot');
+  if (!pad || !dot) return;
+  
+  function showDot() {
+    const r = pad.getBoundingClientRect();
+    dot.style.left = ((1.0 - state.flashCenterX) * r.width) + 'px';
+    dot.style.top = ((1.0 - state.flashCenterY) * r.height) + 'px';
+  }
+  
+  function setFromPointer(e) {
+    const r = pad.getBoundingClientRect();
+    const cx = (e.clientX ?? e.touches?.[0]?.clientX);
+    const cy = (e.clientY ?? e.touches?.[0]?.clientY);
+    const fx = (cx - r.left) / r.width;
+    const fy = (cy - r.top) / r.height;
+    state.flashCenterX = 1.0 - Math.max(0, Math.min(1, fx));
+    state.flashCenterY = 1.0 - Math.max(0, Math.min(1, fy));
+    showDot();
+    state.needsRender = true;
+  }
+  
+  let drag = false;
+  
+  pad.addEventListener('mousedown', e => {
+    drag = true;
+    setFromPointer(e);
+  });
+  
+  window.addEventListener('mousemove', e => {
+    if (drag) setFromPointer(e);
+  });
+  
+  window.addEventListener('mouseup', () => drag = false);
+  
+  pad.addEventListener('touchstart', e => {
+    drag = true;
+    setFromPointer(e);
+  }, { passive: false });
+  
+  window.addEventListener('touchmove', e => {
+    if (drag) {
+      e.preventDefault();
+      setFromPointer(e);
+    }
+  }, { passive: false });
+  
+  window.addEventListener('touchend', () => drag = false);
+  
+  showDot();
+}
+
+// Setup canvas interaction
+function setupCanvasInteraction() {
+  const vp = $('#viewport');
+  
+  function showFlashDot() {
+    const pad = $('#flashPad');
+    const dot = $('#flashDot');
+    if (!pad || !dot) return;
+    const r = pad.getBoundingClientRect();
+    dot.style.left = ((1.0 - state.flashCenterX) * r.width) + 'px';
+    dot.style.top = ((1.0 - state.flashCenterY) * r.height) + 'px';
+  }
+  
+  function setFlashFromCanvas(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    const fx = (cx - r.left) / r.width;
+    const fy = (cy - r.top) / r.height;
+    state.flashCenterX = 1.0 - Math.max(0, Math.min(1, fx));
+    state.flashCenterY = 1.0 - Math.max(0, Math.min(1, fy));
+    showFlashDot();
+    state.needsRender = true;
+  }
+  
+  const ppos = e => {
+    if (e.touches && e.touches[0]) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  };
+  
+  let dragging = false;
+  let mode = 'flash';
+  let sx = 0, sy = 0, ox = 0, oy = 0;
+  
+  const onDown = e => {
+    const p = ppos(e);
+    if (state.viewMode === '1x') {
+      mode = 'pan';
+      dragging = true;
+      vp.classList.add('dragging');
+      sx = p.x;
+      sy = p.y;
+      ox = state.panX || 0;
+      oy = state.panY || 0;
+      e.preventDefault();
+    } else {
+      mode = 'flash';
+      dragging = true;
+      setFlashFromCanvas(p.x, p.y);
+    }
+  };
+  
+  const onMove = e => {
+    if (!dragging) return;
+    const p = ppos(e);
+    if (mode === 'pan') {
+      state.panX = ox + (p.x - sx);
+      state.panY = oy + (p.y - sy);
+      layout();
+      e.preventDefault();
+    } else {
+      setFlashFromCanvas(p.x, p.y);
+    }
+  };
+  
+  const onUp = () => {
+    dragging = false;
+    vp.classList.remove('dragging');
+  };
+  
+  canvas.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  window.addEventListener('touchmove', e => {
+    if (dragging) {
+      e.preventDefault();
+      onMove(e);
+    }
+  }, { passive: false });
+  window.addEventListener('touchend', onUp);
+}
+
+// Initialize UI
+generateUI();
+bindAllSliders();
+setupFlashPad();
+setupCanvasInteraction();
 
 // File loading
 $('#open').onclick = () => $('#file').click();
@@ -323,26 +533,41 @@ $('#view-1x').onclick = () => {
 
 // Reset
 $('#reset').onclick = () => {
-  Object.assign(state, {
-    ev: 0.0, flashStrength: 0.0, flashFalloff: 4.5,
-    flashCenterX: 0.5, flashCenterY: 0.5,
-    scurve: 0.0, blacks: 0.0, blackLift: 0.0, knee: 0.0,
-    shadowCool: 0.0, highlightWarm: 0.0, greenShadows: 0.0, magentaMids: 0.0,
-    bloomThreshold: 1.0, bloomRadius: 48.9, bloomIntensity: 0.0,
-    bloomWarm: 0.0, halation: 0.0,
-    vignette: 0.0, vignettePower: 2.5, ca: 0.0, clarity: 0.0,
-    shutterUI: 0.0, shake: 0.0, motionAngle: 0.0,
-    grainASA: 800, grainDevelop: 0.0, grainStock: 0.0,
-    grainChroma: 0.0, grainMagnify: 1.0,
-    shakeHandheld: 0.3, shakeFreq: 2.0, shakeAmpX: 8.0,
-    shakeAmpY: 6.0, shakeRot: 0.4
-  });
+  initStateFromModules();
+  state.flashCenterX = 0.5;
+  state.flashCenterY = 0.5;
   
-  rangeParams.forEach(id => {
-    if (bindings[id]) bindings[id](state[id]);
-  });
-  shutterBinding(state.shutterUI);
-  flashPad.showDot();
+  // Re-bind all sliders to defaults
+  const allParams = {
+    ...EXPOSURE_FLASH_PARAMS,
+    ...TONE_PARAMS,
+    ...SPLIT_CAST_PARAMS,
+    ...BLOOM_VIGNETTE_OPTICS_PARAMS,
+    ...MOTION_BLUR_PARAMS,
+    ...HANDHELD_PARAMS,
+    ...GRAIN_PARAMS
+  };
+  
+  for (const [key, config] of Object.entries(allParams)) {
+    const el = $(`#${key}`);
+    if (!el) continue;
+    el.value = config.default;
+    
+    if (config.special === 'shutter') {
+      const lbl = $(`#${key}Label`);
+      if (lbl) lbl.textContent = formatShutter(sliderToShutterSeconds(config.default));
+    } else {
+      const lbl = $(`.val[data-for="${key}"]`);
+      if (lbl) {
+        const val = config.step < 0.01 ? config.default.toFixed(3) :
+                    config.step < 1 ? config.default.toFixed(2) :
+                    config.default.toFixed(0);
+        lbl.textContent = val;
+      }
+    }
+  }
+  
+  setupFlashPad();
   state.needsRender = true;
 };
 
@@ -657,13 +882,7 @@ function render(t = performance.now()) {
   // Grain and output to screen
   filmGrain.apply(
     currentFB.tex,
-    {
-      asa: state.grainASA,
-      develop: state.grainDevelop,
-      stock: state.grainStock,
-      chroma: state.grainChroma,
-      magnify: state.grainMagnify
-    },
+    state,
     t,
     state.isVideo ? state.frameSeed : 0,
     canvas.width, canvas.height

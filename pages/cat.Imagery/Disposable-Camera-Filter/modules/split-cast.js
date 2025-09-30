@@ -3,6 +3,13 @@
 
 import { compileShader, bindProgram } from '../gl-context.js';
 
+export const SPLIT_CAST_PARAMS = {
+  shadowCool: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Shadow Cool' },
+  highlightWarm: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Highlight Warm' },
+  greenShadows: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Green Shadows' },
+  magentaMids: { min: 0, max: 1, step: 0.01, default: 0.30, label: 'Magenta Mids' }
+};
+
 const VERTEX_SHADER = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
