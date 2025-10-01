@@ -1,6 +1,6 @@
 // PNG sequence export with TAR packaging - OPTIMIZED VERSION
 
-const BATCH_SIZE = 6; // Encode 6 frames in parallel
+const BATCH_SIZE = 8; // Encode 8 frames in parallel
 
 export function buildTar(entries) {
   const blocks = [];
@@ -71,69 +71,22 @@ export function buildTar(entries) {
   return new Blob([out], { type: 'application/x-tar' });
 }
 
-// Batch encode frames in parallel
-async function encodeBatch(frameBatch, entries, onProgress) {
-  const promises = frameBatch.map(async ({ index, canvas }) => {
-    try {
-      // Try ImageBitmap + OffscreenCanvas (fastest)
-      if (typeof createImageBitmap !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
-        const bitmap = await createImageBitmap(canvas);
-        const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
-        const ctx = offscreen.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
-        
-        const blob = await offscreen.convertToBlob({ 
-          type: 'image/webp',
-          quality: 1.0 
-        });
-        const ab = await blob.arrayBuffer();
-        
-        if (onProgress) onProgress();
-        
-        return { 
-          name: `frame_${String(index).padStart(6, '0')}.webp`, 
-          data: ab 
-        };
-      }
-    } catch (e) {
-      // Fall through to standard path
-    }
-    
-    // Standard canvas.toBlob fallback
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
-    const ab = await blob.arrayBuffer();
-    
-    if (onProgress) onProgress();
-    
-    return { 
-      name: `frame_${String(index).padStart(6, '0')}.webp`, 
-      data: ab 
-    };
-  });
-  
-  const encoded = await Promise.all(promises);
-  entries.push(...encoded);
-}
-
 export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVideo, renderFunc, overlayElement, textElement) {
   const entries = [];
-  
-  // Single RAF is enough
-  const raf = () => new Promise(r => requestAnimationFrame(r));
   
   overlayElement.classList.remove('hidden');
   textElement.textContent = 'Exporting frames… 0%';
   
   if (!isVideo) {
-    // Single image - direct capture
+    // Single image
     await renderFunc();
-    await raf();
+    await new Promise(r => requestAnimationFrame(r));
     const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
     const ab = await blob.arrayBuffer();
     entries.push({ name: 'frame_000000.webp', data: ab });
   } else {
-    // Video sequence with batched encoding
+    // PHASE 1: CAPTURE ALL FRAMES (no encoding yet)
+    const capturedFrames = [];
     const dur = Math.max(0.01, videoElement.duration || 1);
     const wasLoop = videoElement.loop;
     const wasPaused = videoElement.paused;
@@ -146,16 +99,9 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
       videoElement.addEventListener('seeked', resolve, { once: true });
     });
     
-    let i = 0;
-    let totalFrames = 0;
-    let encodedFrames = 0;
-    const frameBatch = [];
+    let frameIndex = 0;
     
-    const updateProgress = () => {
-      encodedFrames++;
-      const pct = Math.round((encodedFrames / totalFrames) * 100);
-      textElement.textContent = `Exporting frames… ${pct}%`;
-    };
+    textElement.textContent = 'Capturing frames… 0%';
     
     await new Promise(resolve => {
       let vfcb;
@@ -171,54 +117,27 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
       const onFrame = async () => {
         videoElement.pause();
         
-        // Render this frame
+        // Render frame
         await renderFunc();
-        await raf();
         
-        // Capture directly from canvas using ImageBitmap
-        // This works with WebGL canvas unlike getImageData
-        try {
-          if (typeof createImageBitmap !== 'undefined') {
-            const bitmap = await createImageBitmap(canvas);
-            
-            // Store bitmap temporarily - we'll convert in batch
-            frameBatch.push({ 
-              index: i, 
-              canvas: bitmap
-            });
-          } else {
-            // Fallback: we need to copy to temp canvas
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const ctx = tempCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, 0);
-            
-            frameBatch.push({ 
-              index: i, 
-              canvas: tempCanvas
-            });
-          }
-        } catch (e) {
-          console.error('Frame capture failed:', e);
-        }
+        // FAST capture - just copy canvas to temp
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const ctx = tempCanvas.getContext('2d', { alpha: false });
+        ctx.drawImage(canvas, 0, 0);
         
-        i++;
-        totalFrames++;
+        capturedFrames.push({
+          index: frameIndex,
+          canvas: tempCanvas
+        });
         
-        // Encode batch when full
-        if (frameBatch.length >= BATCH_SIZE) {
-          textElement.textContent = `Capturing frames… ${Math.round((videoElement.currentTime / dur) * 100)}%`;
-          await encodeBatch(frameBatch, entries, updateProgress);
-          frameBatch.length = 0;
-        }
+        frameIndex++;
+        
+        const progress = Math.round((videoElement.currentTime / dur) * 100);
+        textElement.textContent = `Capturing frames… ${progress}%`;
         
         if (videoElement.ended || videoElement.currentTime >= dur - 1e-4) {
-          // Encode remaining frames
-          if (frameBatch.length > 0) {
-            textElement.textContent = 'Encoding final frames…';
-            await encodeBatch(frameBatch, entries, updateProgress);
-          }
           cleanup();
           resolve();
           return;
@@ -229,17 +148,41 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
       };
       
       vfcb = videoElement.requestVideoFrameCallback(onFrame);
-      videoElement.addEventListener('ended', async () => {
-        if (frameBatch.length > 0) {
-          textElement.textContent = 'Encoding final frames…';
-          await encodeBatch(frameBatch, entries, updateProgress);
-        }
+      videoElement.addEventListener('ended', () => {
         cleanup();
         resolve();
       }, { once: true });
       
       videoElement.play().catch(() => {});
     });
+    
+    // PHASE 2: ENCODE ALL FRAMES IN BATCHES (after capture complete)
+    textElement.textContent = 'Encoding frames… 0%';
+    
+    const totalFrames = capturedFrames.length;
+    let encodedCount = 0;
+    
+    // Process in batches
+    for (let i = 0; i < totalFrames; i += BATCH_SIZE) {
+      const batch = capturedFrames.slice(i, Math.min(i + BATCH_SIZE, totalFrames));
+      
+      const encoded = await Promise.all(
+        batch.map(async ({ index, canvas }) => {
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
+          const ab = await blob.arrayBuffer();
+          return {
+            name: `frame_${String(index).padStart(6, '0')}.webp`,
+            data: ab
+          };
+        })
+      );
+      
+      entries.push(...encoded);
+      encodedCount += batch.length;
+      
+      const progress = Math.round((encodedCount / totalFrames) * 100);
+      textElement.textContent = `Encoding frames… ${progress}%`;
+    }
     
     videoElement.loop = wasLoop;
     if (wasPaused) videoElement.pause();
