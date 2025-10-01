@@ -4,11 +4,11 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const GRAIN_PARAMS = {
-  grainAmount: { min: 0, max: 2, step: 0.05, default: 0.8, label: 'Grain Amount' },
-  grainSize: { min: 0.3, max: 3, step: 0.1, default: 1.0, label: 'Grain Size' },
-  grainCharacter: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Character' },
-  grainSharpness: { min: 0, max: 1, step: 0.01, default: 0.7, label: 'Sharpness' },
-  grainChroma: { min: 0, max: 1, step: 0.01, default: 0.4, label: 'Color Grain' }
+  grainAmount: { min: 0, max: 2, step: 0.05, default: 2.0, label: 'Grain Amount' },
+  grainSize: { min: 0.3, max: 3, step: 0.1, default: 0.7, label: 'Grain Size' },
+  grainCharacter: { min: 0, max: 1, step: 0.01, default: 0.62, label: 'Character' },
+  grainSharpness: { min: 0, max: 1, step: 0.01, default: 1.0, label: 'Sharpness' },
+  grainChroma: { min: 0, max: 1, step: 0.01, default: 0.72, label: 'Color Grain' }
 };
 
 const VERTEX_SHADER = `

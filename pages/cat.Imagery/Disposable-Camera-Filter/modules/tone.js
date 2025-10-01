@@ -4,10 +4,10 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const TONE_PARAMS = {
-  scurve: { min: 0, max: 1, step: 0.01, default: 0.60, label: 'S-curve' },
-  blacks: { min: 0, max: 0.15, step: 0.001, default: 0.06, label: 'Black Crush' },
-  blackLift: { min: 0, max: 0.15, step: 0.001, default: 0.00, label: 'Lifted Blacks' },
-  knee: { min: 0, max: 0.25, step: 0.001, default: 0.12, label: 'Highlight Knee' }
+  scurve: { min: 0, max: 1, step: 0.01, default: 0.0, label: 'S-curve' },
+  blacks: { min: 0, max: 0.15, step: 0.001, default: 0.011, label: 'Black Crush' },
+  blackLift: { min: 0, max: 0.15, step: 0.001, default: 0.048, label: 'Lifted Blacks' },
+  knee: { min: 0, max: 0.25, step: 0.001, default: 0.082, label: 'Highlight Knee' }
 };
 
 const VERTEX_SHADER = `

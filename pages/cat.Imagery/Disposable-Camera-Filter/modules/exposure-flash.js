@@ -4,9 +4,9 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const EXPOSURE_FLASH_PARAMS = {
-  ev: { min: -1, max: 0.5, step: 0.01, default: -0.40, label: 'Exposure (EV)' },
-  flashStrength: { min: 0, max: 2.0, step: 0.01, default: 1.50, label: 'Flash Strength' },
-  flashFalloff: { min: 0.5, max: 10, step: 0.01, default: 4.50, label: 'Flash Falloff' }
+  ev: { min: -1, max: 0.5, step: 0.01, default: -0.04, label: 'Exposure (EV)' },
+  flashStrength: { min: 0, max: 2.0, step: 0.01, default: 0.28, label: 'Flash Strength' },
+  flashFalloff: { min: 0.5, max: 10, step: 0.01, default: 6.72, label: 'Flash Falloff' }
 };
 
 const VERTEX_SHADER = `

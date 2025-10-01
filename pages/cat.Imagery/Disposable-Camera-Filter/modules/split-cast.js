@@ -4,10 +4,10 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const SPLIT_CAST_PARAMS = {
-  shadowCool: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Shadow Cool' },
-  highlightWarm: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Highlight Warm' },
-  greenShadows: { min: 0, max: 1, step: 0.01, default: 0.35, label: 'Green Shadows' },
-  magentaMids: { min: 0, max: 1, step: 0.01, default: 0.30, label: 'Magenta Mids' }
+  shadowCool: { min: 0, max: 1, step: 0.01, default: 0.0, label: 'Shadow Cool' },
+  highlightWarm: { min: 0, max: 1, step: 0.01, default: 0.0, label: 'Highlight Warm' },
+  greenShadows: { min: 0, max: 1, step: 0.01, default: 0.16, label: 'Green Shadows' },
+  magentaMids: { min: 0, max: 1, step: 0.01, default: 0.13, label: 'Magenta Mids' }
 };
 
 const VERTEX_SHADER = `

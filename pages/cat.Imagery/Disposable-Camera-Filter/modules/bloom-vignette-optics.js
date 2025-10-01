@@ -4,15 +4,15 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const BLOOM_VIGNETTE_OPTICS_PARAMS = {
-  bloomThreshold: { min: 0.2, max: 1, step: 0.001, default: 0.529, label: 'Bloom Threshold' },
-  bloomRadius: { min: 1, max: 60, step: 0.1, default: 48.9, label: 'Bloom Radius' },
-  bloomIntensity: { min: 0, max: 3, step: 0.01, default: 1.69, label: 'Bloom Intensity' },
-  bloomWarm: { min: 0, max: 1, step: 0.01, default: 0.18, label: 'Bloom Warmth' },
-  halation: { min: 0, max: 2, step: 0.01, default: 1.22, label: 'Halation' },
-  vignette: { min: 0, max: 0.5, step: 0.001, default: 0.18, label: 'Vignette' },
-  vignettePower: { min: 1, max: 5, step: 0.01, default: 2.5, label: 'Vignette Power' },
-  ca: { min: 0, max: 2, step: 0.01, default: 1.0, label: 'Chromatic Aberration' },
-  clarity: { min: 0, max: 0.3, step: 0.01, default: 0.00, label: 'Clarity' }
+  bloomThreshold: { min: 0.2, max: 1, step: 0.001, default: 0.358, label: 'Bloom Threshold' },
+  bloomRadius: { min: 1, max: 60, step: 0.1, default: 11.2, label: 'Bloom Radius' },
+  bloomIntensity: { min: 0, max: 3, step: 0.01, default: 0.45, label: 'Bloom Intensity' },
+  bloomWarm: { min: 0, max: 1, step: 0.01, default: 0.0, label: 'Bloom Warmth' },
+  halation: { min: 0, max: 2, step: 0.01, default: 0.60, label: 'Halation' },
+  vignette: { min: 0, max: 0.5, step: 0.001, default: 0.0, label: 'Vignette' },
+  vignettePower: { min: 1, max: 5, step: 0.01, default: 1.0, label: 'Vignette Power' },
+  ca: { min: 0, max: 2, step: 0.01, default: 0.27, label: 'Chromatic Aberration' },
+  clarity: { min: 0, max: 0.3, step: 0.01, default: 0.0, label: 'Clarity' }
 };
 
 const VERTEX_SHADER = `
