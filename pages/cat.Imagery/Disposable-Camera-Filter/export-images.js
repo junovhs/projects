@@ -1,6 +1,7 @@
-// STREAMING export - never stores uncompressed frames in memory
+// STREAMING export with smart compression
 
-const YIELD_EVERY = 3; // Yield to browser every N frames
+const YIELD_EVERY = 3;
+const WEBP_QUALITY = 0.95; // Lossy but visually lossless (much smaller)
 
 export function buildTar(entries) {
   console.log(`[TAR] Building archive with ${entries.length} entries`);
@@ -74,7 +75,6 @@ export function buildTar(entries) {
 }
 
 async function captureAndEncodeFrame(canvas, index) {
-  console.log(`[FRAME ${index}] Starting capture`);
   const t0 = performance.now();
   
   // Create minimal temp canvas
@@ -85,17 +85,19 @@ async function captureAndEncodeFrame(canvas, index) {
   ctx.drawImage(canvas, 0, 0);
   
   const t1 = performance.now();
-  console.log(`[FRAME ${index}] Captured in ${(t1 - t0).toFixed(1)}ms`);
   
-  // Encode immediately
-  const blob = await new Promise(r => temp.toBlob(r, 'image/webp', 1.0));
+  // Use LOSSY WebP for massive size reduction with minimal quality loss
+  const blob = await new Promise(r => temp.toBlob(r, 'image/webp', WEBP_QUALITY));
   const t2 = performance.now();
-  console.log(`[FRAME ${index}] Encoded in ${(t2 - t1).toFixed(1)}ms (${(blob.size / 1024).toFixed(1)}KB)`);
   
   const ab = await blob.arrayBuffer();
   
-  // Cleanup temp canvas immediately
+  // Cleanup
   temp.width = temp.height = 0;
+  
+  if (index % 10 === 0) {
+    console.log(`[FRAME ${index}] Capture: ${(t1 - t0).toFixed(1)}ms, Encode: ${(t2 - t1).toFixed(1)}ms, Size: ${(blob.size / 1024).toFixed(1)}KB`);
+  }
   
   return {
     name: `frame_${String(index).padStart(6, '0')}.webp`,
@@ -105,6 +107,7 @@ async function captureAndEncodeFrame(canvas, index) {
 
 export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVideo, renderFunc, overlayElement, textElement) {
   console.log('[EXPORT] Starting export process');
+  console.log(`[EXPORT] Canvas size: ${canvas.width}x${canvas.height}`);
   const entries = [];
   
   overlayElement.classList.remove('hidden');
@@ -122,11 +125,14 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
     
     const dur = Math.max(0.01, videoElement.duration || 1);
     console.log(`[EXPORT] Video duration: ${dur.toFixed(2)}s`);
+    console.log(`[EXPORT] Video dimensions: ${videoElement.videoWidth}x${videoElement.videoHeight}`);
     
     const wasLoop = videoElement.loop;
     const wasPaused = videoElement.paused;
+    const wasRate = videoElement.playbackRate;
     
     videoElement.loop = false;
+    videoElement.playbackRate = 1.0;
     videoElement.pause();
     videoElement.currentTime = 0;
     
@@ -135,6 +141,7 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
     });
     
     let frameIndex = 0;
+    let lastTime = -1;
     
     await new Promise((resolve, reject) => {
       let vfcb;
@@ -147,33 +154,41 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
         }
       };
       
-      const onFrame = async () => {
+      const onFrame = async (now, metadata) => {
         try {
           videoElement.pause();
+          
+          // Log frame timing to debug
+          if (frameIndex < 5 || frameIndex % 30 === 0) {
+            console.log(`[FRAME ${frameIndex}] Video time: ${videoElement.currentTime.toFixed(3)}s, metadata time: ${metadata.mediaTime.toFixed(3)}s`);
+          }
           
           // Render frame
           await renderFunc();
           
-          // Capture and encode IMMEDIATELY (streaming, no storage)
+          // Capture and encode IMMEDIATELY
           const encoded = await captureAndEncodeFrame(canvas, frameIndex);
           entries.push(encoded);
           
           frameIndex++;
+          lastTime = videoElement.currentTime;
           
           const progress = Math.round((videoElement.currentTime / dur) * 100);
           const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
           const fps = (frameIndex / (performance.now() - startTime) * 1000).toFixed(1);
           
           textElement.textContent = `Frame ${frameIndex} (${progress}%) • ${fps} fps • ${elapsed}s`;
-          console.log(`[PROGRESS] ${frameIndex} frames, ${progress}%, ${fps} fps`);
           
-          // Yield to browser every N frames to prevent freezing
+          // Yield to browser every N frames
           if (frameIndex % YIELD_EVERY === 0) {
             await new Promise(r => setTimeout(r, 0));
           }
           
           if (videoElement.ended || videoElement.currentTime >= dur - 1e-4) {
-            console.log(`[EXPORT] Complete - captured ${frameIndex} frames in ${elapsed}s`);
+            const totalTime = ((performance.now() - startTime) / 1000).toFixed(1);
+            const avgFps = (frameIndex / (performance.now() - startTime) * 1000).toFixed(1);
+            console.log(`[EXPORT] Complete - ${frameIndex} frames in ${totalTime}s (${avgFps} fps avg)`);
+            console.log(`[EXPORT] Expected frames at 25fps: ${Math.round(dur * 25)}, actual: ${frameIndex}`);
             cleanup();
             resolve();
             return;
@@ -202,6 +217,7 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
     });
     
     videoElement.loop = wasLoop;
+    videoElement.playbackRate = wasRate;
     if (wasPaused) videoElement.pause();
   }
   
