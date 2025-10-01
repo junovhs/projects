@@ -4,8 +4,7 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const HANDHELD_PARAMS = {
-  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
-  shakeStyle: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Style' }
+  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' }
 };
 
 const VERTEX_SHADER = `
@@ -42,7 +41,7 @@ void main() {
 }
 `;
 
-// Perlin noise implementation
+// Perlin noise
 function fade(t) {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
@@ -191,32 +190,44 @@ export class HandheldCameraModule {
   apply(inputTex, outputFB, params, frameSeed, canvasW, canvasH) {
     const gl = this.gl;
     const time = frameSeed * 0.033;
-    const intensity = params.intensity;
-    const style = params.style;
     
-    // ROTATION (primary)
+    // Use the intensity param that app.js passes
+    const intensity = params.intensity || 0;
+    
+    if (intensity < 0.001) {
+      // No shake, just copy through
+      bindProgram(gl, this.program, this.quad, canvasW, canvasH);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, inputTex);
+      gl.uniform1i(gl.getUniformLocation(this.program, 'uTex'), 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, outputFB ? outputFB.fbo : null);
+      gl.uniform2f(gl.getUniformLocation(this.program, 'uShakeOffset'), 0, 0);
+      gl.uniform1f(gl.getUniformLocation(this.program, 'uShakeRot'), 0);
+      gl.uniform2f(gl.getUniformLocation(this.program, 'uScale'), 1, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      return [1, 1];
+    }
+    
+    // ROTATION (primary) - reduced amplitude
     const rotLow = layeredPerlin(time * 0.2 + this.phaseOffsets.rotLow, 0, 2, 0.5, 2.0);
     const rotMid = layeredPerlin(time * 1.0 + this.phaseOffsets.rotMid, 0, 2, 0.5, 2.0);
     const rotHigh = layeredPerlin(time * 3.5 + this.phaseOffsets.rotHigh, 0, 3, 0.4, 2.1);
     
-    const rotAmplitude = intensity * (0.8 + style * 0.5);
-    const rotation = (rotLow * 0.015 + rotMid * 0.008 + rotHigh * 0.003) * rotAmplitude;
+    const rotation = (rotLow * 0.006 + rotMid * 0.003 + rotHigh * 0.001) * intensity;
     
-    // TRANSLATION X
+    // TRANSLATION X - reduced amplitude
     const xLow = layeredPerlin(time * 0.25 + this.phaseOffsets.xLow, 0, 2, 0.5, 2.0);
     const xMid = layeredPerlin(time * 0.9 + this.phaseOffsets.xMid, 0, 2, 0.5, 2.0);
     const xHigh = layeredPerlin(time * 4.0 + this.phaseOffsets.xHigh, 0, 3, 0.4, 2.1);
     
-    const xAmplitude = intensity * (3 + style * 5);
-    const offsetX = (xLow * 0.5 + xMid * 0.3 + xHigh * 0.2) * (xAmplitude / canvasW);
+    const offsetX = (xLow * 0.5 + xMid * 0.3 + xHigh * 0.2) * (2 * intensity / canvasW);
     
-    // TRANSLATION Y
+    // TRANSLATION Y - reduced amplitude
     const yLow = layeredPerlin(time * 0.22 + this.phaseOffsets.yLow, 0, 2, 0.5, 2.0);
     const yMid = layeredPerlin(time * 1.1 + this.phaseOffsets.yMid, 0, 2, 0.5, 2.0);
     const yHigh = layeredPerlin(time * 3.8 + this.phaseOffsets.yHigh, 0, 3, 0.4, 2.1);
     
-    const yAmplitude = intensity * (2.5 + style * 4);
-    const offsetY = (yLow * 0.5 + yMid * 0.3 + yHigh * 0.2) * (yAmplitude / canvasH);
+    const offsetY = (yLow * 0.5 + yMid * 0.3 + yHigh * 0.2) * (1.5 * intensity / canvasH);
     
     const [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rotation);
     
