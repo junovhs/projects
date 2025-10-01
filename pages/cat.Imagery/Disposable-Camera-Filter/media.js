@@ -23,6 +23,11 @@ function setupFileInput(api) {
       api.loadImage(file);
       $('#play').disabled = true;
     }
+    
+    // Update export button text
+    if (window.updateExportButton) {
+      window.updateExportButton();
+    }
   });
 }
 

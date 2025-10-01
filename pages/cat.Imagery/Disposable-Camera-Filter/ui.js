@@ -39,9 +39,7 @@ function generateControls(api) {
           <button id="original" class="btn btn-secondary">Original</button>
           <button id="view-mode" class="btn btn-secondary">Fit</button>
           <button id="reset" class="btn btn-secondary btn-full">Reset All</button>
-          <button id="save-png" class="btn btn-primary btn-full">Save PNG</button>
-          <button id="export-pngs" class="btn btn-secondary">Frames</button>
-          <button id="export-mp4" class="btn btn-secondary">MP4</button>
+          <button id="export-btn" class="btn btn-primary btn-full">Export PNG</button>
         </div>
       `;
     } else {

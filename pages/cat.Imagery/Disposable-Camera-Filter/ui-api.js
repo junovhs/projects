@@ -10,7 +10,6 @@ import { HANDHELD_PARAMS } from './modules/handheld-camera.js';
 import { GRAIN_PARAMS } from './modules/film-grain.js';
 import { createTexture } from './gl-context.js';
 import { exportPNGSequence } from './export-images.js';
-import { exportMP4 } from './export-video.js';
 import { download, toast } from './utils.js';
 
 // Collect all parameters into a simple data structure
@@ -177,28 +176,9 @@ export function createUIAPI(state, gl, canvas, video, render, layout, ensureRend
       });
     },
     
-    exportPNGSequence: async (onProgress) => {
+    exportPNGSequence: async () => {
       if (!state.tex) throw new Error('No media loaded');
-      
-      return await withFullRes(async () => {
-        const renderFunc = async () => {
-          if (state.isVideo) {
-            gl.bindTexture(gl.TEXTURE_2D, state.tex);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-            state.frameSeed = (state.frameSeed + 1) | 0;
-            state.needsRender = true;
-          }
-          render(performance.now());
-        };
-        
-        return await exportPNGSequence(canvas, state.tex, video, state.isVideo, renderFunc, 
-          document.getElementById('overlay'), document.getElementById('overlayText'));
-      });
-    },
-    
-    exportMP4: async () => {
-      if (!state.isVideo) throw new Error('No video loaded');
+      if (!state.isVideo) throw new Error('Load a video to export sequence');
       
       return await withFullRes(async () => {
         const renderFunc = async () => {
@@ -210,7 +190,7 @@ export function createUIAPI(state, gl, canvas, video, render, layout, ensureRend
           render(performance.now());
         };
         
-        return await exportMP4(canvas, video, renderFunc,
+        return await exportPNGSequence(canvas, state.tex, video, state.isVideo, renderFunc, 
           document.getElementById('overlay'), document.getElementById('overlayText'));
       });
     },
