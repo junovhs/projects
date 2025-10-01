@@ -1,13 +1,13 @@
 // Main application - now just wires things together via the API
 
 import { initGL, getCapabilities, createQuadBuffer, ensureFramebuffer, compileShader, bindProgram } from './gl-context.js';
-import { ExposureFlashModule } from './modules/exposure-flash.js';
-import { ToneModule } from './modules/tone.js';
-import { SplitCastModule } from './modules/split-cast.js';
-import { BloomVignetteOpticsModule } from './modules/bloom-vignette-optics.js';
-import { MotionBlurModule, sliderToShutterSeconds, shutterToPixels } from './modules/motion-blur.js';
-import { HandheldCameraModule } from './modules/handheld-camera.js';
-import { FilmGrainModule } from './modules/film-grain.js';
+import { ExposureFlashModule, EXPOSURE_FLASH_PARAMS } from './modules/exposure-flash.js';
+import { ToneModule, TONE_PARAMS } from './modules/tone.js';
+import { SplitCastModule, SPLIT_CAST_PARAMS } from './modules/split-cast.js';
+import { BloomVignetteOpticsModule, BLOOM_VIGNETTE_OPTICS_PARAMS } from './modules/bloom-vignette-optics.js';
+import { MotionBlurModule, MOTION_BLUR_PARAMS, sliderToShutterSeconds, shutterToPixels } from './modules/motion-blur.js';
+import { HandheldCameraModule, HANDHELD_PARAMS } from './modules/handheld-camera.js';
+import { FilmGrainModule, GRAIN_PARAMS } from './modules/film-grain.js';
 import { createUIAPI } from './ui-api.js';
 import { initUI } from './ui.js';
 import { initMedia } from './media.js';
@@ -15,8 +15,38 @@ import { initExport } from './export.js';
 
 const $ = s => document.querySelector(s);
 
-// State
-const state = { mediaW: 960, mediaH: 540, dpr: Math.min(2, devicePixelRatio || 1), tex: null, isVideo: false, frameSeed: 0, flashCenterX: 0.5, flashCenterY: 0.5, viewMode: 'fit', panX: 0, panY: 0, needsRender: true, showOriginal: false };
+// Collect all parameters
+const ALL_PARAMS = {
+  ...EXPOSURE_FLASH_PARAMS,
+  ...TONE_PARAMS,
+  ...SPLIT_CAST_PARAMS,
+  ...BLOOM_VIGNETTE_OPTICS_PARAMS,
+  ...MOTION_BLUR_PARAMS,
+  ...HANDHELD_PARAMS,
+  ...GRAIN_PARAMS
+};
+
+// State - initialize with base values and parameter defaults
+const state = {
+  mediaW: 960,
+  mediaH: 540,
+  dpr: Math.min(2, devicePixelRatio || 1),
+  tex: null,
+  isVideo: false,
+  frameSeed: 0,
+  flashCenterX: 0.5,
+  flashCenterY: 0.5,
+  viewMode: 'fit',
+  panX: 0,
+  panY: 0,
+  needsRender: true,
+  showOriginal: false
+};
+
+// Initialize state with parameter defaults
+for (const [key, config] of Object.entries(ALL_PARAMS)) {
+  state[key] = config.default;
+}
 
 // WebGL setup
 const canvas = $('#gl');
