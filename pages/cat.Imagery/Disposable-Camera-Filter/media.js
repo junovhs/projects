@@ -1,146 +1,83 @@
-// Media file loading and video playback controls
-import { createTexture } from './gl-context.js';
-import { sliderToShutterSeconds, formatShutter } from './modules/motion-blur.js';
+// Media UI controls - pure callback-based
 
 const $ = s => document.querySelector(s);
 
-export function setupFileInput(state, gl, layout, onMediaLoaded) {
-  const video = $('#vid');
-  
+export function initMedia(api) {
+  setupFileInput(api);
+  setupTransportControls(api);
+  setupResetButton(api);
+}
+
+function setupFileInput(api) {
   $('#file').addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const file = e.target.files[0];
+    if (!file) return;
     
-    (f.type || '').startsWith('video/') ? 
-      loadVideo(f, state, gl, video, layout, onMediaLoaded) : 
-      loadImage(f, state, gl, layout, onMediaLoaded);
-  });
-  
-  return { video };
-}
-
-function loadImage(file, state, gl, layout, onMediaLoaded) {
-  const img = new Image();
-  img.onload = () => {
-    state.isVideo = false;
-    state.mediaW = img.naturalWidth;
-    state.mediaH = img.naturalHeight;
-    state.tex = createTexture(gl, state.mediaW, state.mediaH);
-    gl.bindTexture(gl.TEXTURE_2D, state.tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-    layout();
-    state.needsRender = true;
-    $('#play').disabled = true;
-    if (onMediaLoaded) onMediaLoaded();
-  };
-  img.src = URL.createObjectURL(file);
-}
-
-function loadVideo(file, state, gl, video, layout, onMediaLoaded) {
-  if (state._vfcb && video.cancelVideoFrameCallback) {
-    try {
-      video.cancelVideoFrameCallback(state._vfcb);
-    } catch (e) {}
-  }
-  
-  video.src = URL.createObjectURL(file);
-  video.loop = video.muted = true;
-  video.playsInline = true;
-  
-  video.onloadedmetadata = () => {
-    state.isVideo = true;
-    state.mediaW = video.videoWidth;
-    state.mediaH = video.videoHeight;
-    state.tex = createTexture(gl, state.mediaW, state.mediaH);
-    $('#play').disabled = false;
-    $('#play').textContent = 'Pause';
-    layout();
-    video.play().catch(() => {});
-    if (onMediaLoaded) onMediaLoaded();
+    const isVideo = (file.type || '').startsWith('video/');
     
-    const upload = () => {
-      gl.bindTexture(gl.TEXTURE_2D, state.tex);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-      state.frameSeed = (state.frameSeed + 1) | 0;
-      state.needsRender = true;
-    };
-    
-    if (video.requestVideoFrameCallback) {
-      const loop = () => {
-        if (!state.isVideo) return;
-        if (!video.paused) upload();
-        state._vfcb = video.requestVideoFrameCallback(loop);
-      };
-      state._vfcb = video.requestVideoFrameCallback(loop);
+    if (isVideo) {
+      api.loadVideo(file);
+      $('#play').disabled = false;
+      $('#play').textContent = 'Pause';
     } else {
-      (function pump() {
-        if (!state.isVideo) return;
-        if (!video.paused && !video.ended) upload();
-        requestAnimationFrame(pump);
-      })();
+      api.loadImage(file);
+      $('#play').disabled = true;
     }
-  };
+  });
 }
 
-export function setupTransportControls(state) {
-  const video = $('#vid');
+function setupTransportControls(api) {
   const playBtn = $('#play');
   const originalBtn = $('#original');
+  const viewBtn = $('#view-mode');
   
   if (playBtn) {
     playBtn.onclick = () => {
-      if (!state.isVideo) return;
-      if (video.paused) {
-        video.play();
-        playBtn.textContent = 'Pause';
-      } else {
-        video.pause();
-        playBtn.textContent = 'Play';
-      }
+      const playing = api.togglePlayback();
+      playBtn.textContent = playing ? 'Pause' : 'Play';
     };
   }
   
   if (originalBtn) {
     originalBtn.onclick = () => {
-      state.showOriginal = !state.showOriginal;
-      originalBtn.classList.toggle('active', state.showOriginal);
-      state.needsRender = true;
+      const showing = api.toggleOriginal();
+      originalBtn.classList.toggle('active', showing);
+    };
+  }
+  
+  if (viewBtn) {
+    viewBtn.onclick = () => {
+      const mode = api.toggleViewMode();
+      viewBtn.textContent = mode === 'fit' ? 'Fit' : '1:1';
     };
   }
 }
 
-export function setupResetButton(state, allParams, setupFlashPad) {
+function setupResetButton(api) {
   $('#reset').onclick = () => {
-    // Reset state to defaults
-    for (const [key, config] of Object.entries(allParams)) {
-      state[key] = config.default;
-    }
-    state.flashCenterX = 0.5;
-    state.flashCenterY = 0.5;
+    api.resetAll();
     
-    // Update all sliders
-    for (const [key, config] of Object.entries(allParams)) {
+    // Update all UI controls
+    Object.entries(api.params).forEach(([key, config]) => {
       const el = $(`#${key}`);
-      if (!el) continue;
-      el.value = config.default;
+      if (!el) return;
       
-      if (config.special === 'shutter') {
-        const lbl = $(`#${key}Label`);
-        if (lbl) lbl.textContent = formatShutter(sliderToShutterSeconds(config.default));
-      } else {
-        const lbl = $(`.control-value[data-for="${key}"]`);
-        if (lbl) {
-          const val = config.step < 0.01 ? config.default.toFixed(3) :
-                      config.step < 1 ? config.default.toFixed(2) :
-                      config.default.toFixed(0);
-          lbl.textContent = val;
-        }
+      el.value = config.default;
+      const lbl = $(`.control-value[data-for="${key}"]`);
+      if (lbl) {
+        lbl.textContent = config.special === 'shutter' ? 
+          api.formatShutterSpeed(config.default) : 
+          api.formatParamValue(config.default, config.step);
       }
-    }
+    });
     
-    setupFlashPad(state);
-    state.needsRender = true;
+    // Update flash dot
+    const pad = $('#flashPad');
+    const dot = $('#flashDot');
+    if (pad && dot) {
+      const r = pad.getBoundingClientRect();
+      dot.style.left = (0.5 * r.width) + 'px';
+      dot.style.top = (0.5 * r.height) + 'px';
+    }
   };
 }
