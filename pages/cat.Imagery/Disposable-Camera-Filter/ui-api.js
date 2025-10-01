@@ -171,8 +171,8 @@ export function createUIAPI(state, gl, canvas, video, render, layout, ensureRend
           state.frameSeed = (state.frameSeed + 1) | 0;
           state.needsRender = true;
         }
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        return await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await new Promise(r => requestAnimationFrame(r));
+        return await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
       });
     },
     
