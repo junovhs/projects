@@ -45,7 +45,7 @@ void main() {
 }
 `;
 
-// Perlin noise implementation
+// Perlin noise
 function fade(t) {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
@@ -160,7 +160,6 @@ export class HandheldCameraModule {
     this.quad = quad;
     this.program = this.createProgram();
     
-    // Random seeds for each axis/component
     this.seeds = {
       xLow: Math.random() * 100,
       xMid: Math.random() * 100,
@@ -192,15 +191,15 @@ export class HandheldCameraModule {
     return program;
   }
   
-  apply(inputTex, outputFB, params, frameSeed, canvasW, canvasH) {
+  apply(inputTex, outputFB, state, frameSeed, canvasW, canvasH) {
     const gl = this.gl;
     const time = frameSeed * 0.033;
     
-    const intensity = params.intensity;
-    const freqMult = params.frequency / 2.0; // User freq controls overall speed
-    const ampX = params.ampX;
-    const ampY = params.ampY;
-    const rotDeg = params.rotation;
+    const intensity = state.shakeHandheld;
+    const freqMult = state.shakeFreq / 2.0;
+    const ampX = state.shakeAmpX;
+    const ampY = state.shakeAmpY;
+    const rotDeg = state.shakeRot;
     
     if (intensity < 0.01) {
       bindProgram(gl, this.program, this.quad, canvasW, canvasH);
@@ -215,10 +214,7 @@ export class HandheldCameraModule {
       return [1, 1];
     }
     
-    // Three frequency layers: low (drift), mid (breathe), high (jitter)
-    // User's frequency slider scales all of them proportionally
-    
-    // X translation
+    // X translation with 3 frequency layers
     const xLow = layeredPerlin(time * 0.25 * freqMult + this.seeds.xLow, 0, 2);
     const xMid = layeredPerlin(time * 1.0 * freqMult + this.seeds.xMid, 0, 2);
     const xHigh = layeredPerlin(time * 3.5 * freqMult + this.seeds.xHigh, 0, 3);

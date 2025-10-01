@@ -890,13 +890,7 @@ function render(t = performance.now()) {
     const shakeDst = (currentTex === rtA.tex) ? rtB : rtA;
     handheldCamera.apply(
       currentTex, shakeDst,
-      {
-        intensity: state.shakeHandheld,
-        frequency: state.shakeFreq,
-        ampX: state.shakeAmpX,
-        ampY: state.shakeAmpY,
-        rotation: state.shakeRot
-      },
+      state,
       state.frameSeed,
       canvas.width, canvas.height
     );
