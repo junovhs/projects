@@ -4,7 +4,10 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const HANDHELD_PARAMS = {
-  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' }
+  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
+  shakeDrift: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Drift' },
+  shakeJitter: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Jitter' },
+  shakeRotation: { min: 0, max: 1, step: 0.01, default: 0.7, label: 'Rotation' }
 };
 
 const VERTEX_SHADER = `
@@ -191,8 +194,10 @@ export class HandheldCameraModule {
     const gl = this.gl;
     const time = frameSeed * 0.033;
     
-    // Use the intensity param that app.js passes
     const intensity = params.intensity || 0;
+    const driftAmount = params.drift || 0;
+    const jitterAmount = params.jitter || 0;
+    const rotationAmount = params.rotation || 0;
     
     if (intensity < 0.001) {
       // No shake, just copy through
@@ -208,26 +213,39 @@ export class HandheldCameraModule {
       return [1, 1];
     }
     
-    // ROTATION (primary) - reduced amplitude
-    const rotLow = layeredPerlin(time * 0.2 + this.phaseOffsets.rotLow, 0, 2, 0.5, 2.0);
-    const rotMid = layeredPerlin(time * 1.0 + this.phaseOffsets.rotMid, 0, 2, 0.5, 2.0);
-    const rotHigh = layeredPerlin(time * 3.5 + this.phaseOffsets.rotHigh, 0, 3, 0.4, 2.1);
+    // LOW FREQUENCY DRIFT (slow wandering)
+    const driftX = layeredPerlin(time * 0.25 + this.phaseOffsets.xLow, 0, 2, 0.5, 2.0);
+    const driftY = layeredPerlin(time * 0.22 + this.phaseOffsets.yLow, 0, 2, 0.5, 2.0);
+    const driftRot = layeredPerlin(time * 0.2 + this.phaseOffsets.rotLow, 0, 2, 0.5, 2.0);
     
-    const rotation = (rotLow * 0.006 + rotMid * 0.003 + rotHigh * 0.001) * intensity;
+    // MID FREQUENCY (breathing/adjustment ~1Hz)
+    const midX = layeredPerlin(time * 0.9 + this.phaseOffsets.xMid, 0, 2, 0.5, 2.0);
+    const midY = layeredPerlin(time * 1.1 + this.phaseOffsets.yMid, 0, 2, 0.5, 2.0);
+    const midRot = layeredPerlin(time * 1.0 + this.phaseOffsets.rotMid, 0, 2, 0.5, 2.0);
     
-    // TRANSLATION X - reduced amplitude
-    const xLow = layeredPerlin(time * 0.25 + this.phaseOffsets.xLow, 0, 2, 0.5, 2.0);
-    const xMid = layeredPerlin(time * 0.9 + this.phaseOffsets.xMid, 0, 2, 0.5, 2.0);
-    const xHigh = layeredPerlin(time * 4.0 + this.phaseOffsets.xHigh, 0, 3, 0.4, 2.1);
+    // HIGH FREQUENCY JITTER (hand tremor 3-4Hz)
+    const jitterX = layeredPerlin(time * 4.0 + this.phaseOffsets.xHigh, 0, 3, 0.4, 2.1);
+    const jitterY = layeredPerlin(time * 3.8 + this.phaseOffsets.yHigh, 0, 3, 0.4, 2.1);
+    const jitterRot = layeredPerlin(time * 3.5 + this.phaseOffsets.rotHigh, 0, 3, 0.4, 2.1);
     
-    const offsetX = (xLow * 0.5 + xMid * 0.3 + xHigh * 0.2) * (2 * intensity / canvasW);
+    // Combine with individual control over each frequency layer
+    const offsetX = (
+      driftX * 0.005 * driftAmount +
+      midX * 0.003 * intensity +
+      jitterX * 0.002 * jitterAmount
+    ) * intensity;
     
-    // TRANSLATION Y - reduced amplitude
-    const yLow = layeredPerlin(time * 0.22 + this.phaseOffsets.yLow, 0, 2, 0.5, 2.0);
-    const yMid = layeredPerlin(time * 1.1 + this.phaseOffsets.yMid, 0, 2, 0.5, 2.0);
-    const yHigh = layeredPerlin(time * 3.8 + this.phaseOffsets.yHigh, 0, 3, 0.4, 2.1);
+    const offsetY = (
+      driftY * 0.004 * driftAmount +
+      midY * 0.0025 * intensity +
+      jitterY * 0.0015 * jitterAmount
+    ) * intensity;
     
-    const offsetY = (yLow * 0.5 + yMid * 0.3 + yHigh * 0.2) * (1.5 * intensity / canvasH);
+    const rotation = (
+      driftRot * 0.012 * driftAmount +
+      midRot * 0.008 * intensity +
+      jitterRot * 0.004 * jitterAmount
+    ) * rotationAmount * intensity;
     
     const [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rotation);
     
