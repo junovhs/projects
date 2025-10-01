@@ -5,9 +5,10 @@ import { compileShader, bindProgram } from '../gl-context.js';
 
 export const HANDHELD_PARAMS = {
   shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
-  shakeDrift: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Drift' },
-  shakeJitter: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Jitter' },
-  shakeRotation: { min: 0, max: 1, step: 0.01, default: 0.7, label: 'Rotation' }
+  shakeFreq: { min: 0.1, max: 5, step: 0.1, default: 2, label: 'Frequency (Hz)' },
+  shakeAmpX: { min: 0, max: 50, step: 1, default: 8, label: 'X Amp (px)' },
+  shakeAmpY: { min: 0, max: 50, step: 1, default: 6, label: 'Y Amp (px)' },
+  shakeRot: { min: 0, max: 2, step: 0.1, default: 0.4, label: 'Rotation (°)' }
 };
 
 const VERTEX_SHADER = `
@@ -44,7 +45,7 @@ void main() {
 }
 `;
 
-// Perlin noise
+// Perlin noise implementation
 function fade(t) {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
@@ -89,7 +90,7 @@ function perlin2D(x, y) {
   );
 }
 
-function layeredPerlin(x, y, octaves, persistence, lacunarity) {
+function layeredPerlin(x, y, octaves) {
   let total = 0;
   let amplitude = 1;
   let maxValue = 0;
@@ -98,8 +99,8 @@ function layeredPerlin(x, y, octaves, persistence, lacunarity) {
   for (let i = 0; i < octaves; i++) {
     total += perlin2D(x * frequency, y * frequency) * amplitude;
     maxValue += amplitude;
-    amplitude *= persistence;
-    frequency *= lacunarity;
+    amplitude *= 0.5;
+    frequency *= 2.1;
   }
   
   return total / maxValue;
@@ -159,16 +160,17 @@ export class HandheldCameraModule {
     this.quad = quad;
     this.program = this.createProgram();
     
-    this.phaseOffsets = {
-      rotLow: Math.random() * 100,
-      rotMid: Math.random() * 100,
-      rotHigh: Math.random() * 100,
+    // Random seeds for each axis/component
+    this.seeds = {
       xLow: Math.random() * 100,
       xMid: Math.random() * 100,
       xHigh: Math.random() * 100,
       yLow: Math.random() * 100,
       yMid: Math.random() * 100,
-      yHigh: Math.random() * 100
+      yHigh: Math.random() * 100,
+      rotLow: Math.random() * 100,
+      rotMid: Math.random() * 100,
+      rotHigh: Math.random() * 100
     };
   }
   
@@ -194,13 +196,13 @@ export class HandheldCameraModule {
     const gl = this.gl;
     const time = frameSeed * 0.033;
     
-    const intensity = params.intensity || 0;
-    const driftAmount = params.drift || 0;
-    const jitterAmount = params.jitter || 0;
-    const rotationAmount = params.rotation || 0;
+    const intensity = params.intensity;
+    const freqMult = params.frequency / 2.0; // User freq controls overall speed
+    const ampX = params.ampX;
+    const ampY = params.ampY;
+    const rotDeg = params.rotation;
     
-    if (intensity < 0.001) {
-      // No shake, just copy through
+    if (intensity < 0.01) {
       bindProgram(gl, this.program, this.quad, canvasW, canvasH);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, inputTex);
@@ -213,39 +215,30 @@ export class HandheldCameraModule {
       return [1, 1];
     }
     
-    // LOW FREQUENCY DRIFT (slow wandering)
-    const driftX = layeredPerlin(time * 0.25 + this.phaseOffsets.xLow, 0, 2, 0.5, 2.0);
-    const driftY = layeredPerlin(time * 0.22 + this.phaseOffsets.yLow, 0, 2, 0.5, 2.0);
-    const driftRot = layeredPerlin(time * 0.2 + this.phaseOffsets.rotLow, 0, 2, 0.5, 2.0);
+    // Three frequency layers: low (drift), mid (breathe), high (jitter)
+    // User's frequency slider scales all of them proportionally
     
-    // MID FREQUENCY (breathing/adjustment ~1Hz)
-    const midX = layeredPerlin(time * 0.9 + this.phaseOffsets.xMid, 0, 2, 0.5, 2.0);
-    const midY = layeredPerlin(time * 1.1 + this.phaseOffsets.yMid, 0, 2, 0.5, 2.0);
-    const midRot = layeredPerlin(time * 1.0 + this.phaseOffsets.rotMid, 0, 2, 0.5, 2.0);
+    // X translation
+    const xLow = layeredPerlin(time * 0.25 * freqMult + this.seeds.xLow, 0, 2);
+    const xMid = layeredPerlin(time * 1.0 * freqMult + this.seeds.xMid, 0, 2);
+    const xHigh = layeredPerlin(time * 3.5 * freqMult + this.seeds.xHigh, 0, 3);
     
-    // HIGH FREQUENCY JITTER (hand tremor 3-4Hz)
-    const jitterX = layeredPerlin(time * 4.0 + this.phaseOffsets.xHigh, 0, 3, 0.4, 2.1);
-    const jitterY = layeredPerlin(time * 3.8 + this.phaseOffsets.yHigh, 0, 3, 0.4, 2.1);
-    const jitterRot = layeredPerlin(time * 3.5 + this.phaseOffsets.rotHigh, 0, 3, 0.4, 2.1);
+    const offsetX = (xLow * 0.5 + xMid * 0.3 + xHigh * 0.2) * (ampX / canvasW) * intensity;
     
-    // Combine with individual control over each frequency layer
-    const offsetX = (
-      driftX * 0.005 * driftAmount +
-      midX * 0.003 * intensity +
-      jitterX * 0.002 * jitterAmount
-    ) * intensity;
+    // Y translation
+    const yLow = layeredPerlin(time * 0.22 * freqMult + this.seeds.yLow, 0, 2);
+    const yMid = layeredPerlin(time * 1.1 * freqMult + this.seeds.yMid, 0, 2);
+    const yHigh = layeredPerlin(time * 3.8 * freqMult + this.seeds.yHigh, 0, 3);
     
-    const offsetY = (
-      driftY * 0.004 * driftAmount +
-      midY * 0.0025 * intensity +
-      jitterY * 0.0015 * jitterAmount
-    ) * intensity;
+    const offsetY = (yLow * 0.5 + yMid * 0.3 + yHigh * 0.2) * (ampY / canvasH) * intensity;
     
-    const rotation = (
-      driftRot * 0.012 * driftAmount +
-      midRot * 0.008 * intensity +
-      jitterRot * 0.004 * jitterAmount
-    ) * rotationAmount * intensity;
+    // Rotation
+    const rotLow = layeredPerlin(time * 0.2 * freqMult + this.seeds.rotLow, 0, 2);
+    const rotMid = layeredPerlin(time * 1.0 * freqMult + this.seeds.rotMid, 0, 2);
+    const rotHigh = layeredPerlin(time * 3.5 * freqMult + this.seeds.rotHigh, 0, 3);
+    
+    const rotation = (rotLow * 0.5 + rotMid * 0.3 + rotHigh * 0.2) * 
+                     (rotDeg * Math.PI / 180) * intensity;
     
     const [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rotation);
     
