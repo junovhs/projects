@@ -4,11 +4,10 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const HANDHELD_PARAMS = {
-  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Intensity' },
-  shakeFreq: { min: 0.1, max: 5, step: 0.1, default: 2, label: 'Frequency (Hz)' },
-  shakeAmpX: { min: 0, max: 50, step: 1, default: 8, label: 'X Amp (px)' },
-  shakeAmpY: { min: 0, max: 50, step: 1, default: 6, label: 'Y Amp (px)' },
-  shakeRot: { min: 0, max: 2, step: 0.1, default: 0.4, label: 'Rotation (°)' }
+  shakeHandheld: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Intensity' },
+  shakeStyle: { min: 0, max: 1, step: 0.01, default: 0.3, label: 'Style' }, // 0=calm/locked, 1=energetic/doc
+  shakeWobble: { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Wobble' }, // slow drift
+  shakeJitter: { min: 0, max: 1, step: 0.01, default: 0.4, label: 'Jitter' }  // fast tremor
 };
 
 const VERTEX_SHADER = `
@@ -160,6 +159,7 @@ export class HandheldCameraModule {
     this.quad = quad;
     this.program = this.createProgram();
     
+    // Random seeds per axis/frequency
     this.seeds = {
       xLow: Math.random() * 100,
       xMid: Math.random() * 100,
@@ -196,10 +196,9 @@ export class HandheldCameraModule {
     const time = frameSeed * 0.033;
     
     const intensity = state.shakeHandheld;
-    const freqMult = state.shakeFreq / 2.0;
-    const ampX = state.shakeAmpX;
-    const ampY = state.shakeAmpY;
-    const rotDeg = state.shakeRot;
+    const style = state.shakeStyle;     // 0=calm, 1=energetic
+    const wobble = state.shakeWobble;   // slow drift control
+    const jitter = state.shakeJitter;   // fast tremor control
     
     if (intensity < 0.01) {
       bindProgram(gl, this.program, this.quad, canvasW, canvasH);
@@ -214,27 +213,56 @@ export class HandheldCameraModule {
       return [1, 1];
     }
     
-    // X translation with 3 frequency layers
-    const xLow = layeredPerlin(time * 0.25 * freqMult + this.seeds.xLow, 0, 2);
-    const xMid = layeredPerlin(time * 1.0 * freqMult + this.seeds.xMid, 0, 2);
-    const xHigh = layeredPerlin(time * 3.5 * freqMult + this.seeds.xHigh, 0, 3);
+    // === STYLE determines frequency scaling ===
+    // Calm = slower overall motion, Energetic = faster
+    const baseFreq = 0.8 + style * 1.2; // 0.8Hz to 2.0Hz base
     
-    const offsetX = (xLow * 0.5 + xMid * 0.3 + xHigh * 0.2) * (ampX / canvasW) * intensity;
+    // === WOBBLE: Low frequency drift (0.2-0.3 Hz) ===
+    const wobbleFreq = 0.25 * baseFreq;
+    const xWobble = layeredPerlin(time * wobbleFreq + this.seeds.xLow, 0, 2);
+    const yWobble = layeredPerlin(time * wobbleFreq * 0.9 + this.seeds.yLow, 0, 2);
+    const rotWobble = layeredPerlin(time * wobbleFreq * 0.85 + this.seeds.rotLow, 0, 2);
     
-    // Y translation
-    const yLow = layeredPerlin(time * 0.22 * freqMult + this.seeds.yLow, 0, 2);
-    const yMid = layeredPerlin(time * 1.1 * freqMult + this.seeds.yMid, 0, 2);
-    const yHigh = layeredPerlin(time * 3.8 * freqMult + this.seeds.yHigh, 0, 3);
+    // === MID: Breathing/adjustment (0.8-1.2 Hz) ===
+    const midFreq = 1.0 * baseFreq;
+    const xMid = layeredPerlin(time * midFreq + this.seeds.xMid, 0, 2);
+    const yMid = layeredPerlin(time * midFreq * 1.1 + this.seeds.yMid, 0, 2);
+    const rotMid = layeredPerlin(time * midFreq + this.seeds.rotMid, 0, 2);
     
-    const offsetY = (yLow * 0.5 + yMid * 0.3 + yHigh * 0.2) * (ampY / canvasH) * intensity;
+    // === JITTER: High frequency tremor (3-4 Hz) ===
+    const jitterFreq = 3.5 * baseFreq;
+    const xJitter = layeredPerlin(time * jitterFreq + this.seeds.xHigh, 0, 3);
+    const yJitter = layeredPerlin(time * jitterFreq * 1.08 + this.seeds.yHigh, 0, 3);
+    const rotJitter = layeredPerlin(time * jitterFreq + this.seeds.rotHigh, 0, 3);
     
-    // Rotation
-    const rotLow = layeredPerlin(time * 0.2 * freqMult + this.seeds.rotLow, 0, 2);
-    const rotMid = layeredPerlin(time * 1.0 * freqMult + this.seeds.rotMid, 0, 2);
-    const rotHigh = layeredPerlin(time * 3.5 * freqMult + this.seeds.rotHigh, 0, 3);
+    // === Translation amplitudes (behind the scenes) ===
+    // Style affects: calm=more controlled, energetic=more movement
+    // Research says translation should support rotation, not dominate
+    const baseTransX = (2 + style * 4) / canvasW;  // 2-6px worth
+    const baseTransY = (1.5 + style * 3) / canvasH; // 1.5-4.5px worth
     
-    const rotation = (rotLow * 0.5 + rotMid * 0.3 + rotHigh * 0.2) * 
-                     (rotDeg * Math.PI / 180) * intensity;
+    const offsetX = (
+      xWobble * wobble * 0.6 +    // Wobble controls low freq
+      xMid * 0.3 +                 // Mid always present
+      xJitter * jitter * 0.1       // Jitter controls high freq
+    ) * baseTransX * intensity;
+    
+    const offsetY = (
+      yWobble * wobble * 0.6 +
+      yMid * 0.3 +
+      yJitter * jitter * 0.1
+    ) * baseTransY * intensity;
+    
+    // === Rotation (primary component per research) ===
+    // Rotation should be MORE prominent than translation
+    // Style affects magnitude: calm=subtle tilt, energetic=more pronounced
+    const baseRot = (0.4 + style * 0.8) * (Math.PI / 180); // 0.4° to 1.2°
+    
+    const rotation = (
+      rotWobble * wobble * 0.5 +   // Wobble = slow sway
+      rotMid * 0.35 +               // Mid = breathing rhythm
+      rotJitter * jitter * 0.15     // Jitter = tremor
+    ) * baseRot * intensity;
     
     const [scaleX, scaleY] = computeShakeScale(offsetX, offsetY, rotation);
     
