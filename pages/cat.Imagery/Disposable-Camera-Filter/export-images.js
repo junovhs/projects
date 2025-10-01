@@ -1,8 +1,9 @@
-// PNG sequence export with TAR packaging - OPTIMIZED VERSION
+// STREAMING export - never stores uncompressed frames in memory
 
-const BATCH_SIZE = 8; // Encode 8 frames in parallel
+const YIELD_EVERY = 3; // Yield to browser every N frames
 
 export function buildTar(entries) {
+  console.log(`[TAR] Building archive with ${entries.length} entries`);
   const blocks = [];
   
   function padOctal(n, len) {
@@ -60,6 +61,7 @@ export function buildTar(entries) {
   blocks.push(new Uint8Array(512));
   
   const total = blocks.reduce((a, b) => a + b.length, 0);
+  console.log(`[TAR] Total archive size: ${(total / 1024 / 1024).toFixed(2)}MB`);
   const out = new Uint8Array(total);
   let off = 0;
   
@@ -71,23 +73,56 @@ export function buildTar(entries) {
   return new Blob([out], { type: 'application/x-tar' });
 }
 
+async function captureAndEncodeFrame(canvas, index) {
+  console.log(`[FRAME ${index}] Starting capture`);
+  const t0 = performance.now();
+  
+  // Create minimal temp canvas
+  const temp = document.createElement('canvas');
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  const ctx = temp.getContext('2d', { alpha: false, desynchronized: true });
+  ctx.drawImage(canvas, 0, 0);
+  
+  const t1 = performance.now();
+  console.log(`[FRAME ${index}] Captured in ${(t1 - t0).toFixed(1)}ms`);
+  
+  // Encode immediately
+  const blob = await new Promise(r => temp.toBlob(r, 'image/webp', 1.0));
+  const t2 = performance.now();
+  console.log(`[FRAME ${index}] Encoded in ${(t2 - t1).toFixed(1)}ms (${(blob.size / 1024).toFixed(1)}KB)`);
+  
+  const ab = await blob.arrayBuffer();
+  
+  // Cleanup temp canvas immediately
+  temp.width = temp.height = 0;
+  
+  return {
+    name: `frame_${String(index).padStart(6, '0')}.webp`,
+    data: ab
+  };
+}
+
 export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVideo, renderFunc, overlayElement, textElement) {
+  console.log('[EXPORT] Starting export process');
   const entries = [];
   
   overlayElement.classList.remove('hidden');
   textElement.textContent = 'Exporting frames… 0%';
   
   if (!isVideo) {
-    // Single image
+    console.log('[EXPORT] Single image mode');
     await renderFunc();
     await new Promise(r => requestAnimationFrame(r));
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
-    const ab = await blob.arrayBuffer();
-    entries.push({ name: 'frame_000000.webp', data: ab });
+    const result = await captureAndEncodeFrame(canvas, 0);
+    entries.push(result);
   } else {
-    // PHASE 1: CAPTURE ALL FRAMES (no encoding yet)
-    const capturedFrames = [];
+    console.log('[EXPORT] Video mode - starting frame capture');
+    const startTime = performance.now();
+    
     const dur = Math.max(0.01, videoElement.duration || 1);
+    console.log(`[EXPORT] Video duration: ${dur.toFixed(2)}s`);
+    
     const wasLoop = videoElement.loop;
     const wasPaused = videoElement.paused;
     
@@ -101,9 +136,7 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
     
     let frameIndex = 0;
     
-    textElement.textContent = 'Capturing frames… 0%';
-    
-    await new Promise(resolve => {
+    await new Promise((resolve, reject) => {
       let vfcb;
       
       const cleanup = () => {
@@ -115,36 +148,45 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
       };
       
       const onFrame = async () => {
-        videoElement.pause();
-        
-        // Render frame
-        await renderFunc();
-        
-        // FAST capture - just copy canvas to temp
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const ctx = tempCanvas.getContext('2d', { alpha: false });
-        ctx.drawImage(canvas, 0, 0);
-        
-        capturedFrames.push({
-          index: frameIndex,
-          canvas: tempCanvas
-        });
-        
-        frameIndex++;
-        
-        const progress = Math.round((videoElement.currentTime / dur) * 100);
-        textElement.textContent = `Capturing frames… ${progress}%`;
-        
-        if (videoElement.ended || videoElement.currentTime >= dur - 1e-4) {
+        try {
+          videoElement.pause();
+          
+          // Render frame
+          await renderFunc();
+          
+          // Capture and encode IMMEDIATELY (streaming, no storage)
+          const encoded = await captureAndEncodeFrame(canvas, frameIndex);
+          entries.push(encoded);
+          
+          frameIndex++;
+          
+          const progress = Math.round((videoElement.currentTime / dur) * 100);
+          const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+          const fps = (frameIndex / (performance.now() - startTime) * 1000).toFixed(1);
+          
+          textElement.textContent = `Frame ${frameIndex} (${progress}%) • ${fps} fps • ${elapsed}s`;
+          console.log(`[PROGRESS] ${frameIndex} frames, ${progress}%, ${fps} fps`);
+          
+          // Yield to browser every N frames to prevent freezing
+          if (frameIndex % YIELD_EVERY === 0) {
+            await new Promise(r => setTimeout(r, 0));
+          }
+          
+          if (videoElement.ended || videoElement.currentTime >= dur - 1e-4) {
+            console.log(`[EXPORT] Complete - captured ${frameIndex} frames in ${elapsed}s`);
+            cleanup();
+            resolve();
+            return;
+          }
+          
+          vfcb = videoElement.requestVideoFrameCallback(onFrame);
+          videoElement.play().catch(() => {});
+          
+        } catch (err) {
+          console.error('[EXPORT] Error in frame processing:', err);
           cleanup();
-          resolve();
-          return;
+          reject(err);
         }
-        
-        vfcb = videoElement.requestVideoFrameCallback(onFrame);
-        videoElement.play().catch(() => {});
       };
       
       vfcb = videoElement.requestVideoFrameCallback(onFrame);
@@ -153,43 +195,21 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
         resolve();
       }, { once: true });
       
-      videoElement.play().catch(() => {});
+      videoElement.play().catch(err => {
+        console.error('[EXPORT] Failed to start video:', err);
+        reject(err);
+      });
     });
-    
-    // PHASE 2: ENCODE ALL FRAMES IN BATCHES (after capture complete)
-    textElement.textContent = 'Encoding frames… 0%';
-    
-    const totalFrames = capturedFrames.length;
-    let encodedCount = 0;
-    
-    // Process in batches
-    for (let i = 0; i < totalFrames; i += BATCH_SIZE) {
-      const batch = capturedFrames.slice(i, Math.min(i + BATCH_SIZE, totalFrames));
-      
-      const encoded = await Promise.all(
-        batch.map(async ({ index, canvas }) => {
-          const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
-          const ab = await blob.arrayBuffer();
-          return {
-            name: `frame_${String(index).padStart(6, '0')}.webp`,
-            data: ab
-          };
-        })
-      );
-      
-      entries.push(...encoded);
-      encodedCount += batch.length;
-      
-      const progress = Math.round((encodedCount / totalFrames) * 100);
-      textElement.textContent = `Encoding frames… ${progress}%`;
-    }
     
     videoElement.loop = wasLoop;
     if (wasPaused) videoElement.pause();
   }
   
   textElement.textContent = 'Building archive...';
+  console.log('[EXPORT] Starting TAR construction');
   const tarBlob = buildTar(entries);
+  console.log('[EXPORT] Export complete');
+  
   overlayElement.classList.add('hidden');
   
   return tarBlob;
