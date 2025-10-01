@@ -4,7 +4,7 @@
 import { compileShader, bindProgram } from '../gl-context.js';
 
 export const MOTION_BLUR_PARAMS = {
-  shutterUI: { min: 0, max: 1, step: 0.001, default: 0.348, label: 'Shutter', special: 'shutter' }, // 1/139 ≈ 0.348 on slider
+  shutterUI: { min: 0, max: 1, step: 0.001, default: 0.15, label: 'Shutter', special: 'shutter' }, // 1/139 ≈ 0.348 on slider
   shake: { min: 0, max: 1, step: 0.01, default: 0.5, label: 'Shake' },
   motionAngle: { min: 0, max: 180, step: 1, default: 0, label: 'Trail Angle (°)' }
 };
