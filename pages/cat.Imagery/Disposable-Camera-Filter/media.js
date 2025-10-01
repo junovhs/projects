@@ -1,5 +1,6 @@
 // Media file loading and video playback controls
 import { createTexture } from './gl-context.js';
+import { sliderToShutterSeconds, formatShutter } from './modules/motion-blur.js';
 
 const $ = s => document.querySelector(s);
 
@@ -126,7 +127,6 @@ export function setupResetButton(state, allParams, setupFlashPad) {
       el.value = config.default;
       
       if (config.special === 'shutter') {
-        const { sliderToShutterSeconds, formatShutter } = await import('./modules/motion-blur.js');
         const lbl = $(`#${key}Label`);
         if (lbl) lbl.textContent = formatShutter(sliderToShutterSeconds(config.default));
       } else {
