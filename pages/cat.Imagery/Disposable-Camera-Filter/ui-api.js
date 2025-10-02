@@ -180,7 +180,7 @@ export function createUIAPI(state, gl, canvas, video, render, layout, ensureRend
       if (!state.tex) throw new Error('No media loaded');
       if (!state.isVideo) throw new Error('Load a video to export sequence');
       
-      return await withFullRes(async () => {
+      const blob = await withFullRes(async () => {
         const renderFunc = async () => {
           gl.bindTexture(gl.TEXTURE_2D, state.tex);
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -193,6 +193,9 @@ export function createUIAPI(state, gl, canvas, video, render, layout, ensureRend
         return await exportPNGSequence(canvas, state.tex, video, state.isVideo, renderFunc, 
           document.getElementById('overlay'), document.getElementById('overlayText'));
       });
+      
+      // Return blob but trigger download immediately in export.js
+      return blob;
     },
     
     // Utilities

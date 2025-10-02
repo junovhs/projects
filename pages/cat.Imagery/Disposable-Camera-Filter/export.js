@@ -1,4 +1,4 @@
-// Export UI controls - optimized for WebP frames
+// Export UI controls
 
 const $ = s => document.querySelector(s);
 
@@ -14,30 +14,33 @@ function setupExportButton(api) {
     
     try {
       if (isVideo) {
-        // Export TAR of WebP sequence (much faster than PNG)
-        const tarBlob = await api.exportPNGSequence();
-        api.download(tarBlob, 'frames.tar');
-        api.toast('Frame sequence exported');
+        const result = await api.exportPNGSequence();
+        
+        // If result is null, file was saved via File System Access API
+        if (result === null) {
+          api.toast('Frames exported successfully');
+        } else {
+          // Fallback: download blob then immediately clear reference
+          api.download(result, 'frames.tar');
+          api.toast('Frames exported');
+        }
       } else {
-        // Export single WebP
         const blob = await api.exportPNG();
         api.download(blob, 'image_processed.webp');
         api.toast('Image exported');
       }
     } catch (err) {
-      api.toast(err.message, 'err');
+      if (err.message !== 'Export cancelled') {
+        api.toast(err.message, 'err');
+      }
     }
   };
   
-  // Update button text based on media type
   const updateButtonText = () => {
     const isVideo = api.getState('isVideo');
     btn.textContent = isVideo ? 'Export Frames (TAR)' : 'Export WebP';
   };
   
-  // Initial update
   updateButtonText();
-  
-  // Update when media changes (called from media.js after loading)
   window.updateExportButton = updateButtonText;
 }
