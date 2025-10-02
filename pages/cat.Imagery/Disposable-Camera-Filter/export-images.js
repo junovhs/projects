@@ -79,6 +79,10 @@ export async function exportPNGSequence(canvas, mediaTexture, videoElement, isVi
   console.log('[EXPORT] Starting STREAMING export (no memory accumulation)');
   console.log(`[EXPORT] Canvas: ${canvas.width}x${canvas.height}`);
   
+  if (document.hidden) {
+    throw new Error('Cannot export from background tab - switch to this tab first');
+  }
+  
   overlayElement.classList.remove('hidden');
   textElement.textContent = 'Exporting frames… 0%';
   
@@ -143,6 +147,7 @@ async function streamingExportWithFilePicker(canvas, videoElement, renderFunc, o
   
   const wasLoop = videoElement.loop;
   const wasPaused = videoElement.paused;
+  const wasRate = videoElement.playbackRate;
   
   videoElement.loop = false;
   videoElement.playbackRate = 1.0;
@@ -157,15 +162,35 @@ async function streamingExportWithFilePicker(canvas, videoElement, renderFunc, o
   
   await new Promise((resolve, reject) => {
     let vfcb;
+    let aborted = false;
+    
+    // Detect tab visibility changes
+    const visibilityHandler = () => {
+      if (document.hidden && !aborted) {
+        console.error('[EXPORT] Tab hidden - aborting export');
+        aborted = true;
+        cleanup();
+        reject(new Error('Export cancelled - tab must stay visible'));
+      }
+    };
+    
+    document.addEventListener('visibilitychange', visibilityHandler);
     
     const cleanup = () => {
+      document.removeEventListener('visibilitychange', visibilityHandler);
       if (videoElement.cancelVideoFrameCallback && vfcb) {
         try { videoElement.cancelVideoFrameCallback(vfcb); } catch (e) {}
       }
+      videoElement.pause();
+      videoElement.loop = wasLoop;
+      videoElement.playbackRate = wasRate;
+      if (wasPaused) videoElement.pause();
     };
     
     const onFrame = async () => {
       try {
+        if (aborted) return;
+        
         videoElement.pause();
         
         await renderFunc();
@@ -198,6 +223,7 @@ async function streamingExportWithFilePicker(canvas, videoElement, renderFunc, o
         if (videoElement.ended || videoElement.currentTime >= dur - 1e-4) {
           // Write TAR footer
           await writable.write(new Uint8Array(1024));
+          await writable.close();
           
           console.log(`[EXPORT] Complete - ${frameIndex} frames in ${elapsed}s`);
           cleanup();
@@ -210,24 +236,27 @@ async function streamingExportWithFilePicker(canvas, videoElement, renderFunc, o
         
       } catch (err) {
         console.error('[EXPORT] Error:', err);
+        await writable.abort();
         cleanup();
         reject(err);
       }
     };
     
     vfcb = videoElement.requestVideoFrameCallback(onFrame);
-    videoElement.addEventListener('ended', () => {
+    videoElement.addEventListener('ended', async () => {
+      if (!aborted) {
+        await writable.write(new Uint8Array(1024));
+        await writable.close();
+      }
       cleanup();
       resolve();
     }, { once: true });
     
-    videoElement.play().catch(reject);
+    videoElement.play().catch(err => {
+      cleanup();
+      reject(err);
+    });
   });
-  
-  await writable.close();
-  
-  videoElement.loop = wasLoop;
-  if (wasPaused) videoElement.pause();
   
   overlayElement.classList.add('hidden');
   
@@ -246,6 +275,7 @@ async function streamingExportWithChunks(canvas, videoElement, renderFunc, overl
   
   const wasLoop = videoElement.loop;
   const wasPaused = videoElement.paused;
+  const wasRate = videoElement.playbackRate;
   
   videoElement.loop = false;
   videoElement.playbackRate = 1.0;
@@ -261,11 +291,29 @@ async function streamingExportWithChunks(canvas, videoElement, renderFunc, overl
   
   await new Promise((resolve, reject) => {
     let vfcb;
+    let aborted = false;
+    
+    // Detect tab visibility changes
+    const visibilityHandler = () => {
+      if (document.hidden && !aborted) {
+        console.error('[EXPORT] Tab hidden - aborting export');
+        aborted = true;
+        cleanup();
+        reject(new Error('Export cancelled - tab must stay visible'));
+      }
+    };
+    
+    document.addEventListener('visibilitychange', visibilityHandler);
     
     const cleanup = () => {
+      document.removeEventListener('visibilitychange', visibilityHandler);
       if (videoElement.cancelVideoFrameCallback && vfcb) {
         try { videoElement.cancelVideoFrameCallback(vfcb); } catch (e) {}
       }
+      videoElement.pause();
+      videoElement.loop = wasLoop;
+      videoElement.playbackRate = wasRate;
+      if (wasPaused) videoElement.pause();
     };
     
     const flushChunk = () => {
@@ -285,6 +333,8 @@ async function streamingExportWithChunks(canvas, videoElement, renderFunc, overl
     
     const onFrame = async () => {
       try {
+        if (aborted) return;
+        
         videoElement.pause();
         
         await renderFunc();
@@ -332,15 +382,18 @@ async function streamingExportWithChunks(canvas, videoElement, renderFunc, overl
     
     vfcb = videoElement.requestVideoFrameCallback(onFrame);
     videoElement.addEventListener('ended', () => {
+      if (!aborted && tempEntries.length > 0) {
+        flushChunk();
+      }
       cleanup();
       resolve();
     }, { once: true });
     
-    videoElement.play().catch(reject);
+    videoElement.play().catch(err => {
+      cleanup();
+      reject(err);
+    });
   });
-  
-  videoElement.loop = wasLoop;
-  if (wasPaused) videoElement.pause();
   
   textElement.textContent = 'Finalizing archive...';
   
