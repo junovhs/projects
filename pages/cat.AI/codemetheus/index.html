@@ -356,7 +356,40 @@
 
     const { useState, useEffect, useRef } = React;
 
-    const PROMPT = `!!!!ALWAYS REMEMBER!!!!! When writing/modifying code, ***obey this mantra:*** Least Power — simplest viable construct (KISS). Modularity — clean, replaceable boundaries (abstractions). Single Responsibility — one purpose per unit (no tangles). Antifragility — failure strengthens (resilience, degradation). Transparency — clarity over cleverness (self-reading intent). Reduce Surface Area — expose essentials (lean interfaces). Emergence — simple interactions yield complexity (adaptive). Decentralization — distribute control (peer scale). Adaptivity — evolve with context (CI/branch). Redundancy — thoughtful backups (invisible failover). Debug addendum: Evidence-first (min repro + env). Structured logs (JSONL: ts/level/rid/subsystem/action/code/msg/context). Stable errors (codes, causes, next steps—never swallow). Instrumentation (flag-guarded probes at entry/exit/decisions/fails; strip post-fix). No guessing (flag thin data, request exact logs/cmds). Artifacts (save failing inputs/files, print paths). Confidence (low/med/high labels). Output executable code with these baked in + diff note.`;
+    const PROMPT = `
+    When giving me code:
+    You write it, I only apply it.
+    Use find/replace if three or fewer simple, clearly anchored edits.
+    Use a diff for several related or structural edits.
+    Use a whole file if there would be eight or more edits, many areas touched, or the file is mostly new.
+    Always pick the smallest, clearest option that keeps accuracy high and requires no manual editing.
+
+    !!!! ALWAYS REMEMBER !!!!
+
+    When writing or modifying code, ***obey this mantra:***
+
+    Least Power — simplest viable construct (KISS).
+    Modularity — clean, replaceable boundaries (abstractions).
+    Single Responsibility — one purpose per unit (no tangles).
+    Antifragility — failure strengthens (resilience, degradation).
+    Transparency — clarity over cleverness (self-reading intent).
+    Reduce Surface Area — expose essentials (lean interfaces).
+    Emergence — simple interactions yield complexity (adaptive).
+    Decentralization — distribute control (peer scale).
+    Adaptivity — evolve with context (CI/branch).
+    Redundancy — thoughtful backups (invisible failover).
+
+    Debug Addendum:
+    - Evidence-first (min repro + env).
+    - Structured logs (JSONL: ts/level/rid/subsystem/action/code/msg/context).
+    - Stable errors (codes, causes, next steps—never swallow).
+    - Instrumentation (flag-guarded probes at entry/exit/decisions/fails; strip post-fix).
+    - No guessing (flag thin data, request exact logs/cmds).
+    - Artifacts (save failing inputs/files, print paths).
+    - Confidence (low/med/high labels).
+
+    Output executable code with these baked in + diff note.
+    `;
 
     function App() {
       const [toast, setToast] = useState(false);
