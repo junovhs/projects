@@ -176,7 +176,7 @@
       else if(sourceType==='url'){
         setStatus('Scraping…');
         const limit=Number(limitInput.value||120), url=urlInput.value;
-        const res=await fetch('/api/asset-sucker/scrape',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
+        const res=await fetch('/api/assets/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
         const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||`Failed to scrape (${res.status})`);
         const html=await (await fetch(proxify(url))).text().catch(()=>null);
         const extras=html? await extractUseSvgsFromHtml(html,url) : [];
