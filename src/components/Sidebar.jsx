@@ -1,18 +1,18 @@
 // projects/src/components/Sidebar.jsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
-function Category({ category, activeRelPath, onPick }) {
-  const [isOpen, setIsOpen] = useState(true);
+function Category({ category, onPick }) {
+  const [isOpen, setIsOpen] = useState(true); // Default to open
   const projects = category.children.filter(c => c.type === 'project');
 
   return (
     <li className={`category-item ${isOpen ? 'open' : ''}`}>
       <button className="category-toggle" onClick={() => setIsOpen(!isOpen)}>
+        <span className="category-chevron">▼</span>
         <span className="category-name">{category.name}</span>
         <span className="category-count">{projects.length}</span>
-        <span className="category-chevron">▼</span>
       </button>
       {isOpen && (
         <ul className="project-list">
@@ -20,7 +20,7 @@ function Category({ category, activeRelPath, onPick }) {
             <li key={project.id}>
               <NavLink
                 to={`/${project.slug}`}
-                className={({ isActive }) => `project-link ${isActive ? 'active' : ''}`}
+                className="project-link"
                 onClick={onPick}
               >
                 {project.name}
@@ -33,7 +33,7 @@ function Category({ category, activeRelPath, onPick }) {
   );
 }
 
-export function Sidebar({ projects = [], activeRelPath, isMobile, open, onClose, isDark, onToggleTheme }) {
+export function Sidebar({ projects = [], isMobile, open, onClose, isDark, onToggleTheme }) {
   const categories = projects.filter(p => p.type === 'category' && p.children?.length > 0);
 
   return (
@@ -74,7 +74,6 @@ export function Sidebar({ projects = [], activeRelPath, isMobile, open, onClose,
                 <Category 
                   key={cat.id} 
                   category={cat} 
-                  activeRelPath={activeRelPath}
                   onPick={isMobile ? onClose : undefined}
                 />
               ))}
