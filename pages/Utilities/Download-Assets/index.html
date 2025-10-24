@@ -169,22 +169,50 @@
 
   /* ========== ACTION: SCAN ========== */
   scanBtn.addEventListener('click', async ()=>{
+    console.log('[SCAN START]');
     errorMessage=''; allAssets=[]; counts=null; render();
     const sourceType=fileInput.files.length?'pdf':(urlInput.value?'url':'none');
     try{
-      if(sourceType==='pdf'){ await runPdfExtractor(fileInput.files[0]) }
+      if(sourceType==='pdf'){
+        console.log('Running PDF extractor...');
+        await runPdfExtractor(fileInput.files[0]);
+        console.log('PDF extractor finished.');
+      }
       else if(sourceType==='url'){
         setStatus('Scraping…');
+        console.log('Starting URL scrape...');
         const limit=Number(limitInput.value||120), url=urlInput.value;
         const apiUrl = new URL('/api/assets/discover', window.location.origin);
-        console.log('Constructed API URL:', apiUrl.toString()); // <-- ADD THIS LINE
+        
+        console.log('Fetching asset list...');
         const res=await fetch(apiUrl, {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
-        const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||`Failed to scrape (${res.status})`);
-        const html=await (await fetch(proxify(url))).text().catch(()=>null);
+        console.log('Asset list response received:', res.status);
+        if(!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Failed to scrape (${res.status}): ${errText}`);
+        }
+        const data=await res.json();
+        console.log('Asset list data parsed:', data);
+
+        console.log('Fetching source HTML for SVG extraction...');
+        const proxiedUrl = new URL(proxify(url), window.location.origin);
+        const htmlRes = await fetch(proxiedUrl);
+        const html = htmlRes.ok ? await htmlRes.text() : null;
+        console.log('Source HTML fetched:', html ? `${html.length} chars` : 'failed');
+        
         const extras=html? await extractUseSvgsFromHtml(html,url) : [];
-        allAssets=[...(data.assets||[]),...extras]; counts=countByCat(allAssets);
+        console.log('SVG extras extracted:', extras.length);
+        
+        allAssets=[...(data.assets||[]),...extras];
+        counts=countByCat(allAssets);
+        console.log('Assets compiled:', allAssets.length);
+
       } else throw new Error('Provide a URL or choose a PDF first.');
-    }catch(e){ errorMessage=e.message||String(e) }
+    }catch(e){
+        console.error('[SCAN ERROR]', e);
+        errorMessage=e.message||String(e);
+    }
+    console.log('[SCAN END] Calling final render...');
     render();
   });
 
