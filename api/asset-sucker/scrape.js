@@ -12,8 +12,19 @@ function isValidHttpUrl(string) {
 }
 
 export default async function handler(req, res) {
-  // CORS is handled by vercel.json.
-  // This function now only needs to handle POST requests.
+  // --- The Definitive CORS Fix ---
+  // Set headers for all responses to allow requests from any origin.
+  // This is necessary for the sandboxed iframe (origin: null).
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle the browser's preflight OPTIONS request.
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  // --- End of Fix ---
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method Not Allowed' });
