@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "prepare-build": "node scripts/build.cjs",
-    "dev": "npm run prepare-build && vite",
+    "dev": "vercel dev",
     "build": "npm run prepare-build && vite build",
     "preview": "vite preview"
   },
