@@ -12,19 +12,16 @@ function isValidHttpUrl(string) {
 }
 
 export default async function handler(req, res) {
-  // --- NEW: Handle CORS preflight and add headers ---
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Allows requests from any origin, including 'null' from sandboxed iframes.
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  // --- End of CORS handling ---
+  // CORS is now handled by vercel.json, no headers needed here.
 
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    // The browser might send an OPTIONS request first. Vercel handles this.
+    // We only care about POST requests for the actual logic.
+    if (req.method !== 'OPTIONS') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+    return res.status(204).send(''); // Respond to OPTIONS
   }
 
   const { url, limit } = req.body;
