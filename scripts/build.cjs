@@ -2,14 +2,11 @@
 'use strict';
 const fs = require('fs').promises;
 const path = require('path');
-const { execSync } = require('child_process');
 
 const ROOT_DIR = process.cwd();
 const PAGES_DIR = path.join(ROOT_DIR, 'pages');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
-const DIST_DIR = path.join(ROOT_DIR, 'dist');
 
-// (Helper functions slugify, createUniqueSlug remain the same)
 function slugify(text) {
   return String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
 }
@@ -48,7 +45,6 @@ async function scanDirectory(directory, relativePath, existingSlugs) {
   });
 }
 
-// *** NEW/RESTORED FUNCTION ***
 async function copyDir(src, dest) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
@@ -70,26 +66,15 @@ async function main() {
     const existingSlugs = new Set();
     const projectTree = await scanDirectory(PAGES_DIR, '', existingSlugs);
     await fs.writeFile(path.join(PUBLIC_DIR, 'projects.json'), JSON.stringify(projectTree, null, 2), 'utf8');
-    console.log(`   Done. Found ${projectTree.length} top-level categories.`);
+    console.log('   -> public/projects.json created.');
 
-    // Check if we should skip the full build (for local dev server)
-    if (process.argv.includes('--skip-build')) {
-      console.log('\n--skip-build flag found. Skipping Vite build and page copy.');
-      return;
-    }
+    console.log('2. Copying project pages to public directory...');
+    await copyDir(PAGES_DIR, path.join(PUBLIC_DIR, 'pages'));
+    console.log('   -> public/pages/ created.');
 
-    console.log('\n2. Running Vite build...');
-    execSync('vite build', { stdio: 'inherit' });
-    console.log('   Done.');
-
-    console.log('\n3. Copying pages to distribution folder...');
-    await copyDir(PAGES_DIR, path.join(DIST_DIR, 'pages'));
-    console.log('   Done.');
-    
-    console.log('\nBuild complete!');
-
+    console.log('\nPrepare build step complete.');
   } catch (error) {
-    console.error('\nBuild failed:');
+    console.error('\nPrepare build step failed:');
     console.error(error);
     process.exit(1);
   }
