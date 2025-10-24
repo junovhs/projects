@@ -107,7 +107,7 @@
   /* ========== HELPERS ========== */
   const setStatus=t=>statusHint.textContent=t||'';
   const isDataOrBlob=u=>/^data:|^blob:/i.test(u||'');
-  const proxify=u=>isDataOrBlob(u)?u:`/api/asset-sucker/proxy?url=${encodeURIComponent(u)}`;
+  const proxify=u=>isDataOrBlob(u)?u:`/api/assets/proxy?url=${encodeURIComponent(u)}`;
   const dataURLtoUint8=u=>{const b64=u.split(',')[1];const bin=atob(b64);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a};
   const fileNameFromUrl=raw=>{try{const u=new URL(raw);return(u.pathname.split('/').pop()||u.hostname)}catch{return raw}};
   const extFromUrl=raw=>{try{const m=/\.([a-z0-9]+)$/i.exec(new URL(raw).pathname);return m?m[1].toLowerCase():''}catch{return''}};
