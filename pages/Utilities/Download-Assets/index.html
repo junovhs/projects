@@ -177,6 +177,7 @@
         setStatus('Scraping…');
         const limit=Number(limitInput.value||120), url=urlInput.value;
         const apiUrl = new URL('/api/assets/discover', window.location.origin);
+        console.log('Constructed API URL:', apiUrl.toString()); // <-- ADD THIS LINE
         const res=await fetch(apiUrl, {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url,limit})});
         const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||`Failed to scrape (${res.status})`);
         const html=await (await fetch(proxify(url))).text().catch(()=>null);
