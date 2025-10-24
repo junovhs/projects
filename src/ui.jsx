@@ -1,6 +1,6 @@
 // src/ui.jsx — App shell with Sidebar + ProjectPage + WelcomePage
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
 
@@ -475,7 +475,7 @@ function AppShell() {
       <AnimatePresence mode="wait">
         <motion.div key={pathname} className="content-root" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <Routes>
-            <Route path="/" element={<WelcomePage projects={projects} />} />
+            <Route path="/" element={<Navigate to="/codemetheus" replace />} />
             <Route
               path="/*"
               element={<ProjectPage slugToPath={slugToPath} slugsReady={slugsReady} panelOpen={panelOpen} setPanelOpen={setPanelOpen} />}
