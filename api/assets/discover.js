@@ -1,51 +1,35 @@
-// projects/api/asset-sucker/scrape.js
-import { discoverAssets } from '../_lib/asset-sucker-helpers.js';
-import { log } from '../_lib/log.js';
+// projects/api/assets/discover.js
 
-function isValidHttpUrl(string) {
-  try {
-    const url = new URL(string);
-    return ['http:', 'https:'].includes(url.protocol);
-  } catch (_) {
-    return false;
-  }
-}
+// This file contains temporary, minimal code for the sole purpose of
+// diagnosing and fixing the CORS preflight issue.
 
 export default async function handler(req, res) {
   // --- The Definitive CORS Fix ---
-  // Set headers for all responses to allow requests from any origin.
-  // This is necessary for the sandboxed iframe (origin: null).
+  // These headers are the ONLY thing required to pass the browser's preflight check.
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle the browser's preflight OPTIONS request.
+  // When the browser sends the OPTIONS preflight request,
+  // we respond immediately with a 204 No Content status.
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
-  // --- End of Fix ---
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method Not Allowed' });
+  
+  // --- Original Logic (only runs for POST requests) ---
+  if (req.method === 'POST') {
+    // For this diagnostic, we will return a simple success message
+    // instead of running the full discoverAssets logic. This proves
+    // the CORS barrier has been passed.
+    return res.status(200).json({
+      ok: true,
+      message: "CORS OK: The request was received successfully.",
+      assets: [],
+      counts: {}
+    });
   }
 
-  const { url, limit } = req.body;
-
-  try {
-    if (!url || !isValidHttpUrl(url)) {
-      return res.status(400).json({ error: "Invalid or missing 'url' parameter." });
-    }
-
-    const assetLimit = Math.min(Number(limit || 120), 300);
-    const { assets, counts } = await discoverAssets(url, assetLimit);
-
-    log('info', 'asset-sucker', 'scrape_success', { url, limit: assetLimit, found: assets.length });
-
-    return res.status(200).json({ ok: true, assets, counts, total: assets.length });
-
-  } catch (e) {
-    log('error', 'asset-sucker', 'scrape_failed', { url, error: e?.message || 'Unknown error' });
-    return res.status(500).json({ error: 'Failed to discover assets.', details: e?.message });
-  }
+  // For any other method, return Method Not Allowed.
+  res.setHeader('Allow', ['POST', 'OPTIONS']);
+  return res.status(405).end(`Method ${req.method} Not Allowed`);
 }
