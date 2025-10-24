@@ -31,7 +31,7 @@ function ProjectIframe({ projectUrl, onIframeLoad, isIframeLoaded }) {
         onLoad={onIframeLoad}
         loading="eager"
         referrerPolicy="no-referrer-when-downgrade"
-        sandbox="allow-scripts allow-same-origin allow-downloads allow-forms"
+        sandbox="allow-scripts allow-downloads allow-forms"
       />
     </div>
   );
