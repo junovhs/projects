@@ -54,7 +54,7 @@ export function ProjectPage({ slugToPath = {}, slugsReady = false }) {
           onLoad={() => setIframeLoaded(true)}
           loading="eager"
           referrerPolicy="no-referrer-when-downgrade"
-          sandbox="allow-scripts allow-downloads allow-forms"
+          sandbox="allow-scripts allow-same-origin allow-downloads allow-forms"
         />
       </div>
     </div>
