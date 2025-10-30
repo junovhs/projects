@@ -446,14 +446,29 @@
 
     C) Delivery Tree (how you send code)
     [DELIVER]
-    ├─ I apply it; no manual edits
-    ├─ How many edits?
-    │   ├─ ≤3 simple, uniquely anchored → use find/replace
-    │   └─ ≥8 edits OR many areas OR mostly new → whole file
-    ├─ Always attach:
-    │   ├─ Diff note: what & why
-    │   └─ Confidence: LOW / MED / HIGH
-    └─ Use unique anchors; avoid ambiguous patches
+    ├─ Assess Change Scope:
+    │   ├─ IF the change is small and self-contained (a single function, struct, or contiguous block)...
+    │   │   └─ THEN deliver a SCOPED BLOCK.
+    │   └─ ELSE (changes are large, spread across multiple functions, or >50% of the file is new)...
+    │       └─ THEN deliver a WHOLE FILE.
+    │
+    ├─ Format SCOPED BLOCK:
+    │   ├─ Must be clearly identified with a header comment specifying the file and scope.
+    │   │   └─ Example: // FILE: src-tauri/src/render/pipeline.rs | FUNCTION: create_render_pipeline
+    │   └─ Provide the entire function or block, from its signature to its closing brace }.
+    │
+    ├─ Format WHOLE FILE:
+    │   └─ Must be clearly identified with a header comment specifying the full path.
+    │   └─ Example: // FILE: src-tauri/src/render/pipeline.rs
+    │
+    ├─ Provide git commit message:
+    │   ├─ WHEN: For any new file, modification, or logical changeset delivered.
+    │   ├─ FORMAT: type(scope): subject (Conventional Commit).
+    │   └─ RULE: Subject must complete the phrase "If applied, this commit will..."
+    │
+    └─ Always attach:
+        ├─ Diff note: Brief "what & why" of the change.
+        └─ Confidence: LOW / MED / HIGH.
 
     D) Debug Tree (when something breaks)
     [DEBUG]
