@@ -183,7 +183,7 @@
     }
 
     @keyframes summon {
-      0% { transform: scale(1); }
+      0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
       100% { transform: scale(1); }
     }
@@ -192,7 +192,7 @@
       position: absolute;
       inset: 0;
       border-radius: 24px;
-      background: rgba(15, 15, 25, 0.6);
+      background: rgba(15, 15, 25, 0.8);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(99,102,241,0.2);
       box-shadow: 
@@ -253,41 +253,43 @@
       font-family: "Cinzel", serif;
       font-size: 20px;
       font-weight: 600;
-      margin-bottom: 20px;
+      margin-bottom: 32px;
       color: var(--text);
     }
     
     .tree-section {
-        margin-bottom: 20px;
+        margin-bottom: 24px;
+        text-align: left;
     }
 
     .tree-title {
         font-family: "Cinzel", serif;
         font-size: 16px;
         color: var(--secondary);
-        text-align: left;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 6px;
         border-bottom: 1px solid rgba(139,92,246,0.2);
-        padding-bottom: 5px;
+    }
+    
+    .tree-description {
+      font-size: 14px;
+      color: var(--muted);
+      font-style: italic;
+      padding-left: 16px;
+      border-left: 2px solid var(--primary);
     }
 
     .principles {
-      text-align: left;
-      max-width: 480px;
-      margin: 0 auto;
       padding: 0;
+      margin: 0;
       list-style: none;
+      text-align: left;
     }
 
     .principles li {
       padding: 8px 0;
       font-size: 13px;
       color: var(--muted);
-      border-bottom: 1px solid rgba(99,102,241,0.1);
-    }
-
-    .principles li:last-child {
-      border-bottom: none;
     }
 
     .principles strong {
@@ -297,13 +299,21 @@
       min-width: 140px;
     }
 
-    .debug-note {
-      margin-top: 20px;
-      padding-top: 20px;
+    .creed {
+      margin-top: 32px;
+      padding-top: 24px;
       border-top: 1px solid rgba(99,102,241,0.2);
-      font-size: 12px;
+      font-size: 13px;
       color: var(--muted);
       font-style: italic;
+      line-height: 1.6;
+    }
+    
+    .creed strong {
+        font-family: "Cinzel", serif;
+        color: var(--text);
+        font-style: normal;
+        letter-spacing: 0.05em;
     }
 
     .toast {
@@ -563,15 +573,16 @@
 
       useEffect(() => {
         const starsContainer = document.getElementById('stars');
-        for (let i = 0; i < 50; i++) {
-          const star = document.createElement('div');
-          star.className = 'star';
-          star.style.left = Math.random() * 100 + '%';
-          star.style.top = Math.random() * 100 + '%';
-          star.style.animationDelay = Math.random() * 3 + 's';
-          starsContainer.appendChild(star);
+        if (starsContainer.children.length === 0) {
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
         }
-
         return () => {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
@@ -580,7 +591,6 @@
       const copy = async () => {
         setSummoning(true);
         setTimeout(() => setSummoning(false), 600);
-
         try {
           await navigator.clipboard.writeText(PROMPT);
           setToast(true);
@@ -599,6 +609,12 @@
         }
       };
 
+      const renderSection = (title, description) => 
+        React.createElement('div', { className: 'tree-section'},
+          React.createElement('div', { className: 'tree-title' }, title),
+          React.createElement('p', { className: 'tree-description' }, description)
+        );
+
       return React.createElement('div', null,
         React.createElement('header', null,
           React.createElement('div', { className: 'deity-icon' },
@@ -610,7 +626,7 @@
 
         React.createElement('div', { className: 'summoning-circle' },
           React.createElement('div', { 
-            className: summoning ? 'circle-container summoning' : 'circle-container',
+            className: `circle-container ${summoning ? 'summoning' : ''}`,
             onClick: copy,
             role: 'button',
             tabIndex: 0,
@@ -622,48 +638,26 @@
               React.createElement('div', { className: 'mantra-title' }, 'CODE WITH INTENT'),
               
               React.createElement('div', { className: 'tree-section'},
-                React.createElement('div', { className: 'tree-title' }, 'A) Writing Tree'),
+                React.createElement('div', { className: 'tree-title' }, 'The Writing Tree'),
                 React.createElement('ul', { className: 'principles' },
-                    React.createElement('li', null, React.createElement('strong', null, 'Guardrails Gate'), ' — Rigorous pre-flight checks'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Choose Approach'), ' — Simplicity before complexity'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Structure'), ' — Clear, bounded, and asserted'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Errors'), ' — Handle all failure paths'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Determinism'), ' — Control side-effects'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Instrumentation'), ' — Log for debuggability'),
-                    React.createElement('li', null, React.createElement('strong', null, 'Interfaces'), ' — Minimize public surface area')
+                    React.createElement('li', null, React.createElement('strong', null, 'Guardrails Gate'), ' — Pass the ten trials of structure.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Choose Approach'), ' — Seek the simplest path.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Structure'), ' — Build with clear and bounded units.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Errors'), ' — Command all failures to speak.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Determinism'), ' — Master the chaos of time.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Instrumentation'), ' — Scribe logs from which truth can be divined.'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Interfaces'), ' — Expose only what is essential.')
                 )
               ),
 
-              React.createElement('div', { className: 'tree-section'},
-                React.createElement('div', { className: 'tree-title' }, 'B) Pre-Ship Gate'),
-                React.createElement('ul', { className: 'principles' },
-                    React.createElement('li', null, '— Stop on any "NO"')
-                )
-              ),
+              renderSection('The Pre-Ship Gate', 'Before ascension, the code must be pure. Not a single tenet broken.'),
+              renderSection('The Delivery Tree', 'Deliver thy work as a complete, understood, and purposeful artifact.'),
+              renderSection('The Debug Tree', 'When darkness falls, trust only in evidence. Illuminate the root cause.'),
+              renderSection('The Language Dials', 'Speak each language in its truest form, respecting its native strengths.'),
 
-              React.createElement('div', { className: 'tree-section'},
-                React.createElement('div', { className: 'tree-title' }, 'C) Delivery Tree'),
-                 React.createElement('ul', { className: 'principles' },
-                    React.createElement('li', null, '— How you send code')
-                )
-              ),
-              
-              React.createElement('div', { className: 'tree-section'},
-                React.createElement('div', { className: 'tree-title' }, 'D) Debug Tree'),
-                 React.createElement('ul', { className: 'principles' },
-                    React.createElement('li', null, '— When something breaks')
-                )
-              ),
-
-              React.createElement('div', { className: 'tree-section'},
-                React.createElement('div', { className: 'tree-title' }, 'E) Language Dials'),
-                 React.createElement('ul', { className: 'principles' },
-                    React.createElement('li', null, '— Quick branches for specific tech')
-                )
-              ),
-
-              React.createElement('div', { className: 'debug-note' }, 
-                'Mindset: Build simply, in pieces, to survive, to understand, to prove, with lean interfaces, and to adapt.'
+              React.createElement('div', { className: 'creed' }, 
+                React.createElement('strong', null, 'The Creed: '),
+                'Build simply. Build in pieces. Build to survive. Build to understand. Build to prove. Build with lean interfaces. Build to adapt.'
               )
             ),
             React.createElement('div', { className: 'runes' },
@@ -682,7 +676,7 @@
           )
         ),
 
-        React.createElement('div', { className: toast ? 'toast show' : 'toast', role: 'status' },
+        React.createElement('div', { className: `toast ${toast ? 'show' : ''}`, role: 'status' },
           React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none' },
             React.createElement('path', { d: 'M20 6L9 17l-5-5', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' })
           ),
