@@ -2,15 +2,15 @@
 <html lang="en">
 <!--
 TODO GOES HERE
-Need to get ApplyDiff to a functional state, its close
-Check on Saccade, does ApplyDiff NEED Saccade to work? What is state of Saccade?
-Git-Trek is VERY mature now, mostly UX to dial in
-Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -D clippy::pedantic
+(1)Need to get ApplyDiff to a functional state, its close
+(2)Check on Saccade, does ApplyDiff NEED Saccade to work? What is state of Saccade?
+(3)Git-Trek is VERY mature now, mostly UX to dial in
+(4)Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -D clippy::pedantic
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coding To Do List</title>
+    <title>Todo List</title>
     <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * {
@@ -58,6 +58,29 @@ Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -
             cursor: pointer;
             transition: all 0.2s ease;
         }
+
+        .priority-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .priority-1 { background: #ef4444; }
+        .priority-2 { background: #f59e0b; }
+        .priority-3 { background: #3b82f6; }
+        .priority-4 { background: #10b981; }
+        .priority-5 { background: #8b5cf6; }
+        .priority-6 { background: #ec4899; }
+        .priority-7 { background: #06b6d4; }
+        .priority-8 { background: #84cc16; }
+        .priority-9 { background: #f97316; }
 
         .todo-item:hover {
             transform: translateY(-2px);
@@ -117,7 +140,7 @@ Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -
 </head>
 <body>
     <div class="container">
-        <h1>Coding To Do List</h1>
+        <h1>My Todos</h1>
         <div id="todo-list"></div>
     </div>
 
@@ -144,19 +167,36 @@ Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -
             return text
                 .trim()
                 .split('\n')
-                .filter(line => line.trim().length > 0);
+                .filter(line => line.trim().length > 0)
+                .map(line => {
+                    const match = line.match(/^\((\d+)\)(.+)/);
+                    if (match) {
+                        return {
+                            priority: match[1],
+                            text: match[2].trim()
+                        };
+                    }
+                    return { text: line.trim() };
+                });
         }
 
-        function createTodoElement(text) {
+        function createTodoElement(todoData) {
             const todo = document.createElement('div');
             todo.className = 'todo-item';
+            
+            if (todoData.priority) {
+                const badge = document.createElement('div');
+                badge.className = `priority-badge priority-${todoData.priority}`;
+                badge.textContent = todoData.priority;
+                todo.appendChild(badge);
+            }
             
             const checkbox = document.createElement('div');
             checkbox.className = 'checkbox';
             
             const label = document.createElement('span');
             label.className = 'todo-text';
-            label.textContent = text;
+            label.textContent = todoData.text;
             
             todo.appendChild(checkbox);
             todo.appendChild(label);
