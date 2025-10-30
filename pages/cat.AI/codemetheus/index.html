@@ -34,7 +34,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow: auto;
       position: relative;
     }
 
@@ -255,6 +255,20 @@
       font-weight: 600;
       margin-bottom: 20px;
       color: var(--text);
+    }
+    
+    .tree-section {
+        margin-bottom: 20px;
+    }
+
+    .tree-title {
+        font-family: "Cinzel", serif;
+        font-size: 16px;
+        color: var(--secondary);
+        text-align: left;
+        margin-bottom: 10px;
+        border-bottom: 1px solid rgba(139,92,246,0.2);
+        padding-bottom: 5px;
     }
 
     .principles {
@@ -605,21 +619,51 @@
             React.createElement('div', { className: 'circle-bg' }),
             React.createElement('div', { className: 'content' },
               React.createElement('div', { className: 'invoke-text' }, 'Click to Invoke the Sacred Mantra'),
-              React.createElement('div', { className: 'mantra-title' }, 'THE ENGINEERING COMMANDMENTS'),
-              React.createElement('ul', { className: 'principles' },
-                React.createElement('li', null, React.createElement('strong', null, 'Least Power'), ' — simplest viable construct'),
-                React.createElement('li', null, React.createElement('strong', null, 'Modularity'), ' — clean, replaceable boundaries'),
-                React.createElement('li', null, React.createElement('strong', null, 'Single Responsibility'), ' — one purpose per unit'),
-                React.createElement('li', null, React.createElement('strong', null, 'Antifragility'), ' — failure strengthens'),
-                React.createElement('li', null, React.createElement('strong', null, 'Transparency'), ' — clarity over cleverness'),
-                React.createElement('li', null, React.createElement('strong', null, 'Reduce Surface Area'), ' — expose essentials'),
-                React.createElement('li', null, React.createElement('strong', null, 'Emergence'), ' — simple yields complexity'),
-                React.createElement('li', null, React.createElement('strong', null, 'Decentralization'), ' — distribute control'),
-                React.createElement('li', null, React.createElement('strong', null, 'Adaptivity'), ' — evolve with context'),
-                React.createElement('li', null, React.createElement('strong', null, 'Redundancy'), ' — thoughtful backups')
+              React.createElement('div', { className: 'mantra-title' }, 'CODE WITH INTENT'),
+              
+              React.createElement('div', { className: 'tree-section'},
+                React.createElement('div', { className: 'tree-title' }, 'A) Writing Tree'),
+                React.createElement('ul', { className: 'principles' },
+                    React.createElement('li', null, React.createElement('strong', null, 'Guardrails Gate'), ' — Rigorous pre-flight checks'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Choose Approach'), ' — Simplicity before complexity'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Structure'), ' — Clear, bounded, and asserted'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Errors'), ' — Handle all failure paths'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Determinism'), ' — Control side-effects'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Instrumentation'), ' — Log for debuggability'),
+                    React.createElement('li', null, React.createElement('strong', null, 'Interfaces'), ' — Minimize public surface area')
+                )
               ),
+
+              React.createElement('div', { className: 'tree-section'},
+                React.createElement('div', { className: 'tree-title' }, 'B) Pre-Ship Gate'),
+                React.createElement('ul', { className: 'principles' },
+                    React.createElement('li', null, '— Stop on any "NO"')
+                )
+              ),
+
+              React.createElement('div', { className: 'tree-section'},
+                React.createElement('div', { className: 'tree-title' }, 'C) Delivery Tree'),
+                 React.createElement('ul', { className: 'principles' },
+                    React.createElement('li', null, '— How you send code')
+                )
+              ),
+              
+              React.createElement('div', { className: 'tree-section'},
+                React.createElement('div', { className: 'tree-title' }, 'D) Debug Tree'),
+                 React.createElement('ul', { className: 'principles' },
+                    React.createElement('li', null, '— When something breaks')
+                )
+              ),
+
+              React.createElement('div', { className: 'tree-section'},
+                React.createElement('div', { className: 'tree-title' }, 'E) Language Dials'),
+                 React.createElement('ul', { className: 'principles' },
+                    React.createElement('li', null, '— Quick branches for specific tech')
+                )
+              ),
+
               React.createElement('div', { className: 'debug-note' }, 
-                'Debug addendum: Evidence-first • Structured logs • Stable errors • Instrumentation • No guessing • Artifacts • Confidence labels'
+                'Mindset: Build simply, in pieces, to survive, to understand, to prove, with lean interfaces, and to adapt.'
               )
             ),
             React.createElement('div', { className: 'runes' },
