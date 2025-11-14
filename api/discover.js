@@ -1,6 +1,6 @@
-// FILE: api/assets/discover.js
-import { discoverAssets } from '../_lib/asset-sucker-helpers.js';
-import { log } from '../_lib/log.js';
+// FILE: api/discover.js
+import { discoverAssets } from './lib/asset-sucker-helpers.js';
+import { log } from './lib/log.js';
 
 const MAX_LIMIT = 300;
 const MIN_LIMIT = 1;

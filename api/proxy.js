@@ -1,6 +1,6 @@
-// projects/api/assets/proxy.js
-import { fetchBinaryWithBudget } from '../_lib/net.js';
-import { log } from '../_lib/log.js';
+// FILE: api/proxy.js
+import { fetchBinaryWithBudget } from './lib/net.js';
+import { log } from './lib/log.js';
 
 // Read configuration from environment variables.
 const ALLOWED_HOSTS = String(process.env.PROXY_ALLOW_HOSTS || '').split(',').map(s => s.trim()).filter(Boolean);
