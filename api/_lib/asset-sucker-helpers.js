@@ -1,8 +1,8 @@
-// projects/api/_lib/asset-sucker-helpers.js
+// FILE: api/_lib/asset-sucker-helpers.js
 import * as cheerio from 'cheerio';
 
 const FAKE_BROWSER_HEADERS = {
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
   'Accept-Encoding': 'gzip, deflate, br',
   'Accept-Language': 'en-US,en;q=0.9',
   'Sec-Ch-Ua': '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
@@ -15,6 +15,9 @@ const FAKE_BROWSER_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
 };
+
+const FETCH_TIMEOUT_MS = 10_000;
+const MAX_CSS_FILES = 20;
 
 export function isHttpUrl(u) {
   try {
@@ -58,14 +61,31 @@ async function fetchText(url, isCss = false) {
     headers['Accept'] = 'text/css,*/*;q=0.1';
     headers['Sec-Fetch-Dest'] = 'style';
   }
-  const res = await fetch(url, { headers, redirect: 'follow' });
-  if (!res.ok) throw new Error(`Request failed for ${url}: Server responded with status ${res.status}`);
-  return await res.text();
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(new Error('timeout')), FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      headers,
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      throw new Error(`Request failed for ${url}: status ${res.status}`);
+    }
+
+    return await res.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function resolveUrl(base, maybeRelative, cssBase) {
-  const raw = maybeRelative.trim().replace(/^url\(/, '').replace(/\)$/, '').replace(/['"]|['"]$/g, '');
+  const raw = maybeRelative.trim().replace(/^url\(/, '').replace(/\)$/, '').replace(/^['"]|['"]$/g, '');
   if (!raw) return null;
+
   try {
     if (isHttpUrl(raw)) return raw;
     const baseToUse = cssBase ? new URL(cssBase, base) : new URL(base);
@@ -82,7 +102,13 @@ function parseSrcset(value, base) {
 
 function extractFromInlineStyles($, base) {
   const urls = [];
+  const MAX_INLINE_STYLES = 1000;
+  let count = 0;
+
   $('[style]').each((_, el) => {
+    if (count >= MAX_INLINE_STYLES) return false;
+    count++;
+
     const style = $(el).attr('style') || '';
     const re = /url\(([^)]+)\)/gi;
     let m;
@@ -91,18 +117,45 @@ function extractFromInlineStyles($, base) {
       if (u) urls.push(u);
     }
   });
+
   return urls;
 }
 
 function extractFromHTML($, base) {
   const candidates = [];
-  $('img[src]').each((_, el) => { const u = $(el).attr('src'); if (u) candidates.push(resolveUrl(base, u)); });
-  $('img[srcset]').each((_, el) => { const v = $(el).attr('srcset'); if (v) candidates.push(...parseSrcset(v, base)); });
-  $('picture source[srcset]').each((_, el) => { const v = $(el).attr('srcset'); if (v) candidates.push(...parseSrcset(v, base)); });
-  $('link[rel~="icon"][href], link[rel="apple-touch-icon"][href]').each((_, el) => { const u = $(el).attr('href'); if (u) candidates.push(resolveUrl(base, u)); });
-  $('meta[property="og:image"][content]').each((_, el) => { const u = $(el).attr('content'); if (u) candidates.push(resolveUrl(base, u)); });
-  $('svg image').each((_, el) => { const u = $(el).attr('href') || $(el).attr('xlink:href'); if (u) candidates.push(resolveUrl(base, u)); });
+
+  $('img[src]').each((_, el) => {
+    const u = $(el).attr('src');
+    if (u) candidates.push(resolveUrl(base, u));
+  });
+
+  $('img[srcset]').each((_, el) => {
+    const v = $(el).attr('srcset');
+    if (v) candidates.push(...parseSrcset(v, base));
+  });
+
+  $('picture source[srcset]').each((_, el) => {
+    const v = $(el).attr('srcset');
+    if (v) candidates.push(...parseSrcset(v, base));
+  });
+
+  $('link[rel~="icon"][href], link[rel="apple-touch-icon"][href]').each((_, el) => {
+    const u = $(el).attr('href');
+    if (u) candidates.push(resolveUrl(base, u));
+  });
+
+  $('meta[property="og:image"][content]').each((_, el) => {
+    const u = $(el).attr('content');
+    if (u) candidates.push(resolveUrl(base, u));
+  });
+
+  $('svg image').each((_, el) => {
+    const u = $(el).attr('href') || $(el).attr('xlink:href');
+    if (u) candidates.push(resolveUrl(base, u));
+  });
+
   candidates.push(...extractFromInlineStyles($, base));
+
   return unique(candidates.filter(Boolean));
 }
 
@@ -110,10 +163,14 @@ function extractCssUrls(css, base) {
   const urls = [];
   const re = /url\(([^)]+)\)/ig;
   let m;
+  const MAX_CSS_URLS = 500;
+
   while ((m = re.exec(css)) !== null) {
+    if (urls.length >= MAX_CSS_URLS) break;
     const u = resolveUrl(base, m[1], base);
     if (u) urls.push(u);
   }
+
   return unique(urls);
 }
 
@@ -125,21 +182,28 @@ export async function discoverAssets(pageUrl, limit = 120) {
   let urls = extractFromHTML($, base);
 
   const cssHrefs = $('link[rel="stylesheet"][href]').map((_, el) => $(el).attr('href') || '').get();
-  for (const href of cssHrefs) {
+  const cssToFetch = cssHrefs.slice(0, MAX_CSS_FILES);
+
+  for (const href of cssToFetch) {
     const abs = resolveUrl(base, href);
     if (!abs) continue;
+
     try {
-      const css = await fetchText(abs, true); // Pass true for isCss
+      const css = await fetchText(abs, true);
       urls.push(...extractCssUrls(css, abs));
-    } catch (e) { console.warn(`Skipping stylesheet ${abs}: ${e.message}`); }
+    } catch (e) {
+      console.warn(`Skipping stylesheet ${abs}: ${e.message}`);
+    }
   }
 
   urls = unique(urls.filter(u => looksLikeImageUrl(u))).slice(0, limit);
 
   const assets = urls.map(u => ({ url: u, ...extCategory(u) }));
-  
+
   const counts = { images: 0, gifs: 0, svgs: 0, icons: 0, others: 0 };
-  assets.forEach(a => { if (counts[a.category] !== undefined) counts[a.category]++; });
+  assets.forEach(a => {
+    if (counts[a.category] !== undefined) counts[a.category]++;
+  });
 
   return { assets, counts };
 }

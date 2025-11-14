@@ -1,6 +1,6 @@
 // projects/src/App.jsx
 import { useState, useEffect } from "react";
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Sidebar } from "./components/Sidebar";
