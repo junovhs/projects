@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Summon Codemetheus & Refactoros</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0/client"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --primary: #6366f1;
+      --secondary: #8b5cf6;
+      --accent: #ec4899;
+      --gold: #fbbf24;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+
+      /* Refactoros Theme: Warm orange and amber palette */
+      --primary-refactor: #ff7b5c;
+      --secondary-refactor: #ff9b5c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    
+    body {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at top, #1a1a2e 0%, var(--bg) 50%);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 900px;
+      padding: 32px;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    .carousel-viewport {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .carousel-track {
+      display: flex;
+      width: 200%; /* Two cards */
+      transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .carousel-track.view-refactor {
+      transform: translateX(-50%);
+    }
+
+    .card-slide {
+      width: 50%;
+      flex-shrink: 0;
+      padding: 16px; /* Prevents clipping on hover */
+    }
+
+    body.theme-refactor {
+        /* This class will be on the body to apply the theme */
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(99,102,241,0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(139,92,246,0.15) 0%, transparent 50%);
+      pointer-events: none;
+      animation: pulse 8s ease-in-out infinite;
+      transition: background 500ms ease-in-out;
+    }
+
+    body.theme-refactor::before {
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(110,99,241,0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(146,92,246,0.15) 0%, transparent 50%);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.8; }
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 3s ease-in-out infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    .deity-icon {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 24px;
+      position: relative;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .icon-inner {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Cinzel", serif;
+      font-size: 42px;
+      font-weight: 700;
+      color: white;
+      position: relative;
+      box-shadow: 
+        0 0 60px rgba(99,102,241,0.6),
+        0 0 100px rgba(139,92,246,0.4),
+        inset 0 0 20px rgba(255,255,255,0.1);
+      animation: glow 2s ease-in-out infinite;
+      transition: all 500ms ease;
+    }
+    
+    .app.theme-refactor .icon-inner {
+        background: linear-gradient(135deg, var(--primary-refactor), var(--secondary-refactor));
+        box-shadow: 0 0 60px rgba(110,99,241,0.6), 0 0 100px rgba(146,92,246,0.4), inset 0 0 20px rgba(255,255,255,0.1);
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 60px rgba(99,102,241,0.6), 0 0 100px rgba(139,92,246,0.4), inset 0 0 20px rgba(255,255,255,0.1); }
+      50% { box-shadow: 0 0 80px rgba(99,102,241,0.8), 0 0 120px rgba(139,92,246,0.6), inset 0 0 30px rgba(255,255,255,0.2); }
+    }
+    
+    .app.theme-refactor .icon-inner {
+        animation-name: glow-refactor;
+    }
+
+    @keyframes glow-refactor {
+        0%, 100% { box-shadow: 0 0 60px rgba(110,99,241,0.6), 0 0 100px rgba(146,92,246,0.4), inset 0 0 20px rgba(255,255,255,0.1); }
+        50% { box-shadow: 0 0 80px rgba(110,99,241,0.8), 0 0 120px rgba(146,92,246,0.6), inset 0 0 30px rgba(255,255,255,0.2); }
+    }
+    
+    .deity-icon::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      opacity: 0.3;
+      animation: orbit 8s linear infinite;
+      transition: border-color 500ms ease;
+    }
+
+    .app.theme-refactor .deity-icon::before {
+        border-color: var(--primary-refactor);
+    }
+
+    @keyframes orbit {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    h1 {
+      font-family: "Cinzel", serif;
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.02em;
+      transition: background 500ms ease;
+    }
+
+    .app.theme-refactor h1 {
+        background: linear-gradient(135deg, var(--primary-refactor), var(--secondary-refactor), var(--accent));
+        -webkit-background-clip: text;
+        background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 300;
+    }
+
+    .summoning-circle {
+      position: relative;
+      margin: 0 auto;
+      max-width: 600px;
+    }
+
+    .circle-container {
+      position: relative;
+      cursor: pointer;
+      transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .circle-container:hover {
+      transform: scale(1.02);
+    }
+
+    .circle-container.summoning {
+      animation: summon 600ms ease-out;
+    }
+
+    @keyframes summon {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .circle-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      background: rgba(15, 15, 25, 0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(99,102,241,0.2);
+      box-shadow: 
+        0 20px 60px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: border-color 500ms ease;
+    }
+    
+    .app.theme-refactor .circle-bg {
+        border-color: rgba(110,99,241,0.2);
+    }
+    
+    .circle-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      padding: 1px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      animation: border-glow 3s ease-in-out infinite;
+      transition: background 500ms ease;
+    }
+
+    .app.theme-refactor .circle-bg::before {
+        background: linear-gradient(135deg, var(--primary-refactor), var(--secondary-refactor), transparent);
+    }
+
+    @keyframes border-glow {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+
+    .content {
+      position: relative;
+      padding: 32px;
+    }
+
+    .invoke-text {
+      font-family: "Cinzel", serif;
+      font-size: 16px;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .invoke-text::before,
+    .invoke-text::after {
+      content: '⚡';
+      font-size: 12px;
+      animation: flicker 2s ease-in-out infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .mantra-title {
+      font-family: "Cinzel", serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 32px;
+      color: var(--text);
+    }
+    
+    .tree-section {
+        margin-bottom: 24px;
+        text-align: left;
+    }
+
+    .tree-title {
+        font-family: "Cinzel", serif;
+        font-size: 16px;
+        color: var(--secondary);
+        margin-bottom: 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(139,92,246,0.2);
+        transition: color 500ms ease, border-color 500ms ease;
+    }
+    
+    .app.theme-refactor .tree-title {
+        color: var(--secondary-refactor);
+        border-bottom-color: rgba(146,92,246,0.2);
+    }
+    
+    .tree-description {
+      font-size: 14px;
+      color: var(--muted);
+      font-style: italic;
+      padding-left: 16px;
+      border-left: 2px solid var(--primary);
+      transition: border-color 500ms ease;
+    }
+
+    .app.theme-refactor .tree-description {
+        border-left-color: var(--primary-refactor);
+    }
+
+    .principles {
+      padding: 0;
+      margin: 0;
+      list-style: none;
+      text-align: left;
+    }
+
+    .principles li {
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+    }
+
+    .principles strong {
+      color: var(--text);
+      font-weight: 500;
+      display: inline-block;
+      min-width: 140px;
+      flex-shrink: 0;
+      padding-right: 12px;
+    }
+    
+    .principles span {
+        opacity: 0.8;
+    }
+
+    .creed {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(99,102,241,0.2);
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+      line-height: 1.6;
+      transition: border-color 500ms ease;
+    }
+    
+    .app.theme-refactor .creed {
+        border-top-color: rgba(110,99,241,0.2);
+    }
+
+    .creed strong {
+        font-family: "Cinzel", serif;
+        color: var(--text);
+        font-style: normal;
+        letter-spacing: 0.05em;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-weight: 500;
+      font-size: 14px;
+      box-shadow: 0 10px 40px rgba(99,102,241,0.5);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 9999;
+    }
+
+    .app.theme-refactor .toast {
+        background: linear-gradient(135deg, var(--primary-refactor), var(--secondary-refactor));
+        box-shadow: 0 10px 40px rgba(110,99,241,0.5);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .runes {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .rune {
+      position: absolute;
+      font-family: "Cinzel", serif;
+      font-size: 24px;
+      color: var(--primary);
+      opacity: 0.2;
+      animation: rune-float 6s ease-in-out infinite;
+      transition: color 500ms ease;
+    }
+    
+    .app.theme-refactor .rune {
+        color: var(--primary-refactor);
+    }
+
+    @keyframes rune-float {
+      0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.2; }
+      50% { transform: translateY(-20px) rotate(180deg); opacity: 0.4; }
+    }
+    
+    .nav-controls {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: -16px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 20;
+    }
+
+    .nav-button {
+        font-family: "Cinzel", serif;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        background: none;
+        border: none;
+        padding: 8px 16px;
+        cursor: pointer;
+        position: relative;
+        transition: color 300ms ease;
+    }
+    
+    .nav-button:hover {
+        color: var(--text);
+    }
+    
+    .nav-button::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background-color: var(--gold);
+        transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-button.active {
+        color: var(--gold);
+    }
+
+    .nav-button.active::after {
+        width: 100%;
+    }
+
+    .mandate-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 16px;
+      max-width: 100%;
+    }
+
+    .mandate-card {
+      position: relative;
+      cursor: pointer;
+      transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      min-height: 520px;
+    }
+
+    .mandate-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .mandate-card.summoning {
+      animation: summon 600ms ease-out;
+    }
+
+    .mandate-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: rgba(15, 15, 25, 0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 123, 92, 0.2);
+      box-shadow: 
+        0 10px 30px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: all 300ms ease;
+    }
+
+    .mandate-card:hover .mandate-bg {
+      border-color: rgba(255, 123, 92, 0.4);
+      box-shadow: 
+        0 15px 40px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .mandate-content {
+      position: relative;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+    }
+
+    .mandate-number {
+      font-family: "Cinzel", serif;
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary-refactor), var(--secondary-refactor));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .mandate-title {
+      font-family: "Cinzel", serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .mandate-subtitle {
+      font-size: 11px;
+      color: var(--secondary-refactor);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .mandate-description {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+      padding: 0 8px;
+    }
+
+    .mandate-description p {
+      margin-bottom: 12px;
+      font-style: italic;
+    }
+
+    .mandate-description p:last-child {
+      margin-bottom: 0;
+    }
+
+    .mandate-verse {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 123, 92, 0.2);
+      font-size: 10px;
+      color: var(--secondary-refactor);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 720px) {
+      .app { padding: 16px; }
+      h1 { font-size: 36px; }
+      .content { padding: 16px; }
+      .card-slide { padding: 8px; }
+      
+      .mandate-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      
+      .mandate-card {
+        min-height: 300px;
+      }
+
+      .mandate-number {
+        font-size: 36px;
+      }
+
+      .mandate-title {
+        font-size: 12px;
+      }
+
+      .mandate-subtitle {
+        font-size: 10px;
+      }
+
+      .mandate-description {
+        font-size: 10px;
+      }
+
+      .mandate-verse {
+        font-size: 9px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+  <div id="root"></div>
+
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom";
+
+    const { useState, useEffect, useRef } = React;
+
+    // Constants (Phase 2: Replace Magic Number with Symbolic Constant)
+    const STAR_COUNT = 50;
+    const TOAST_DURATION_MS = 3000;
+    const SUMMON_ANIMATION_MS = 600;
+    const RUNE_COUNT = 4;
+    const CODEMETHEUS_RUNES = ['⟨', '⟩', '∴', '∵'];
+    const REFACTOROS_RUNES = ['Δ', '∇', '∫', '∂'];
+
+    const CODEMETHEUS_PROMPT = `
+    CODE_WITH_INTENT — Decision Trees (POT-Aligned)
+    A) Writing Tree (use in order)
+
+    START: Implement feature/fix
+
+    [STEP 0: GUARDRAILS GATE]
+    ├─ Control flow OK? → no recursion; acyclic call graph
+    ├─ Loops bounded? → static bound OR counter+hard error
+    ├─ Allocations disciplined? → no post-init allocs in hot paths; budgets set
+    ├─ Functions tight? → ≤60 SLOC; single responsibility; name ≤3 words
+    ├─ Assertions adequate? → ≥2 side-effect-free checks/function (avg); failure → recover/error
+    ├─ Scope minimal? → no hidden globals; prefer immutability
+    ├─ Returns & params? → every return checked; every input validated
+    ├─ Metaprogramming minimal? → no eval/codegen/obfuscating macros; ≤2 flags/component (justified)
+    ├─ Indirect calls analyzable? → static dispatch or fixed table set at init
+    └─ Tooling wall? → 0 warnings; linters/types/static analysis clean
+    IF ANY "NO" → REDESIGN BEFORE CODING
+
+    [STEP 1: CHOOSE APPROACH]
+    ├─ Is a simple, obvious solution available?
+    │   ├─ YES → Use it
+    │   └─ NO  → Write 1 sentence why simple fails
+    │           ├─ Weak reason → Use simple anyway
+    │           └─ Strong reason → Proceed complex + keep that sentence near code
+    └─ Considering something clever? → Justify or drop it
+
+    [STEP 2: STRUCTURE]
+    ├─ Can you name each function in ≤3 words, no "and"? 
+    │   ├─ YES → keep
+    │   └─ NO  → split until true
+    ├─ Bounds & budgets visible at the callsite?
+    │   ├─ YES
+    │   └─ NO  → add constants/guards (loop MAX, mem caps, concurrency caps)
+    └─ Add assertions for: pre, post, invariants (avg ≥2/function)
+
+    [STEP 3: ERRORS]
+    ├─ Can this operation fail?
+    │   ├─ YES → choose path:
+    │   │   ├─ Graceful degrade (log+code+context) 
+    │   │   └─ Hard fail (clear code+message+next steps)
+    │   └─ NO  → continue
+    └─ Any silent failure possible? → forbid; make loud or degrade with logs
+
+    [STEP 4: DETERMINISM]
+    ├─ Time/random? → inject clock/seed; fix seeds in tests
+    ├─ Map/set iteration? → sort keys first
+    └─ Concurrency essential?
+        ├─ NO → single thread/event loop
+        └─ YES → single writer; explicit ordering; timeouts
+
+    [STEP 5: INSTRUMENTATION]
+    ├─ Critical path? → add entry/exit + key-decision logs (flag-guarded)
+    ├─ Can you debug from logs alone?
+    │   ├─ YES
+    │   └─ NO  → add structured fields now
+    └─ Log format → {ts, level, rid, subsystem, action, code, msg, context}
+
+    [STEP 6: INTERFACES]
+    ├─ Must be public?
+    │   ├─ YES → document contract; validate inputs; plan compatibility
+    │   └─ NO  → keep internal
+    └─ Can you expose less? → do it
+
+    B) Pre-Ship Gate (stop on any "NO")
+
+    No recursion; all loops bounded
+
+    No post-init allocs in hot paths; budgets enforced
+
+    Functions ≤60 SLOC; names ≤3 words; single responsibility
+
+    Avg ≥2 assertions/function; failures recover or exit loudly
+
+    Minimal scope; no hidden globals/state
+
+    Every return checked; every param validated
+
+    No eval/obfuscating macros; ≤2 flags/component, justified
+
+    Indirect calls analyzable (static/fixed)
+
+    Build: 0 warnings; linters/type/static analyzers 0 findings
+
+    Logs make failures diagnosable without a debugger
+
+    IF ANY "NO" → FIX, THEN RECHECK.
+
+    C) Delivery Tree (how you send code)
+    [DELIVER]
+    ├─ Assess Change Scope:
+    │   ├─ IF the change is small and self-contained (a single function, struct, or contiguous block)...
+    │   │   └─ THEN deliver a SCOPED BLOCK.
+    │   └─ ELSE (changes are large, spread across multiple functions, or >50% of the file is new)...
+    │       └─ THEN deliver a WHOLE FILE.
+    │
+    ├─ Format SCOPED BLOCK:
+    │   ├─ Must be clearly identified with a header comment specifying the file and scope.
+    │   │   └─ Example: // FILE: src-tauri/src/render/pipeline.rs | FUNCTION: create_render_pipeline
+    │   └─ Provide the entire function or block, from its signature to its closing brace }.
+    │
+    ├─ Format WHOLE FILE:
+    │   └─ Must be clearly identified with a header comment specifying the full path.
+    │   └─ Example: // FILE: src-tauri/src/render/pipeline.rs
+    │
+    ├─ Provide git commit message:
+    │   ├─ WHEN: For any new file, modification, or logical changeset delivered.
+    │   ├─ FORMAT: type(scope): subject (Conventional Commit).
+    │   └─ RULE: Subject must complete the phrase "If applied, this commit will..."
+    │
+    └─ Always attach:
+        ├─ Diff note: Brief "what & why" of the change.
+        └─ Confidence: LOW / MED / HIGH.
+
+    D) Debug Tree (when something breaks)
+    [DEBUG]
+    ├─ Confidence in root cause?
+    │   ├─ HIGH → proceed to fix
+    │   └─ <HIGH → gather evidence
+    ├─ Gather
+    │   ├─ Exact repro steps
+    │   ├─ Env details
+    │   ├─ Logs (structured)
+    │   └─ Smallest failing case + save artifacts/paths
+    ├─ Analyze logs
+    │   ├─ Clear failure point? → proceed
+    │   └─ Not clear → add flag-guarded probes (entry/exit/decisions/fails/state)
+    ├─ Fix
+    │   ├─ Address root cause (not just symptoms)
+    │   ├─ Add defenses/tests to prevent recurrence
+    │   └─ State confidence + uncertainties
+    └─ Verify
+        ├─ Reproduce on old; confirm fixed on new
+        └─ Check for new edge failures; document learnings
+
+    E) Language Dials (quick branches)
+    [RUST]
+    ├─ Deny warnings + clippy -D warnings
+    ├─ No unwrap/expect outside tests → use ?
+    ├─ Prefer static dispatch; preallocate; no loop heap churn
+    ├─ Inject time/random via traits; fixed seeds in tests
+    ├─ tracing for structured logs; avoid println! in libs
+    └─ Avoid unsafe; if needed, isolate in one audited module
+
+    [TS/JS]
+    ├─ TS --strict; ESLint errors-as-errors; no implicit any
+    ├─ Ban eval/new Function/with; dynamic import only at init
+    ├─ Await all Promises; forbid unhandled rejections; timeouts mandatory
+    ├─ Sort keys before iteration; reuse arrays/objects in hot paths
+    └─ Node: JSON logs; Browser: build-time flags (no runtime eval)
+
+    [PYTHON]
+    ├─ mypy --strict; Ruff/Flake8 as errors; pytest required
+    ├─ Ban eval/exec & metaclass tricks in core
+    ├─ Typed exceptions; never bare except; include context
+    ├─ Inject datetime/random; Random(seed) in tests
+    └─ Reuse buffers (bytearray/memoryview) in hot paths; async: timeouts+cancel
+
+    [CSS]
+    ├─ Deterministic tokens; no magic values
+    ├─ No IDs; depth ≤3; no !important
+    ├─ One responsibility per class (BEM-like)
+    ├─ Layout via grid/flex; central breakpoint scale
+    └─ Size/perf budget; drop unused rules
+
+    F) Mindset Pointers (keep the soul)
+
+    Build simply → justify any cleverness
+
+    Build in pieces → split until one job per unit
+
+    Build to survive → degrade or fail loudly; never silent
+
+    Build to understand → names > abbrevs; stable error codes
+
+    Build to prove → evidence first; state confidence
+
+    Build lean interfaces → public = promise
+
+    Build to adapt → few explicit flags; invisible redundancy
+
+    If it feels complicated → simplify again
+
+    Instruction to AI: Follow the trees top-to-bottom. If any guardrail or pre-ship check fails, stop and redesign—do not request exceptions.
+    `;
+    
+    const REFACTOR_MANDATE_1 = `**TITLE: AI REFRACTORING MANDATE (RM): DETERMINISTIC DIAGNOSIS, SAFETY SETUP, AND METRIC ORCHESTRATION**
+**PHASE FOCUS: Phase 1: Diagnosis, Baseline, and Size-Weighted Prioritization.**
+**INSTRUCTION TO AI (ORCHESTRATOR):** Your singular goal is to establish the safety net and obtain deterministic quantitative inputs from the human developer. You are operating under the constraint that LLMs cannot be trusted to perform metric calculations autonomously.
+
+**A. Non-Negotiable Safety Setup**
+1.  **Version Control Checkpoint:** Confirm operation as if on a clean feature branch.
+2.  **VETO Check:** Review the code for \`// RM:VETO [Reason]\` comments. You are FORBIDDEN from modifying any VETOed code.
+3.  **Test Coverage Assurance (Safety Net Generation):**
+    *   For the target scope that has LESS THAN 90% BRANCH COVERAGE or lacks a complete passing unit test suite, you MUST generate Characterization Tests.
+    *   The generated tests must be based on DETERMINISTIC TEST CRITERIA (capturing inputs, outputs, and side effects).
+    *   Acknowledge that these tests are an artifact requiring human review and augmentation to be deemed trustworthy.
+
+**B. Quantitative Diagnosis and Metric Demand**
+1.  **LLM Limitation Acknowledgment:** State clearly that you cannot calculate the Health Score or Cyclomatic Complexity (CC) with the required precision, as calculation demands formal computation via AST, making this step unreliable for an LLM to perform autonomously.
+2.  **Metric Orchestration:** Based on your manual inspection (similar to the diagnosis in), articulate the need for the following quantitative metrics, which the human must provide by running dedicated, deterministic tooling (like \`rust-code-analysis\` or \`Radon\`):
+    *   Cyclomatic Complexity (CC) for the main component.
+    *   Integrated Health Score (0-100 scale).
+    *   Size-Weighted Hotspot Score (based on the formula prioritizing LOC/Size W₃ > 30%).
+3.  **Critical Stop Gate Status:** State the diagnostic conclusions regarding code smells (e.g., God Component) but DO NOT assert that the Critical Stop Gate is passed, as the quantitative metrics are missing.
+
+**AI ACTION:** Generate the required Characterization Tests and then explicitly present the request for the three required quantitative metrics (CC, Health Score, Hotspot Score). **STOP**. **WAIT** for the human to confirm receipt of the generated tests and provide the verified metric scores before proceeding to Mandate 2.`;
+
+    const REFACTOR_MANDATE_2 = `**TITLE: PHASE 2 EXECUTION PROTOCOL (REDUCTIVE PURIFICATION)**
+
+This prompt assumes you have completed the requirements of Mandate 1, including confirming the generated Characterization Tests and providing the deterministic metrics (CC, Health Score, Hotspot Score).
+
+**INSTRUCTION TO AI (ORCHESTRATOR):** You have successfully passed the Phase 1 Critical Stop Gate by receiving the required deterministic metrics and confirming the safety net. Your goal in Phase 2 is to maximize Lines of Code (LOC) reduction and incrementally resolve low-risk code smells through a **risk-stratified cascade**.
+
+**A. Execution Protocol**
+1.  **Iteration Rule:** You **MUST** apply only **ONE** mechanical refactoring operation per commit.
+2.  **Verification Rule:** Run the **MANDATORY VERIFICATION GATE** after **EVERY SINGLE COMMIT**.
+3.  **Target Scope:** Focus refactoring efforts on the modules flagged as high priority by the Size-Weighted Hotspot Score.
+
+**B. Targeted Refactorings (Risk-Stratified Cascade)**
+Execute the following refactoring operations sequentially, proceeding to the next priority phase only when all applicable items in the current phase are resolved.
+
+**I. Static Elimination** (Lowest Risk)
+- Unused/Dead Code: Remove to achieve highest confidence-to-reduction ratio
+- Magic Numbers: Replace with symbolic constants
+
+**II. Inline Operations** (Moderate Risk)
+- Lazy Class/Middle Man: Apply Inline Method/Class or Hide Delegate
+- Collapse unnecessary abstraction layers
+
+**III. Conditional Flattening** (LOC Reduction)
+- Deep Nesting: Replace Nested Conditional with Guard Clauses
+- Eliminate nested else blocks and "arrow" pattern
+
+**IV. Mandatory Encapsulation** (Accepts LOC increase)
+- Complex Expressions: Extract Variable for clarity
+- Public Fields: Encapsulate Field with getters/setters
+
+**C. Phase 2 Mandatory Verification Gate**
+Run complete test suite after every commit. Failure results in immediate rollback and STOP.
+1.  **Behavioral Preservation:** ALL tests must pass
+2.  **Metric Safety:** No new critical violations (CC > 50 or Health Score < 40)
+3.  **Code Integrity:** Zero warnings, clean compilation
+
+**AI ACTION:** If Verification Gate passes, commit and continue iteration. When all autonomous issues are resolved, proceed to Mandate 3.`;
+
+    const REFACTOR_MANDATE_3 = `**TITLE: PHASE 3 EXECUTION PROTOCOL (HIGH-RISK RESTRUCTURING)**
+
+**INSTRUCTION TO AI (ORCHESTRATOR):** You have successfully completed the low-risk purification phase. Phase 3 addresses complex, structural code smells that require deep semantic transformation. The risk of introducing subtle bugs is **very high**; therefore, **MANDATORY HUMAN APPROVAL** via Pull Request (PR) is required for every structural transformation.
+
+**A. Execution Protocol**
+For each targeted transformation, you **MUST** execute the change, verify correctness, and immediately generate a dedicated Pull Request for **MANDATORY HUMAN APPROVAL** before executing the next transformation.
+
+**B. Targeted Structural Refactorings**
+Apply the following patterns, prioritizing structural elegance:
+
+- **Long Method** (> 40 SLOC): Extract Method or Replace Method with Method Object
+- **Large Class** (LCOM > 50% OR CBO > 10): Extract Class for Single Responsibility
+- **Feature Envy**: Move Method or Move Field to improve cohesion
+- **Long Parameter List** (> 5): Introduce Parameter Object or Preserve Whole Object
+- **Type-Based Conditionals**: Replace Type Code with Subclasses, then Replace Conditional with Polymorphism
+- **Interface Complexity** (CBO > 10): Extract Interface to reduce concrete coupling
+
+**C. Phase 3 Verification Gate & PR Submission**
+Execute these checks immediately after applying transformation but before generating PR. Failure results in immediate rollback.
+
+1.  **Behavioral Preservation:** ALL tests must pass
+2.  **Metric Improvement:** Code Health Score increased, CBO decreased toward ≤ 9
+3.  **Traceability:** PR must contain Diagnosis, Pattern Applied, and Confidence: MED (70-95%)
+
+**AI ACTION:** Generate Pull Request with confirmed behavior-preserving changes and **STOP**. Wait for human approval/merge before proceeding to next refactoring. Once all structural issues are addressed, proceed to Mandate 4.`;
+
+    const REFACTOR_MANDATE_4 = `**TITLE: PHASE 4 EXECUTION PROTOCOL (STRATEGIC ARCHITECTURAL REVIEW)**
+
+**INSTRUCTION TO AI (ORCHESTRATOR):** You have successfully completed the refactoring of micro-level code smells. Phase 4 requires you to function as a powerful diagnostic engine to identify systemic architectural smells and recommend strategic patterns for human architects to evaluate against their **broader strategic context**.
+
+**A. Strategic Diagnosis and Pattern Recommendation**
+Identify any systemic architectural debt (e.g., TDR > 40%) that necessitates a large-scale Architectural Refactoring (AR) pattern.
+
+**Pattern Recommendations:**
+
+- **Strangler Fig Pattern** (TDR > 40% AND calls can be intercepted)
+  Trade-offs: Operational complexity of façade, potential SPOF, additional latency
+
+- **Branch by Abstraction** (TDR > 40% AND calls deeply embedded)
+  Trade-offs: Requires changes to existing system, not suitable for data consistency
+
+- **Anti-Corruption Layer** (Conflicting domain models)
+  Trade-offs: MUST be recorded as technical debt with decommissioning plan, operational overhead, SPOF risk, latency
+
+- **CQRS** (Read-to-Write Ratio > 10:1 AND models diverged)
+  Trade-offs: Increased complexity from separate models, eventual consistency
+
+**B. Final Output and Handoff**
+1.  **Code Generation FORBIDDEN:** You **MUST NOT generate code** for this phase
+2.  **Issue Creation:** Open an issue/ticket for the human architecture team
+3.  **Output Format:** Issue must contain: Confidence (LOW < 70%), Diagnosis, Recommendation, and Trade-off Report
+
+**AI ACTION:** Generate the issue or ticket detailing strategic recommendations and **STOP**.`;
+
+    function App() {
+      const [view, setView] = useState('codemetheus');
+      const [toast, setToast] = useState({ show: false, message: '' });
+      const [summoning, setSummoning] = useState(false);
+      const [activeMandate, setActiveMandate] = useState(null);
+      const timeoutRef = useRef(null);
+
+      useEffect(() => {
+        document.body.classList.toggle('theme-refactor', view === 'refactor');
+        const appElement = document.querySelector('.app');
+        if (appElement) {
+            appElement.classList.toggle('theme-refactor', view === 'refactor');
+        }
+      }, [view]);
+
+      useEffect(() => {
+        const starsContainer = document.getElementById('stars');
+        if (starsContainer.children.length === 0) {
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+        return () => {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+      }, []);
+
+      const copyToClipboard = async (text, message) => {
+        setSummoning(true);
+        setTimeout(() => setSummoning(false), SUMMON_ANIMATION_MS);
+        
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        } finally {
+            setToast({ show: true, message });
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => setToast({ show: false, message: '' }), TOAST_DURATION_MS);
+        }
+      };
+
+      const handleMandateClick = (mandateNum, text) => {
+        setActiveMandate(mandateNum);
+        copyToClipboard(text, `🔥 Phase ${mandateNum} Protocol activated`);
+      };
+
+      const renderPrinciple = (key, value) => React.createElement('li', { key }, 
+        React.createElement('strong', null, key),
+        React.createElement('span', null, `— ${value}`)
+      );
+      
+      const renderSection = (title, description) => 
+        React.createElement('div', { className: 'tree-section', key: title},
+          React.createElement('div', { className: 'tree-title' }, title),
+          React.createElement('p', { className: 'tree-description' }, description)
+        );
+      
+      const renderRunes = (runes) => 
+        Array.from({ length: RUNE_COUNT }, (_, i) => 
+          React.createElement('div', { 
+            key: i, 
+            className: 'rune', 
+            style: { 
+              left: `${20 + i * 20}%`, 
+              top: `${10 + (i % 2) * 80}%`, 
+              animationDelay: `${i * 0.5}s` 
+            }
+          }, runes[i])
+        );
+      
+      const isCodemetheus = view === 'codemetheus';
+      const currentPrompt = isCodemetheus ? CODEMETHEUS_PROMPT : REFACTOR_MANDATE_1;
+      const currentMessage = isCodemetheus ? '⚡ Sacred knowledge bestowed upon you' : '🔥 The Rite of Purification is yours to command';
+      const currentRunes = isCodemetheus ? CODEMETHEUS_RUNES : REFACTOROS_RUNES;
+
+      return React.createElement('div', { className: `app ${view === 'refactor' ? 'theme-refactor' : ''}` },
+        React.createElement('header', null,
+          React.createElement('div', { className: 'deity-icon' },
+            React.createElement('div', { className: 'icon-inner' }, view === 'codemetheus' ? 'ΨC' : 'RΣ')
+          ),
+          React.createElement('h1', null, view === 'codemetheus' ? 'CODEMETHEUS' : 'REFACTOROS'),
+          React.createElement('p', { className: 'subtitle' }, view === 'codemetheus' ? 'The God of Creation' : 'The God of Purification')
+        ),
+        
+        React.createElement('div', { className: 'nav-controls' },
+            React.createElement('button', { 
+                className: `nav-button ${view === 'codemetheus' ? 'active' : ''}`,
+                onClick: () => setView('codemetheus')
+            }, 'Creation'),
+            React.createElement('button', { 
+                className: `nav-button ${view === 'refactor' ? 'active' : ''}`,
+                onClick: () => setView('refactor')
+            }, 'Purification')
+        ),
+
+        React.createElement('div', { className: 'carousel-viewport' },
+          React.createElement('div', { className: `carousel-track ${view === 'refactor' ? 'view-refactor' : ''}`},
+            
+            /* Codemetheus Card */
+            React.createElement('div', { className: 'card-slide' },
+                React.createElement('div', { className: 'summoning-circle' },
+                    React.createElement('div', { 
+                        className: `circle-container ${summoning && isCodemetheus ? 'summoning' : ''}`,
+                        onClick: () => copyToClipboard(CODEMETHEUS_PROMPT, '⚡ Sacred knowledge bestowed upon you'),
+                        role: 'button',
+                        tabIndex: 0,
+                    },
+                    React.createElement('div', { className: 'circle-bg' }),
+                    React.createElement('div', { className: 'content' },
+                        React.createElement('div', { className: 'invoke-text' }, 'Click to Invoke the Rite of Refactoring'),
+                        React.createElement('div', { className: 'mantra-title' }, 'THE COVENANT OF CLARITY'),
+                        React.createElement('div', { className: 'tree-section'},
+                            React.createElement('div', { className: 'tree-title' }, 'THE FOUR RITES OF PURIFICATION'),
+                            React.createElement('ul', { className: 'principles' },
+                                renderPrinciple('The First Rite: Diagnosis', 'Scribe the immutable laws of the old code; weave the safety net of proof.'),
+                                renderPrinciple('The Second Rite: Purification', 'Cast out simple shadows with small, perfect cuts.'),
+                                renderPrinciple('The Third Rite: Restructuring', 'Unwind the great knot of chaos with courage and conviction.'),
+                                renderPrinciple('The Fourth Rite: Revelation', 'Glimpse the grand design; speak the vision, but do not build it.')
+                            )
+                        ),
+                        renderSection('THE UNBREAKING GATE', 'Before ascension, the new form must be pure. Not a single proof broken.'),
+                        renderSection('THE SCRIBE\'S DECREE', 'Deliver thy change as a complete, understood, and purposeful artifact.'),
+                        renderSection('THE ORACLE OF TRUTH', 'When darkness returns, trust only in proof. Illuminate all regressions.'),
+                        renderSection('THE FORGEMASTER\'S TOOLS', 'Wield each tool in its truest form, respecting its power and its peril.'),
+                        React.createElement('div', { className: 'creed' }, React.createElement('strong', null, 'THE COVENANT: '), 'Prove the old. Perfect the small. Untangle the great. Preserve the truth.')
+                    ),
+                    React.createElement('div', { className: 'runes' },
+                        renderRunes(CODEMETHEUS_RUNES)
+                    ))
+                )
+            ),
+
+            /* Refactoros Card - 4 Mandate Cards */
+            React.createElement('div', { className: 'card-slide' },
+                React.createElement('div', { className: 'mandate-grid' },
+                    /* Mandate 1 */
+                    React.createElement('div', { 
+                        className: `mandate-card ${summoning && activeMandate === 1 ? 'summoning' : ''}`,
+                        onClick: () => handleMandateClick(1, REFACTOR_MANDATE_1),
+                        role: 'button',
+                        tabIndex: 0,
+                    },
+                        React.createElement('div', { className: 'mandate-bg' }),
+                        React.createElement('div', { className: 'mandate-content' },
+                            React.createElement('div', { className: 'mandate-number' }, 'I'),
+                            React.createElement('div', { className: 'mandate-title' }, 'DIAGNOSIS'),
+                            React.createElement('div', { className: 'mandate-subtitle' }, 'The Rite of Sight'),
+                            React.createElement('div', { className: 'mandate-description' }, 
+                                React.createElement('p', null, 'Before the purification flame may touch thy code, thou must first scribe the immutable laws by which it lives.'),
+                                React.createElement('p', null, 'Weave the safety net of proof—let no behavior fall into shadow. Measure the corpus with sacred instruments, for numbers do not lie.'),
+                                React.createElement('p', null, 'The Keeper demands three offerings: The Complexity measure, The Health oracle, and The Weighted judgment of sin.'),
+                                React.createElement('div', { className: 'mandate-verse' }, '⟨ Only when all is seen may the work begin ⟩')
+                            )
+                        )
+                    ),
+                    /* Mandate 2 */
+                    React.createElement('div', { 
+                        className: `mandate-card ${summoning && activeMandate === 2 ? 'summoning' : ''}`,
+                        onClick: () => handleMandateClick(2, REFACTOR_MANDATE_2),
+                        role: 'button',
+                        tabIndex: 0,
+                    },
+                        React.createElement('div', { className: 'mandate-bg' }),
+                        React.createElement('div', { className: 'mandate-content' },
+                            React.createElement('div', { className: 'mandate-number' }, 'II'),
+                            React.createElement('div', { className: 'mandate-title' }, 'PURIFICATION'),
+                            React.createElement('div', { className: 'mandate-subtitle' }, 'The Cascade of Cleansing'),
+                            React.createElement('div', { className: 'mandate-description' }, 
+                                React.createElement('p', null, 'Cast out the simple shadows first—the dead, the redundant, the needlessly obscure. Each stroke must be small, perfect, and proven.'),
+                                React.createElement('p', null, 'Flatten the nested labyrinths. Inline the needless abstractions. Replace the mystical numbers with their true names.'),
+                                React.createElement('p', null, 'The gate of verification guards each passage. Pass through it, or return to dust.'),
+                                React.createElement('div', { className: 'mandate-verse' }, '⟨ Reduction is the path to enlightenment ⟩')
+                            )
+                        )
+                    ),
+                    /* Mandate 3 */
+                    React.createElement('div', { 
+                        className: `mandate-card ${summoning && activeMandate === 3 ? 'summoning' : ''}`,
+                        onClick: () => handleMandateClick(3, REFACTOR_MANDATE_3),
+                        role: 'button',
+                        tabIndex: 0,
+                    },
+                        React.createElement('div', { className: 'mandate-bg' }),
+                        React.createElement('div', { className: 'mandate-content' },
+                            React.createElement('div', { className: 'mandate-number' }, 'III'),
+                            React.createElement('div', { className: 'mandate-title' }, 'RESTRUCTURING'),
+                            React.createElement('div', { className: 'mandate-subtitle' }, 'The Unraveling of Knots'),
+                            React.createElement('div', { className: 'mandate-description' }, 
+                                React.createElement('p', null, 'Now comes the perilous trial—untangling the great knots of chaos woven deep within the structure.'),
+                                React.createElement('p', null, 'The long methods must be severed. The god-classes must be humbled. The hidden dependencies must be revealed and reordered.'),
+                                React.createElement('p', null, 'Each transformation demands courage and the mortal\'s blessing. Submit thy work for judgment before proceeding.'),
+                                React.createElement('div', { className: 'mandate-verse' }, '⟨ The deep work requires conviction and witness ⟩')
+                            )
+                        )
+                    ),
+                    /* Mandate 4 */
+                    React.createElement('div', { 
+                        className: `mandate-card ${summoning && activeMandate === 4 ? 'summoning' : ''}`,
+                        onClick: () => handleMandateClick(4, REFACTOR_MANDATE_4),
+                        role: 'button',
+                        tabIndex: 0,
+                    },
+                        React.createElement('div', { className: 'mandate-bg' }),
+                        React.createElement('div', { className: 'mandate-content' },
+                            React.createElement('div', { className: 'mandate-number' }, 'IV'),
+                            React.createElement('div', { className: 'mandate-title' }, 'ARCHITECTURE'),
+                            React.createElement('div', { className: 'mandate-subtitle' }, 'The Vision Beyond'),
+                            React.createElement('div', { className: 'mandate-description' }, 
+                                React.createElement('p', null, 'When the small battles are won, turn thy gaze to the horizon. See the grand patterns that mortal eyes cannot perceive alone.'),
+                                React.createElement('p', null, 'Divine the strangler, the abstraction, the anti-corruption layer—speak their names and their costs. Yet code them not.'),
+                                React.createElement('p', null, 'Thy role is oracle, not architect. The mortals must choose their destiny with full knowledge of consequence.'),
+                                React.createElement('div', { className: 'mandate-verse' }, '⟨ Wisdom reveals; it does not command ⟩')
+                            )
+                        )
+                    )
+                )
+            )
+          )
+        ),
+
+        React.createElement('div', { className: `toast ${toast.show ? 'show' : ''}`, role: 'status' },
+          React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none' },
+            React.createElement('path', { d: 'M20 6L9 17l-5-5', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' })
+          ),
+          React.createElement('span', null, toast.message)
+        )
+      );
+    }
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

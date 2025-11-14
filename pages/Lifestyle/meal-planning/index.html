@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Meal Planner</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+    {
+        "imports": {
+            "html2canvas": "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js"
+        }
+    }
+    </script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+
+        .main-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .quick-actions,
+        .planner-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .multi-random {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .number-input {
+            width: 60px;
+            padding: 0.5rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .recipe-display,
+        .multiple-recipes {
+            margin-bottom: 2rem;
+        }
+
+        .recipe-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .recipe-card h3 {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .protein-badge {
+            background: var(--secondary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .recipe-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .recipe-section h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+        }
+
+        .ingredients-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .ingredients-list li {
+            padding: 0.5rem;
+            background: var(--background);
+            border-radius: 6px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .steps-list {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .steps-list li {
+            counter-increment: step-counter;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background: var(--background);
+            border-radius: 8px;
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .steps-list li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            background: var(--primary);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .weekly-planner {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2rem;
+        }
+
+        .weekly-planner h2 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .planner-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .planner-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .day-slot {
+            background: var(--background);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .day-slot:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .day-slot.drag-over {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            border-style: solid;
+        }
+
+        .day-header {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-number {
+            background: var(--primary);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        .meal-slot {
+            background: white;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            box-shadow: var(--shadow);
+            cursor: grab;
+            transition: transform 0.2s ease;
+            draggable: true;
+        }
+
+        .meal-slot:hover {
+            transform: translateY(-1px);
+        }
+
+        .meal-slot:active {
+            cursor: grabbing;
+        }
+
+        .meal-slot.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .meal-slot.eat-out {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: white;
+        }
+
+        .add-meal {
+            background: none;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            margin-top: auto;
+        }
+
+        .add-meal:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .tips {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.1));
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 3rem;
+        }
+
+        .tips h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .tips p {
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        .eat-out-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .eat-out-control label {
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .meal-options {
+            padding: 1rem;
+            overflow-y: auto;
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .meal-option {
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--surface);
+        }
+
+        .meal-option:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .meal-option.eat-out {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: white;
+            border-color: #f59e0b;
+        }
+
+        .meal-option.eat-out:hover {
+            background: linear-gradient(135deg, #d97706, #ea580c);
+        }
+
+        .meal-option-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .meal-option-protein {
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .meal-option.eat-out .meal-option-protein {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--primary);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--background);
+        }
+
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-controls {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+                padding: 1.5rem;
+            }
+            
+            .planner-controls {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+            
+            .eat-out-control {
+                justify-content: space-between;
+            }
+            
+            .planner-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .day-slot {
+                padding: 1rem;
+                min-height: 100px;
+            }
+            
+            .ingredients-list {
+                grid-template-columns: 1fr;
+            }
+
+            .modal {
+                padding: 0.5rem;
+            }
+
+            .modal-content {
+                max-height: 90vh;
+            }
+
+            .meal-options {
+                padding: 0.5rem;
+            }
+        }
+
+        /* Larger mobile screens */
+        @media (min-width: 480px) and (max-width: 768px) {
+            .planner-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Tablet layout */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .planner-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .main-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Desktop layout */
+        @media (min-width: 1025px) {
+            .planner-grid {
+                grid-template-columns: repeat(7, 1fr);
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .main-controls,
+            .tips {
+                display: none;
+            }
+            
+            .recipe-card,
+            .weekly-planner {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Family Meal Planner</h1>
+            <p class="subtitle">High-protein meals that everyone will love</p>
+        </header>
+
+        <div class="main-controls">
+            <div class="quick-actions">
+                <button id="randomMeal" class="btn btn-primary">
+                    🎲 Random Meal
+                </button>
+                
+                <div class="multi-random">
+                    <input type="number" id="randomCount" value="3" min="1" max="10" class="number-input">
+                    <button id="randomMultiple" class="btn btn-secondary">
+                        Pick Random Meals
+                    </button>
+                </div>
+            </div>
+
+            <div class="planner-actions">
+                <button id="showPlanner" class="btn btn-outline">
+                    📅 Plan 2 Weeks
+                </button>
+                <button id="printPlan" class="btn btn-outline" style="display: none;">
+                    🖨️ Print Plan
+                </button>
+                <button id="saveImage" class="btn btn-outline" style="display: none;">
+                    📷 Save as Image
+                </button>
+            </div>
+        </div>
+
+        <div id="recipeDisplay" class="recipe-display"></div>
+
+        <div id="multipleRecipes" class="multiple-recipes"></div>
+
+        <div id="weeklyPlanner" class="weekly-planner" style="display: none;">
+            <h2>2-Week Meal Plan</h2>
+            <div class="planner-controls">
+                <button id="autoFillWeeks" class="btn btn-primary">Auto-Fill 14 Days</button>
+                <div class="eat-out-control">
+                    <label for="eatOutCount">Eat out days per week:</label>
+                    <input type="number" id="eatOutCount" value="2" min="0" max="7" class="number-input">
+                </div>
+                <button id="clearPlan" class="btn btn-danger">Clear All</button>
+            </div>
+            <div id="plannerGrid" class="planner-grid"></div>
+        </div>
+
+        <div class="tips">
+            <h3>💡 Remember</h3>
+            <p>With all of these, always remember: keep the protein the star of the meal — aim for at least 25–30g per serving — and build the rest of the plate with vegetables for volume and fiber so you feel full without piling on hidden calories. Measure calorie-dense add-ins like cheese, oil, and butter so they enhance flavor without silently doubling the energy in the dish. Use rice for ease and potatoes for comfort, but keep portions around ½–1 cup cooked per person, and don't be afraid to swap in cauliflower or extra veg for bulk. Keep pork and turkey seasoned, sauced, or mixed in so they eat like chicken or beef, and lean on tuna in crowd-pleasing formats so no one feels like they're eating "diet food." Stick with your noon–8pm window to naturally cut snacking, and pair these meals with 2–3 short dumbbell sessions a week, gradually pushing for more reps, sets, or slower lowers. Consistency here — in cooking, training, and portions — is what will steadily shrink belly and visceral fat while making meals everyone actually wants to eat.</p>
+        </div>
+    </div>
+
+    <!-- Meal Selection Modal -->
+    <div id="mealModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select a Meal</h3>
+                <button id="closeMealModal" class="close-btn">&times;</button>
+            </div>
+            <div id="mealOptions" class="meal-options"></div>
+        </div>
+    </div>
+
+    <script>
+        const recipes = [
+            {
+                id: 1,
+                name: "Garlic-Herb Steak Roast Dinner",
+                protein: "~23g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb top round or sirloin tip roast",
+                    "1 tbsp olive oil",
+                    "4 cloves garlic (minced)",
+                    "1 tbsp rosemary",
+                    "1 tsp thyme",
+                    "1½ tsp salt",
+                    "1 tsp pepper",
+                    "Mashed potatoes (or ½ potato ½ cauliflower)",
+                    "Big pan of green beans"
+                ],
+                steps: [
+                    "Pat roast dry; rub with oil, garlic, herbs, salt, pepper.",
+                    "Sear all sides in a hot skillet (3–4 min/side).",
+                    "Transfer to 350°F oven until 125–130°F (medium-rare), ~25–35 min.",
+                    "Rest 10 min; slice thin.",
+                    "Serve with your potatoes and a pile of green beans."
+                ]
+            },
+            {
+                id: 2,
+                name: "Air Fryer Chicken Drumsticks",
+                protein: "~25g/serving",
+                serves: 6,
+                ingredients: [
+                    "~12 medium drumsticks (about 3 lb)",
+                    "1½ tsp salt",
+                    "2 tsp paprika",
+                    "1 tsp garlic powder",
+                    "1 tsp onion powder",
+                    "½ tsp pepper",
+                    "1 tbsp oil",
+                    "Rice or mashed potatoes",
+                    "Green beans or pan-seared broccoli heads"
+                ],
+                steps: [
+                    "Pat dry, toss with oil + seasonings.",
+                    "Air fry 400°F for 20–25 min, flipping once, until 175°F+ and crispy.",
+                    "Serve with rice/potatoes and a big veg side."
+                ]
+            },
+            {
+                id: 3,
+                name: "Pork Taco Bowls (heavily seasoned)",
+                protein: "~26g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb ground pork or finely chopped shoulder",
+                    "2 tbsp chili powder",
+                    "2 tsp cumin",
+                    "1 tsp smoked paprika",
+                    "1 tsp garlic powder",
+                    "Salt/pepper to taste",
+                    "2 cans beans (black or pinto, drained)",
+                    "Salsa, lettuce, cheese as garnish",
+                    "Cilantro-lime rice (or half-rice/half-lettuce for lighter bowls)"
+                ],
+                steps: [
+                    "Brown pork; add spices + salt to taste; cook until little crispy bits form.",
+                    "Build bowls with rice/lettuce, beans, pork, salsa, and a sprinkle of cheese."
+                ]
+            },
+            {
+                id: 4,
+                name: "Turkey Bolognese Pasta Night",
+                protein: "~31g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb ground turkey (93%)",
+                    "1 jar pasta sauce",
+                    "½ onion (minced)",
+                    "3 cloves garlic",
+                    "½ cup red wine (optional)",
+                    "8 oz chopped mushrooms",
+                    "Italian herbs",
+                    "1 lb dried pasta",
+                    "Bagged salad + garlic bread"
+                ],
+                steps: [
+                    "Sauté onion, garlic, mushrooms in a little oil; add turkey, brown well.",
+                    "Stir in sauce, wine (opt), herbs; simmer 15–20 min.",
+                    "Cook pasta; serve with salad/garlic bread."
+                ]
+            },
+            {
+                id: 5,
+                name: "Beef Stir-Fry (Garlic & Black Pepper)",
+                protein: "~23g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb flank/sirloin, sliced thin against grain",
+                    "2 lb frozen broccoli + bell pepper mix",
+                    "¼ cup soy sauce",
+                    "2–3 tbsp water",
+                    "1 tbsp cornstarch",
+                    "1–2 tsp sugar",
+                    "1 tbsp minced garlic",
+                    "1–2 tsp coarse black pepper",
+                    "Splash vinegar",
+                    "Rice for serving (about 3 cups cooked)"
+                ],
+                steps: [
+                    "Stir sauce together.",
+                    "Sear beef in two batches (very hot pan), remove.",
+                    "Stir-fry veg; return beef; pour in sauce; toss until glossy.",
+                    "Serve over rice."
+                ]
+            },
+            {
+                id: 6,
+                name: "Cheesy Tuna Rice Bake",
+                protein: "~28-32g/serving",
+                serves: 6,
+                ingredients: [
+                    "5 cans chunk light tuna, drained",
+                    "3 cups cooked rice (about 1 cup dry)",
+                    "1 can cream of mushroom (or celery) soup",
+                    "½–1 cup milk",
+                    "2 cups frozen peas",
+                    "1½ cups shredded cheddar",
+                    "½ tsp garlic powder",
+                    "½ tsp onion powder",
+                    "Pepper to taste",
+                    "Optional: 1 cup plain Greek yogurt for extra protein/creaminess"
+                ],
+                steps: [
+                    "Mix rice, soup + milk, peas, tuna, seasonings (and yogurt if using).",
+                    "Top with cheese; bake 375°F, 20–25 min until bubbly and a little golden.",
+                    "Serve with a simple side salad."
+                ]
+            },
+            {
+                id: 7,
+                name: "Pork Stir-Fry (Teriyaki or Spicy Garlic)",
+                protein: "~23g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb pork loin, thinly sliced",
+                    "2 lb mixed stir-fry veg",
+                    "¼ cup soy sauce",
+                    "2–3 tbsp water",
+                    "1 tbsp cornstarch",
+                    "1–2 tbsp brown sugar",
+                    "1 tsp garlic",
+                    "1 tsp ginger",
+                    "Splash vinegar",
+                    "Chili flakes to taste",
+                    "Rice for serving"
+                ],
+                steps: [
+                    "Sear pork quickly in a hot pan; remove.",
+                    "Stir-fry veg; add pork back; pour in sauce; toss to thicken.",
+                    "Serve over rice."
+                ]
+            },
+            {
+                id: 8,
+                name: "Chicken Stir-Fry (Soy-Garlic-Ginger)",
+                protein: "~24g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb chicken breast, thinly sliced",
+                    "2 lb frozen stir-fry veg",
+                    "¼ cup soy sauce",
+                    "2–3 tbsp water",
+                    "1 tbsp cornstarch",
+                    "1 tbsp honey or sugar",
+                    "1 tbsp minced garlic",
+                    "1 tsp ginger",
+                    "Splash vinegar",
+                    "Rice for serving"
+                ],
+                steps: [
+                    "Sear chicken in two batches; remove.",
+                    "Stir-fry veg; return chicken; add sauce; toss to coat.",
+                    "Serve over rice."
+                ]
+            },
+            {
+                id: 9,
+                name: "Turkey Meatloaf Muffins",
+                protein: "~23-24g/serving",
+                serves: 6,
+                ingredients: [
+                    "1.5 lb ground turkey",
+                    "1 egg",
+                    "¾ cup breadcrumbs (or quick oats)",
+                    "½ onion finely minced",
+                    "2 tsp Worcestershire",
+                    "1 tsp garlic powder",
+                    "1 tsp salt",
+                    "Pepper to taste",
+                    "¼ cup ketchup + 1 tsp brown sugar + dash vinegar (for topping)",
+                    "Roasted potatoes + green beans"
+                ],
+                steps: [
+                    "Mix everything; divide into a 12-cup muffin tin (greased).",
+                    "Brush tops with glaze; bake 400°F for 18–22 min (165°F internal).",
+                    "Serve with potatoes/green beans."
+                ]
+            },
+            {
+                id: 10,
+                name: "Tuna Melt Night",
+                protein: "~33g/serving",
+                serves: 6,
+                ingredients: [
+                    "5 cans chunk light tuna (drained)",
+                    "½ cup mayo (or half mayo/half Greek yogurt)",
+                    "¼ cup minced onion or pickle",
+                    "Pepper to taste",
+                    "12 slices bread",
+                    "6 slices cheddar (or shredded)",
+                    "Tomato soup + cucumber salad on the side"
+                ],
+                steps: [
+                    "Mix tuna salad.",
+                    "Build sandwiches (bread → tuna → cheese → bread).",
+                    "Griddle with a little butter until golden and melty."
+                ]
+            }
+        ];
+    </script>
+
+    <script type="module">
+        import html2canvas from 'html2canvas';
+
+        class MealPlanner {
+            constructor() {
+                this.currentPlan = [];
+                this.draggedElement = null;
+                this.currentDayIndex = null;
+                this.initializeElements();
+                this.attachEventListeners();
+                this.initializePlanner();
+                this.populateMealModal();
+            }
+
+            initializeElements() {
+                this.randomMealBtn = document.getElementById('randomMeal');
+                this.randomMultipleBtn = document.getElementById('randomMultiple');
+                this.randomCountInput = document.getElementById('randomCount');
+                this.showPlannerBtn = document.getElementById('showPlanner');
+                this.printPlanBtn = document.getElementById('printPlan');
+                this.saveImageBtn = document.getElementById('saveImage');
+                this.autoFillWeeksBtn = document.getElementById('autoFillWeeks');
+                this.clearPlanBtn = document.getElementById('clearPlan');
+                this.eatOutCountInput = document.getElementById('eatOutCount');
+                
+                this.recipeDisplay = document.getElementById('recipeDisplay');
+                this.multipleRecipes = document.getElementById('multipleRecipes');
+                this.weeklyPlanner = document.getElementById('weeklyPlanner');
+                this.plannerGrid = document.getElementById('plannerGrid');
+                this.mealModal = document.getElementById('mealModal');
+                this.mealOptions = document.getElementById('mealOptions');
+                this.closeMealModalBtn = document.getElementById('closeMealModal');
+            }
+
+            attachEventListeners() {
+                this.randomMealBtn.addEventListener('click', () => this.showRandomMeal());
+                this.randomMultipleBtn.addEventListener('click', () => this.showMultipleRandomMeals());
+                this.showPlannerBtn.addEventListener('click', () => this.togglePlanner());
+                this.printPlanBtn.addEventListener('click', () => this.printPlan());
+                this.saveImageBtn.addEventListener('click', () => this.saveAsImage());
+                this.autoFillWeeksBtn.addEventListener('click', () => this.autoFillWeeks());
+                this.clearPlanBtn.addEventListener('click', () => this.clearPlan());
+                
+                // Modal event listeners
+                this.closeMealModalBtn.addEventListener('click', () => this.closeMealModal());
+                this.mealModal.addEventListener('click', (e) => {
+                    if (e.target === this.mealModal) {
+                        this.closeMealModal();
+                    }
+                });
+            }
+
+            showRandomMeal() {
+                const randomRecipe = this.getRandomRecipe();
+                this.displayRecipe(randomRecipe, this.recipeDisplay);
+                this.multipleRecipes.innerHTML = '';
+            }
+
+            showMultipleRandomMeals() {
+                const count = parseInt(this.randomCountInput.value) || 3;
+                const randomRecipes = this.getMultipleRandomRecipes(count);
+                
+                this.recipeDisplay.innerHTML = '';
+                this.multipleRecipes.innerHTML = `<h2>Your ${count} Random Meals</h2>`;
+                
+                randomRecipes.forEach(recipe => {
+                    const container = document.createElement('div');
+                    this.displayRecipe(recipe, container);
+                    this.multipleRecipes.appendChild(container);
+                });
+            }
+
+            getRandomRecipe() {
+                return recipes[Math.floor(Math.random() * recipes.length)];
+            }
+
+            getMultipleRandomRecipes(count) {
+                const shuffled = [...recipes].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, count);
+            }
+
+            displayRecipe(recipe, container) {
+                const recipeHTML = `
+                    <div class="recipe-card">
+                        <h3>
+                            ${recipe.name}
+                            <span class="protein-badge">${recipe.protein}</span>
+                        </h3>
+                        <p><strong>Serves:</strong> ${recipe.serves}</p>
+                        
+                        <div class="recipe-section">
+                            <h4>🛒 Ingredients:</h4>
+                            <ul class="ingredients-list">
+                                ${recipe.ingredients.map(ingredient => `<li>${ingredient}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="recipe-section">
+                            <h4>👨‍🍳 Steps:</h4>
+                            <ol class="steps-list">
+                                ${recipe.steps.map(step => `<li>${step}</li>`).join('')}
+                            </ol>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML = recipeHTML;
+            }
+
+            initializePlanner() {
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                this.plannerGrid.innerHTML = '';
+                
+                // Create 2 weeks (14 days)
+                for (let week = 0; week < 2; week++) {
+                    for (let day = 0; day < 7; day++) {
+                        const dayIndex = week * 7 + day;
+                        const daySlot = document.createElement('div');
+                        daySlot.className = 'day-slot';
+                        daySlot.dataset.day = dayIndex;
+                        
+                        daySlot.innerHTML = `
+                            <div class="day-header">
+                                <span>${days[day]}</span>
+                                <span class="day-number">${dayIndex + 1}</span>
+                            </div>
+                            <button class="add-meal">
+                                + Add Meal
+                            </button>
+                        `;
+                        
+                        // Add drag and drop event listeners
+                        daySlot.addEventListener('dragover', this.handleDragOver.bind(this));
+                        daySlot.addEventListener('drop', this.handleDrop.bind(this));
+                        daySlot.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                        
+                        // Add meal button event listener
+                        const addButton = daySlot.querySelector('.add-meal');
+                        addButton.addEventListener('click', () => this.openMealModal(dayIndex));
+                        
+                        this.plannerGrid.appendChild(daySlot);
+                    }
+                }
+            }
+
+            openMealModal(dayIndex) {
+                this.currentDayIndex = dayIndex;
+                this.mealModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+
+            closeMealModal() {
+                this.mealModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+                this.currentDayIndex = null;
+            }
+
+            populateMealModal() {
+                this.mealOptions.innerHTML = '';
+                
+                // Add eat out option
+                const eatOutOption = document.createElement('div');
+                eatOutOption.className = 'meal-option eat-out';
+                eatOutOption.innerHTML = `
+                    <div class="meal-option-title">🍽️ Eat Out</div>
+                    <div class="meal-option-protein">Restaurant meal</div>
+                `;
+                eatOutOption.addEventListener('click', () => this.addMealToDay(this.currentDayIndex, { type: 'eat-out', data: { name: '🍽️ Eat Out' } }));
+                this.mealOptions.appendChild(eatOutOption);
+                
+                // Add all recipes
+                recipes.forEach(recipe => {
+                    const option = document.createElement('div');
+                    option.className = 'meal-option';
+                    option.innerHTML = `
+                        <div class="meal-option-title">${recipe.name}</div>
+                        <div class="meal-option-protein">${recipe.protein}</div>
+                    `;
+                    option.addEventListener('click', () => this.addMealToDay(this.currentDayIndex, { type: 'recipe', data: recipe }));
+                    this.mealOptions.appendChild(option);
+                });
+            }
+
+            addMealToDay(dayIndex, selectedOption) {
+                const daySlot = document.querySelector(`[data-day="${dayIndex}"]`);
+                const addButton = daySlot.querySelector('.add-meal');
+                
+                const mealDiv = document.createElement('div');
+                mealDiv.className = `meal-slot ${selectedOption.type === 'eat-out' ? 'eat-out' : ''}`;
+                mealDiv.draggable = true;
+                mealDiv.innerHTML = `
+                    ${selectedOption.data.name}
+                    <small style="display: block; margin-top: 0.25rem;">
+                        ${selectedOption.type === 'recipe' ? selectedOption.data.protein : ''}
+                    </small>
+                `;
+                
+                // Add drag event listeners
+                mealDiv.addEventListener('dragstart', this.handleDragStart.bind(this));
+                mealDiv.addEventListener('dragend', this.handleDragEnd.bind(this));
+                
+                mealDiv.addEventListener('click', () => {
+                    if (confirm('Remove this meal?')) {
+                        mealDiv.remove();
+                    }
+                });
+                
+                daySlot.insertBefore(mealDiv, addButton);
+                this.closeMealModal();
+            }
+
+            handleDragStart(e) {
+                this.draggedElement = e.target;
+                e.target.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            }
+
+            handleDragEnd(e) {
+                e.target.classList.remove('dragging');
+                this.draggedElement = null;
+                // Remove drag-over class from all day slots
+                document.querySelectorAll('.day-slot').forEach(slot => {
+                    slot.classList.remove('drag-over');
+                });
+            }
+
+            handleDragOver(e) {
+                if (this.draggedElement) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    e.currentTarget.classList.add('drag-over');
+                }
+            }
+
+            handleDragLeave(e) {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                    e.currentTarget.classList.remove('drag-over');
+                }
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                const dropZone = e.currentTarget;
+                dropZone.classList.remove('drag-over');
+                
+                if (this.draggedElement && dropZone.classList.contains('day-slot')) {
+                    const addButton = dropZone.querySelector('.add-meal');
+                    dropZone.insertBefore(this.draggedElement, addButton);
+                }
+            }
+
+            togglePlanner() {
+                const isVisible = this.weeklyPlanner.style.display !== 'none';
+                this.weeklyPlanner.style.display = isVisible ? 'none' : 'block';
+                this.printPlanBtn.style.display = isVisible ? 'none' : 'inline-flex';
+                this.saveImageBtn.style.display = isVisible ? 'none' : 'inline-flex';
+                
+                if (!isVisible) {
+                    this.weeklyPlanner.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+
+            autoFillWeeks() {
+                // Clear existing meals first
+                document.querySelectorAll('.meal-slot').forEach(slot => slot.remove());
+                
+                const eatOutDaysPerWeek = parseInt(this.eatOutCountInput.value) || 0;
+                const totalEatOutDays = eatOutDaysPerWeek * 2; // 2 weeks
+                
+                // Create array of all 14 days
+                const allDays = Array.from({length: 14}, (_, i) => i);
+                
+                // Randomly select days for eating out
+                const eatOutDays = [];
+                if (totalEatOutDays > 0) {
+                    const shuffledDays = [...allDays].sort(() => 0.5 - Math.random());
+                    eatOutDays.push(...shuffledDays.slice(0, Math.min(totalEatOutDays, 14)));
+                }
+                
+                // Fill all 14 days
+                for (let day = 0; day < 14; day++) {
+                    const daySlot = document.querySelector(`[data-day="${day}"]`);
+                    const addButton = daySlot.querySelector('.add-meal');
+                    
+                    const mealDiv = document.createElement('div');
+                    
+                    if (eatOutDays.includes(day)) {
+                        // Add eat out
+                        mealDiv.className = 'meal-slot eat-out';
+                        mealDiv.innerHTML = `
+                            🍽️ Eat Out
+                            <small style="display: block; margin-top: 0.25rem;"></small>
+                        `;
+                    } else {
+                        // Add random recipe
+                        const randomRecipe = this.getRandomRecipe();
+                        mealDiv.className = 'meal-slot';
+                        mealDiv.innerHTML = `
+                            ${randomRecipe.name}
+                            <small style="display: block; margin-top: 0.25rem;">
+                                ${randomRecipe.protein}
+                            </small>
+                        `;
+                    }
+                    
+                    mealDiv.draggable = true;
+                    mealDiv.addEventListener('dragstart', this.handleDragStart.bind(this));
+                    mealDiv.addEventListener('dragend', this.handleDragEnd.bind(this));
+                    mealDiv.addEventListener('click', () => {
+                        if (confirm('Remove this meal?')) {
+                            mealDiv.remove();
+                        }
+                    });
+                    
+                    daySlot.insertBefore(mealDiv, addButton);
+                }
+            }
+
+            clearPlan() {
+                if (confirm('Clear all planned meals?')) {
+                    document.querySelectorAll('.meal-slot').forEach(slot => slot.remove());
+                }
+            }
+
+            printPlan() {
+                window.print();
+            }
+
+            async saveAsImage() {
+                try {
+                    const element = this.weeklyPlanner;
+                    const canvas = await html2canvas(element, {
+                        backgroundColor: '#ffffff',
+                        scale: 2
+                    });
+                    
+                    const link = document.createElement('a');
+                    link.download = 'meal-plan.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                } catch (error) {
+                    console.error('Error saving image:', error);
+                    alert('Error saving image. Please try the print option instead.');
+                }
+            }
+        }
+
+        // Initialize the app
+        window.mealPlanner = new MealPlanner();
+    </script>
+</body>
+</html>

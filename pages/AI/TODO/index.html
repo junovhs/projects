@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+TODO GOES HERE
+NOTE: Git Trek is fairly messed up right now. Also, its mostly a viewer that just exits into a headless state; let's keep users inside the app by showing a comprehensive action menu on commit selection with clear, practical options covering everything they might want to do, like 'browse files', 'reset current branch to here', 'create a new branch from here', 'copy this change onto my current branch', 'create a new commit that undoes this one', or just 'checkout in terminal'.
+Codemetheus linter? Currently using: cargo clippy --all-targets -- -D warnings -D clippy::pedantic
+Enhance Git Trek 
+Clean up/Refactor ApplyDiff
+Bevy research and testing 
+Cross platform notes app
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-family: 'Cal Sans', 'Noto Sans', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #000;
+        }
+
+        #todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem;
+            background: #ffffff;
+            border: 2px solid #000;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .priority-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .priority-1 { background: #ef4444; }
+        .priority-2 { background: #f59e0b; }
+        .priority-3 { background: #3b82f6; }
+        .priority-4 { background: #10b981; }
+        .priority-5 { background: #8b5cf6; }
+        .priority-6 { background: #ec4899; }
+        .priority-7 { background: #06b6d4; }
+        .priority-8 { background: #84cc16; }
+        .priority-9 { background: #f97316; }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 4px 4px 0 #000;
+        }
+
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #000;
+            border-radius: 4px;
+            flex-shrink: 0;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .todo-item.completed .checkbox {
+            background: #000;
+        }
+
+        .todo-item.completed .checkbox::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .todo-text {
+            font-size: 1.125rem;
+            color: #000;
+            transition: all 0.2s ease;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .todo-item {
+                padding: 1rem;
+            }
+            
+            .todo-text {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>My Todos</h1>
+        <div id="todo-list"></div>
+    </div>
+
+    <script>
+        // Extract TODO list from the HTML comment at the top of the file
+        function extractTodoText() {
+            const firstComment = document.createNodeIterator(
+                document.documentElement,
+                NodeFilter.SHOW_COMMENT
+            ).nextNode();
+            
+            if (firstComment) {
+                const content = firstComment.textContent.trim();
+                const lines = content.split('\n');
+                // Remove the "TODO GOES HERE" header line
+                return lines.slice(1).join('\n');
+            }
+            return '';
+        }
+
+        const todoText = extractTodoText();
+
+        function parseTodos(text) {
+            return text
+                .trim()
+                .split('\n')
+                .filter(line => line.trim().length > 0)
+                .map(line => {
+                    const match = line.match(/^\((\d+)\)(.+)/);
+                    if (match) {
+                        return {
+                            priority: match[1],
+                            text: match[2].trim()
+                        };
+                    }
+                    return { text: line.trim() };
+                });
+        }
+
+        function createTodoElement(todoData) {
+            const todo = document.createElement('div');
+            todo.className = 'todo-item';
+            
+            if (todoData.priority) {
+                const badge = document.createElement('div');
+                badge.className = `priority-badge priority-${todoData.priority}`;
+                badge.textContent = todoData.priority;
+                todo.appendChild(badge);
+            }
+            
+            const checkbox = document.createElement('div');
+            checkbox.className = 'checkbox';
+            
+            const label = document.createElement('span');
+            label.className = 'todo-text';
+            label.textContent = todoData.text;
+            
+            todo.appendChild(checkbox);
+            todo.appendChild(label);
+            
+            todo.addEventListener('click', () => {
+                todo.classList.toggle('completed');
+            });
+            
+            return todo;
+        }
+
+        function renderTodos() {
+            const todos = parseTodos(todoText);
+            const container = document.getElementById('todo-list');
+            
+            todos.forEach(todo => {
+                container.appendChild(createTodoElement(todo));
+            });
+        }
+
+        renderTodos();
+    </script>
+</body>
+</html>

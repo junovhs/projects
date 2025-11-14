@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Deal Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8fafc;--panel:#ffffff;--muted:#64748b;--muted2:#94a3b8;--text:#0f172a;--brand:#7c5cff;--brand-2:#4d9fff;--ok:#22c55e;--warn:#ef4444;--card:#f1f5f9;--line:#e2e8f0;--pill:#e2e8f0}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);color:var(--text)}
+.app{display:grid;grid-template-columns:320px 1fr;gap:16px;max-width:1200px;margin:24px auto;padding:0 16px}
+.sidebar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:24px;height:fit-content;max-height:calc(100vh - 48px);overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:linear-gradient(90deg,rgba(124,92,255,.15),rgba(77,159,255,.12));border:1px solid rgba(124,92,255,.25)}
+.brand .dot{width:8px;height:8px;border-radius:99px;background:conic-gradient(from 90deg,var(--brand),var(--brand-2))}
+.brand h1{font-size:14px;margin:0;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.kbd{font:600 11px/1 Inter;padding:6px 9px;border:1px solid var(--line);border-radius:8px;color:var(--muted);background:var(--card)}
+.side-sec h2{font-size:12px;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;margin:4px 0 8px}
+.vendor-list{display:flex;flex-direction:column;gap:6px}
+.vendor{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;background:var(--card);border:1px solid var(--line);cursor:pointer}
+.vendor:hover{border-color:rgba(124,92,255,.6)}
+.vendor.active{outline:2px solid rgba(124,92,255,.5)}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--pill);border:1px solid var(--line);color:var(--muted)}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer}
+.btn:hover{border-color:rgba(124,92,255,.6)}
+.btn.brand{background:linear-gradient(180deg,rgba(124,92,255,.25),rgba(124,92,255,.12));border-color:rgba(124,92,255,.5)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.rules{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.rules textarea{width:100%;min-height:110px;background:#ffffff;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.45 Inter}
+.rulebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.rulebar .chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;padding:4px 8px;border-radius:999px;background:#f1f5f9;border:1px dashed #cbd5e1;color:var(--muted)}
+.main{display:flex;flex-direction:column;gap:16px}
+.topbar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.search input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font:14px Inter;placeholder-color:var(--muted)}
+.inline-add{display:flex;gap:8px;flex-wrap:wrap}
+.inline-add input{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text);font:14px Inter;placeholder-color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.vendor-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.vendor-head h3{margin:0;font-size:16px}
+.count{color:var(--muted);font-size:12px}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.check{appearance:none;width:18px;height:18px;border-radius:6px;border:2px solid #cbd5e1;background:transparent;cursor:pointer;margin-top:2px}
+.check:checked{background:linear-gradient(160deg,var(--brand),var(--brand-2));border-color:transparent;position:relative}
+.check:checked::after{content:"";position:absolute;inset:4px;background:#fff;clip-path:polygon(14% 54%,0 68%,44% 100%,100% 18%,86% 0,42% 72%)}
+.meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dealtext{color:#334155;font-size:14px}
+.pill{font-size:11px;padding:4px 8px;border-radius:999px;background:var(--pill);border:1px solid var(--line);color:#e5e9f2;cursor:pointer}
+.pill.start{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5)}
+.pill.end{background:rgba(124,92,255,.18);border-color:rgba(124,92,255,.5)}
+.ai-zone{grid-column:2/4;background:linear-gradient(180deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:4px}
+.ai-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.ai-title{font-weight:700;font-size:14px;color:#1e293b;cursor:pointer}
+.ai-desc{font-size:13px;color:#475569;cursor:pointer}
+.tag{font-size:10px;padding:3px 6px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;color:#64748b}
+.excl{color:#ffb4b4;font-weight:700}
+.note{width:100%;background:#ffffff;border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font:13px Inter}
+.small{font-size:12px;color:var(--muted)}
+.inline{display:inline-flex;align-items:center;gap:6px}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.slide{position:fixed;inset:0;display:none;z-index:1000}
+.slide.open{display:block}
+.back{position:absolute;inset:0;background:rgba(0,0,0,.3)}
+.sheet{position:absolute;right:0;top:0;height:100%;width:min(720px,100%);background:#ffffff;border-left:1px solid var(--line);padding:16px 16px 24px;overflow:auto;box-shadow:-4px 0 24px rgba(0,0,0,.1)}
+.sheet h3{margin:8px 0 10px;color:var(--text)}
+.sheet textarea{width:100%;min-height:220px;background:#f8fafc;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font:14px/1.45 Inter}
+.hr{height:1px;background:var(--line);margin:10px 0}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#ffffff;border:1px solid #e2e8f0;color:#0f172a;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:1001}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--card); border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 1px solid var(--card); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted2); }
+::-webkit-scrollbar-corner { background: var(--card); }
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: var(--line) var(--card); }
+
+@media (max-width:900px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
+
+/* Model picker */
+.model-pick{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:8px 10px;font:13px Inter}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- React + Babel + confetti -->
+<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script type="text/babel">
+const {useState,useMemo,useEffect} = React;
+
+// ---------- utils ----------
+const conf = window.confetti;
+const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+const copy = (t)=>navigator.clipboard.writeText(t);
+const extractKeywords = t=>{
+  const w=t.split(/\s+/).map(x=>x.toLowerCase().replace(/[^\w]/g,"")).filter(Boolean);
+  return [...new Set(w.slice(0,3))].slice(0,3);
+};
+function findExpiryDate(text){
+  const rRange=/(\d{1,2})[\/\.-](\d{1,2})(?:[\/\.-](\d{2,4}))?\s*[-–—]\s*(\d{1,2})(?:[\/\.-](\d{1,2}))?(?:[\/\.-](\d{2,4}))?/gi;
+  const rr=[...text.matchAll(rRange)];
+  if(rr.length){
+    const m=rr.pop(); let [_,sm,sd,sy,em,ed,ey]=m; const Y=x=>x?(+x<100?2000+ +x:+x):new Date().getFullYear();
+    const fmt=(mo,da,yr)=>({month:+mo,day:+da,year:yr,formatted:`${+mo}/${+da}`,clipboardFormat:`${+mo}/${String(da).padStart(2,"0")}/${yr}`});
+    const start=fmt(sm,sd,Y(sy));
+    let end=null;
+    if(em && ed) end=fmt(em,ed,Y(ey)); else if(em && !ed) end=fmt(start.month,em,start.year);
+    return {fullMatch:m[0],index:m.index,isRange:true,startDate:start,endDate:end};
+  }
+  const r=/\b(?:expires?|valid until|book by|travel by|through|ends|until|before|offer valid|sale ends)\s*:?\s*([A-Za-z]{3,9}\s+\d{1,2}(?:,\s*\d{2,4})?|\d{1,2}[\/\.-]\d{1,2}(?:[\/\.-]\d{2,4})?)|\b([A-Za-z]{3,9}\s+\d{1,2}(?:,\s*\d{2,4})?|\d{1,2}[\/\.-]\d{1,2}(?:[\/\.-]\d{2,4})?)\b/gi;
+  const m=[...text.matchAll(r)]; if(!m.length) return null; const last=m.pop(); let s=(last[1]||last[2]).trim().replace(/^[, ]+|[, ]+$/g,"");
+  let d=new Date(s);
+  if(!isNaN(d)) return {fullMatch:last[0],index:last.index,isRange:false,formattedShortDate:`${d.getMonth()+1}/${d.getDate()}`,clipboardFormat:`${d.getMonth()+1}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`};
+  const m2=s.match(/(\d{1,2})[\/\.-](\d{1,2})(?:[\/\.-](\d{2,4}))?/);
+  if(m2){const y=m2[3]? (+m2[3]<100?2000+ +m2[3]:+m2[3]) : new Date().getFullYear(); return {fullMatch:last[0],index:last.index,isRange:false,formattedShortDate:`${+m2[1]}/${+m2[2]}`,clipboardFormat:`${+m2[1]}/${String(m2[2]).padStart(2,"0")}/${y}`};}
+  return {fullMatch:last[0],index:last.index,isRange:false,formattedShortDate:s};
+}
+
+// ---------- ai via your vercel proxy (with model) ----------
+async function callAI({rules,overused,deal,notes,model}) {
+  const getPass = () => {
+    let p = sessionStorage.getItem("ai_password");
+    if (!p) {
+      p = window.prompt("Enter AI API password");
+      if (p) sessionStorage.setItem("ai_password", p);
+    }
+    return p;
+  };
+
+  const ask = async (password) => {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (password || "")
+      },
+      body: JSON.stringify({
+        model, // per-request model
+        messages: [
+          {
+            role: "system",
+            content: `You are a travel marketing expert. Transform travel promotions into engaging headlines and descriptions.
+${rules}
+Important: For BOTH headline and description, replace PPG with "Free Gratuities", OBC with "Onboard Credit", and PP with "Per Person".
+Avoid these overused words: ${overused.join(", ")}.
+Do NOT include expiry dates in your response, they will be added later.
+Respond with JSON only: { "headline": string, "description": string }`
+          },
+          {
+            role: "user",
+            content: notes
+              ? `Transform this travel promotion: "${deal}". Notes: "${notes}"`
+              : `Transform this travel promotion: "${deal}"`
+          }
+        ],
+        json: true
+      })
+    });
+
+    if (res.status === 401) {
+      sessionStorage.removeItem("ai_password");
+      const np = getPass();
+      if (!np) throw new Error("No password provided");
+      return ask(np); // retry once with fresh password
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>String(res.status));
+      throw new Error("AI API error: " + txt);
+    }
+
+    const data = await res.json();
+    try {
+      if (typeof data.content === "string") return JSON.parse(data.content);
+      return data.content; // if server ever returns object directly
+    } catch {
+      throw new Error("AI returned non-JSON content");
+    }
+  };
+
+  try {
+    const pw = getPass();
+    if (!pw) throw new Error("No password provided");
+    return await ask(pw);
+  } catch (e) {
+    console.error("callAI failed", e);
+    // graceful fallback
+    const base = deal
+      .replace(/\bPPG\b/g,"Free Gratuities")
+      .replace(/\bOBC\b/g,"Onboard Credit")
+      .replace(/\bPP\b/g,"Per Person");
+    const headline = (notes?notes.split(/[.!?]/)[0]:base).split(" ").slice(0,10).join(" ");
+    return {
+      headline: headline.replace(/^[a-z]/, c => c.toUpperCase()),
+      description: `${base}.`
+    };
+  }
+}
+
+// ---------- ui ----------
+function App(){
+  const [vendors,setVendors]=useState([]); // [{name,deals:[{text,exclusive,expiry,checked,ai}] }]
+  const [active,setActive]=useState(0);
+  const [search,setSearch]=useState("");
+  const [quick,setQuick]=useState({vendor:"",deal:"",expiry:""});
+  const [slide,setSlide]=useState(false);
+  const [bulk,setBulk]=useState("");
+  const [notes,setNotes]=useState({}); // key "v-d"
+  const [busy,setBusy]=useState({});
+  const [toast,setToast]=useState("");
+  const [genAll,setGenAll]=useState(false);
+  const [status,setStatus]=useState("");
+  const [overused,setOver]=useState([]);
+  const [rules,setRules]=useState(
+`Avoid marketing language that sounds spammy. Don't start with words like "Sail Away", "Unlock", "Score", "Indulge", "Savor", "Escape", "Dream". 
+Keep headlines concise and conversational without "CTA: description" format.
+Be straightforward and present the deals in few words.
+Avoid hyperbole and excessive adjectives.
+Deal titles should be 8-12 words, deal descriptions should be 10-16 words. 
+Always end the deal with the expiry "Ends [month/day, omit zeros]." Unless the expiry is "ongoing" then dont list it at the end.
+If the title has a branded sale, use that branded sale name in the deal description.
+
+Industry terms you must always use: 
+
+PPG = Free Gratuities 
+OBC = Onboard Credit
+PP = Per Person 
+
+"Covert"/"opaque" deals should suggest this is an appealing rate and a special opportunity, but they must call an agent for details.
+
+NEVER use rate codes. if there is a rate code, we dont need to share that, the sales agent they speak to will make sure its dealt with.
+
+If a deal says "exclusive", you must ALWAYS BEGIN THE DEAL TITLE WITH "EXCLUSIVE:"`
+  );
+
+  // Model state (now fixed to OpenRouter's free Grok 4 Fast)
+  const [model] = useState("x-ai/grok-4-fast:free");
+
+  useEffect(()=>{ if(toast){const t=setTimeout(()=>setToast(""),1600);return()=>clearTimeout(t)} },[toast]);
+
+  const filteredDeals = useMemo(()=>{
+    if(!vendors.length) return [];
+    const v=vendors[active]; if(!v) return [];
+    const q=search.trim().toLowerCase();
+    if(!q) return v.deals;
+    return v.deals.filter(d=>(d.text+d.ai?.headline+d.ai?.description).toLowerCase().includes(q));
+  },[vendors,active,search]);
+
+  const updateVendor = (idx,fn)=>{
+    setVendors(prev=>{
+      const copy=[...prev]; if(!copy[idx]) return prev;
+      copy[idx]={...copy[idx],deals:fn(copy[idx].deals)};
+      return copy;
+    });
+  };
+
+  const addQuick=()=>{
+    const vendor=quick.vendor.trim(); const deal=quick.deal.trim(); const exp=quick.expiry.trim();
+    if(!vendor||!deal||!exp) return setToast("Fill vendor, deal & expiry");
+    const expiry=findExpiryDate(exp);
+    setVendors(prev=>{
+      const copy=[...prev]; let v=copy.find(x=>x.name===vendor);
+      if(!v){v={name:vendor,deals:[]}; copy.push(v); setActive(copy.length-1);}
+      v.deals.push({text:deal,exclusive:false,checked:false,expiry,ai:null});
+      return copy;
+    });
+    setQuick({vendor:"",deal:"",expiry:""}); setToast("Deal added");
+  };
+
+  const parseBulk=()=>{
+    const lines=bulk.split("\n"); let parsed=[]; let cur=null;
+    for(const raw of lines){
+      const line=raw.trim(); if(!line) continue;
+      const m=line.match(/^(\w+)\s+(.*)$/); if(!m) continue;
+      const [_,t,content]=m;
+      if(t==="v"){cur={name:content,deals:[]}; parsed.push(cur);}
+      else if((t==="d"||t==="ed")&&cur){
+        const exp=findExpiryDate(content); let text=content;
+        if(exp?.fullMatch && typeof exp.index==="number"){
+          const i=exp.index, end=i+exp.fullMatch.length;
+          text=(content.slice(0,i)+content.slice(end)).replace(/\s\s+/g," ").replace(/[,\s.]+$/,"").trim();
+        }
+        cur.deals.push({text,exclusive:t==="ed",checked:false,expiry:exp,ai:null});
+      }
+    }
+    if(!parsed.length) return setToast("Nothing parsed");
+    setVendors(prev=>{
+      const map=new Map(prev.map(v=>[v.name,v]));
+      for(const v of parsed){ if(!map.has(v.name)) map.set(v.name,v); else map.get(v.name).deals.push(...v.deals); }
+      return [...map.values()];
+    });
+    setSlide(false); setBulk(""); setToast("Bulk parsed");
+  };
+
+  const toggle = (vi,di)=>{
+    updateVendor(vi,ds=>{
+      const copy=[...ds]; copy[di]={...copy[di],checked:!copy[di].checked};
+      if(copy[di].checked && conf){conf({particleCount:120,spread:70,origin:{y:.6}})}
+      return copy;
+    });
+  };
+
+  const generateOne = async(vi,di)=>{
+    const key=`${vi}-${di}`; setBusy(s=>({...s,[key]:true}));
+    const d=vendors[vi].deals[di];
+    const n=notes[key]||"";
+    const res=await callAI({rules,overused,deal:d.text,notes:n,model}).catch(e=>({headline:"",description:`${d.text}.`}));
+    const kws=extractKeywords(res.headline+" "+res.description); setOver(prev=>[...new Set([...prev,...kws])].slice(-20));
+    let desc=res.description.trim(); if(!desc.endsWith(".")) desc+=".";
+    const end = d.expiry?.isRange ? d.expiry.endDate : d.expiry;
+    if(end && (end.formatted || end.formattedShortDate)) desc+=` Ends ${end.formatted||end.formattedShortDate}.`;
+    updateVendor(vi,ds=>{const copy=[...ds]; copy[di]={...copy[di],ai:{headline:res.headline,description:desc}}; return copy;});
+    setNotes(n=>{const m={...n}; delete m[key]; return m;});
+    setBusy(s=>{const m={...s}; delete m[key]; return m;});
+  };
+
+  const generateVendorAll = async(vi)=>{
+    const ds=vendors[vi]?.deals||[]; for(let i=0;i<ds.length;i++){ if(ds[i].ai) continue; await generateOne(vi,i); await sleep(700); }
+  };
+
+  const generateAll = async()=>{
+    if(!vendors.length) return;
+    setGenAll(true); setStatus("Starting generation…");
+    for(let vi=0;vi<vendors.length;vi++){
+      setStatus(`Processing ${vendors[vi].name} (${vi+1}/${vendors.length})`);
+      const ds=vendors[vi].deals;
+      for(let di=0;di<ds.length;di++){
+        setStatus(`Processing ${vendors[vi].name}: Deal ${di+1}/${ds.length}`);
+        if(ds[di].ai) continue; await generateOne(vi,di); await sleep(900);
+      }
+    }
+    setStatus("All deals generated!"); setTimeout(()=>{setGenAll(false); setStatus("");},1400);
+  };
+
+  const copyDate = (date)=> copy(date.clipboardFormat||date.formattedShortDate).then(()=>setToast("Date copied"));
+  const setNote = (k,v)=>setNotes(s=>({...s,[k]:v}));
+  const activeVendor = vendors[active];
+
+  return (
+    <div className="app">
+      <aside className="sidebar">
+        <div className="brand"><div className="dot"/><h1>Deal Checklist</h1><span className="kbd">v1</span></div>
+        <div className="side-sec">
+          <h2>Vendors</h2>
+          <div className="vendor-list">
+            {vendors.map((v,i)=>(
+              <div key={v.name} className={"vendor "+(i===active?"active":"")} onClick={()=>setActive(i)}>
+                <div style={{display:"flex",flexDirection:"column"}}>
+                  <strong>{v.name}</strong>
+                  <span className="small">{v.deals.filter(d=>!d.checked).length} open • {v.deals.length} total</span>
+                </div>
+                <span className="badge">{v.deals.filter(d=>d.exclusive).length} EXC</span>
+              </div>
+            ))}
+            {!vendors.length && <div className="small" style={{padding:"8px 6px"}}>No vendors yet. Add below →</div>}
+          </div>
+        </div>
+        <div className="side-sec">
+          <h2>Quick Add</h2>
+          <div className="tools" style={{gridTemplateColumns:"1fr"}}>
+            <div className="inline-add">
+              <input placeholder="Vendor" value={quick.vendor} onChange={e=>setQuick({...quick,vendor:e.target.value})}/>
+              <input placeholder="Deal" value={quick.deal} onChange={e=>setQuick({...quick,deal:e.target.value})}/>
+            </div>
+            <div className="inline-add">
+              <input placeholder="Expiry (e.g., Ends 5/31/25)" value={quick.expiry} onChange={e=>setQuick({...quick,expiry:e.target.value})}/>
+              <button className="btn brand" onClick={addQuick}>+ Add</button>
+            </div>
+            <button className="btn" onClick={()=>setSlide(true)}>Bulk Paste</button>
+            <button className="btn brand" onClick={generateAll} disabled={!vendors.length || genAll}>{genAll?<span className="inline"><span className="spinner"/> Generating…</span>:"Generate All"}</button>
+          </div>
+        </div>
+        <div className="side-sec">
+          <h2>Content Rules</h2>
+          <div className="rules">
+            <div className="rulebar">
+              <div className="chips">
+                {(overused.length?overused:["none yet"]).map(w=><span className="chip" key={w}>{w}</span>)}
+              </div>
+              <button className="btn brand" onClick={()=>copy(rules).then(()=>setToast("Rules copied"))}>Copy</button>
+            </div>
+            <textarea value={rules} onChange={e=>setRules(e.target.value)}/>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main">
+        <div className="topbar">
+          <div className="search"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21 21l-4.3-4.3m1.3-5.2a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/></svg>
+            <input placeholder="Search in active vendor…" value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+
+          {/* No model picker needed - fixed to free Grok 4 Fast via OpenRouter */}
+
+          {activeVendor && (
+            <button className="btn brand" onClick={()=>generateVendorAll(active)}>
+              <span>AI Generate All in "{activeVendor.name}"</span>
+            </button>
+          )}
+        </div>
+
+        {activeVendor ? (
+          <section className="panel">
+            <div className="vendor-head">
+              <h3>{activeVendor.name}</h3>
+              <div className="inline small"><span className="badge">{activeVendor.deals.length}</span><span className="count">deals</span></div>
+            </div>
+            <div className="list">
+              {filteredDeals.map((d,i)=>{
+                const vi=active, di=vendors[vi].deals.indexOf(d); const key=`${vi}-${di}`;
+                return (
+                  <div className="card" key={key}>
+                    <input type="checkbox" className="check" checked={d.checked} onChange={()=>toggle(vi,di)}/>
+                    <div>
+                      <div className="meta">
+                        {d.exclusive && <span className="tag excl">EXCLUSIVE</span>}
+                        <span className="dealtext">{d.text}</span>
+                        {d.expiry && d.expiry.isRange && d.expiry.startDate &&
+                          <span className="pill start" title="Copy start date" onClick={()=>copyDate(d.expiry.startDate)}>{d.expiry.startDate.formatted}</span>}
+                        {d.expiry && ((d.expiry.isRange && d.expiry.endDate) || (!d.expiry.isRange && d.expiry.formattedShortDate)) &&
+                          <span className="pill end" title="Copy end date" onClick={()=>copyDate(d.expiry.isRange?d.expiry.endDate:d.expiry)}>{d.expiry.isRange?d.expiry.endDate.formatted:d.expiry.formattedShortDate}</span>}
+                        <button className="btn" onClick={()=>d.ai?setNotes(n=>({...n,[key]:n[key]??""})):generateOne(vi,di)} disabled={busy[key]}>{busy[key]?<span className="inline"><span className="spinner"/> AI</span>: d.ai?"AI+":"AI"}</button>
+                      </div>
+                      {notes[key]!==undefined &&
+                        <input className="note" placeholder="Add notes and press Enter…" value={notes[key]} onChange={e=>setNote(key,e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();generateOne(vi,di)}}}/> }
+                    </div>
+                    <div/>
+                    {d.ai &&
+                      <div className="ai-zone">
+                        <div className="ai-row"><div className="ai-title" onClick={()=>copy(d.ai.headline).then(()=>setToast("Headline copied"))}>{d.ai.headline}</div></div>
+                        <div className="ai-row"><div className="ai-desc" onClick={()=>copy(d.ai.description).then(()=>setToast("Description copied"))}>{d.ai.description}</div></div>
+                      </div>}
+                  </div>
+                );
+              })}
+              {!filteredDeals.length && <div className="small">No deals match your search.</div>}
+            </div>
+          </section>
+        ) : (
+          <section className="panel"><div className="small">Select a vendor or add your first deal.</div></section>
+        )}
+
+        {status && <div className="panel"><strong>Status:</strong> <span className="small">{status}</span></div>}
+      </main>
+
+      <div className={"slide "+(slide?"open":"")}>
+        <div className="back" onClick={()=>setSlide(false)}/>
+        <div className="sheet">
+          <h3>Bulk Add Deals</h3>
+          <p className="small">Format — one per line:<br/> <code>v Vendor Name</code> • <code>d Deal description…</code> • <code>ed Exclusive deal…</code></p>
+          <textarea placeholder={`v Oceanic Cruises
+d Balcony from $799 PP, PPG + $50 OBC. Ends 7/31.
+ed VIP suite 40% off. Travel 8/5–8/18.
+v Alpine Tours
+d Summer escapes 25% off Europe. Valid until Aug 12.`} value={bulk} onChange={e=>setBulk(e.target.value)} />
+          <div className="hr"></div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <button className="btn" onClick={()=>setSlide(false)}>Cancel</button>
+            <button className="btn brand" onClick={parseBulk}>Parse & Add</button>
+          </div>
+        </div>
+      </div>
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>

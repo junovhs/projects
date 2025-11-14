@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>Sunny — Episode Rater</title>
+<style>
+  :root{
+    --bg:#0f0f0f; --panel:#111; --panel-2:#0b0b0b; --text:#fff; --muted:#bdbdbd;
+    --gold:#ffd92c; --gold-2:#fff27a; --border:rgba(255,217,44,.25);
+    --hit:48px; --radius:16px; --radius-sm:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto}
+
+  header{position:sticky;top:0;z-index:10;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);
+    border-bottom:1px solid rgba(255,217,44,.15)}
+  .bar{max-width:840px;margin:0 auto;padding:10px 12px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+  h1{margin:0;font-size:clamp(1.05rem,4.6vw,1.25rem);letter-spacing:.2px;color:var(--gold)}
+  .bar-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{height:var(--hit);border-radius:999px;border:1px solid var(--border);background:var(--panel);color:#fff;
+    padding:0 14px;font-weight:700;letter-spacing:.3px;display:inline-grid;place-items:center}
+  .pill.primary{background:linear-gradient(45deg,var(--gold),var(--gold-2));color:#252525;border:0;box-shadow:0 6px 22px rgba(255,217,44,.28)}
+
+  main{max-width:840px;margin:0 auto;padding:12px}
+
+  .card{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:0 10px 30px rgba(0,0,0,.45);padding:12px}
+
+  .controls{display:grid;gap:8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .grow{flex:1 1 0}
+  select, input[type="search"], button.secondary{height:var(--hit);border-radius:var(--radius-sm);
+    border:1px solid var(--border);background:#0f0f0f;color:#fff;padding:0 12px;font-size:1rem}
+  button.secondary{display:inline-grid;place-items:center;padding:0 14px}
+  button.primary{height:var(--hit)}
+
+  .episode-head{display:grid;gap:2px}
+  .season{color:var(--gold);font-weight:800}
+  .title{font-size:1.05rem}
+  .meta{font-size:.9rem;color:var(--muted)}
+
+  .segment{display:inline-grid;grid-auto-flow:column;gap:6px;background:#101010;border:1px solid var(--border);
+    border-radius:999px;padding:4px}
+  .segment button{height:38px;padding:0 12px;border-radius:999px;border:0;background:transparent;color:#fff}
+  .segment button.active{background:var(--gold);color:#2a2a2a;font-weight:800}
+
+  .grid{display:grid;gap:10px}
+  .rating-grid{display:grid;gap:10px;margin-top:8px}
+  .rating-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  .rating-label{font-size:.95rem;color:var(--muted)}
+  .scoreline{font-size:.95rem}
+  .avg{font-size:.9rem;color:var(--muted)}
+
+  .stars{display:inline-flex;gap:6px}
+  .star-btn{appearance:none;border:1px solid var(--border);background:#121212;width:46px;height:46px;border-radius:12px;
+    display:grid;place-items:center;cursor:pointer}
+  .star-svg{width:22px;height:22px;display:block;filter:drop-shadow(0 0 6px rgba(255,217,44,.25))}
+  .star-bg{fill:#2a2a2a}.star-fill{fill:#575757}
+  .star-btn.active .star-fill,.star-btn.preview .star-fill{fill:var(--gold)}
+
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+
+  footer{padding:12px;text-align:center;color:var(--muted)}
+  @media (min-width:720px){ .rating-grid{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="bar">
+      <h1>Sunny — Episode Rater</h1>
+      <div class="bar-actions">
+        <button id="seedBtn" class="pill">Quick Seed 01–02</button>
+        <button id="randomBtn" class="pill primary">Wildcard, bitches!</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- PICKERS -->
+    <div class="card controls">
+      <div class="row">
+        <select id="seasonSelect" class="grow" title="Season"></select>
+        <select id="episodeSelect" class="grow" title="Episode"></select>
+        <button id="showBtn" class="secondary">Show</button>
+      </div>
+    </div>
+
+    <!-- EPISODE CARD -->
+    <div class="card" style="margin-top:12px" aria-live="polite">
+      <div class="episode-head">
+        <div class="season" id="epSeason">Season 1</div>
+        <div class="title"  id="epTitle">E01 — “The Gang Gets Racist”</div>
+        <div class="meta"   id="epMeta">S01E01</div>
+      </div>
+
+      <div class="grid" style="margin-top:8px">
+        <div class="row" style="align-items:center;justify-content:space-between">
+          <div class="segment" role="tablist" aria-label="Choose rater">
+            <button id="slotA" class="active"  role="tab" aria-selected="true">Rater A</button>
+            <button id="slotB"               role="tab" aria-selected="false">Rater B</button>
+          </div>
+          <div class="actions">
+            <button id="saveBtn" class="pill primary">Save</button>
+            <button id="wipeSlotBtn" class="pill">Wipe A/B</button>
+            <button id="wipeAllBtn" class="secondary">Wipe episode</button>
+          </div>
+        </div>
+
+        <!-- RATINGS -->
+        <div class="rating-grid">
+          <div class="rating-row">
+            <div class="rating-label">⭐ Overall Quality</div>
+            <div id="stars-overall" class="stars"></div>
+          </div>
+          <div class="rating-row">
+            <div class="rating-label">🔄 Rewatchability</div>
+            <div id="stars-rewatch" class="stars"></div>
+          </div>
+          <div class="rating-row">
+            <div class="rating-label">🗣️ Quotability</div>
+            <div id="stars-quote" class="stars"></div>
+          </div>
+          <div class="rating-row">
+            <div class="rating-label">⚡ Chaos Level</div>
+            <div id="stars-chaos" class="stars"></div>
+          </div>
+        </div>
+
+        <div class="scoreline" id="scoreline">—</div>
+        <div class="avg muted"  id="avgLine">Avg —</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>Mobile-first • Exactly two raters • 4 categories (max 20)</footer>
+</div>
+
+<script>
+/* ================================
+   Minimal IASIP Rater — Frontend
+   Works with /api/episode.js only
+================================ */
+
+/* ---------- Episode data (seasons 1–16; curate as you like) ---------- */
+const episodes = {
+  "Season 1": [
+    "The Gang Gets Racist",
+    "Charlie Wants an Abortion",
+    "Underage Drinking: A National Concern",
+    "Charlie Has Cancer",
+    "Gun Fever",
+    "The Gang Finds a Dead Guy",
+    "Charlie Got Molested"
+  ],
+  "Season 2": [
+    "Charlie Gets Crippled",
+    "The Gang Goes Jihad",
+    "Dennis and Dee Go on Welfare",
+    "Mac Bangs Dennis' Mom",
+    "Hundred Dollar Baby",
+    "The Gang Gives Back",
+    "The Gang Exploits a Miracle",
+    "The Gang Runs for Office",
+    "Charlie Goes America All Over Everybody's Ass",
+    "Dennis and Dee Get a New Dad"
+  ],
+  "Season 3": [
+    "The Gang Finds a Dumpster Baby",
+    "The Gang Gets Invincible",
+    "Dennis and Dee's Mom Is Dead",
+    "The Gang Gets Held Hostage",
+    "The Aluminum Monster vs. Fatty Magoo",
+    "The Gang Solves the North Korea Situation",
+    "The Gang Sells Out",
+    "Frank Sets Sweet Dee on Fire",
+    "Sweet Dee's Dating a Retarded Person",
+    "Mac Is a Serial Killer",
+    "Dennis Looks Like a Registered Sex Offender",
+    "The Gang Gets Whacked (Part 1)",
+    "The Gang Gets Whacked (Part 2)",
+    "Bums: Making a Mess All Over the City",
+    "The Gang Dances Their Asses Off"
+  ],
+  "Season 4": [
+    "Mac and Dennis: Manhunters",
+    "The Gang Solves the Gas Crisis",
+    "America's Next Top Paddy's Billboard Model Contest",
+    "Mac's Banging the Waitress",
+    "Mac and Charlie Die (Part 1)",
+    "Mac and Charlie Die (Part 2)",
+    "Who Pooped the Bed?",
+    "Paddy's Pub: The Worst Bar in Philadelphia",
+    "Dennis Reynolds: An Erotic Life",
+    "Sweet Dee Has a Heart Attack",
+    "The Gang Cracks the Liberty Bell",
+    "The Gang Gets Extreme: Home Makeover Edition",
+    "The Nightman Cometh"
+  ],
+  "Season 5": [
+    "The Gang Exploits the Mortgage Crisis",
+    "The Gang Hits the Road",
+    "The Great Recession",
+    "The Gang Gives Frank an Intervention",
+    "The Waitress Is Getting Married",
+    "The World Series Defense",
+    "The Gang Wrestles for the Troops",
+    "Paddy's Pub: Home of the Original Kitten Mittens",
+    "Mac and Dennis Break Up",
+    "The D.E.N.N.I.S. System",
+    "Mac and Charlie Write a Movie",
+    "The Gang Reignites the Rivalry"
+  ],
+  "Season 6": [
+    "Mac Fights Gay Marriage",
+    "Dennis Gets Divorced",
+    "The Gang Buys a Boat",
+    "Mac's Big Break",
+    "Mac and Charlie: White Trash",
+    "Mac's Mom Burns Her House Down",
+    "Who Got Dee Pregnant?",
+    "The Gang Gets a New Member",
+    "Dee Reynolds: Shaping America's Youth",
+    "Charlie Kelly: King of the Rats",
+    "The Gang Gets Stranded in the Woods",
+    "Dee Gives Birth",
+    "A Very Sunny Christmas"
+  ],
+  "Season 7": [
+    "Frank's Pretty Woman",
+    "The Gang Goes to the Jersey Shore",
+    "Frank Reynolds' Little Beauties",
+    "Sweet Dee Gets Audited",
+    "Frank's Brother",
+    "The Storm of the Century",
+    "Chardee MacDennis: The Game of Games",
+    "The ANTI-Social Network",
+    "The Gang Gets Trapped",
+    "How Mac Got Fat",
+    "Thunder Gun Express",
+    "The High School Reunion",
+    "The High School Reunion Part 2: The Gang's Revenge"
+  ],
+  "Season 8": [
+    "Pop-Pop: The Final Solution",
+    "The Gang Recycles Their Trash",
+    "The Maureen Ponderosa Wedding Massacre",
+    "Charlie and Dee Find Love",
+    "The Gang Gets Analyzed",
+    "Charlie's Mom Has Cancer",
+    "Frank's Back in Business",
+    "Charlie Rules the World",
+    "The Gang Dines Out",
+    "Reynolds vs. Reynolds: The Cereal Defense"
+  ],
+  "Season 9": [
+    "The Gang Broke Dee",
+    "Gun Fever Too: Still Hot",
+    "The Gang Tries Desperately to Win an Award",
+    "Mac and Dennis Buy a Timeshare",
+    "Mac Day",
+    "The Gang Saves the Day",
+    "The Gang Gets Quarantined",
+    "Flowers for Charlie",
+    "The Gang Makes Lethal Weapon 6",
+    "The Gang Squashes Their Beefs"
+  ],
+  "Season 10": [
+    "The Gang Beats Boggs",
+    "The Gang Group Dates",
+    "Psycho Pete Returns",
+    "Charlie Work",
+    "The Gang Spies Like U.S.",
+    "The Gang Misses the Boat",
+    "Mac Kills His Dad",
+    "The Gang Goes on Family Fight",
+    "Frank Retires",
+    "Ass Kickers United: Mac and Charlie Join a Cult"
+  ],
+  "Season 11": [
+    "Chardee MacDennis 2: Electric Boogaloo",
+    "Frank Falls Out the Window",
+    "The Gang Hits the Slopes",
+    "Dee Made a Smut Film",
+    "Mac & Dennis Move to the Suburbs",
+    "Being Frank",
+    "McPoyle vs. Ponderosa: The Trial of the Century",
+    "Charlie Catches a Leprechaun",
+    "The Gang Goes to Hell",
+    "The Gang Goes to Hell: Part Two"
+  ],
+  "Season 12": [
+    "The Gang Turns Black",
+    "The Gang Goes to a Water Park",
+    "Old Lady House: A Situation Comedy",
+    "Wolf Cola: A Public Relations Nightmare",
+    "Making Dennis Reynolds a Murderer",
+    "Hero or Hate Crime?",
+    "PTSDee",
+    "The Gang Tends Bar",
+    "A Cricket's Tale",
+    "Dennis' Double Life"
+  ],
+  "Season 13": [
+    "The Gang Makes Paddy's Great Again",
+    "The Gang Escapes",
+    "The Gang Beats Boggs: Ladies' Reboot",
+    "Time's Up for the Gang",
+    "The Gang Gets New Wheels",
+    "The Gang Solves the Bathroom Problem",
+    "The Gang Does a Clip Show",
+    "Charlie's Home Alone",
+    "The Gang Wins the Big Game",
+    "Mac Finds His Pride"
+  ],
+  "Season 14": [
+    "The Gang Gets Romantic",
+    "Thunder Gun 4: Maximum Cool",
+    "Dee Day",
+    "The Gang Chokes",
+    "The Gang Texts",
+    "The Janitor Always Mops Twice",
+    "The Gang Solves Global Warming",
+    "Paddy's Has a Jumper",
+    "A Woman's Right to Chop",
+    "Waiting for Big Mo"
+  ],
+  "Season 15": [
+    "2020: A Year in Review",
+    "The Gang Makes Lethal Weapon 7",
+    "The Gang Buys a Roller Rink",
+    "The Gang Replaces Dee with a Monkey",
+    "The Gang Goes to Ireland",
+    "The Gang's Still in Ireland",
+    "Dee Sinks in a Bog",
+    "The Gang Carries a Corpse Up a Mountain"
+  ],
+  "Season 16": [
+    "The Gang Inflates",
+    "Frank Shoots Every Member of the Gang",
+    "The Gang Gets Cursed",
+    "Celebrity Booze: The Ultimate Cash Grab",
+    "Risk E. Rat's Pizza and Amusement Center",
+    "Frank vs. Russia",
+    "The Gang Goes Bowling",
+    "Dennis Takes a Mental Health Day"
+  ],
+  "Season 17": [
+    "The Gang F***s Up Abbott Elementary",
+    "Frank Is in a Coma",
+    "Mac and Dennis Become EMTs",
+    "Thought Leadership: A Corporate Conversation",
+    "The Gang Goes to a Dog Track",
+    "Overage Drinking: A National Concern",
+    "The Gang Gets Ready for Prime Time",
+    "The Golden Bachelor Live"
+  ]
+};
+
+/* ---------- DOM refs ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const seasonSelect = $('#seasonSelect');
+const episodeSelect = $('#episodeSelect');
+const epSeason = $('#epSeason');
+const epTitle  = $('#epTitle');
+const epMeta   = $('#epMeta');
+const scoreline= $('#scoreline');
+const avgLine  = $('#avgLine');
+
+const slotA = $('#slotA');
+const slotB = $('#slotB');
+const saveBtn = $('#saveBtn');
+const wipeAllBtn = $('#wipeAllBtn');
+const wipeSlotBtn = $('#wipeSlotBtn');
+const showBtn = $('#showBtn');
+const randomBtn = $('#randomBtn');
+const seedBtn = $('#seedBtn');
+
+/* ---------- Utils ---------- */
+const pad2 = n => String(n).padStart(2,'0');
+const sNum = label => Number((label.match(/\d+/)||[0])[0]||0);
+const idFor = (seasonLabel, epNum) => `S${pad2(sNum(seasonLabel))}E${pad2(epNum)}`;
+
+/* ---------- API ---------- */
+const API = {
+  async get(id){ const r = await fetch(`/api/episode?id=${encodeURIComponent(id)}`, { cache:'no-store' }); if(!r.ok) throw new Error(await r.text()); return r.json(); },
+  async save(id, slot, score){ const r = await fetch(`/api/episode`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id, slot, score }) }); if(!r.ok) throw new Error(await r.text()); return r.json(); },
+  async wipe(id, slot){ const url = `/api/episode?id=${encodeURIComponent(id)}${slot?`&slot=${slot}`:''}`; const r = await fetch(url, { method:'DELETE' }); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+};
+
+/* ---------- Stars ---------- */
+function starSVG(){return `<svg class="star-svg" viewBox="0 0 24 24" aria-hidden="true">
+  <path class="star-bg" d="M12 2.75l2.86 5.79 6.39.93-4.62 4.5 1.09 6.36L12 17.9 6.28 20.33l1.09-6.36-4.62-4.5 6.39-.93L12 2.75z"/>
+  <path class="star-fill" d="M12 4.6l-2.1 4.25-4.7.69 3.4 3.3-.8 4.7 4.2-2.2 4.2 2.2-.8-4.7 3.4-3.3-4.7-.69L12 4.6z"/>
+</svg>`}
+function mountStars(el){
+  el.innerHTML = '';
+  const row = document.createElement('div'); row.className = 'stars';
+  let current = 0;
+  for(let i=1;i<=5;i++){
+    const b = document.createElement('button'); b.className='star-btn'; b.type='button'; b.innerHTML=starSVG(); b.dataset.value=i;
+    b.addEventListener('click', ()=>{ current = (current===i ? 0 : i); paint(); });
+    b.addEventListener('pointerenter', ()=>preview(i,true));
+    b.addEventListener('pointerleave', ()=>preview(i,false));
+    row.appendChild(b);
+  }
+  el.appendChild(row);
+  function paint(){ [...row.children].forEach((b,idx)=>b.classList.toggle('active', idx < current)) }
+  function preview(val,on){ [...row.children].forEach((b,idx)=>b.classList.toggle('preview', on && idx < val)) }
+  return { get:()=>current, set:v=>{ current=Math.max(0,Math.min(5,Number(v)||0)); paint(); } };
+}
+const starOverall = mountStars($('#stars-overall'));
+const starRewatch = mountStars($('#stars-rewatch'));
+const starQuote   = mountStars($('#stars-quote'));
+const starChaos   = mountStars($('#stars-chaos'));
+
+/* ---------- State ---------- */
+let activeSlot = 'a';
+let currentId  = 'S01E01';
+let cache = null; // { id, ratings: {a,b}, average, count }
+
+/* ---------- UI helpers ---------- */
+function setActiveSlot(s){
+  activeSlot = s;
+  slotA.classList.toggle('active', s==='a');
+  slotB.classList.toggle('active', s==='b');
+  paintCurrentSlot();
+}
+function paintCurrentSlot(){
+  const r = cache?.ratings?.[activeSlot] || { overall:0, rewatch:0, quote:0, chaos:0, total:0 };
+  starOverall.set(r.overall); starRewatch.set(r.rewatch); starQuote.set(r.quote); starChaos.set(r.chaos);
+}
+function paintHeader(seasonLabel, epNum, title){
+  epSeason.textContent = seasonLabel;
+  epTitle.textContent  = `E${pad2(epNum)} — “${title}”`;
+  epMeta.textContent   = idFor(seasonLabel, epNum);
+}
+
+/* ---------- Data flow ---------- */
+async function loadEpisode(seasonLabel, epNum){
+  currentId = idFor(seasonLabel, epNum);
+  paintHeader(seasonLabel, epNum, episodes[seasonLabel][epNum-1]);
+  try{
+    cache = await API.get(currentId);
+    const a = cache?.ratings?.a, b = cache?.ratings?.b;
+    const fmt = x => (x!=null ? `${x}/20` : '—');
+    scoreline.textContent = `A: ${fmt(a?.total)} | B: ${fmt(b?.total)} | Combined avg: ${fmt(cache?.average?.total)}`;
+    avgLine.textContent   = `Avg per category — ⭐ ${Number(cache?.average?.overall||0).toFixed(2)} • 🔄 ${Number(cache?.average?.rewatch||0).toFixed(2)} • 🗣️ ${Number(cache?.average?.quote||0).toFixed(2)} • ⚡ ${Number(cache?.average?.chaos||0).toFixed(2)} (${cache?.count||0} rater${(cache?.count||0)===1?'':'s'})`;
+  }catch(e){
+    cache = { ratings:{a:null,b:null}, average:{}, count:0 };
+    scoreline.textContent = '—';
+    avgLine.textContent   = '—';
+  }
+  paintCurrentSlot();
+}
+
+async function saveCurrent(){
+  const score = { overall:starOverall.get(), rewatch:starRewatch.get(), quote:starQuote.get(), chaos:starChaos.get() };
+  try{
+    await API.save(currentId, activeSlot, score);
+    cache = await API.get(currentId);
+    paintCurrentSlot();
+    const a = cache?.ratings?.a, b = cache?.ratings?.b;
+    const fmt = x => (x!=null ? `${x}/20` : '—');
+    scoreline.textContent = `A: ${fmt(a?.total)} | B: ${fmt(b?.total)} | Combined avg: ${fmt(cache?.average?.total)}`;
+    avgLine.textContent   = `Avg per category — ⭐ ${Number(cache?.average?.overall||0).toFixed(2)} • 🔄 ${Number(cache?.average?.rewatch||0).toFixed(2)} • 🗣️ ${Number(cache?.average?.quote||0).toFixed(2)} • ⚡ ${Number(cache?.average?.chaos||0).toFixed(2)} (${cache?.count||0} rater${(cache?.count||0)===1?'':'s'})`;
+  }catch(e){
+    alert('Save failed: ' + (e?.message || e));
+  }
+}
+
+async function wipeEpisode(){
+  if (!confirm('Wipe ALL ratings for this episode?')) return;
+  try{ await API.wipe(currentId); await loadEpisode(seasonSelect.value, Number(episodeSelect.value)); }
+  catch(e){ alert('Wipe failed: ' + (e?.message || e)); }
+}
+async function wipeSlot(){
+  const s = activeSlot;
+  if (!confirm(`Wipe ratings for Rater ${s.toUpperCase()} on this episode?`)) return;
+  try{ await API.wipe(currentId, s); await loadEpisode(seasonSelect.value, Number(episodeSelect.value)); }
+  catch(e){ alert('Wipe failed: ' + (e?.message || e)); }
+}
+
+/* ---------- Seeding helper (front-end only, remove when done) ---------- */
+async function quickSeed(){
+  const s = { overall:3, rewatch:2, quote:0, chaos:3 };
+  try{
+    // Wipe both then set slot A for S01E01 & S01E02
+    await API.wipe('S01E01'); await API.save('S01E01','a',s);
+    await API.wipe('S01E02'); await API.save('S01E02','a',s);
+    alert('Seeded S01E01 & S01E02 with A: 3/2/0/3');
+    if (currentId==='S01E01' || currentId==='S01E02'){
+      await loadEpisode(seasonSelect.value, Number(episodeSelect.value));
+    }
+  }catch(e){
+    alert('Seed failed: ' + (e?.message || e));
+  }
+}
+
+/* ---------- UI wiring ---------- */
+function populateSeasonOptions(){
+  seasonSelect.innerHTML = '';
+  Object.keys(episodes).forEach(season=>{
+    const o=document.createElement('option'); o.value=season; o.textContent=season; seasonSelect.appendChild(o);
+  });
+}
+function populateEpisodeOptions(seasonLabel){
+  episodeSelect.innerHTML = '';
+  (episodes[seasonLabel]||[]).forEach((title,idx)=>{
+    const o=document.createElement('option'); o.value=String(idx+1); o.textContent=`E${pad2(idx+1)} — ${title}`;
+    episodeSelect.appendChild(o);
+  });
+}
+
+slotA.addEventListener('click', ()=>setActiveSlot('a'));
+slotB.addEventListener('click', ()=>setActiveSlot('b'));
+saveBtn.addEventListener('click', saveCurrent);
+wipeAllBtn.addEventListener('click', wipeEpisode);
+wipeSlotBtn.addEventListener('click', wipeSlot);
+showBtn.addEventListener('click', ()=>loadEpisode(seasonSelect.value, Number(episodeSelect.value)));
+randomBtn.addEventListener('click', ()=>{
+  const seasons = Object.keys(episodes);
+  const sLabel = seasons[Math.floor(Math.random()*seasons.length)];
+  const list = episodes[sLabel];
+  const n = Math.floor(Math.random()*list.length)+1;
+  seasonSelect.value = sLabel; populateEpisodeOptions(sLabel); episodeSelect.value = String(n);
+  loadEpisode(sLabel, n);
+});
+seedBtn.addEventListener('click', quickSeed);
+
+/* ---------- Init ---------- */
+(function init(){
+  populateSeasonOptions();
+  populateEpisodeOptions(Object.keys(episodes)[0]);
+  seasonSelect.addEventListener('change', ()=>populateEpisodeOptions(seasonSelect.value));
+  // Default to S01E01
+  seasonSelect.value = 'Season 1';
+  episodeSelect.value = '1';
+  loadEpisode('Season 1', 1);
+})();
+</script>
+</body>
+</html>
