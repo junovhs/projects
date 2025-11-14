@@ -1,6 +1,6 @@
 // projects/api/storage.js
 import { head } from "@vercel/blob";
-import { log } from "./_lib/log.js";
+import { log } from "./lib/log.js";
 
 async function loadJson(path, fallback) {
   try {
