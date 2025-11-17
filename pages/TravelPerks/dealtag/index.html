@@ -248,7 +248,27 @@ const suppliers = [
 /* ============== HELPERS & MATCHING ============== */
 const norm = s => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
   .replace(/&/g,' and ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
-const tokens = s => new Set(norm(s).split(' ').filter(w=>w.length>1));
+
+// Generic industry words that should NOT drive fuzzy matches
+const STOP_TOKENS = new Set([
+  "vacations","vacation",
+  "tours","tour",
+  "travel","travels",
+  "holidays","holiday",
+  "cruises","cruise",
+  "resorts","resort",
+  "hotels","hotel",
+  "journeys","journey",
+  "adventures","adventure"
+]);
+
+const tokens = s =>
+  new Set(
+    norm(s)
+      .split(' ')
+      .filter(w => w.length > 1 && !STOP_TOKENS.has(w))
+  );
+
 const supplierIndex = suppliers.map(s=>({ raw:s.name, n:norm(s.name), toks:tokens(s.name) }));
 function jaccard(a,b){ let i=0; for(const x of a){ if(b.has(x)) i++; } return i/(a.size+b.size-i||1); }
 
@@ -260,7 +280,10 @@ function bestSupplierMatch(name){
   const exact = supplierIndex.find(s=>s.n === normalized);
   if(exact) return {score:1,match:exact.raw,via: a1 ? "alias" : "exact"};
   const t = tokens(normalized); let best = {score:0,match:null,via:"jaccard"};
-  for(const s of supplierIndex){ const sc = jaccard(t, s.toks); if(sc>best.score) best={score:sc,match:s.raw,via:"jaccard"}; }
+  for(const s of supplierIndex){
+    const sc = jaccard(t, s.toks);
+    if(sc>best.score) best={score:sc,match:s.raw,via:"jaccard"};
+  }
   return best;
 }
 
@@ -322,7 +345,9 @@ function looksLikeVendorCandidate(t){
 function isKnownSupplier(line){
   const label = canonicalVendorLabel(line);
   const {score,via}=bestSupplierMatch(label.trim());
-  return STRICT_SUPPLIERS ? (via==="alias"||via==="exact"||(via==="jaccard"&&score>=0.3)) : (score>=0.34||via==="alias");
+  return STRICT_SUPPLIERS
+    ? (via==="alias"||via==="exact"||(via==="jaccard"&&score>=0.3))
+    : (score>=0.34||via==="alias");
 }
 function isContinuation(line){ return /^\s*(\(|–|-)/.test(line); }
 
