@@ -135,7 +135,7 @@
 </main>
 
 <script>
-/* =================== CONFIG (same logic as your working version) =================== */
+/* =================== CONFIG =================== */
 const STRICT_SUPPLIERS = true;
 const FAMILY_ALIASES_ALLOWED = false;
 
@@ -155,11 +155,12 @@ const aliases = new Map(Object.entries({
   "walt disney world":"disneyworld",
   "globus":"globus journeys",
   "riu":"riu hotels & resorts",
-  "regent seven seas":"regent seven seas cruises"
+  "regent seven seas":"regent seven seas cruises",
+  "amawaterways":"ama waterways"
 }));
 const familyAliases = new Map(Object.entries({}));
 
-/* ============== SUPPLIER MASTER LIST (exactly yours) ============== */
+/* ============== SUPPLIER MASTER LIST (same as yours) ============== */
 const suppliers = [
   {name: "Abercrombie & Kent", url: "abercrombie-kent", cats: ["tour"]},
   {name: "Adventures by Disney", url: "adventures-by-disney", cats: ["dis", "tour"]},
@@ -244,7 +245,7 @@ const suppliers = [
   {name: "Zoëtry Wellness & Spa Resorts", url: "zoetry", cats: ["res"]}
 ].sort((a,b)=>a.name.localeCompare(b.name));
 
-/* ============== HELPERS & MATCHING (unchanged) ============== */
+/* ============== HELPERS & MATCHING ============== */
 const norm = s => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
   .replace(/&/g,' and ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 const tokens = s => new Set(norm(s).split(' ').filter(w=>w.length>1));
@@ -276,22 +277,56 @@ function looksLikeDeal(t){
   if(DEAL_CUES.test(t)&&/[%$]|\bup to\b|\d/.test(t)) return true;
   return false;
 }
+
+/* Canonical vendor label: TTC Tour Brands -> Trafalgar, everything else stays as-typed (minus bullet) */
+function canonicalVendorLabel(line){
+  let stripped = line.replace(/^•\s*/,'').trim();
+  // TTC Tour Brands (any junk after it) should collapse to Trafalgar
+  if (/^TTC\s+Tour\s+Brands\b/i.test(stripped)) {
+    return "Trafalgar";
+  }
+  return stripped;
+}
+
+/* vendor detection: tolerant of :, (), commas, but still rejects promo headings */
 function looksLikeVendorCandidate(t){
   if(!t.trim()||SECTION_HEADING.test(t)) return false;
   if(looksLikeDeal(t)) return false;
-  if(/\s[-–—]\s/.test(t)) return false;
-  if(/[.:]/.test(t)&&!/^•\s*[A-Za-z]/.test(t)) return false;
-  const words=t.replace(/^•\s*/,'').trim().split(/\s+/);
-  const properish=words.length<=8&&words.every(w=>/^[A-Za-z&.\-’'()]+$/.test(w));
+
+  // If it smells like a promo name, don't treat as vendor
+  if(/\b(sale|offer|offers|promo|promotion|deal|special)\b/i.test(t)) return false;
+
+  // Strip bullet and trivial trailing punctuation for detection
+  let trimmed = t.replace(/^•\s*/,'').trim();
+  trimmed = trimmed.replace(/[:*†\-\u2013\u2014]+$/,'').trim();
+  if(!trimmed) return false;
+
+  // Collapse parenthetical brand lists for the *check* only
+  const detectText = trimmed.replace(/\([^)]*\)/g,'').trim() || trimmed;
+  if(!detectText) return false;
+
+  // If what's left looks like a sentence with obvious punctuation, bail
+  if(/[.!?].+/.test(detectText)) return false;
+
+  let words = detectText.split(/\s+/);
+  if(words.length>10) return false;
+
+  // Strip trailing commas/semicolons on each word for the "proper name" check
+  words = words.map(w => w.replace(/[,:;]+$/,''));
+
+  // Allow / and () so "Scenic/Emerald Cruises" still passes
+  const properish = words.every(w=>/^[A-Za-z&.\-’'()/]+$/.test(w));
   return properish;
 }
+
 function isKnownSupplier(line){
-  const {score,via}=bestSupplierMatch(line.trim());
+  const label = canonicalVendorLabel(line);
+  const {score,via}=bestSupplierMatch(label.trim());
   return STRICT_SUPPLIERS ? (via==="alias"||via==="exact"||(via==="jaccard"&&score>=0.3)) : (score>=0.34||via==="alias");
 }
 function isContinuation(line){ return /^\s*(\(|–|-)/.test(line); }
 
-/* ============== TRANSFORM (now supports includeUnknowns toggle) ============== */
+/* ============== TRANSFORM ============== */
 function transform(raw, {includeUnknowns=true} = {}){
   const lines=raw.replace(/\r\n/g,"\n").split("\n");
   const out=[]; let lastIndex=-1; let currentKnown=null; let lastWasDeal=false;
@@ -323,7 +358,8 @@ function transform(raw, {includeUnknowns=true} = {}){
 
     if(looksLikeVendorCandidate(orig)){
       if(isKnownSupplier(orig)){
-        vendorCount++; const lineText=`v\t${orig}`;
+        const label = canonicalVendorLabel(orig);
+        vendorCount++; const lineText=`v\t${label}`;
         out.push(lineText); currentKnown=true; lastWasDeal=false; lastIndex=out.length-1;
       } else {
         unknownCount++; currentKnown=false; lastWasDeal=false;
