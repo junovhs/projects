@@ -467,6 +467,20 @@ function extractFeatures(text) {
   return feats;
 }
 
+/* ===================== Feature Richness Scoring ===================== */
+function featureRichness(feats) {
+  return (
+    (feats.dollars ? 20 : 0) +
+    ((feats.percent || feats.percentWords) ? 20 : 0) +
+    (feats.covert ? 10 : 0) +
+    (feats.gratuities ? 6 : 0) +
+    (feats.kidsFree ? 4 : 0) +
+    (feats.obc ? 4 : 0) +
+    (feats.instant ? 3 : 0) +
+    (feats.guestCount ? 2 : 0)
+  );
+}
+
 /* ===================== Website JSON ingest ===================== */
 let websiteDeals = [];
 
@@ -584,9 +598,9 @@ function similarity(hq, web) {
   }
   if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) { score += 4; why.push('guests='); }
 
-  // Text similarity
+  // Text similarity - LOWERED THRESHOLD FROM 0.3 TO 0.2
   const jacc = jaccardSim(hq.text, web.text);
-  if (jacc.sim > 0.3) {
+  if (jacc.sim > 0.2) {
     const pts = Math.floor(jacc.sim * 8);
     score += pts;
     why.push(`text(${jacc.count})`);
@@ -624,12 +638,11 @@ function matchAll(hqDeals) {
     filteredHQ = hqDeals.filter(hq => canonicalVendor(hq.vendor) === canonicalVendor(filterSupplier));
   }
 
-  // Sort HQ deals by score potential (prioritize deals with more specific features)
-  // This ensures better matches happen first in greedy algorithm
+  // Sort HQ deals by feature richness - process most specific deals first
   filteredHQ = [...filteredHQ].sort((a, b) => {
-    const scoreA = (a.features.dollars ? 10 : 0) + (a.features.percent ? 10 : 0) + (a.features.covert ? 5 : 0);
-    const scoreB = (b.features.dollars ? 10 : 0) + (b.features.percent ? 10 : 0) + (b.features.covert ? 5 : 0);
-    return scoreB - scoreA; // Higher feature count first
+    const scoreA = featureRichness(a.features);
+    const scoreB = featureRichness(b.features);
+    return scoreB - scoreA; // Higher richness first
   });
 
   for (const hq of filteredHQ) {
