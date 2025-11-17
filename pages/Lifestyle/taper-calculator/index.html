@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-Substance Taper Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 820px;
+      width: 100%;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.25rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      color: #9ca3af;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      padding: 16px 18px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.7);
+      margin-bottom: 16px;
+    }
+
+    .banner {
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+
+    .banner-danger {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.7);
+      color: #fecaca;
+    }
+
+    .banner-warn {
+      background: rgba(234, 179, 8, 0.08);
+      border: 1px solid rgba(250, 204, 21, 0.6);
+      color: #fef9c3;
+    }
+
+    .banner-soft {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.6);
+      color: #bfdbfe;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+    }
+
+    input:focus, select:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+      border-color: #3b82f6;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .row .field {
+      flex: 1 1 160px;
+    }
+
+    button {
+      margin-top: 8px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(22, 163, 74, 0.6);
+    }
+
+    button:hover {
+      filter: brightness(1.08);
+    }
+
+    button.secondary {
+      background: transparent;
+      border: 1px solid #4b5563;
+      box-shadow: none;
+      margin-left: 8px;
+    }
+
+    button.secondary:hover {
+      background: rgba(31, 41, 55, 0.8);
+    }
+
+    .tiny {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    .today-box {
+      font-size: 0.95rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .today-highlight {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #bbf7d0;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #374151;
+      color: #9ca3af;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 6px 4px;
+      border-bottom: 1px solid #1f2933;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      font-weight: 600;
+      color: #9ca3af;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .drinks-cell {
+      font-weight: 600;
+    }
+
+    .drinks-small {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .chip-row {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .example-chip {
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .example-chip:hover {
+      background: #111827;
+    }
+
+    @media (max-width: 540px) {
+      .app {
+        padding-inline: 12px;
+      }
+      th:nth-child(2), td:nth-child(2) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Multi-Substance Taper Planner</h1>
+    <p class="subtitle">
+      Build a gentle, day-by-day reduction plan for alcohol, nicotine, cannabis, caffeine, kratom, or custom substances.
+      Numbers are <strong>maximum suggestions</strong>, not commands. Less is always okay.
+    </p>
+  </header>
+
+  <section class="card">
+    <div class="banner banner-danger">
+      <strong>Critical safety:</strong> For <strong>alcohol, benzodiazepines, GHB, or opioids</strong>, or if you’ve ever
+      had seizures, hallucinations, or severe withdrawal, do <strong>not</strong> taper alone. Talk with a doctor, detox
+      program, or telehealth service. This page is a planning tool only, not medical advice.
+    </div>
+
+    <div class="banner banner-soft">
+      You choose <strong>what</strong> you’re tapering, <strong>how you measure it</strong> (drinks, joints, grams, etc.),
+      and your <strong>slow-down speed</strong>. The app makes a smooth curve down to (or toward) zero.
+    </div>
+
+    <form id="planForm">
+      <div class="row">
+        <div class="field">
+          <label for="substance">Substance</label>
+          <select id="substance">
+            <option value="alcohol">Alcohol</option>
+            <option value="tobacco">Tobacco / Nicotine</option>
+            <option value="cannabis">Cannabis</option>
+            <option value="caffeine">Coffee / Caffeine</option>
+            <option value="kratom">Kratom / Herbal</option>
+            <option value="other">Other / Custom</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="substanceDetail">Describe it (optional)</label>
+          <input id="substanceDetail" type="text" placeholder="e.g., vodka, beer, joints, vape juice, kratom powder">
+        </div>
+      </div>
+
+      <div id="substanceInfo" class="tiny" style="margin-bottom:8px;"></div>
+
+      <div class="row">
+        <div class="field">
+          <label for="currentAmount">Current daily average</label>
+          <input id="currentAmount" type="number" min="0" step="0.01" placeholder="e.g., 6">
+          <div class="tiny">Average amount per day in your chosen unit (below).</div>
+        </div>
+
+        <div class="field">
+          <label for="days">Taper length (days)</label>
+          <input id="days" type="number" min="7" max="90" value="30">
+          <div class="tiny">You said ~1 month; you can go slower or faster (7–90 days).</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="unitLabel">Unit name</label>
+          <input id="unitLabel" type="text" placeholder="e.g., drinks, joints, cigarettes, grams, teaspoons">
+          <div class="tiny">This is how <strong>you</strong> count it day to day.</div>
+        </div>
+        <div class="field">
+          <label for="unitStep">Smallest step in this unit</label>
+          <input id="unitStep" type="number" min="0.01" step="0.01" value="1">
+          <div class="tiny">
+            Examples: 1 cigarette, 0.5 drinks, 0.25 joints, 0.25 teaspoons, 5 mg, etc.
+          </div>
+        </div>
+      </div>
+
+      <div id="unitExamples"></div>
+
+      <div class="field">
+        <label for="startDate">Plan start date</label>
+        <input id="startDate" type="date">
+        <div class="tiny">Default is today. “Today is day X” is based on this date.</div>
+      </div>
+
+      <button type="submit">Generate / Update Plan</button>
+      <button type="button" class="secondary" id="clearPlanBtn">Clear saved plan</button>
+
+      <div class="tiny" style="margin-top:10px;">
+        If you feel very unwell at any point (confused, can’t stop shaking, heart racing, chest pain, seeing/hearing things),
+        <strong>get medical help immediately</strong>.
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="todayCard" style="display:none;">
+    <h2>Today’s check-in</h2>
+    <div class="today-box" id="todayBox"></div>
+  </section>
+
+  <section class="card" id="planCard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <h2 style="margin:0;">Your taper schedule</h2>
+      <span class="chip">
+        <span class="chip-dot"></span>
+        <span id="chipText">Active plan</span>
+      </span>
+    </div>
+    <p class="tiny">
+      These are <strong>maximum suggested</strong> amounts per day in your chosen unit.
+      You can always choose less, skip, or slow down further.
+    </p>
+    <div id="coarseWarning"></div>
+    <div id="planTableWrapper"></div>
+  </section>
+
+  <section class="card">
+    <h2>Extra support ideas</h2>
+    <ul style="font-size:0.85rem; padding-left:18px; margin-top:6px; color:#9ca3af;">
+      <li>Tell a trusted friend what you’re doing and ask them to check in on tough days.</li>
+      <li>Keep “comfort” stuff around (snacks, water/electrolytes, sleep aids approved by your doctor, chill activities).</li>
+      <li>Plan bigger step-downs for lower-stress days if possible.</li>
+      <li>Look up local or online support (peer groups, hotlines, telehealth, etc.). Having humans in the loop helps a lot.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const STORAGE_KEY = 'multiSubstanceTaperPlanV1';
+
+  const SUBSTANCE_CONFIG = {
+    alcohol: {
+      label: 'Alcohol',
+      safetyNote:
+        'Alcohol withdrawal (especially at around 10+ standard drinks/day or with past seizures, hallucinations, or DTs) can be dangerous. ' +
+        'Get medical help if you are shaking badly, confused, or seeing/hearing things.',
+      exampleUnits: [
+        { label: 'standard drinks', step: 0.5 },
+        { label: 'cans of beer', step: 1 },
+        { label: 'glasses of wine', step: 0.5 },
+        { label: 'shots of liquor', step: 0.5 },
+        { label: 'bottles of spirits', step: 1 }
+      ],
+      coarseHint:
+        'For example, instead of whole bottles, you might track shots, ounces, or standard drinks so each step is smaller.'
+    },
+    tobacco: {
+      label: 'Tobacco / Nicotine',
+      safetyNote:
+        'Nicotine withdrawal is usually not medically dangerous, but cravings, irritability, and sleep issues can be intense. ' +
+        'If you have heart or blood pressure problems, talk with a clinician.',
+      exampleUnits: [
+        { label: 'cigarettes', step: 1 },
+        { label: 'packs of cigarettes', step: 0.5 },
+        { label: 'vape puffs', step: 10 },
+        { label: 'ml of e-liquid', step: 0.2 }
+      ],
+      coarseHint:
+        'If you currently count in packs, switching to individual cigarettes or ml of liquid makes taper steps smaller.'
+    },
+    cannabis: {
+      label: 'Cannabis',
+      safetyNote:
+        'Cannabis withdrawal (especially with heavy daily use) can bring irritability, low mood, and sleep issues. ' +
+        'Usually not medically dangerous, but if you have a history of psychosis, talk to a professional.',
+      exampleUnits: [
+        { label: 'joints', step: 0.25 },
+        { label: 'bowls', step: 0.25 },
+        { label: 'grams', step: 0.1 },
+        { label: 'mg THC (edibles)', step: 5 }
+      ],
+      coarseHint:
+        'If you tend to use big joints or strong edibles, try counting smaller fractions, grams, or mg THC.'
+    },
+    caffeine: {
+      label: 'Coffee / Caffeine',
+      safetyNote:
+        'Cutting caffeine quickly can cause headaches, sleepiness, and low mood. Usually not dangerous, but it can feel rough.',
+      exampleUnits: [
+        { label: 'cups of coffee', step: 0.25 },
+        { label: 'espresso shots', step: 0.25 },
+        { label: 'energy drink cans', step: 0.5 }
+      ],
+      coarseHint:
+        'You can track half-cups or smaller servings instead of full cans or large mugs to make steps gentler.'
+    },
+    kratom: {
+      label: 'Kratom / Herbal',
+      safetyNote:
+        'Kratom and some herbal products can cause dependence and withdrawal, especially at high doses or combined with sedatives or opioids. ' +
+        'If your use is heavy or mixed with other depressants, talk with a clinician.',
+      exampleUnits: [
+        { label: 'grams', step: 0.25 },
+        { label: 'teaspoons', step: 0.25 },
+        { label: 'capsules', step: 1 }
+      ],
+      coarseHint:
+        'If you use big scoops, consider weighing grams or counting smaller spoonfuls or capsules.'
+    },
+    other: {
+      label: 'Other / Custom',
+      safetyNote:
+        'For substances like benzodiazepines, GHB, or opioids, do not taper on your own—medical supervision is strongly recommended.',
+      exampleUnits: [
+        { label: 'units', step: 0.5 },
+        { label: 'pills', step: 0.5 },
+        { label: 'grams', step: 0.1 }
+      ],
+      coarseHint:
+        'Pick the smallest unit you can reliably measure to keep taper steps smoother.'
+    }
+  };
+
+  function savePlan(plan) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  }
+
+  function loadPlan() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('Bad plan JSON', e);
+      return null;
+    }
+  }
+
+  function clearPlan() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function formatDate(d) {
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  // Smooth taper curve in "raw units" before rounding
+  function generateSchedule(currentPerDay, days) {
+    const schedule = [];
+    if (days < 2) {
+      schedule.push(currentPerDay);
+      return schedule;
+    }
+    for (let i = 0; i < days; i++) {
+      const t = i / (days - 1); // 0..1
+      const curve = Math.pow(1 - t, 1.2); // non-linear; gentler early, steeper later
+      let val = currentPerDay * curve;
+      schedule.push(val);
+    }
+    // Ensure final day is zero target
+    schedule[schedule.length - 1] = 0;
+    return schedule;
+  }
+
+  function roundDownToStep(value, step) {
+    if (step <= 0) return value;
+    if (value <= 0) return 0;
+    const raw = Math.floor(value / step) * step;
+    // Avoid negative zero / weird small numbers
+    return raw < step * 0.0001 ? 0 : Math.round(raw * 1000) / 1000;
+  }
+
+  function buildPlanTable(plan) {
+    const wrapper = document.getElementById('planTableWrapper');
+    const start = new Date(plan.startDate + 'T00:00:00');
+    const schedule = plan.schedule;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const unit = plan.unitLabel || 'units';
+
+    let html = '<table><thead><tr>' +
+      '<th>Day</th><th>Date</th><th>Max per day</th>' +
+      '</tr></thead><tbody>';
+
+    schedule.forEach((amount, i) => {
+      const d = new Date(start.getTime() + i * dayMs);
+      const isZero = amount === 0;
+      const display = amount.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+      html += '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + formatDate(d) + '</td>' +
+        '<td class="drinks-cell">' +
+          display + ' ' + unit +
+          '<span class="drinks-small">' +
+            (isZero ? ' (aiming for none)' : ' max, less is better') +
+          '</span>' +
+        '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    wrapper.innerHTML = html;
+  }
+
+  function updateTodayCard(plan) {
+    const todayCard = document.getElementById('todayCard');
+    const todayBox = document.getElementById('todayBox');
+
+    if (!plan) {
+      todayCard.style.display = 'none';
+      return;
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(plan.startDate + 'T00:00:00');
+    const dayMs = 24 * 60 * 60 * 1000;
+    const diffDays = Math.floor((today - start) / dayMs) + 1; // day index 1-based
+    const unit = plan.unitLabel || 'units';
+    const substanceName = plan.substanceDetail || SUBSTANCE_CONFIG[plan.substanceKey]?.label || 'your substance';
+
+    let html = '';
+
+    if (diffDays < 1) {
+      html += '<div>Your plan for <strong>' + substanceName + '</strong> starts on <strong>' + formatDate(start) + '</strong>.</div>';
+      html += '<div class="muted tiny">On that day, I\'ll show your suggested max for day 1.</div>';
+    } else if (diffDays > plan.schedule.length) {
+      html += '<div>Plan finished 🎉</div>';
+      html += '<div class="tiny">If you\'re still using, you can create a new gentler plan or check in with a professional about next steps.</div>';
+    } else {
+      const maxAmount = plan.schedule[diffDays - 1];
+      const display = maxAmount.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+      html += '<div>Today is <strong>day ' + diffDays + '</strong> of your taper for <strong>' + substanceName + '</strong>.</div>';
+      html += '<div class="today-highlight">Suggested maximum: ' +
+        display + ' ' + unit + (maxAmount === 1 ? '' : '') + ' today.</div>';
+      html += '<div class="tiny">Less is always okay. Skipping a day is great if you feel able. If you\'re struggling or tempted to go over, consider reaching out to someone.</div>';
+    }
+
+    todayBox.innerHTML = html;
+    todayCard.style.display = 'block';
+  }
+
+  function updateCoarseWarning(plan) {
+    const container = document.getElementById('coarseWarning');
+    container.innerHTML = '';
+    if (!plan) return;
+
+    const step = plan.unitStep;
+    const current = plan.currentPerDay;
+    if (!step || !current || step <= 0 || current <= 0) return;
+
+    const rel = step / current; // fraction of baseline
+    if (rel <= 0.15) return; // <=15% is okay-ish
+
+    const cfg = SUBSTANCE_CONFIG[plan.substanceKey] || {};
+    let msg = 'Your smallest step (' + step + ' ' + plan.unitLabel + ') is more than 15% of your current daily amount (' +
+      current + ' ' + plan.unitLabel + '). That makes it hard to reduce gradually. ' +
+      'Consider re-entering your plan using a smaller unit you can actually measure.';
+
+    if (cfg.coarseHint) {
+      msg += ' ' + cfg.coarseHint;
+    }
+
+    container.innerHTML = '<div class="banner banner-warn">' + msg + '</div>';
+  }
+
+  function refreshUIFromPlan() {
+    const plan = loadPlan();
+    const planCard = document.getElementById('planCard');
+    const chipText = document.getElementById('chipText');
+
+    if (!plan) {
+      planCard.style.display = 'none';
+      document.getElementById('todayCard').style.display = 'none';
+      return;
+    }
+
+    buildPlanTable(plan);
+    updateTodayCard(plan);
+    updateCoarseWarning(plan);
+
+    const start = new Date(plan.startDate + 'T00:00:00');
+    const end = new Date(start.getTime() + (plan.schedule.length - 1) * 24 * 60 * 60 * 1000);
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (today < start) {
+      chipText.textContent = 'Plan scheduled';
+    } else if (today > end) {
+      chipText.textContent = 'Plan completed';
+    } else {
+      chipText.textContent = 'Plan in progress';
+    }
+
+    planCard.style.display = 'block';
+  }
+
+  function renderSubstanceInfo(key) {
+    const infoDiv = document.getElementById('substanceInfo');
+    const cfg = SUBSTANCE_CONFIG[key];
+    if (!cfg) {
+      infoDiv.textContent = '';
+      return;
+    }
+    const examples = cfg.exampleUnits
+      .map(u => u.label)
+      .join(', ');
+    infoDiv.innerHTML =
+      '<strong>' + cfg.label + ':</strong> ' + cfg.safetyNote +
+      '<br><span class="muted">Common ways to measure: ' + examples + '.</span>';
+  }
+
+  function renderUnitExamples(key) {
+    const container = document.getElementById('unitExamples');
+    const cfg = SUBSTANCE_CONFIG[key];
+    if (!cfg || !cfg.exampleUnits || !cfg.exampleUnits.length) {
+      container.innerHTML = '';
+      return;
+    }
+    let html = '<div class="tiny" style="margin-top:4px;margin-bottom:2px;">Quick presets (click to fill unit & step):</div>';
+    html += '<div class="chip-row">';
+    cfg.exampleUnits.forEach(unit => {
+      html += '<button type="button" class="example-chip" ' +
+        'data-label="' + unit.label.replace(/"/g, '&quot;') + '" ' +
+        'data-step="' + unit.step + '">' +
+        unit.label + ' (step ' + unit.step + ')' +
+        '</button>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function applySubstanceDefaults(key) {
+    const cfg = SUBSTANCE_CONFIG[key];
+    renderSubstanceInfo(key);
+    renderUnitExamples(key);
+    const unitLabelInput = document.getElementById('unitLabel');
+    const unitStepInput = document.getElementById('unitStep');
+    if (cfg && cfg.exampleUnits && cfg.exampleUnits.length) {
+      unitLabelInput.value = cfg.exampleUnits[0].label;
+      unitStepInput.value = cfg.exampleUnits[0].step;
+    } else {
+      if (!unitLabelInput.value) unitLabelInput.value = 'units';
+      if (!unitStepInput.value) unitStepInput.value = 1;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const startInput = document.getElementById('startDate');
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    startInput.value = yyyy + '-' + mm + '-' + dd;
+
+    const substanceSelect = document.getElementById('substance');
+
+    // Initialize with alcohol defaults
+    applySubstanceDefaults(substanceSelect.value);
+
+    // Load existing plan if any
+    const existing = loadPlan();
+    if (existing) {
+      substanceSelect.value = existing.substanceKey || 'alcohol';
+      applySubstanceDefaults(substanceSelect.value);
+
+      document.getElementById('currentAmount').value = existing.currentPerDay;
+      document.getElementById('days').value = existing.days;
+      document.getElementById('startDate').value = existing.startDate;
+      document.getElementById('unitLabel').value = existing.unitLabel;
+      document.getElementById('unitStep').value = existing.unitStep;
+      document.getElementById('substanceDetail').value = existing.substanceDetail || '';
+    }
+
+    refreshUIFromPlan();
+
+    substanceSelect.addEventListener('change', () => {
+      const key = substanceSelect.value;
+      applySubstanceDefaults(key);
+    });
+
+    document.getElementById('unitExamples').addEventListener('click', (e) => {
+      const btn = e.target.closest('.example-chip');
+      if (!btn) return;
+      const label = btn.getAttribute('data-label');
+      const step = btn.getAttribute('data-step');
+      if (label) document.getElementById('unitLabel').value = label;
+      if (step) document.getElementById('unitStep').value = step;
+    });
+
+    document.getElementById('planForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const substanceKey = substanceSelect.value;
+      const currentPerDay = parseFloat(document.getElementById('currentAmount').value);
+      const days = parseInt(document.getElementById('days').value, 10);
+      const startDateStr = document.getElementById('startDate').value;
+      const unitLabel = (document.getElementById('unitLabel').value || '').trim() || 'units';
+      const unitStep = parseFloat(document.getElementById('unitStep').value);
+      const substanceDetail = (document.getElementById('substanceDetail').value || '').trim();
+
+      if (isNaN(currentPerDay) || currentPerDay <= 0) {
+        alert('Please enter your current average per day (must be > 0).');
+        return;
+      }
+      if (!startDateStr) {
+        alert('Please choose a start date.');
+        return;
+      }
+      if (isNaN(days) || days < 7 || days > 90) {
+        alert('Please choose a taper length between 7 and 90 days.');
+        return;
+      }
+      if (isNaN(unitStep) || unitStep <= 0) {
+        alert('Please set the smallest step for your unit (e.g., 1 cigarette, 0.5 drinks, 0.25 joints).');
+        return;
+      }
+
+      // Generate schedule and then round to unit step
+      const rawSchedule = generateSchedule(currentPerDay, days);
+      const rounded = rawSchedule.map(v => roundDownToStep(v, unitStep));
+
+      // Ensure monotonic non-increasing and final zero
+      for (let i = 1; i < rounded.length; i++) {
+        if (rounded[i] > rounded[i - 1]) {
+          rounded[i] = rounded[i - 1];
+        }
+      }
+      rounded[rounded.length - 1] = 0;
+
+      const plan = {
+        createdAt: new Date().toISOString(),
+        startDate: startDateStr,
+        currentPerDay,
+        days,
+        substanceKey,
+        substanceDetail,
+        unitLabel,
+        unitStep,
+        schedule: rounded
+      };
+
+      savePlan(plan);
+      refreshUIFromPlan();
+
+      // Extra warning for heavy alcohol
+      if (substanceKey === 'alcohol' && currentPerDay >= 10) {
+        alert(
+          'You entered about ' + currentPerDay + ' ' + unitLabel +
+          ' per day for alcohol. That is heavy use. A medically supervised taper or detox is usually safer than doing this alone.'
+        );
+      }
+    });
+
+    document.getElementById('clearPlanBtn').addEventListener('click', () => {
+      if (confirm('Clear the saved taper plan from this browser?')) {
+        clearPlan();
+        refreshUIFromPlan();
+      }
+    });
+  });
+</script>
+</body>
+</html>
