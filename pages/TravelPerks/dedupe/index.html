@@ -428,7 +428,9 @@ function extractFeatures(text) {
   const t = norm(text);
   const feats = {
     percent: null,
+    percentValues: [],
     dollars: null,
+    dollarValues: [],
     guestCount: null,
     percentWords: null,
     kidsFree: /\bkids? (sail|stay) free\b/.test(t),
@@ -448,37 +450,30 @@ function extractFeatures(text) {
     sale: /sale/.test(t),
   };
 
+  // Percentages
   const ps = [...t.matchAll(/(\d{1,3})\s*%/g)].map(m => Number(m[1]));
-  feats.percent = ps.length ? Math.max(...ps) : null;
+  feats.percentValues = Array.from(new Set(ps));
+  feats.percent = feats.percentValues.length ? Math.max(...feats.percentValues) : null;
 
   if (/half/.test(t)) feats.percentWords = 50;
   if (/third/.test(t)) feats.percentWords = 33;
   if (/quarter/.test(t)) feats.percentWords = 25;
   if (/free/.test(t) && /all/.test(t)) feats.percentWords = 100;
+  if (feats.percentWords != null) {
+    feats.percentValues = Array.from(new Set([...feats.percentValues, feats.percentWords]));
+  }
 
+  // Dollar amounts (keep all)
   const ds = [...t.matchAll(/\$?\b(\d{2,5})\b(?=\s*(?:obc|credit|instant|off|savings|amenity|air|cash|per|pp|ppg|usd)\b)/g)].map(m => Number(m[1]));
   const ds2 = [...t.matchAll(/\$\s*(\d{2,5})/g)].map(m => Number(m[1]));
   const allD = [...ds, ...ds2];
-  feats.dollars = allD.length ? Math.max(...allD) : null;
+  feats.dollarValues = Array.from(new Set(allD));
+  feats.dollars = feats.dollarValues.length ? Math.max(...feats.dollarValues) : null;
 
   const guests = t.match(/for (\d{1,2})|(\d{1,2})nd ?guest|(\d{1,2}) ?guest/i);
   if (guests) feats.guestCount = Number(guests[1] || guests[2] || guests[3]);
 
   return feats;
-}
-
-/* ===================== Feature Richness Scoring ===================== */
-function featureRichness(feats) {
-  return (
-    (feats.dollars ? 20 : 0) +
-    ((feats.percent || feats.percentWords) ? 20 : 0) +
-    (feats.covert ? 10 : 0) +
-    (feats.gratuities ? 6 : 0) +
-    (feats.kidsFree ? 4 : 0) +
-    (feats.obc ? 4 : 0) +
-    (feats.instant ? 3 : 0) +
-    (feats.guestCount ? 2 : 0)
-  );
 }
 
 /* ===================== Website JSON ingest ===================== */
@@ -509,96 +504,134 @@ function ingestWebsiteJSON(arr) {
   document.getElementById('webCount').textContent = `${websiteDeals.length} deals loaded`;
 }
 
+/* ===================== Feature richness for greedy matching ===================== */
+function featureRichness(feats) {
+  return (
+    (feats.dollarValues && feats.dollarValues.length ? 20 : 0) +
+    ((feats.percentValues && feats.percentValues.length) ? 20 : 0) +
+    (feats.covert ? 10 : 0) +
+    (feats.gratuities ? 6 : 0) +
+    (feats.kidsFree ? 4 : 0) +
+    (feats.obc ? 4 : 0) +
+    (feats.instant ? 3 : 0) +
+    (feats.guestCount ? 2 : 0) +
+    (feats.sale ? 1 : 0)
+  );
+}
+
 /* ===================== Matching ===================== */
 function similarity(hq, web) {
   let score = 0;
   const why = [];
   const f = hq.features, g = web.features;
 
-  // CRITICAL RULE: If either deal has a dollar amount, percentage, or is covert, they MUST match
-  // If one has it and the other doesn't, OR if both have it but they differ -> NOT A MATCH
-  
-  // Dollar amount check
-  const hqHasDollars = f.dollars !== null;
-  const webHasDollars = g.dollars !== null;
-  
+  // Dollar amount check (use all values, must share at least one compatible number)
+  const hqDollarVals = (f.dollarValues && f.dollarValues.length ? f.dollarValues : (f.dollars != null ? [f.dollars] : []));
+  const webDollarVals = (g.dollarValues && g.dollarValues.length ? g.dollarValues : (g.dollars != null ? [g.dollars] : []));
+  const hqHasDollars = hqDollarVals.length > 0;
+  const webHasDollars = webDollarVals.length > 0;
+
   if (hqHasDollars || webHasDollars) {
-    // At least one has a dollar amount
-    if (hqHasDollars && !webHasDollars) {
-      // HQ has dollars but web doesn't - NOT A MATCH
-      return { score: 0, why: ['$one-sided'] };
+    if (hqHasDollars && !webHasDollars) return { score: 0, why: ['$one-sided'] };
+    if (!hqHasDollars && webHasDollars) return { score: 0, why: ['$one-sided'] };
+
+    let bestDollarDiff = Infinity;
+    let bestDollarPair = null;
+    for (const x of hqDollarVals) {
+      for (const y of webDollarVals) {
+        const diff = Math.abs(x - y);
+        if (diff < bestDollarDiff) {
+          bestDollarDiff = diff;
+          bestDollarPair = [x, y];
+        }
+      }
     }
-    if (!hqHasDollars && webHasDollars) {
-      // Web has dollars but HQ doesn't - NOT A MATCH
-      return { score: 0, why: ['$one-sided'] };
-    }
-    // Both have dollars - they must be close
-    const dollarDiff = Math.abs(f.dollars - g.dollars);
-    if (dollarDiff > 20) {
+    if (bestDollarDiff > 20) {
       return { score: 0, why: ['$mismatch'] };
     }
+    // scoring
+    if (bestDollarDiff === 0) {
+      score += 6;
+      why.push('$=');
+    } else {
+      score += 3;
+      why.push('$≈');
+    }
   }
-  
-  // Percentage check (including percentWords)
-  const hqHasPercent = f.percent !== null || f.percentWords !== null;
-  const webHasPercent = g.percent !== null;
-  
+
+  // Percentage check (use all values + percentWords, must share at least one compatible number)
+  const hqPercentVals = (f.percentValues && f.percentValues.length
+    ? f.percentValues
+    : (f.percent != null ? [f.percent] : []));
+  if (f.percentWords != null && !hqPercentVals.includes(f.percentWords)) {
+    hqPercentVals.push(f.percentWords);
+  }
+
+  const webPercentVals = (g.percentValues && g.percentValues.length
+    ? g.percentValues
+    : (g.percent != null ? [g.percent] : []));
+  const hqHasPercent = hqPercentVals.length > 0;
+  const webHasPercent = webPercentVals.length > 0;
+
   if (hqHasPercent || webHasPercent) {
-    // At least one has a percentage
-    const hqPercentValue = f.percent || f.percentWords;
-    const webPercentValue = g.percent;
-    
-    if (hqHasPercent && !webHasPercent) {
-      // HQ has percent but web doesn't - NOT A MATCH
-      return { score: 0, why: ['%one-sided'] };
+    if (hqHasPercent && !webHasPercent) return { score: 0, why: ['%one-sided'] };
+    if (!hqHasPercent && webHasPercent) return { score: 0, why: ['%one-sided'] };
+
+    let bestPercentDiff = Infinity;
+    for (const x of hqPercentVals) {
+      for (const y of webPercentVals) {
+        const diff = Math.abs(x - y);
+        if (diff < bestPercentDiff) bestPercentDiff = diff;
+      }
     }
-    if (!hqHasPercent && webHasPercent) {
-      // Web has percent but HQ doesn't - NOT A MATCH
-      return { score: 0, why: ['%one-sided'] };
-    }
-    // Both have percents - they must be close
-    const percentDiff = Math.abs(hqPercentValue - webPercentValue);
-    if (percentDiff > 2) {
+    if (bestPercentDiff > 2) {
       return { score: 0, why: ['%mismatch'] };
+    }
+    if (bestPercentDiff === 0) {
+      score += 5;
+      why.push('%=');
+    } else {
+      score += 3;
+      why.push('%≈');
     }
   }
 
   // Covert check - if one is covert and the other isn't, NOT A MATCH
   const hqIsCovert = f.covert;
   const webIsCovert = g.covert;
-  
   if (hqIsCovert !== webIsCovert) {
-    // One is covert, the other isn't - NOT A MATCH
     return { score: 0, why: ['covert-mismatch'] };
   }
 
-  // If we get here, amounts/percents/covert are compatible (both absent or both present & matching) - continue with scoring
+  // Both covert = strong signal
+  if (hqIsCovert && webIsCovert) {
+    score += 4;
+    why.push('covert');
+  }
 
-  // Vendor match is prerequisite (filtered), no score addition
-
-  if (hq.ongoing && !web.expiryDate) { score += 3; why.push('ongoing'); }
-  else if (hq.end && web.expiryDate) {
-    if (sameDay(hq.end, web.expiryDate)) { score += 5; why.push('date=exact'); }
-    else {
+  // Date matching
+  if (hq.ongoing && !web.expiryDate) {
+    score += 3;
+    why.push('ongoing');
+  } else if (hq.end && web.expiryDate) {
+    if (sameDay(hq.end, web.expiryDate)) {
+      score += 5;
+      why.push('date=exact');
+    } else {
       const diff = Math.abs((+hq.end - +web.expiryDate) / 86400000);
-      if (diff <= 2) { score += 3; why.push('date≈'); }
+      if (diff <= 2) {
+        score += 3;
+        why.push('date≈');
+      }
     }
   }
 
-  if (f.dollars && g.dollars) {
-    if (f.dollars === g.dollars) { score += 6; why.push('$='); }
-    else if (Math.abs(f.dollars - g.dollars) <= 20) { score += 3; why.push('$≈'); }
+  if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) {
+    score += 4;
+    why.push('guests=');
   }
-  if (f.percent && g.percent) {
-    if (f.percent === g.percent) { score += 5; why.push('%='); }
-    else if (Math.abs(f.percent - g.percent) <= 2) { score += 3; why.push('%≈'); }
-  }
-  if (f.percentWords && g.percent) {
-    if (Math.abs(f.percentWords - g.percent) <= 2) { score += 3; why.push('%word≈'); }
-  }
-  if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) { score += 4; why.push('guests='); }
 
-  // Text similarity - LOWERED THRESHOLD FROM 0.3 TO 0.2
+  // Text similarity
   const jacc = jaccardSim(hq.text, web.text);
   if (jacc.sim > 0.2) {
     const pts = Math.floor(jacc.sim * 8);
@@ -606,23 +639,21 @@ function similarity(hq, web) {
     why.push(`text(${jacc.count})`);
   }
 
+  const webTextLower = web.text.toLowerCase();
   const k = (cond, s, pts) => { if (cond) { score += pts; why.push(s); } };
-  k(f.kidsFree && /kids/.test(web.text.toLowerCase()), 'kids', 3);
-  k(f.gratuities && (/gratu|ppg/i.test(web.text.toLowerCase())), 'gratuities', 3);
-  k(f.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text.toLowerCase()), 'obc', 3);
-  k(f.instant && /instant/i.test(web.text.toLowerCase()), 'instant', 2);
-  k(f.coupon && /coupon|booklet/i.test(web.text.toLowerCase()), 'coupon', 2);
-  k(f.drinksWifi && ( /(drinks|beverage).*wi[\- ]?fi/i.test(web.text.toLowerCase()) || /wi[\- ]?fi.*(drinks|beverage)/i.test(web.text.toLowerCase()) ), 'drinks+wifi', 3);
-  k(f.earlyBooking && /early ?booking/i.test(web.text.toLowerCase()), 'earlyBooking', 2);
-  k(f.secondGuest && /second ?guest|2nd ?guest/i.test(web.text.toLowerCase()), 'secondGuest', 2);
-  k(f.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text.toLowerCase()), 'airfare', 2);
-  k(f.upgrade && /upgrade|1-?cat/i.test(web.text.toLowerCase()), 'upgrade', 2);
-  k(f.noPerk && /no perk/i.test(web.text.toLowerCase()), 'noPerk', 3);
-  k(f.perk && /perk/i.test(web.text.toLowerCase()) && !/no perk/i.test(web.text.toLowerCase()), 'perk', 2);
-  k(f.upTo && /up to/i.test(web.text.toLowerCase()), 'upTo', 2);
-
-  // Both deals are covert - strong signal they're the same
-  if (f.covert && g.covert) { score += 4; why.push('covert'); }
+  k(f.kidsFree && /kids/.test(webTextLower), 'kids', 3);
+  k(f.gratuities && (/gratu|ppg/i.test(webTextLower)), 'gratuities', 3);
+  k(f.obc && /\bobc\b|on ?board credit|bar tab/i.test(webTextLower), 'obc', 3);
+  k(f.instant && /instant/i.test(webTextLower), 'instant', 2);
+  k(f.coupon && /coupon|booklet/i.test(webTextLower), 'coupon', 2);
+  k(f.drinksWifi && ( /(drinks|beverage).*wi[\- ]?fi/i.test(webTextLower) || /wi[\- ]?fi.*(drinks|beverage)/i.test(webTextLower) ), 'drinks+wifi', 3);
+  k(f.earlyBooking && /early ?booking/i.test(webTextLower), 'earlyBooking', 2);
+  k(f.secondGuest && /second ?guest|2nd ?guest/i.test(webTextLower), 'secondGuest', 2);
+  k(f.airfare && /air ?fare|air ?credit|bogo ?air/i.test(webTextLower), 'airfare', 2);
+  k(f.upgrade && /upgrade|1-?cat/i.test(webTextLower), 'upgrade', 2);
+  k(f.noPerk && /no perk/i.test(webTextLower), 'noPerk', 3);
+  k(f.perk && /perk/i.test(webTextLower) && !/no perk/i.test(webTextLower), 'perk', 2);
+  k(f.upTo && /up to/i.test(webTextLower), 'upTo', 2);
 
   return { score, why };
 }
@@ -638,11 +669,11 @@ function matchAll(hqDeals) {
     filteredHQ = hqDeals.filter(hq => canonicalVendor(hq.vendor) === canonicalVendor(filterSupplier));
   }
 
-  // Sort HQ deals by feature richness - process most specific deals first
+  // Sort HQ deals by richness so specific/complex ones claim best matches first
   filteredHQ = [...filteredHQ].sort((a, b) => {
     const scoreA = featureRichness(a.features);
     const scoreB = featureRichness(b.features);
-    return scoreB - scoreA; // Higher richness first
+    return scoreB - scoreA;
   });
 
   for (const hq of filteredHQ) {
@@ -789,7 +820,7 @@ function renderMatches(rows, threshold) {
 
   matchesHost.innerHTML = rows.map(({hq, best, meta, isUpdate}, idx) => {
     const sc = (meta?.score ?? 0);
-    if (rejectedHQ.has(hq.id) || sc < threshold) {
+    if (!best || rejectedHQ.has(hq.id) || sc < threshold) {
       unmatched.push(hq);
       return '';
     }
@@ -801,10 +832,9 @@ function renderMatches(rows, threshold) {
     const sharedChips = getSharedChips(hq, best);
 
     const dateClassHQ = hq.end && best.expiryDate ? (sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx') : '';
-    const dateClassWeb = sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx';
+    const dateClassWeb = hq.end && best.expiryDate ? (sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx') : '';
     const todayClass = sameDay(hq.end, today) ? 'today-end' : '';
     
-    // Update warning style
     const updateWarning = isUpdate ? '<span style="color: #ff9800; font-weight: bold; margin-left: 8px;">⚠️ POSSIBLE UPDATE</span>' : '';
 
     return `
@@ -881,25 +911,32 @@ function renderChips(features, isHQ) {
   if (features.noPerk) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">No Perk</span>`);
   if (features.upTo) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Up To</span>`);
   if (features.covert) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Covert</span>`);
-  if (features.percent) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${features.percent}%</span>`);
-  if (features.dollars) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${features.dollars}</span>`);
+  if (features.percentValues && features.percentValues.length) {
+    const maxP = Math.max(...features.percentValues);
+    chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${maxP}%</span>`);
+  }
+  if (features.dollarValues && features.dollarValues.length) {
+    const maxD = Math.max(...features.dollarValues);
+    chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${maxD}</span>`);
+  }
   if (features.guestCount) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">For ${features.guestCount}</span>`);
   return chips.join('');
 }
 
 function getSharedChips(hq, web) {
   const shared = [];
-  if (hq.features.kidsFree && /kids/.test(web.text.toLowerCase())) shared.push('Kids');
-  if (hq.features.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text)) shared.push('OBC');
-  if (hq.features.gratuities && /gratu|ppg/i.test(web.text)) shared.push('Grats');
+  const webText = web.text.toLowerCase();
+  if (hq.features.kidsFree && /kids/.test(webText)) shared.push('Kids');
+  if (hq.features.obc && /\bobc\b|on ?board credit|bar tab/i.test(webText)) shared.push('OBC');
+  if (hq.features.gratuities && /gratu|ppg/i.test(webText)) shared.push('Grats');
   if (hq.features.covert && web.features.covert) shared.push('Covert');
-  if (hq.features.coupon && /coupon|booklet/i.test(web.text)) shared.push('Coupon');
-  if (hq.features.earlyBooking && /early ?booking/i.test(web.text)) shared.push('Early Booking');
-  if (hq.features.secondGuest && /second ?guest|2nd ?guest/i.test(web.text)) shared.push('2nd Guest');
-  if (hq.features.airfare && /air ?fare|air ?credit|bogo ?air/i.test(web.text)) shared.push('Airfare');
-  if (hq.features.perk && /perk/i.test(web.text) && !/no perk/i.test(web.text)) shared.push('Perk');
-  if (hq.features.noPerk && /no perk/i.test(web.text)) shared.push('No Perk');
-  if (hq.features.upTo && /up to/i.test(web.text)) shared.push('Up To');
+  if (hq.features.coupon && /coupon|booklet/i.test(webText)) shared.push('Coupon');
+  if (hq.features.earlyBooking && /early ?booking/i.test(webText)) shared.push('Early Booking');
+  if (hq.features.secondGuest && /second ?guest|2nd ?guest/i.test(webText)) shared.push('2nd Guest');
+  if (hq.features.airfare && /air ?fare|air ?credit|bogo ?air/i.test(webText)) shared.push('Airfare');
+  if (hq.features.perk && /perk/i.test(webText) && !/no perk/i.test(webText)) shared.push('Perk');
+  if (hq.features.noPerk && /no perk/i.test(webText)) shared.push('No Perk');
+  if (hq.features.upTo && /up to/i.test(webText)) shared.push('Up To');
   return shared;
 }
 
@@ -922,14 +959,11 @@ document.getElementById('exportUnmatched').addEventListener('click', () => {
   if (!hqDeals.length) { alert('No HQ deals to export.'); return; }
 
   const threshold = parseInt(document.getElementById('scoreThreshold').value) || 10;
-  const filterSupplier = document.getElementById('supplierFilter').value;
 
   let rows = [];
   if (websiteDeals.length) {
-    // Compute matches to determine unmatched (rejected or low-score)
     rows = matchAll(hqDeals);
   } else {
-    // Fallback: if no website data, treat all HQ as unmatched
     rows = hqDeals.map(hq => ({ hq, best: null, meta: { score: 0 } }));
   }
 
