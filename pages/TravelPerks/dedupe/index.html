@@ -435,7 +435,7 @@ function extractFeatures(text) {
     gratuities: /\bgratu(?:ities|ity)|prepaid gratuities|free gratuities|ppg/.test(t),
     obc: /\bobc\b|on ?board credit|bar tab/.test(t),
     instant: /instant (savings|credit)/.test(t),
-    covert: /\bcovert\b|too low to show|opaque/.test(t),
+    covert: /\bcovert\b|too low to show|opaque|secret|hidden|private|unadvertised/.test(t),
     drinksWifi: /(drinks|beverage).*wi[\- ]?fi/.test(t) || /wi[\- ]?fi.*(drinks|beverage)/.test(t) || /\bdrinks ?& ?wi ?-?fi\b/.test(t),
     coupon: /\bcoupon booklet|booklet/.test(t),
     earlyBooking: /\bearly ?booking\b/.test(t),
@@ -501,6 +501,65 @@ function similarity(hq, web) {
   const why = [];
   const f = hq.features, g = web.features;
 
+  // CRITICAL RULE: If either deal has a dollar amount, percentage, or is covert, they MUST match
+  // If one has it and the other doesn't, OR if both have it but they differ -> NOT A MATCH
+  
+  // Dollar amount check
+  const hqHasDollars = f.dollars !== null;
+  const webHasDollars = g.dollars !== null;
+  
+  if (hqHasDollars || webHasDollars) {
+    // At least one has a dollar amount
+    if (hqHasDollars && !webHasDollars) {
+      // HQ has dollars but web doesn't - NOT A MATCH
+      return { score: 0, why: ['$one-sided'] };
+    }
+    if (!hqHasDollars && webHasDollars) {
+      // Web has dollars but HQ doesn't - NOT A MATCH
+      return { score: 0, why: ['$one-sided'] };
+    }
+    // Both have dollars - they must be close
+    const dollarDiff = Math.abs(f.dollars - g.dollars);
+    if (dollarDiff > 20) {
+      return { score: 0, why: ['$mismatch'] };
+    }
+  }
+  
+  // Percentage check (including percentWords)
+  const hqHasPercent = f.percent !== null || f.percentWords !== null;
+  const webHasPercent = g.percent !== null;
+  
+  if (hqHasPercent || webHasPercent) {
+    // At least one has a percentage
+    const hqPercentValue = f.percent || f.percentWords;
+    const webPercentValue = g.percent;
+    
+    if (hqHasPercent && !webHasPercent) {
+      // HQ has percent but web doesn't - NOT A MATCH
+      return { score: 0, why: ['%one-sided'] };
+    }
+    if (!hqHasPercent && webHasPercent) {
+      // Web has percent but HQ doesn't - NOT A MATCH
+      return { score: 0, why: ['%one-sided'] };
+    }
+    // Both have percents - they must be close
+    const percentDiff = Math.abs(hqPercentValue - webPercentValue);
+    if (percentDiff > 2) {
+      return { score: 0, why: ['%mismatch'] };
+    }
+  }
+
+  // Covert check - if one is covert and the other isn't, NOT A MATCH
+  const hqIsCovert = f.covert;
+  const webIsCovert = g.covert;
+  
+  if (hqIsCovert !== webIsCovert) {
+    // One is covert, the other isn't - NOT A MATCH
+    return { score: 0, why: ['covert-mismatch'] };
+  }
+
+  // If we get here, amounts/percents/covert are compatible (both absent or both present & matching) - continue with scoring
+
   // Vendor match is prerequisite (filtered), no score addition
 
   if (hq.ongoing && !web.expiryDate) { score += 3; why.push('ongoing'); }
@@ -514,15 +573,14 @@ function similarity(hq, web) {
 
   if (f.dollars && g.dollars) {
     if (f.dollars === g.dollars) { score += 6; why.push('$='); }
-    else if (Math.abs(f.dollars - g.dollars) <= 100) { score += 3; why.push('$≈'); }
+    else if (Math.abs(f.dollars - g.dollars) <= 20) { score += 3; why.push('$≈'); }
   }
   if (f.percent && g.percent) {
     if (f.percent === g.percent) { score += 5; why.push('%='); }
-    else if (Math.abs(f.percent - g.percent) <= 5) { score += 3; why.push('%≈'); }
-    // No else: if mismatch >5, no points added (strict match required for points)
+    else if (Math.abs(f.percent - g.percent) <= 2) { score += 3; why.push('%≈'); }
   }
   if (f.percentWords && g.percent) {
-    if (Math.abs(f.percentWords - g.percent) <= 5) { score += 3; why.push('%word≈'); }
+    if (Math.abs(f.percentWords - g.percent) <= 2) { score += 3; why.push('%word≈'); }
   }
   if (f.guestCount && g.guestCount && f.guestCount === g.guestCount) { score += 4; why.push('guests='); }
 
@@ -549,7 +607,8 @@ function similarity(hq, web) {
   k(f.perk && /perk/i.test(web.text.toLowerCase()) && !/no perk/i.test(web.text.toLowerCase()), 'perk', 2);
   k(f.upTo && /up to/i.test(web.text.toLowerCase()), 'upTo', 2);
 
-  if (f.covert && /\bcovert\b|too low to show|opaque/i.test(web.text)) { score += 3; why.push('covert'); }
+  // Both deals are covert - strong signal they're the same
+  if (f.covert && g.covert) { score += 4; why.push('covert'); }
 
   return { score, why };
 }
@@ -557,20 +616,59 @@ function similarity(hq, web) {
 function matchAll(hqDeals) {
   const rows = [];
   const filterSupplier = document.getElementById('supplierFilter').value;
+  const usedWebDeals = new Set(); // Track which web deals have been matched
 
-  for (const hq of hqDeals) {
-    if (filterSupplier && canonicalVendor(filterSupplier) !== canonicalVendor(hq.vendor)) continue;
+  // Filter HQ deals by supplier if needed
+  let filteredHQ = hqDeals;
+  if (filterSupplier) {
+    filteredHQ = hqDeals.filter(hq => canonicalVendor(hq.vendor) === canonicalVendor(filterSupplier));
+  }
 
-    const pool = websiteDeals.filter(w => w.vendorFamily === hq.vendorFamily);
+  // Sort HQ deals by score potential (prioritize deals with more specific features)
+  // This ensures better matches happen first in greedy algorithm
+  filteredHQ = [...filteredHQ].sort((a, b) => {
+    const scoreA = (a.features.dollars ? 10 : 0) + (a.features.percent ? 10 : 0) + (a.features.covert ? 5 : 0);
+    const scoreB = (b.features.dollars ? 10 : 0) + (b.features.percent ? 10 : 0) + (b.features.covert ? 5 : 0);
+    return scoreB - scoreA; // Higher feature count first
+  });
+
+  for (const hq of filteredHQ) {
+    const pool = websiteDeals.filter(w => 
+      w.vendorFamily === hq.vendorFamily && !usedWebDeals.has(w)
+    );
+    
     let best = null, bestMeta = null;
 
     for (const w of pool) {
       const meta = similarity(hq, w);
-      if (!best || meta.score > bestMeta.score) { best = w; bestMeta = meta; }
+      if (!best || meta.score > bestMeta.score) { 
+        best = w; 
+        bestMeta = meta; 
+      }
     }
 
-    rows.push({ hq, best, meta: bestMeta });
+    // Check if this might be an update (HQ end date is after web expiry, but otherwise similar)
+    let isUpdate = false;
+    if (best && bestMeta.score > 0 && hq.end && best.expiryDate) {
+      const hqEndTime = hq.end.getTime();
+      const webEndTime = best.expiryDate.getTime();
+      const daysDiff = (hqEndTime - webEndTime) / 86400000;
+      
+      // If HQ deal ends 1-60 days AFTER web deal, and they have decent similarity, flag as potential update
+      if (daysDiff >= 1 && daysDiff <= 60 && bestMeta.score >= 8) {
+        isUpdate = true;
+        bestMeta.why.push('⚠️UPDATE?');
+      }
+    }
+
+    // If this is a good match (score > 0), mark the web deal as used
+    if (best && bestMeta.score > 0) {
+      usedWebDeals.add(best);
+    }
+
+    rows.push({ hq, best, meta: bestMeta, isUpdate });
   }
+  
   return rows;
 }
 
@@ -676,7 +774,7 @@ function renderMatches(rows, threshold) {
   let unmatched = [];
   let matchedCount = 0;
 
-  matchesHost.innerHTML = rows.map(({hq, best, meta}, idx) => {
+  matchesHost.innerHTML = rows.map(({hq, best, meta, isUpdate}, idx) => {
     const sc = (meta?.score ?? 0);
     if (rejectedHQ.has(hq.id) || sc < threshold) {
       unmatched.push(hq);
@@ -692,10 +790,13 @@ function renderMatches(rows, threshold) {
     const dateClassHQ = hq.end && best.expiryDate ? (sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx') : '';
     const dateClassWeb = sameDay(hq.end, best.expiryDate) ? 'highlight date' : 'highlight date-approx';
     const todayClass = sameDay(hq.end, today) ? 'today-end' : '';
+    
+    // Update warning style
+    const updateWarning = isUpdate ? '<span style="color: #ff9800; font-weight: bold; margin-left: 8px;">⚠️ POSSIBLE UPDATE</span>' : '';
 
     return `
       <div class="pair ${todayClass}">
-        <div style="text-align: center; font-weight: bold; color: var(--${cls === 'good' ? 'good' : cls === 'warn' ? 'warn' : 'bad'});">Score: ${sc} ${renderWhyChips(meta.why)}</div>
+        <div style="text-align: center; font-weight: bold; color: var(--${cls === 'good' ? 'good' : cls === 'warn' ? 'warn' : 'bad'});">Score: ${sc} ${renderWhyChips(meta.why)}${updateWarning}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
             <h5>HQ Deal</h5>
@@ -766,6 +867,7 @@ function renderChips(features, isHQ) {
   if (features.perk) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Perk</span>`);
   if (features.noPerk) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">No Perk</span>`);
   if (features.upTo) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Up To</span>`);
+  if (features.covert) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">Covert</span>`);
   if (features.percent) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">${features.percent}%</span>`);
   if (features.dollars) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">$${features.dollars}</span>`);
   if (features.guestCount) chips.push(`<span class="chip ${isHQ ? '' : 'match'}">For ${features.guestCount}</span>`);
@@ -777,7 +879,7 @@ function getSharedChips(hq, web) {
   if (hq.features.kidsFree && /kids/.test(web.text.toLowerCase())) shared.push('Kids');
   if (hq.features.obc && /\bobc\b|on ?board credit|bar tab/i.test(web.text)) shared.push('OBC');
   if (hq.features.gratuities && /gratu|ppg/i.test(web.text)) shared.push('Grats');
-  if (hq.features.covert && /covert|low to show|opaque/i.test(web.text)) shared.push('Covert');
+  if (hq.features.covert && web.features.covert) shared.push('Covert');
   if (hq.features.coupon && /coupon|booklet/i.test(web.text)) shared.push('Coupon');
   if (hq.features.earlyBooking && /early ?booking/i.test(web.text)) shared.push('Early Booking');
   if (hq.features.secondGuest && /second ?guest|2nd ?guest/i.test(web.text)) shared.push('2nd Guest');
