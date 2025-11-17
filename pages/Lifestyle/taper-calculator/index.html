@@ -276,7 +276,8 @@
 
     <div class="banner banner-soft">
       You choose <strong>what</strong> you’re tapering, <strong>how you measure it</strong> (drinks, joints, grams, etc.),
-      and your <strong>slow-down speed</strong>. The app makes a smooth curve down to (or toward) zero.
+      and your <strong>taper shape</strong>. The app makes a curve down to (or toward) zero. Earlier days can be
+      configured to take “bigger wins” while the dose is still high.
     </div>
 
     <form id="planForm">
@@ -310,7 +311,7 @@
         <div class="field">
           <label for="days">Taper length (days)</label>
           <input id="days" type="number" min="7" max="90" value="30">
-          <div class="tiny">You said ~1 month; you can go slower or faster (7–90 days).</div>
+          <div class="tiny">Roughly 1 month by default; you can go slower or faster (7–90 days).</div>
         </div>
       </div>
 
@@ -324,12 +325,25 @@
           <label for="unitStep">Smallest step in this unit</label>
           <input id="unitStep" type="number" min="0.01" step="0.01" value="1">
           <div class="tiny">
-            Examples: 1 cigarette, 0.5 drinks, 0.25 joints, 0.25 teaspoons, 5 mg, etc.
+            Examples: 1 cigarette, 1 drink, 0.5 drinks, 0.25 joints, 0.25 teaspoons, 5 mg, etc.
           </div>
         </div>
       </div>
 
       <div id="unitExamples"></div>
+
+      <div class="field" style="margin-top:6px;">
+        <label for="taperShape">Taper shape</label>
+        <select id="taperShape">
+          <option value="front_mod">Moderate early drop (recommended)</option>
+          <option value="front_fast">Faster early drop</option>
+          <option value="linear">Straight linear (same % each day)</option>
+        </select>
+        <div class="tiny">
+          Early drop = take bigger wins while your dose is still high (e.g., going from 5g → ~4g kratom),
+          then ease off the speed later.
+        </div>
+      </div>
 
       <div class="field">
         <label for="startDate">Plan start date</label>
@@ -389,10 +403,10 @@
         'Alcohol withdrawal (especially at around 10+ standard drinks/day or with past seizures, hallucinations, or DTs) can be dangerous. ' +
         'Get medical help if you are shaking badly, confused, or seeing/hearing things.',
       exampleUnits: [
-        { label: 'standard drinks', step: 0.5 },
+        { label: 'standard drinks', step: 1 },
         { label: 'cans of beer', step: 1 },
-        { label: 'glasses of wine', step: 0.5 },
-        { label: 'shots of liquor', step: 0.5 },
+        { label: 'glasses of wine', step: 1 },
+        { label: 'shots of liquor', step: 1 },
         { label: 'bottles of spirits', step: 1 }
       ],
       coarseHint:
@@ -492,16 +506,32 @@
     });
   }
 
+  // Taper curve: front-loaded if exponent > 1, linear if exponent = 1.
+  function getExponentForShape(shapeKey) {
+    switch (shapeKey) {
+      case 'linear':
+        return 1.0;           // straight line
+      case 'front_fast':
+        return 2.0;           // more aggressive early drop
+      case 'front_mod':
+      default:
+        return 1.6;           // moderate front-loaded default
+    }
+  }
+
   // Smooth taper curve in "raw units" before rounding
-  function generateSchedule(currentPerDay, days) {
+  function generateSchedule(currentPerDay, days, shapeKey) {
     const schedule = [];
     if (days < 2) {
       schedule.push(currentPerDay);
       return schedule;
     }
+
+    const exponent = getExponentForShape(shapeKey);
+
     for (let i = 0; i < days; i++) {
       const t = i / (days - 1); // 0..1
-      const curve = Math.pow(1 - t, 1.2); // non-linear; gentler early, steeper later
+      const curve = Math.pow(1 - t, exponent); // front-loaded if exponent > 1
       let val = currentPerDay * curve;
       schedule.push(val);
     }
@@ -514,7 +544,6 @@
     if (step <= 0) return value;
     if (value <= 0) return 0;
     const raw = Math.floor(value / step) * step;
-    // Avoid negative zero / weird small numbers
     return raw < step * 0.0001 ? 0 : Math.round(raw * 1000) / 1000;
   }
 
@@ -579,7 +608,7 @@
       const display = maxAmount.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
       html += '<div>Today is <strong>day ' + diffDays + '</strong> of your taper for <strong>' + substanceName + '</strong>.</div>';
       html += '<div class="today-highlight">Suggested maximum: ' +
-        display + ' ' + unit + (maxAmount === 1 ? '' : '') + ' today.</div>';
+        display + ' ' + unit + ' today.</div>';
       html += '<div class="tiny">Less is always okay. Skipping a day is great if you feel able. If you\'re struggling or tempted to go over, consider reaching out to someone.</div>';
     }
 
@@ -702,6 +731,7 @@
     startInput.value = yyyy + '-' + mm + '-' + dd;
 
     const substanceSelect = document.getElementById('substance');
+    const taperShapeSelect = document.getElementById('taperShape');
 
     // Initialize with alcohol defaults
     applySubstanceDefaults(substanceSelect.value);
@@ -718,6 +748,7 @@
       document.getElementById('unitLabel').value = existing.unitLabel;
       document.getElementById('unitStep').value = existing.unitStep;
       document.getElementById('substanceDetail').value = existing.substanceDetail || '';
+      taperShapeSelect.value = existing.taperShape || 'front_mod';
     }
 
     refreshUIFromPlan();
@@ -746,6 +777,7 @@
       const unitLabel = (document.getElementById('unitLabel').value || '').trim() || 'units';
       const unitStep = parseFloat(document.getElementById('unitStep').value);
       const substanceDetail = (document.getElementById('substanceDetail').value || '').trim();
+      const taperShape = taperShapeSelect.value || 'front_mod';
 
       if (isNaN(currentPerDay) || currentPerDay <= 0) {
         alert('Please enter your current average per day (must be > 0).');
@@ -760,12 +792,12 @@
         return;
       }
       if (isNaN(unitStep) || unitStep <= 0) {
-        alert('Please set the smallest step for your unit (e.g., 1 cigarette, 0.5 drinks, 0.25 joints).');
+        alert('Please set the smallest step for your unit (e.g., 1 cigarette, 1 drink, 0.5 drinks, 0.25 joints).');
         return;
       }
 
       // Generate schedule and then round to unit step
-      const rawSchedule = generateSchedule(currentPerDay, days);
+      const rawSchedule = generateSchedule(currentPerDay, days, taperShape);
       const rounded = rawSchedule.map(v => roundDownToStep(v, unitStep));
 
       // Ensure monotonic non-increasing and final zero
@@ -785,6 +817,7 @@
         substanceDetail,
         unitLabel,
         unitStep,
+        taperShape,
         schedule: rounded
       };
 
