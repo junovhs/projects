@@ -55,12 +55,6 @@ body {
   margin-right: 10px;
 }
 
-.help-text {
-  font-size: 13px;
-  color: #64748b;
-  margin-bottom: 10px;
-}
-
 textarea {
   width: 100%;
   flex-grow: 1;
@@ -72,12 +66,34 @@ textarea {
   font-size: 13px;
   margin-bottom: 15px;
   resize: vertical;
+  transition: border 0.2s;
 }
 
 textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.input-warning {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+.missing-alert {
+  background-color: #fff7ed;
+  border: 1px solid #ffedd5;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  color: #9a3412;
+}
+
+.small-instruction {
+  font-size: 11px;
+  margin-top: 8px;
+  color: #7c2d12;
+  font-style: italic;
 }
 
 .action-button {
@@ -87,6 +103,7 @@ textarea:focus {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.1s;
+  width: 100%;
 }
 .action-button:active { transform: scale(0.98); }
 
@@ -96,6 +113,14 @@ textarea:focus {
 .success { background-color: #10b981; color: white; }
 .success:hover { background-color: #059669; }
 .success:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+
+.warning-btn {
+  background-color: #f97316;
+  color: white;
+  margin-top: 8px;
+  font-size: 13px;
+  padding: 8px;
+}
 
 /* --- Work View Styles --- */
 .toolbar {
@@ -149,7 +174,7 @@ textarea:focus {
 .deal-row:last-child { border-bottom: none; }
 
 .deal-done {
-  background-color: #f0fdf4; /* Very light green */
+  background-color: #f0fdf4;
 }
 
 .check-circle {
@@ -166,7 +191,7 @@ textarea:focus {
   color: #10b981;
   font-weight: bold;
   font-size: 14px;
-  margin-top: 4px; /* align with headline */
+  margin-top: 4px;
 }
 
 .deal-done .check-circle {
@@ -174,9 +199,7 @@ textarea:focus {
   background-color: white;
 }
 
-.deal-content {
-  flex-grow: 1;
-}
+.deal-content { flex-grow: 1; }
 
 .content-line {
   margin-bottom: 6px;
@@ -192,30 +215,16 @@ textarea:focus {
   display: inline-block;
 }
 
-.clickable-text:hover {
-  background-color: #e0f2fe;
-}
+.clickable-text:hover { background-color: #e0f2fe; }
 
 .deal-done .clickable-text {
   opacity: 0.6;
   text-decoration: line-through;
 }
 
-.headline {
-  font-weight: 700;
-  font-size: 16px;
-  color: #1e293b;
-}
-
-.description {
-  font-size: 15px;
-  color: #475569;
-  line-height: 1.5;
-}
-
-.exclusive {
-  color: #dc2626;
-}
+.headline { font-weight: 700; font-size: 16px; color: #1e293b; }
+.description { font-size: 15px; color: #475569; line-height: 1.5; }
+.exclusive { color: #dc2626; }
 
 .copied-badge {
   font-size: 11px;
@@ -226,6 +235,27 @@ textarea:focus {
   margin-left: 8px;
   vertical-align: middle;
   animation: fadeIn 0.2s;
+}
+
+/* NEW: Original Text Box */
+.original-text-box {
+  font-size: 12px;
+  color: #64748b;
+  background-color: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  border-left: 3px solid #cbd5e1;
+  font-family: monospace;
+}
+
+.orig-label {
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 10px;
+  margin-right: 4px;
 }
 
 .dates-row {
@@ -255,9 +285,7 @@ textarea:focus {
   align-self: center;
 }
 
-.fade-in {
-  animation: fadeIn 0.4s ease-out;
-}
+.fade-in { animation: fadeIn 0.4s ease-out; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }

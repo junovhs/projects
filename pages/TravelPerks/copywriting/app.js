@@ -1,115 +1,183 @@
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect } = React;
+
+// Helper to assign IDs to raw text before sending to AI
+const parseRawTextToObjects = (text) => {
+  const lines = text.split("\n");
+  let structuredData = [];
+  let currentVendor = "";
+  let globalIdCounter = 1;
+
+  lines.forEach(line => {
+    const parts = line.split(/\s(.+)/);
+    if (parts.length < 2) return;
+    const [type, content] = parts; // type is 'v', 'd', or 'ed'
+
+    if (type === "v") {
+      currentVendor = content.trim();
+    } else if ((type === "d" || type === "ed") && currentVendor) {
+      structuredData.push({
+        id: globalIdCounter++,
+        vendor: currentVendor,
+        originalText: content.trim(),
+        type: type // 'd' or 'ed'
+      });
+    }
+  });
+  return structuredData;
+};
 
 function DealProcessor() {
-  // Workflow State
+  // --- State ---
+  const [view, setView] = useState("input"); // 'input' | 'work'
   const [rawInput, setRawInput] = useState("");
   const [jsonInput, setJsonInput] = useState("");
-  const [view, setView] = useState("input"); // 'input' or 'work'
+  const [parsedRawData, setParsedRawData] = useState([]); // Stores the ID mapping
+  const [missingIds, setMissingIds] = useState([]); // IDs not found in JSON
   
-  // Data State
   const [deals, setDeals] = useState([]);
   const [copySuccess, setCopySuccess] = useState({});
 
-  // --- Configuration for the External AI ---
-  const getSystemPrompt = (dealsText) => {
-    return `You are a travel marketing expert helper. I will provide a list of raw travel deals. 
-    
-INPUT FORMAT LEGEND:
-"v [Name]" = Vendor Name
-"d [Text]" = Standard Deal
-"ed [Text]" = Exclusive Deal
-
-YOUR TASK:
-Parse the text, group deals by vendor, and rewrite the content into a strict JSON format.
-
-CONTENT RULES:
-1. Headlines: 8-12 words. Catchy but professional. No "Sail Away", "Unlock", "Score", "Dream", "Escape".
-2. Descriptions: 10-16 words. Straightforward.
-3. EXCLUSIVES: If input is "ed", Headline MUST start with "EXCLUSIVE: ".
-4. FORMATTING: Replace "PPG" -> "Free Gratuities", "OBC" -> "Onboard Credit", "PP" -> "Per Person".
-5. DATES: Extract start and end dates from the text. 
-   - If a date is a range (11/18-11/25), split into startDate and endDate.
-   - If "Ends 12/31", set endDate. 
-   - Format dates as "MM/DD/YYYY" (e.g., 05/21/2025).
-   - REMOVE the date text from the generated description.
-   - If date is "ongoing", leave dates null.
-
-OUTPUT JSON STRUCTURE (Return ONLY this JSON, no markdown, no conversational text):
-[
-  {
-    "vendor": "Vendor Name",
-    "deals": [
-      {
-        "headline": "The generated headline",
-        "description": "The generated description ending with a period.",
-        "startDate": "MM/DD/YYYY" or null,
-        "endDate": "MM/DD/YYYY" or null,
-        "isExclusive": boolean
-      }
-    ]
-  }
-]
-
-HERE IS THE RAW DATA TO PROCESS:
-${dealsText}`;
-  };
-
   // --- Step 1: Generate Prompt ---
-  const copyPromptToClipboard = () => {
+  const generatePrompt = () => {
     if (!rawInput.trim()) {
       alert("Please paste some deals first.");
       return;
     }
-    const prompt = getSystemPrompt(rawInput);
-    navigator.clipboard.writeText(prompt).then(() => {
-      alert("PROMPT COPIED! \n\n1. Go to ChatGPT/Claude. \n2. Paste this prompt. \n3. Copy their JSON reply.");
+
+    // 1. Parse raw text to assign IDs
+    const structured = parseRawTextToObjects(rawInput);
+    setParsedRawData(structured); // Save this state to compare later
+
+    // 2. Build the string for the AI
+    // We format it as: [ID] Vendor | Text
+    const dataString = structured.map(item => 
+      `[ID:${item.id}] ${item.type === 'ed' ? '(EXCLUSIVE) ' : ''}Vendor: ${item.vendor} | Deal: ${item.originalText}`
+    ).join("\n");
+
+    const systemPrompt = `You are a travel marketing expert.
+    
+INPUT DATA:
+I have provided a list of travel deals. Each line starts with an [ID]. 
+You MUST retain this ID in your output JSON.
+
+YOUR TASK:
+1.  Read each line.
+2.  Rewrite the headline (8-12 words, catchy, no "Unlock/Score/Dream").
+3.  Rewrite the description (10-16 words, straightforward).
+4.  Extract Start/End dates (MM/DD/YYYY).
+5.  Format specific terms: "PPG"->"Free Gratuities", "OBC"->"Onboard Credit", "PP"->"Per Person".
+6.  If text says "Exclusive", headline must start with "EXCLUSIVE: ".
+
+OUTPUT JSON FORMAT (Strict List of Objects):
+[
+  {
+    "id": 123,  <-- CRITICAL: COPY THE EXACT ID FROM INPUT
+    "vendor": "Vendor Name",
+    "headline": "Written headline...",
+    "description": "Written description...",
+    "startDate": "MM/DD/YYYY" or null,
+    "endDate": "MM/DD/YYYY" or null,
+    "isExclusive": boolean
+  }
+]
+
+DATA TO PROCESS:
+${dataString}`;
+
+    navigator.clipboard.writeText(systemPrompt).then(() => {
+      alert(`PROMPT COPIED for ${structured.length} deals! \n\nPaste into AI, then copy the JSON reply back here.`);
     });
   };
 
-  // --- Step 2: Import JSON ---
-  const handleJsonParse = () => {
-    try {
-      // Clean up potential Markdown code blocks from AI (```json ... ```)
-      let cleanJson = jsonInput.trim();
-      if (cleanJson.startsWith("```")) {
-        cleanJson = cleanJson.replace(/^```(json)?|```$/g, "");
-      }
-      
-      const parsedData = JSON.parse(cleanJson);
-      
-      // Add local state fields (checked) to the data
-      const initializedData = parsedData.map(v => ({
-        ...v,
-        deals: v.deals.map(d => ({ ...d, checked: false }))
-      }));
+  // --- Step 1.5: Handle Missing Deals ---
+  const generateFixPrompt = () => {
+    const missingItems = parsedRawData.filter(item => missingIds.includes(item.id));
+    
+    const dataString = missingItems.map(item => 
+      `[ID:${item.id}] ${item.type === 'ed' ? '(EXCLUSIVE) ' : ''}Vendor: ${item.vendor} | Deal: ${item.originalText}`
+    ).join("\n");
 
-      setDeals(initializedData);
-      setView("work"); // Switch to the working view
+    const fixPrompt = `You missed some items in the previous batch. Please process ONLY these specific items and output them in the same JSON format as before (including the ID).
+
+MISSING ITEMS:
+${dataString}`;
+
+    navigator.clipboard.writeText(fixPrompt).then(() => {
+      alert("FIX PROMPT COPIED!\n\n1. Paste into AI chat.\n2. Copy the new JSON.\n3. Paste it BELOW the existing JSON in the box.");
+    });
+  };
+
+  // --- Step 2: Import & Verify ---
+  const handleProcessJson = () => {
+    try {
+      // 1. Sanitize Input (handle multiple code blocks if user pasted fix below original)
+      let rawJsonStr = jsonInput;
+      // Remove markdown code block syntax if present
+      rawJsonStr = rawJsonStr.replace(/```json/g, "").replace(/```/g, "");
+      // If user pasted two arrays like [...] [...] we need to join them
+      rawJsonStr = rawJsonStr.replace(/\]\s*\[/g, ","); 
+      
+      const aiData = JSON.parse(rawJsonStr);
+      
+      // 2. Validate IDs
+      const receivedIds = aiData.map(d => d.id);
+      const allRawIds = parsedRawData.map(d => d.id);
+      
+      const missing = allRawIds.filter(id => !receivedIds.includes(id));
+      setMissingIds(missing);
+
+      if (missing.length > 0) {
+        // Don't proceed, show alert UI
+        return; 
+      }
+
+      // 3. Merge Data (AI Data + Original Text)
+      // We transform the flat list of deals back into Vendor Groups for the UI
+      const groupedDeals = [];
+      
+      // Get unique vendors from the processed data to maintain order
+      const vendors = [...new Set(parsedRawData.map(d => d.vendor))];
+
+      vendors.forEach(vendorName => {
+        // Find all AI processed deals for this vendor
+        const vendorDeals = aiData
+          .filter(d => d.vendor === vendorName)
+          .map(d => {
+            // Attach the original text from our raw parsing
+            const originalData = parsedRawData.find(r => r.id === d.id);
+            return {
+              ...d,
+              originalText: originalData ? originalData.originalText : "Original text not found",
+              checked: false
+            };
+          });
+        
+        if (vendorDeals.length > 0) {
+          groupedDeals.push({
+            vendor: vendorName,
+            deals: vendorDeals
+          });
+        }
+      });
+
+      setDeals(groupedDeals);
+      setView("work");
       window.scrollTo(0,0);
+
     } catch (e) {
       console.error(e);
-      alert("Error parsing JSON. Make sure you pasted the exact code block from the AI.");
+      alert("JSON Error. If you pasted multiple blocks, ensure they form valid JSON or just paste them one after another.");
     }
   };
 
-  // --- Step 3: Work Actions ---
-  
+  // --- Step 3: Work Actions (Copy/Confetti) ---
   const handleCopy = (text, key, isCompletionAction = false, vendorIdx = null, dealIdx = null) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopySuccess({ [key]: true });
-      
-      // If this was the description (completion action), mark as done
       if (isCompletionAction && vendorIdx !== null && dealIdx !== null) {
         toggleDeal(vendorIdx, dealIdx, true);
       }
-
-      setTimeout(() => {
-        setCopySuccess(prev => {
-          const newState = { ...prev };
-          delete newState[key];
-          return newState;
-        });
-      }, 1500);
+      setTimeout(() => setCopySuccess({}), 1500);
     });
   };
 
@@ -117,10 +185,8 @@ ${dealsText}`;
     setDeals(prev => {
       const newDeals = [...prev];
       const deal = newDeals[vendorIndex].deals[dealIndex];
-      
       const newState = forceState !== null ? forceState : !deal.checked;
       deal.checked = newState;
-
       if (newState === true && typeof window.triggerSpecialConfetti === 'function') {
         window.triggerSpecialConfetti();
       }
@@ -129,60 +195,74 @@ ${dealsText}`;
   };
 
   const resetApp = () => {
-    if(confirm("Clear all data and start over?")) {
+    if(confirm("Start over?")) {
       setRawInput("");
       setJsonInput("");
+      setParsedRawData([]);
+      setMissingIds([]);
       setDeals([]);
       setView("input");
     }
   };
 
-  // --- Render Views ---
+  // --- Views ---
 
   const renderInputView = () => (
     <div className="input-view fade-in">
       <div className="split-container">
-        
-        {/* LEFT: Prompt Generator */}
+        {/* Step 1 */}
         <div className="step-box">
           <div className="step-header">
             <div className="step-number">1</div>
-            <h3>Prepare Prompt</h3>
+            <h3>Get AI Prompt</h3>
           </div>
-          <p className="help-text">Paste your raw deal text here (v Vendor, d Deal...)</p>
           <textarea 
             className="raw-input" 
             value={rawInput}
-            onChange={(e) => setRawInput(e.target.value)}
-            placeholder="v Vendor Name:&#10;d Deal text here...&#10;ed Exclusive deal text..."
+            onChange={(e) => {
+              setRawInput(e.target.value);
+              setParsedRawData([]); // Reset parsed state on edit
+              setMissingIds([]);
+            }}
+            placeholder="v Vendor Name&#10;d Deal Text..."
           />
-          <button className="action-button primary" onClick={copyPromptToClipboard}>
-            Copy Prompt for AI
+          <button className="action-button primary" onClick={generatePrompt}>
+            Step 1: Copy Prompt
           </button>
         </div>
 
-        {/* RIGHT: JSON Importer */}
+        {/* Step 2 */}
         <div className="step-box">
           <div className="step-header">
             <div className="step-number">2</div>
-            <h3>Import AI Reply</h3>
+            <h3>Import Reply</h3>
           </div>
-          <p className="help-text">Paste the JSON response from the AI here.</p>
+          
+          {missingIds.length > 0 && (
+            <div className="missing-alert">
+              <strong>⚠️ {missingIds.length} Deals Missing!</strong>
+              <p>The AI skipped some items.</p>
+              <button className="action-button warning-btn" onClick={generateFixPrompt}>
+                Copy "Fix Missing" Prompt
+              </button>
+              <div className="small-instruction">Paste the AI's NEW reply to the bottom of the box below.</div>
+            </div>
+          )}
+
           <textarea 
-            className="json-input" 
+            className={`json-input ${missingIds.length > 0 ? 'input-warning' : ''}`}
             value={jsonInput}
             onChange={(e) => setJsonInput(e.target.value)}
-            placeholder='[{"vendor": "...", "deals": [...]}]'
+            placeholder="Paste JSON here..."
           />
           <button 
             className="action-button success" 
-            onClick={handleJsonParse}
+            onClick={handleProcessJson}
             disabled={!jsonInput}
           >
-            Process & Start Working
+            {missingIds.length > 0 ? "Retry Verification" : "Step 2: Verify & Start"}
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -193,7 +273,7 @@ ${dealsText}`;
         <button className="back-button" onClick={resetApp}>← Start Over</button>
         <div className="progress-indicator">
           {deals.reduce((acc, v) => acc + v.deals.filter(d => d.checked).length, 0)} / 
-          {deals.reduce((acc, v) => acc + v.deals.length, 0)} Deals Completed
+          {deals.reduce((acc, v) => acc + v.deals.length, 0)} Completed
         </div>
       </div>
 
@@ -206,43 +286,39 @@ ${dealsText}`;
                 const isDone = deal.checked;
                 return (
                   <div key={dIdx} className={`deal-row ${isDone ? 'deal-done' : ''}`}>
-                    
-                    {/* Checkbox */}
-                    <div 
-                      className="check-circle" 
-                      onClick={() => toggleDeal(vIdx, dIdx)}
-                    >
+                    <div className="check-circle" onClick={() => toggleDeal(vIdx, dIdx)}>
                       {isDone && "✓"}
                     </div>
-
-                    {/* Content */}
                     <div className="deal-content">
                       
-                      {/* Headline Row */}
+                      {/* Headline */}
                       <div className="content-line">
                         <span 
                           className={`clickable-text headline ${deal.isExclusive ? 'exclusive' : ''}`}
                           onClick={() => handleCopy(deal.headline, `h-${vIdx}-${dIdx}`)}
-                          title="Click to Copy Headline"
                         >
                           {deal.headline}
                         </span>
                         {copySuccess[`h-${vIdx}-${dIdx}`] && <span className="copied-badge">Copied!</span>}
                       </div>
 
-                      {/* Description Row (Completes deal on click) */}
+                      {/* Description */}
                       <div className="content-line">
                         <span 
                           className="clickable-text description"
                           onClick={() => handleCopy(deal.description, `d-${vIdx}-${dIdx}`, true, vIdx, dIdx)}
-                          title="Click to Copy Description & Mark Complete"
                         >
                           {deal.description}
                         </span>
                         {copySuccess[`d-${vIdx}-${dIdx}`] && <span className="copied-badge">Copied!</span>}
                       </div>
 
-                      {/* Dates Row */}
+                      {/* Original Text Display */}
+                      <div className="original-text-box">
+                        <span className="orig-label">Original:</span> {deal.originalText}
+                      </div>
+
+                      {/* Dates */}
                       <div className="dates-row">
                         {deal.startDate && (
                           <span 
@@ -281,7 +357,7 @@ ${dealsText}`;
 
   return (
     <div className="container">
-      <h1 className="app-title">Deal Checklist 2.0</h1>
+      <h1 className="app-title">Deal Checklist 2.1</h1>
       {view === 'input' ? renderInputView() : renderWorkView()}
     </div>
   );
