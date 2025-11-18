@@ -84,7 +84,7 @@ function DealProcessor() {
 
   const showToast = (msg, type = 'info') => setNotify({ msg, type });
 
-  // --- Step 1: Generate Prompt (Now with STRICT Style Guide) ---
+  // --- Step 1: Generate Prompt (Updated for Version 3.3) ---
   const generatePrompt = () => {
     const groups = parseRawToGroups(rawInput);
     
@@ -95,23 +95,32 @@ function DealProcessor() {
 
     let promptText = `You are a travel marketing assistant.
 
-STRICT COPYWRITING RULES:
-1. **Tone:** Straightforward, concise, conversational. NO marketing fluff.
-2. **Length:** Headlines 8-12 words. Descriptions 10-16 words.
-3. **Banned Words (Do NOT Use):** 
-   "Sail Away", "Unlock", "Score", "Indulge", "Savor", "Escape", "Dream", "Explore", "Grab", "Book", "Bring", "Elevate", "Cruise", "Captain’s", "Princess", "Save", "Limited-time", "Limited", "Exclusive" (unless in title tag), "Reduced", "Enjoy", "Black", "All-inclusive".
+STRICT COPYWRITING & SAFETY RULES:
+
+1. **Accuracy is Paramount:** 
+   - Do not "interpret" the deal values. If the text says "Savings", say "Savings" or "Save". Do NOT change it to "Keep", "Earn", or "Get back".
+   - **Safety First:** ALWAYS include qualifiers like "up to", "from", or "select sailings" if they appear in the source. Do not make absolute promises that aren't in the text.
+
+2. **Tone & Style:** 
+   - Straightforward, professional, and concise. 
+   - Use "Save" instead of "Keep".
+   - Headlines 8-12 words. Descriptions 10-16 words.
+
+3. **Banned Words (Marketing Fluff Only):** 
+   - Do NOT use: "Sail Away", "Unlock", "Score", "Indulge", "Savor", "Escape", "Dream", "Paradise", "Awaits", "Magic", "Breath-taking".
+   - (Note: Standard words like "Save", "Book", "Enjoy", "Exclusive", "Limited" ARE allowed if used factually).
+
 4. **Formatting:**
    - Do NOT start headlines with "CTA: Description".
    - If the title has a Branded Sale name, use it in the description.
+
 5. **Industry Terms (Mandatory Replacements):**
    - PPG → "Free Gratuities"
    - OBC → "Onboard Credit"
    - PP → "Per Person"
-6. **Covert/Opaque Deals:**
-   - Suggest an appealing rate/opportunity.
-   - Must imply they need to call an agent.
-   - NEVER use rate codes (e.g. OB7, PB4).
-7. **Exclusives:** If input is marked (EXCLUSIVE), Headline MUST start with "EXCLUSIVE: ".
+
+6. **Exclusives:** 
+   - If input is marked (EXCLUSIVE), Headline MUST start with "EXCLUSIVE: ".
 
 INSTRUCTIONS FOR JSON OUTPUT:
 1. Return a JSON structure that MIRRORS the input exactly (same number of vendors/deals).
@@ -369,7 +378,7 @@ OUTPUT JSON FORMAT:
 
   return (
     <div className="container">
-      <h1 className="app-title">Deal Checklist 3.2</h1>
+      <h1 className="app-title">Deal Checklist 3.3</h1>
       
       {notify && <Notification message={notify.msg} type={notify.type} onClose={() => setNotify(null)} />}
       
