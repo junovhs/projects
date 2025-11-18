@@ -1,10 +1,10 @@
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect } = React;
 
 // --- UI Components ---
 
 const Notification = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -16,323 +16,370 @@ const Notification = ({ message, type, onClose }) => {
   );
 };
 
-const Modal = ({ title, message, onConfirm, onCancel }) => (
+const Modal = ({ title, children, onConfirm, onCancel, confirmText = "Confirm" }) => (
   <div className="modal-overlay">
     <div className="modal">
       <h3>{title}</h3>
-      <p>{message}</p>
+      <div className="modal-content">{children}</div>
       <div className="modal-buttons">
-        <button className="btn-secondary" onClick={onCancel}>Cancel</button>
-        <button className="btn-danger" onClick={onConfirm}>Confirm</button>
+        {onCancel && <button className="btn-secondary" onClick={onCancel}>Cancel</button>}
+        {onConfirm && <button className="btn-primary" onClick={onConfirm}>{confirmText}</button>}
       </div>
     </div>
   </div>
 );
 
-// --- Logic Helpers ---
+// --- Logic: The "Vendor-Locked" Parser ---
 
-const extractRawDeals = (text) => {
+const parseRawToGroups = (text) => {
   if (!text) return [];
   const lines = text.split("\n");
-  let deals = [];
-  let currentVendor = "";
+  let groups = [];
+  let currentVendor = null;
 
   lines.forEach(line => {
     const parts = line.split(/\s(.+)/);
     if (parts.length < 2) return;
     const [type, content] = parts; // 'v', 'd', 'ed'
+    const cleanContent = content.trim();
 
     if (type === "v") {
-      currentVendor = content.trim();
+      // Start new vendor group
+      currentVendor = {
+        name: cleanContent,
+        deals: []
+      };
+      groups.push(currentVendor);
     } else if ((type === "d" || type === "ed") && currentVendor) {
-      deals.push({
-        vendor: currentVendor,
-        originalText: content.trim(),
+      // Add deal to current vendor
+      currentVendor.deals.push({
+        originalText: cleanContent,
         isExclusive: type === 'ed'
       });
     }
   });
-  return deals;
+  return groups;
 };
 
-const safeJsonParse = (input) => {
-  // Find the outer array brackets ignoring all AI chatter
+const cleanAndParseJSON = (input) => {
   const start = input.indexOf('[');
   const end = input.lastIndexOf(']');
-  
-  if (start === -1 || end === -1) throw new Error("No JSON array [...] found in text.");
+  if (start === -1 || end === -1) throw new Error("No JSON array found.");
   
   let clean = input.substring(start, end + 1);
-  // Fix common AI trailing commas: ",]" -> "]" and ",}" -> "}"
-  clean = clean.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}');
-  
+  clean = clean.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}'); // Fix trailing commas
   return JSON.parse(clean);
 };
 
-// --- Main Component ---
+// --- Main App ---
 
 function DealProcessor() {
-  // State
+  // Data State
   const [view, setView] = useState("input"); 
   const [rawInput, setRawInput] = useState("");
   const [jsonInput, setJsonInput] = useState("");
-  const [deals, setDeals] = useState([]);
-  const [copySuccess, setCopySuccess] = useState({});
+  const [finalGroups, setFinalGroups] = useState([]); // The merged, validated data
   
   // UI State
-  const [notify, setNotify] = useState(null); // { msg, type }
-  const [showResetModal, setShowResetModal] = useState(false);
+  const [notify, setNotify] = useState(null);
+  const [validationError, setValidationError] = useState(null);
+  const [copySuccess, setCopySuccess] = useState({});
+  const [showReset, setShowReset] = useState(false);
 
-  // Actions
   const showToast = (msg, type = 'info') => setNotify({ msg, type });
 
+  // --- Step 1: Generate Vendor-Grouped Prompt ---
   const generatePrompt = () => {
-    const rawDeals = extractRawDeals(rawInput);
-    if (rawDeals.length === 0) {
-      showToast("Paste some deals first!", "error");
+    const groups = parseRawToGroups(rawInput);
+    
+    if (groups.length === 0) {
+      showToast("No vendors found. Use 'v Name' format.", "error");
       return;
     }
 
-    // Simple Prompt - relies on order, not IDs
-    const prompt = `You are a travel marketing helper.
+    let promptText = `You are a travel marketing assistant.
     
-INPUT:
-${rawDeals.map((d, i) => `[${i+1}] ${d.isExclusive ? '(EXCLUSIVE)' : ''} ${d.vendor}: ${d.originalText}`).join('\n')}
+INSTRUCTIONS:
+1. I will provide a list of Vendors and their Deals.
+2. You must return a JSON structure that MIRRORS this structure exactly.
+3. Do NOT include the Vendor Name in the headlines or descriptions.
+4. Headlines: 8-12 words. No "Unlock/Score/Dream".
+5. Descriptions: 10-16 words.
+6. Dates: Extract startDate/endDate (MM/DD/YYYY).
+7. Exclusives: If input says (EXCLUSIVE), start headline with "EXCLUSIVE: ".
 
-TASK:
-Rewrite these ${rawDeals.length} deals. 
-1. MAINTAIN EXACT ORDER. Result 1 must match Input 1.
-2. Headlines: 8-12 words, catchy. No "Unlock/Score/Dream".
-3. Descriptions: 10-16 words.
-4. Dates: Extract Start/End (MM/DD/YYYY).
-5. Replace: "PPG"->"Free Gratuities", "OBC"->"Onboard Credit", "PP"->"Per Person".
-6. Exclusives: Headline must start with "EXCLUSIVE: ".
+INPUT DATA:
+`;
 
-OUTPUT JSON ONLY:
+    groups.forEach((g, i) => {
+      promptText += `\nVENDOR ${i+1}: ${g.name}\n`;
+      g.deals.forEach((d, j) => {
+        promptText += `   Deal ${j+1}: ${d.isExclusive ? '(EXCLUSIVE) ' : ''}${d.originalText}\n`;
+      });
+    });
+
+    promptText += `
+OUTPUT JSON FORMAT:
 [
   {
-    "headline": "...",
-    "description": "...",
-    "startDate": "MM/DD/YYYY" or null,
-    "endDate": "MM/DD/YYYY" or null
+    "vendorIndex": 1,
+    "deals": [
+      { "headline": "...", "description": "...", "startDate": "...", "endDate": "..." },
+      { "headline": "...", "description": "...", "startDate": "...", "endDate": "..." }
+    ]
   }
+  ... (Repeat for all vendors)
 ]`;
 
-    navigator.clipboard.writeText(prompt).then(() => {
-      showToast("Prompt Copied! Paste to AI.", "success");
-    }).catch(() => showToast("Clipboard failed. Copy manually.", "error"));
+    navigator.clipboard.writeText(promptText).then(() => {
+      showToast(`Prompt for ${groups.length} Vendors copied!`, "success");
+    });
   };
 
-  const processImport = () => {
+  // --- Step 2: The Audit (Validation & Merge) ---
+  const validateAndImport = () => {
     try {
-      const aiResult = safeJsonParse(jsonInput);
-      const rawDeals = extractRawDeals(rawInput);
+      // 1. Parse Inputs
+      const rawGroups = parseRawToGroups(rawInput);
+      const aiGroups = cleanAndParseJSON(jsonInput);
 
-      // Merge Logic: Map by Index
-      // If lists are different lengths, we just map what we can
-      const merged = aiResult.map((aiDeal, index) => {
-        const original = rawDeals[index] || { vendor: "Unknown", originalText: "No matching original text found." };
+      // 2. Validate Vendor Count
+      if (rawGroups.length !== aiGroups.length) {
+        setValidationError({
+          title: "Vendor Count Mismatch",
+          msg: `You provided ${rawGroups.length} vendors, but AI returned ${aiGroups.length}. Cannot proceed.`
+        });
+        return;
+      }
+
+      // 3. Validate Deal Counts Per Vendor
+      const errors = [];
+      const mergedData = rawGroups.map((rawGroup, idx) => {
+        const aiGroup = aiGroups[idx]; // We trust the order: AI Group 1 is Raw Group 1
+        
+        // Check deal count for this specific vendor
+        if (rawGroup.deals.length !== aiGroup.deals.length) {
+          errors.push(`Vendor "${rawGroup.name}": Sent ${rawGroup.deals.length} deals, got ${aiGroup.deals.length}.`);
+        }
+
+        // Merge: Use RAW Vendor Name (Safety) + AI Deal Content
+        const mergedDeals = rawGroup.deals.map((rawDeal, dealIdx) => {
+          const aiDeal = aiGroup.deals[dealIdx] || {}; // Fallback if length mismatch (caught above)
+          return {
+            headline: aiDeal.headline || "MISSING HEADLINE",
+            description: aiDeal.description || "MISSING DESCRIPTION",
+            startDate: aiDeal.startDate,
+            endDate: aiDeal.endDate,
+            originalText: rawDeal.originalText,
+            isExclusive: rawDeal.isExclusive, // Use RAW truth
+            checked: false
+          };
+        });
+
         return {
-          ...aiDeal,
-          vendor: original.vendor,
-          originalText: original.originalText,
-          isExclusive: original.isExclusive, // Trust raw input for exclusive flag
-          checked: false
+          name: rawGroup.name,
+          deals: mergedDeals
         };
       });
 
-      // Group by Vendor for display
-      const grouped = {};
-      merged.forEach(deal => {
-        if (!grouped[deal.vendor]) grouped[deal.vendor] = [];
-        grouped[deal.vendor].push(deal);
-      });
+      if (errors.length > 0) {
+        setValidationError({
+          title: "Deal Count Mismatch",
+          msg: "The AI dropped or added deals. Please fix the JSON or Regenerate.",
+          details: errors
+        });
+        return;
+      }
 
-      // Convert to array
-      const finalDeals = Object.keys(grouped).map(v => ({
-        vendor: v,
-        items: grouped[v]
-      }));
-
-      setDeals(finalDeals);
+      // 4. Success!
+      setFinalGroups(mergedData);
       setView("work");
       window.scrollTo(0,0);
+
     } catch (e) {
       console.error(e);
-      showToast(`JSON Error: ${e.message}`, "error");
+      showToast("JSON Syntax Error: " + e.message, "error");
     }
   };
 
-  const handleCopy = (text, key, isCompleteAction, vIdx, dIdx) => {
+  // --- Step 3: Work Actions ---
+  const handleCopy = (text, key, isComplete, vIdx, dIdx) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopySuccess(prev => ({ ...prev, [key]: true }));
-      
-      if (isCompleteAction) {
-        toggleCheck(vIdx, dIdx, true);
-      }
-      
-      setTimeout(() => {
-        setCopySuccess(prev => {
-          const n = { ...prev };
-          delete n[key];
-          return n;
-        });
-      }, 1500);
+      if (isComplete) toggleCheck(vIdx, dIdx, true);
+      setTimeout(() => setCopySuccess(prev => {
+        const n = {...prev}; delete n[key]; return n;
+      }), 1500);
     });
   };
 
   const toggleCheck = (vIdx, dIdx, forceState = null) => {
-    setDeals(prev => {
-      const next = [...prev];
-      const item = next[vIdx].items[dIdx];
-      const newState = forceState !== null ? forceState : !item.checked;
-      
-      item.checked = newState;
-      
-      if (newState && window.triggerSpecialConfetti) {
-        window.triggerSpecialConfetti();
-      }
-      return next;
+    setFinalGroups(prev => {
+      const newGroups = [...prev];
+      const deal = newGroups[vIdx].deals[dIdx];
+      const nextState = forceState !== null ? forceState : !deal.checked;
+      deal.checked = nextState;
+      if (nextState && window.triggerSpecialConfetti) window.triggerSpecialConfetti();
+      return newGroups;
     });
   };
 
-  const resetApp = () => {
+  const reset = () => {
     setRawInput("");
     setJsonInput("");
-    setDeals([]);
+    setFinalGroups([]);
     setView("input");
-    setShowResetModal(false);
+    setShowReset(false);
   };
 
-  // --- Renders ---
+  // --- Views ---
+
+  const renderInput = () => (
+    <div className="view-input fade-in">
+      <div className="step-card">
+        <div className="step-header">
+          <div className="badge">1</div>
+          <h3>Raw Text</h3>
+        </div>
+        <textarea 
+          value={rawInput}
+          onChange={e => setRawInput(e.target.value)}
+          placeholder="v Vendor Name&#10;d Deal text..." 
+        />
+        <button className="btn-primary full-width" onClick={generatePrompt}>
+          Copy Prompt
+        </button>
+      </div>
+
+      <div className="step-card">
+        <div className="step-header">
+          <div className="badge">2</div>
+          <h3>AI Response</h3>
+        </div>
+        <textarea 
+          value={jsonInput}
+          onChange={e => setJsonInput(e.target.value)}
+          placeholder="Paste JSON here..." 
+        />
+        <button 
+          className="btn-success full-width" 
+          onClick={validateAndImport}
+          disabled={!jsonInput}
+        >
+          Verify & Start
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderWork = () => {
+    const totalDeals = finalGroups.reduce((acc, g) => acc + g.deals.length, 0);
+    const doneDeals = finalGroups.reduce((acc, g) => acc + g.deals.filter(d => d.checked).length, 0);
+
+    return (
+      <div className="view-work fade-in">
+        <div className="toolbar">
+          <button className="btn-text" onClick={() => setShowReset(true)}>← Start Over</button>
+          <div className="stats">
+            <span className="stat-pill">Vendors: {finalGroups.length}</span>
+            <span className="stat-pill active">Deals: {doneDeals} / {totalDeals}</span>
+          </div>
+        </div>
+
+        {finalGroups.map((group, vIdx) => (
+          <div key={vIdx} className="vendor-block">
+            <h2 className="vendor-title">{group.name}</h2>
+            <div className="deal-list">
+              {group.deals.map((deal, dIdx) => (
+                <div key={dIdx} className={`deal-row ${deal.checked ? 'checked' : ''}`}>
+                  <div className="checkbox-col">
+                    <div 
+                      className={`circle-check ${deal.checked ? 'active' : ''}`} 
+                      onClick={() => toggleCheck(vIdx, dIdx)}
+                    >
+                      {deal.checked && "✓"}
+                    </div>
+                  </div>
+                  <div className="content-col">
+                    {/* Headline */}
+                    <div className="row-line">
+                      <span 
+                        className={`copy-text headline ${deal.isExclusive ? 'exclusive' : ''}`}
+                        onClick={() => handleCopy(deal.headline, `h${vIdx}${dIdx}`)}
+                      >
+                        {deal.headline}
+                      </span>
+                      {copySuccess[`h${vIdx}${dIdx}`] && <span className="toast-inline">Copied</span>}
+                    </div>
+                    {/* Description */}
+                    <div className="row-line">
+                      <span 
+                        className="copy-text description"
+                        onClick={() => handleCopy(deal.description, `d${vIdx}${dIdx}`, true, vIdx, dIdx)}
+                      >
+                        {deal.description}
+                      </span>
+                      {copySuccess[`d${vIdx}${dIdx}`] && <span className="toast-inline">Copied</span>}
+                    </div>
+                    {/* Context */}
+                    <div className="original-context">
+                      <span className="label">ORIGINAL:</span> {deal.originalText}
+                    </div>
+                    {/* Dates */}
+                    <div className="dates-wrapper">
+                      {deal.startDate && (
+                        <span className="pill start" onClick={() => handleCopy(deal.startDate, `sd${vIdx}${dIdx}`)}>
+                          Starts: {deal.startDate}
+                        </span>
+                      )}
+                      {deal.endDate && (
+                        <span className="pill end" onClick={() => handleCopy(deal.endDate, `ed${vIdx}${dIdx}`)}>
+                          Ends: {deal.endDate}
+                        </span>
+                      )}
+                      {(copySuccess[`sd${vIdx}${dIdx}`] || copySuccess[`ed${vIdx}${dIdx}`]) && 
+                         <span className="toast-inline">Copied</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="container">
+      <h1 className="app-title">Deal Checklist 3.0</h1>
+      
       {notify && <Notification message={notify.msg} type={notify.type} onClose={() => setNotify(null)} />}
       
-      {showResetModal && (
+      {showReset && (
+        <Modal title="Start Over?" onConfirm={reset} onCancel={() => setShowReset(false)} confirmText="Yes, Reset">
+          <p>All current progress will be lost.</p>
+        </Modal>
+      )}
+
+      {validationError && (
         <Modal 
-          title="Start Over?" 
-          message="This will clear all your current work." 
-          onConfirm={resetApp} 
-          onCancel={() => setShowResetModal(false)} 
-        />
+          title={validationError.title} 
+          onConfirm={() => setValidationError(null)} 
+          confirmText="OK, I'll Fix It"
+        >
+          <div className="error-list">
+            <p>{validationError.msg}</p>
+            {validationError.details && (
+              <ul>
+                {validationError.details.map((d, i) => <li key={i}>{d}</li>)}
+              </ul>
+            )}
+          </div>
+        </Modal>
       )}
 
-      <h1 className="app-title">Deal Checklist</h1>
-
-      {view === 'input' ? (
-        <div className="view-input fade-in">
-          <div className="step-card">
-            <div className="step-header">
-              <div className="badge">1</div>
-              <h3>Raw Text</h3>
-            </div>
-            <textarea 
-              value={rawInput}
-              onChange={e => setRawInput(e.target.value)}
-              placeholder="v Vendor&#10;d Deal..."
-            />
-            <button className="btn-primary full-width" onClick={generatePrompt}>
-              Copy Prompt
-            </button>
-          </div>
-
-          <div className="step-card">
-            <div className="step-header">
-              <div className="badge">2</div>
-              <h3>AI Response</h3>
-            </div>
-            <textarea 
-              value={jsonInput}
-              onChange={e => setJsonInput(e.target.value)}
-              placeholder="Paste JSON here..."
-            />
-            <button 
-              className="btn-success full-width" 
-              onClick={processImport}
-              disabled={!jsonInput}
-            >
-              Start Working
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="view-work fade-in">
-          <div className="toolbar">
-            <button className="btn-text" onClick={() => setShowResetModal(true)}>← Start Over</button>
-            <div className="counter">
-              {deals.reduce((acc, v) => acc + v.items.filter(i => i.checked).length, 0)} / 
-              {deals.reduce((acc, v) => acc + v.items.length, 0)} Done
-            </div>
-          </div>
-
-          {deals.map((vendor, vIdx) => (
-            <div key={vIdx} className="vendor-block">
-              <h2 className="vendor-title">{vendor.vendor}</h2>
-              <div className="deal-list">
-                {vendor.items.map((deal, dIdx) => (
-                  <div key={dIdx} className={`deal-row ${deal.checked ? 'checked' : ''}`}>
-                    <div className="checkbox-col">
-                      <div 
-                        className={`circle-check ${deal.checked ? 'active' : ''}`} 
-                        onClick={() => toggleCheck(vIdx, dIdx)}
-                      >
-                        {deal.checked && "✓"}
-                      </div>
-                    </div>
-                    
-                    <div className="content-col">
-                      {/* Headline */}
-                      <div className="row-line">
-                        <span 
-                          className={`copy-text headline ${deal.headline && deal.headline.startsWith("EXCLUSIVE") ? 'exclusive' : ''}`}
-                          onClick={() => handleCopy(deal.headline, `h${vIdx}${dIdx}`)}
-                        >
-                          {deal.headline}
-                        </span>
-                        {copySuccess[`h${vIdx}${dIdx}`] && <span className="toast-inline">Copied</span>}
-                      </div>
-
-                      {/* Description */}
-                      <div className="row-line">
-                        <span 
-                          className="copy-text description"
-                          onClick={() => handleCopy(deal.description, `d${vIdx}${dIdx}`, true, vIdx, dIdx)}
-                        >
-                          {deal.description}
-                        </span>
-                        {copySuccess[`d${vIdx}${dIdx}`] && <span className="toast-inline">Copied</span>}
-                      </div>
-
-                      {/* Original Text Context */}
-                      <div className="original-context">
-                        <span className="label">ORIGINAL:</span> {deal.originalText}
-                      </div>
-
-                      {/* Dates */}
-                      <div className="dates-wrapper">
-                        {deal.startDate && (
-                          <span className="pill start" onClick={() => handleCopy(deal.startDate, `sd${vIdx}${dIdx}`)}>
-                            Starts: {deal.startDate}
-                          </span>
-                        )}
-                        {deal.endDate && (
-                          <span className="pill end" onClick={() => handleCopy(deal.endDate, `ed${vIdx}${dIdx}`)}>
-                            Ends: {deal.endDate}
-                          </span>
-                        )}
-                        {(copySuccess[`sd${vIdx}${dIdx}`] || copySuccess[`ed${vIdx}${dIdx}`]) && 
-                          <span className="toast-inline">Copied</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {view === 'input' ? renderInput() : renderWork()}
     </div>
   );
 }
