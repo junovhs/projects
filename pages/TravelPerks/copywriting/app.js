@@ -44,14 +44,12 @@ const parseRawToGroups = (text) => {
     const cleanContent = content.trim();
 
     if (type === "v") {
-      // Start new vendor group
       currentVendor = {
         name: cleanContent,
         deals: []
       };
       groups.push(currentVendor);
     } else if ((type === "d" || type === "ed") && currentVendor) {
-      // Add deal to current vendor
       currentVendor.deals.push({
         originalText: cleanContent,
         isExclusive: type === 'ed'
@@ -67,20 +65,18 @@ const cleanAndParseJSON = (input) => {
   if (start === -1 || end === -1) throw new Error("No JSON array found.");
   
   let clean = input.substring(start, end + 1);
-  clean = clean.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}'); // Fix trailing commas
+  clean = clean.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}'); 
   return JSON.parse(clean);
 };
 
 // --- Main App ---
 
 function DealProcessor() {
-  // Data State
   const [view, setView] = useState("input"); 
   const [rawInput, setRawInput] = useState("");
   const [jsonInput, setJsonInput] = useState("");
   const [finalGroups, setFinalGroups] = useState([]); 
   
-  // UI State
   const [notify, setNotify] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const [copySuccess, setCopySuccess] = useState({});
@@ -88,7 +84,7 @@ function DealProcessor() {
 
   const showToast = (msg, type = 'info') => setNotify({ msg, type });
 
-  // --- Step 1: Generate Vendor-Grouped Prompt ---
+  // --- Step 1: Generate Prompt (Now with STRICT Style Guide) ---
   const generatePrompt = () => {
     const groups = parseRawToGroups(rawInput);
     
@@ -98,15 +94,30 @@ function DealProcessor() {
     }
 
     let promptText = `You are a travel marketing assistant.
-    
-INSTRUCTIONS:
-1. I will provide a list of Vendors and their Deals.
-2. You must return a JSON structure that MIRRORS this structure exactly.
-3. Do NOT include the Vendor Name in the headlines or descriptions.
-4. Headlines: 8-12 words. No "Unlock/Score/Dream".
-5. Descriptions: 10-16 words.
-6. Dates: Extract startDate/endDate (MM/DD/YYYY).
-7. Exclusives: If input says (EXCLUSIVE), start headline with "EXCLUSIVE: ".
+
+STRICT COPYWRITING RULES:
+1. **Tone:** Straightforward, concise, conversational. NO marketing fluff.
+2. **Length:** Headlines 8-12 words. Descriptions 10-16 words.
+3. **Banned Words (Do NOT Use):** 
+   "Sail Away", "Unlock", "Score", "Indulge", "Savor", "Escape", "Dream", "Explore", "Grab", "Book", "Bring", "Elevate", "Cruise", "Captain’s", "Princess", "Save", "Limited-time", "Limited", "Exclusive" (unless in title tag), "Reduced", "Enjoy", "Black", "All-inclusive".
+4. **Formatting:**
+   - Do NOT start headlines with "CTA: Description".
+   - If the title has a Branded Sale name, use it in the description.
+5. **Industry Terms (Mandatory Replacements):**
+   - PPG → "Free Gratuities"
+   - OBC → "Onboard Credit"
+   - PP → "Per Person"
+6. **Covert/Opaque Deals:**
+   - Suggest an appealing rate/opportunity.
+   - Must imply they need to call an agent.
+   - NEVER use rate codes (e.g. OB7, PB4).
+7. **Exclusives:** If input is marked (EXCLUSIVE), Headline MUST start with "EXCLUSIVE: ".
+
+INSTRUCTIONS FOR JSON OUTPUT:
+1. Return a JSON structure that MIRRORS the input exactly (same number of vendors/deals).
+2. Extract "startDate" and "endDate" (MM/DD/YYYY) from text.
+3. Do NOT include the Expiry Date in the text description (the app handles that).
+4. Do NOT include the Vendor Name in the text.
 
 INPUT DATA:
 `;
@@ -128,7 +139,6 @@ OUTPUT JSON FORMAT:
       { "headline": "...", "description": "...", "startDate": "...", "endDate": "..." }
     ]
   }
-  ... (Repeat for all vendors)
 ]`;
 
     navigator.clipboard.writeText(promptText).then(() => {
@@ -136,54 +146,43 @@ OUTPUT JSON FORMAT:
     });
   };
 
-  // --- Step 2: The Audit (Validation & Merge) ---
+  // --- Step 2: Validate & Import ---
   const validateAndImport = () => {
     try {
-      // 1. Parse Inputs
       const rawGroups = parseRawToGroups(rawInput);
       const aiGroups = cleanAndParseJSON(jsonInput);
 
-      // 2. Validate Vendor Count
       if (rawGroups.length !== aiGroups.length) {
         setValidationError({
           title: "Vendor Count Mismatch",
-          msg: `You provided ${rawGroups.length} vendors, but AI returned ${aiGroups.length}. Cannot proceed.`
+          msg: `You provided ${rawGroups.length} vendors, but AI returned ${aiGroups.length}.`
         });
         return;
       }
 
-      // 3. Validate Deal Counts Per Vendor
       const errors = [];
       const mergedData = rawGroups.map((rawGroup, idx) => {
         const aiGroup = aiGroups[idx]; 
         
-        // Check deal count for this specific vendor
         if (rawGroup.deals.length !== aiGroup.deals.length) {
           errors.push(`Vendor "${rawGroup.name}": Sent ${rawGroup.deals.length} deals, got ${aiGroup.deals.length}.`);
         }
 
-        // Merge
         const mergedDeals = rawGroup.deals.map((rawDeal, dealIdx) => {
           const aiDeal = aiGroup.deals[dealIdx] || {}; 
           
-          // --- LOGIC UPDATE: Append Date to Description ---
+          // Logic: Append formatted end date to description automatically
           let finalDescription = aiDeal.description || "MISSING DESCRIPTION";
           
-          // Check if we have an end date to append
           if (aiDeal.endDate && typeof aiDeal.endDate === 'string') {
-            // 1. Ensure description has punctuation at the end
             const trimmed = finalDescription.trim();
+            // Ensure punctuation
             const hasPunctuation = /[.!?]$/.test(trimmed);
             finalDescription = hasPunctuation ? trimmed : trimmed + ".";
-
-            // 2. Format date (Strip year if standard MM/DD/YYYY format to save space)
-            // e.g. 12/16/2025 -> 12/16
+            // Format MM/DD
             const shortDate = aiDeal.endDate.replace(/\/\d{4}$/, '');
-            
-            // 3. Append
             finalDescription += ` Ends ${shortDate}.`;
           }
-          // ------------------------------------------------
 
           return {
             headline: aiDeal.headline || "MISSING HEADLINE",
@@ -205,13 +204,12 @@ OUTPUT JSON FORMAT:
       if (errors.length > 0) {
         setValidationError({
           title: "Deal Count Mismatch",
-          msg: "The AI dropped or added deals. Please fix the JSON or Regenerate.",
+          msg: "The AI dropped or added deals. Please fix JSON or Regenerate.",
           details: errors
         });
         return;
       }
 
-      // 4. Success!
       setFinalGroups(mergedData);
       setView("work");
       window.scrollTo(0,0);
@@ -252,8 +250,7 @@ OUTPUT JSON FORMAT:
     setShowReset(false);
   };
 
-  // --- Views ---
-
+  // --- Render Helpers ---
   const renderInput = () => (
     <div className="view-input fade-in">
       <div className="step-card">
@@ -372,7 +369,7 @@ OUTPUT JSON FORMAT:
 
   return (
     <div className="container">
-      <h1 className="app-title">Deal Checklist 3.1</h1>
+      <h1 className="app-title">Deal Checklist 3.2</h1>
       
       {notify && <Notification message={notify.msg} type={notify.type} onClose={() => setNotify(null)} />}
       
