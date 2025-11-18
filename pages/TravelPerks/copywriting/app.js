@@ -78,7 +78,7 @@ function DealProcessor() {
   const [view, setView] = useState("input"); 
   const [rawInput, setRawInput] = useState("");
   const [jsonInput, setJsonInput] = useState("");
-  const [finalGroups, setFinalGroups] = useState([]); // The merged, validated data
+  const [finalGroups, setFinalGroups] = useState([]); 
   
   // UI State
   const [notify, setNotify] = useState(null);
@@ -155,23 +155,43 @@ OUTPUT JSON FORMAT:
       // 3. Validate Deal Counts Per Vendor
       const errors = [];
       const mergedData = rawGroups.map((rawGroup, idx) => {
-        const aiGroup = aiGroups[idx]; // We trust the order: AI Group 1 is Raw Group 1
+        const aiGroup = aiGroups[idx]; 
         
         // Check deal count for this specific vendor
         if (rawGroup.deals.length !== aiGroup.deals.length) {
           errors.push(`Vendor "${rawGroup.name}": Sent ${rawGroup.deals.length} deals, got ${aiGroup.deals.length}.`);
         }
 
-        // Merge: Use RAW Vendor Name (Safety) + AI Deal Content
+        // Merge
         const mergedDeals = rawGroup.deals.map((rawDeal, dealIdx) => {
-          const aiDeal = aiGroup.deals[dealIdx] || {}; // Fallback if length mismatch (caught above)
+          const aiDeal = aiGroup.deals[dealIdx] || {}; 
+          
+          // --- LOGIC UPDATE: Append Date to Description ---
+          let finalDescription = aiDeal.description || "MISSING DESCRIPTION";
+          
+          // Check if we have an end date to append
+          if (aiDeal.endDate && typeof aiDeal.endDate === 'string') {
+            // 1. Ensure description has punctuation at the end
+            const trimmed = finalDescription.trim();
+            const hasPunctuation = /[.!?]$/.test(trimmed);
+            finalDescription = hasPunctuation ? trimmed : trimmed + ".";
+
+            // 2. Format date (Strip year if standard MM/DD/YYYY format to save space)
+            // e.g. 12/16/2025 -> 12/16
+            const shortDate = aiDeal.endDate.replace(/\/\d{4}$/, '');
+            
+            // 3. Append
+            finalDescription += ` Ends ${shortDate}.`;
+          }
+          // ------------------------------------------------
+
           return {
             headline: aiDeal.headline || "MISSING HEADLINE",
-            description: aiDeal.description || "MISSING DESCRIPTION",
+            description: finalDescription,
             startDate: aiDeal.startDate,
             endDate: aiDeal.endDate,
             originalText: rawDeal.originalText,
-            isExclusive: rawDeal.isExclusive, // Use RAW truth
+            isExclusive: rawDeal.isExclusive, 
             checked: false
           };
         });
@@ -352,7 +372,7 @@ OUTPUT JSON FORMAT:
 
   return (
     <div className="container">
-      <h1 className="app-title">Deal Checklist 3.0</h1>
+      <h1 className="app-title">Deal Checklist 3.1</h1>
       
       {notify && <Notification message={notify.msg} type={notify.type} onClose={() => setNotify(null)} />}
       
