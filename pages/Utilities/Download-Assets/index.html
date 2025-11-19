@@ -33,14 +33,13 @@
   .btn {
     background: var(--surf-hover); color: var(--text); border: 1px solid var(--border);
     padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 500;
-    display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; text-decoration: none;
   }
   .btn:hover:not(:disabled) { background: var(--border); }
   .btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
   .btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   
-  /* Hidden file input */
   .file-input { display: none; }
 
   /* Main Grid */
@@ -61,8 +60,9 @@
     aspect-ratio: 1; background: #000; position: relative;
     background-image: radial-gradient(#27272a 1px, transparent 1px); background-size: 10px 10px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
+    cursor: zoom-in; /* Indicates clickable */
   }
-  .preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .preview img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
   .preview .ext-badge {
     position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 700;
     background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);
@@ -76,7 +76,7 @@
   .filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
   .source { color: var(--text-dim); font-size: 11px; }
   
-  /* Filters Toolbar */
+  /* Toolbar */
   .toolbar {
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 24px; background: var(--surf); border-bottom: 1px solid var(--border); font-size: 13px;
@@ -85,20 +85,50 @@
   .tab { padding: 4px 12px; border-radius: 4px; cursor: pointer; color: var(--text-dim); }
   .tab.active { background: var(--surf-hover); color: var(--text); font-weight: 600; }
   
-  /* Stats & Loading */
   .status-bar { padding: 8px 24px; background: var(--primary); color: white; font-size: 12px; display: none; justify-content: center;}
-  .empty-state { 
-    grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-dim); 
-    border: 2px dashed var(--border); border-radius: 12px;
-  }
+  .empty-state { grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-dim); border: 2px dashed var(--border); border-radius: 12px; }
 
   /* Checkbox Overlay */
   .check-overlay {
-    position: absolute; top: 8px; left: 8px; width: 20px; height: 20px;
-    background: var(--surf); border: 2px solid var(--text-dim); border-radius: 4px; cursor: pointer;
-    display: grid; place-items: center; color: transparent; z-index: 10;
+    position: absolute; top: 8px; left: 8px; width: 24px; height: 24px;
+    background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer;
+    display: grid; place-items: center; color: transparent; z-index: 10; transition: all 0.2s;
   }
+  .check-overlay:hover { background: rgba(0,0,0,0.8); border-color: white; }
   .card.selected .check-overlay { background: var(--primary); border-color: var(--primary); color: white; }
+  
+  /* --- LIGHTBOX STYLES --- */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.95); backdrop-filter: blur(5px);
+    display: none; flex-direction: column;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .lightbox.active { display: flex; opacity: 1; }
+  
+  .lb-header {
+    padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+    background: rgba(24,24,27,0.8); border-bottom: 1px solid var(--border);
+  }
+  .lb-title { font-weight: 600; font-size: 16px; }
+  .lb-meta { color: var(--text-dim); font-size: 13px; margin-left: 12px; }
+  
+  .lb-content {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    position: relative; padding: 40px;
+  }
+  .lb-content img {
+    max-width: 100%; max-height: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  
+  .lb-footer {
+    padding: 16px; display: flex; justify-content: center; gap: 12px;
+    background: rgba(24,24,27,0.8);
+  }
+  .lb-close-btn { 
+    position: absolute; top: 20px; right: 20px; background: transparent; border: none; 
+    color: white; font-size: 24px; cursor: pointer; width: 40px; height: 40px; z-index: 10;
+  }
   
 </style>
 </head>
@@ -114,7 +144,7 @@
       <button class="btn" onclick="document.getElementById('pdfInput').click()">Upload PDF</button>
       <input type="file" id="pdfInput" accept=".pdf" class="file-input">
       <span style="flex:1"></span>
-      <button class="btn success" id="downloadBtn" disabled>Download Selected (<span id="selCount">0</span>)</button>
+      <button class="btn success" id="downloadBtn" disabled>Download ZIP (<span id="selCount">0</span>)</button>
     </div>
   </header>
 
@@ -126,7 +156,7 @@
       <div class="tab" data-filter="icon">Icons</div>
     </div>
     <div style="display:flex; gap:10px; align-items:center">
-      <label><input type="checkbox" id="toggleSelectAll"> Select All</label>
+      <label style="font-size:13px; cursor:pointer;"><input type="checkbox" id="toggleSelectAll"> Select All</label>
       <input type="text" id="searchFilter" placeholder="Filter name..." style="width:150px; padding:4px 8px;">
     </div>
   </div>
@@ -140,6 +170,24 @@
         <p>Paste a URL above or upload a PDF to extract images, icons, and SVGs.</p>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close-btn" id="lbClose">×</button>
+  <div class="lb-header">
+    <div>
+      <span class="lb-title" id="lbTitle">Filename.png</span>
+      <span class="lb-meta" id="lbMeta">1920x1080 • 240kb</span>
+    </div>
+    <div style="display:flex; gap:8px">
+        <a class="btn" id="lbOpenNew" target="_blank">Open Original</a>
+        <a class="btn primary" id="lbDownload" download>Download File</a>
+    </div>
+  </div>
+  <div class="lb-content" id="lbContent">
+    <!-- Image injected here -->
   </div>
 </div>
 
@@ -166,10 +214,19 @@ const statusBar = el('statusBar');
 const downloadBtn = el('downloadBtn');
 const selCount = el('selCount');
 
+// Lightbox Els
+const lightbox = el('lightbox');
+const lbTitle = el('lbTitle');
+const lbMeta = el('lbMeta');
+const lbContent = el('lbContent');
+const lbOpenNew = el('lbOpenNew');
+const lbDownload = el('lbDownload');
+
 /* --- UTILS --- */
-const proxyUrl = (u) => {
+const proxyUrl = (u, download=false) => {
   if (u.startsWith('data:') || u.startsWith('blob:')) return u;
-  return `/api/proxy?url=${encodeURIComponent(u)}`;
+  // Append download=1 if specific download requested via proxy
+  return `/api/proxy?url=${encodeURIComponent(u)}${download ? '&download=1' : ''}`;
 };
 
 const getFilename = (url, index) => {
@@ -182,25 +239,26 @@ const getFilename = (url, index) => {
 
 /* --- CORE LOGIC --- */
 function updateUI() {
-  // 1. Filter
   const filtered = state.assets.filter(a => {
     if (state.filter !== 'all' && a.type !== state.filter) return false;
     if (state.search && !a.url.toLowerCase().includes(state.search.toLowerCase())) return false;
     return true;
   });
 
-  // 2. Render Grid
   if (filtered.length === 0 && !state.loading) {
     grid.innerHTML = `<div class="empty-state">No assets found matching filters.</div>`;
   } else {
     grid.innerHTML = filtered.map(asset => {
       const isSelected = state.selection.has(asset.id);
       const src = proxyUrl(asset.url);
-      // For SVGs/Images, show preview. For others, show icon.
+      
+      // Important: Two click events. 
+      // 1. .check-overlay -> Toggles Selection (stops propagation)
+      // 2. .card (or .preview) -> Opens Lightbox
       return `
-        <div class="card ${isSelected ? 'selected' : ''}" onclick="toggleSelect('${asset.id}')">
-          <div class="check-overlay">${isSelected ? '✓' : ''}</div>
-          <div class="preview">
+        <div class="card ${isSelected ? 'selected' : ''}">
+          <div class="check-overlay" onclick="event.stopPropagation(); toggleSelect('${asset.id}')">${isSelected ? '✓' : ''}</div>
+          <div class="preview" onclick="openLightbox('${asset.id}')">
             <img src="${src}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23555%22><path d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22/></svg>'">
             <div class="ext-badge">${asset.ext}</div>
             ${asset.w ? `<div class="dim-badge">${asset.w}×${asset.h}</div>` : ''}
@@ -214,7 +272,6 @@ function updateUI() {
     }).join('');
   }
 
-  // 3. Update Buttons
   selCount.textContent = state.selection.size;
   downloadBtn.disabled = state.selection.size === 0 || state.loading;
 }
@@ -225,6 +282,53 @@ window.toggleSelect = (id) => {
   updateUI();
 };
 
+window.openLightbox = (id) => {
+  const asset = state.assets.find(a => a.id === id);
+  if (!asset) return;
+
+  const src = proxyUrl(asset.url);
+  
+  // Populate Data
+  lbTitle.textContent = asset.name;
+  lbMeta.textContent = `${asset.ext.toUpperCase()} • ${asset.source}`;
+  
+  // Populate Image
+  lbContent.innerHTML = `<img src="${src}">`;
+
+  // Setup Actions
+  // 1. Open Original (Direct link, bypassing proxy if possible, or standard)
+  lbOpenNew.href = asset.url; 
+  
+  // 2. Download Single
+  if (asset.url.startsWith('blob:') || asset.url.startsWith('data:')) {
+    // Local Data: Direct download
+    lbDownload.href = asset.url;
+    lbDownload.download = asset.name;
+  } else {
+    // Remote URL: Use our Proxy with &download=1 to force headers
+    lbDownload.href = proxyUrl(asset.url, true);
+    // We don't need the download attribute strictly for the proxy, but it helps
+    lbDownload.removeAttribute('download'); 
+  }
+
+  lightbox.classList.add('active');
+};
+
+window.closeLightbox = () => {
+  lightbox.classList.remove('active');
+  lbContent.innerHTML = ''; // Clear memory
+};
+
+// Lightbox Events
+el('lbClose').addEventListener('click', window.closeLightbox);
+lightbox.addEventListener('click', (e) => {
+  if(e.target === lightbox) window.closeLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && lightbox.classList.contains('active')) window.closeLightbox();
+});
+
+
 /* --- WEB SCRAPER --- */
 el('scrapeBtn').addEventListener('click', async () => {
   const url = urlInput.value;
@@ -234,7 +338,6 @@ el('scrapeBtn').addEventListener('click', async () => {
   state.assets = []; state.selection.clear();
   
   try {
-    // 1. Get List
     const res = await fetch('/api/discover', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -243,18 +346,16 @@ el('scrapeBtn').addEventListener('click', async () => {
     if (!res.ok) throw new Error('Scan failed');
     const data = await res.json();
     
-    // 2. Map to internal format
     state.assets = data.assets.map((a, i) => ({
       id: `web_${i}`,
       url: a.url,
       name: getFilename(a.url, i),
-      type: a.type === 'svg' ? 'svg' : 'image', // simplify types
+      type: a.type === 'svg' ? 'svg' : 'image',
       ext: a.ext,
       source: a.source,
       w: null, h: null
     }));
 
-    // 3. Auto-select all valid images
     state.assets.forEach(a => state.selection.add(a.id));
     
   } catch (e) {
@@ -276,11 +377,10 @@ el('pdfInput').addEventListener('change', async (e) => {
     const buffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
     
-    // 1. Render Pages
     for (let p = 1; p <= pdf.numPages; p++) {
       setLoading(true, `Rendering PDF Page ${p}/${pdf.numPages}...`);
       const page = await pdf.getPage(p);
-      const viewport = page.getViewport({scale: 2}); // High res
+      const viewport = page.getViewport({scale: 2});
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = viewport.width;
@@ -292,19 +392,13 @@ el('pdfInput').addEventListener('change', async (e) => {
       const url = URL.createObjectURL(blob);
       
       const id = `pdf_p_${p}`;
-      const asset = {
+      state.assets.push({
         id, url, name: `${file.name}_page_${p}.jpg`,
         type: 'image', ext: 'jpg', source: 'pdf-page',
         w: canvas.width, h: canvas.height
-      };
-      state.assets.push(asset);
+      });
       state.selection.add(id);
     }
-    
-    // Note: Deep extraction of embedded images is complex to do purely client-side 
-    // without blocking the UI thread heavily. For now, we stick to Page Rendering 
-    // which is usually what users want from PDFs visually.
-
   } catch (e) {
     console.error(e);
     alert('PDF Parse Error');
@@ -314,13 +408,12 @@ el('pdfInput').addEventListener('change', async (e) => {
   }
 });
 
-/* --- DOWNLOADER --- */
+/* --- ZIP DOWNLOADER --- */
 downloadBtn.addEventListener('click', async () => {
   const zip = new JSZip();
   const targets = state.assets.filter(a => state.selection.has(a.id));
   
   setLoading(true, `Zipping ${targets.length} files...`);
-  
   let processed = 0;
   
   await Promise.all(targets.map(async (asset) => {
@@ -329,16 +422,13 @@ downloadBtn.addEventListener('click', async () => {
       if (asset.url.startsWith('blob:') || asset.url.startsWith('data:')) {
         data = await (await fetch(asset.url)).blob();
       } else {
-        // Use our proxy for CORS
         const res = await fetch(proxyUrl(asset.url));
         if (!res.ok) throw new Error('Fetch fail');
         data = await res.blob();
       }
       
-      // Ensure unique names
       let fileName = asset.name;
       if (zip.file(fileName)) fileName = `${Date.now()}_${fileName}`;
-      
       zip.file(fileName, data);
     } catch (e) {
       console.warn('Failed to download', asset.url);
@@ -356,7 +446,7 @@ downloadBtn.addEventListener('click', async () => {
   setLoading(false);
 });
 
-/* --- HELPERS --- */
+/* --- UI HELPERS --- */
 function setLoading(bool, txt) {
   state.loading = bool;
   statusBar.style.display = bool ? 'flex' : 'none';
@@ -364,7 +454,6 @@ function setLoading(bool, txt) {
   el('scrapeBtn').disabled = bool;
 }
 
-// Filter Tabs
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
@@ -374,13 +463,11 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
-// Search
 el('searchFilter').addEventListener('input', (e) => {
   state.search = e.target.value;
   updateUI();
 });
 
-// Select All
 el('toggleSelectAll').addEventListener('change', (e) => {
   if (e.target.checked) state.assets.forEach(a => state.selection.add(a.id));
   else state.selection.clear();
