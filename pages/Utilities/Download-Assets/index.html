@@ -24,11 +24,11 @@
   
   /* Controls */
   .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  input[type="text"], input[type="url"], input[type="number"] {
+  input[type="text"], input[type="url"], input[type="number"], select {
     background: var(--bg); border: 1px solid var(--border); color: var(--text);
     padding: 8px 12px; border-radius: var(--radius); outline: none; font-size: 14px;
   }
-  input[type="text"]:focus { border-color: var(--primary); }
+  input[type="text"]:focus, select:focus { border-color: var(--primary); }
   
   .btn {
     background: var(--surf-hover); color: var(--text); border: 1px solid var(--border);
@@ -60,7 +60,7 @@
     aspect-ratio: 1; background: #000; position: relative;
     background-image: radial-gradient(#27272a 1px, transparent 1px); background-size: 10px 10px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
-    cursor: zoom-in; /* Indicates clickable */
+    cursor: zoom-in;
   }
   .preview img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
   .preview .ext-badge {
@@ -109,16 +109,18 @@
   .lb-header {
     padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
     background: rgba(24,24,27,0.8); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
   .lb-title { font-weight: 600; font-size: 16px; }
   .lb-meta { color: var(--text-dim); font-size: 13px; margin-left: 12px; }
   
   .lb-content {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    position: relative; padding: 40px;
+    position: relative; padding: 40px; cursor: pointer; /* Indicates click to close */
   }
   .lb-content img {
     max-width: 100%; max-height: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    cursor: default; /* Don't close if clicking image */
   }
   
   .lb-footer {
@@ -156,6 +158,15 @@
       <div class="tab" data-filter="icon">Icons</div>
     </div>
     <div style="display:flex; gap:10px; align-items:center">
+      <!-- Sort Dropdown -->
+      <select id="sortOrder" title="Sort order">
+        <option value="default">Sort: Default</option>
+        <option value="size">Sort: Largest Size</option>
+        <option value="ext">Sort: File Type</option>
+      </select>
+      
+      <div style="width: 1px; height: 20px; background: var(--border);"></div>
+
       <label style="font-size:13px; cursor:pointer;"><input type="checkbox" id="toggleSelectAll"> Select All</label>
       <input type="text" id="searchFilter" placeholder="Filter name..." style="width:150px; padding:4px 8px;">
     </div>
@@ -179,7 +190,7 @@
   <div class="lb-header">
     <div>
       <span class="lb-title" id="lbTitle">Filename.png</span>
-      <span class="lb-meta" id="lbMeta">1920x1080 • 240kb</span>
+      <span class="lb-meta" id="lbMeta">--</span>
     </div>
     <div style="display:flex; gap:8px">
         <a class="btn" id="lbOpenNew" target="_blank">Open Original</a>
@@ -201,6 +212,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 const state = {
   assets: [],
   filter: 'all',
+  sort: 'default',
   search: '',
   loading: false,
   selection: new Set()
@@ -213,6 +225,7 @@ const urlInput = el('urlInput');
 const statusBar = el('statusBar');
 const downloadBtn = el('downloadBtn');
 const selCount = el('selCount');
+const sortSelect = el('sortOrder');
 
 // Lightbox Els
 const lightbox = el('lightbox');
@@ -225,7 +238,6 @@ const lbDownload = el('lbDownload');
 /* --- UTILS --- */
 const proxyUrl = (u, download=false) => {
   if (u.startsWith('data:') || u.startsWith('blob:')) return u;
-  // Append download=1 if specific download requested via proxy
   return `/api/proxy?url=${encodeURIComponent(u)}${download ? '&download=1' : ''}`;
 };
 
@@ -239,12 +251,26 @@ const getFilename = (url, index) => {
 
 /* --- CORE LOGIC --- */
 function updateUI() {
-  const filtered = state.assets.filter(a => {
+  // 1. Filter
+  let filtered = state.assets.filter(a => {
     if (state.filter !== 'all' && a.type !== state.filter) return false;
     if (state.search && !a.url.toLowerCase().includes(state.search.toLowerCase())) return false;
     return true;
   });
 
+  // 2. Sort
+  if (state.sort === 'size') {
+    filtered.sort((a, b) => {
+      // If we don't have dimensions yet, treat as 0
+      const sizeA = (a.w || 0) * (a.h || 0);
+      const sizeB = (b.w || 0) * (b.h || 0);
+      return sizeB - sizeA; // Descending
+    });
+  } else if (state.sort === 'ext') {
+    filtered.sort((a, b) => a.ext.localeCompare(b.ext));
+  }
+
+  // 3. Render
   if (filtered.length === 0 && !state.loading) {
     grid.innerHTML = `<div class="empty-state">No assets found matching filters.</div>`;
   } else {
@@ -252,16 +278,16 @@ function updateUI() {
       const isSelected = state.selection.has(asset.id);
       const src = proxyUrl(asset.url);
       
-      // Important: Two click events. 
-      // 1. .check-overlay -> Toggles Selection (stops propagation)
-      // 2. .card (or .preview) -> Opens Lightbox
+      // Note: onload event added to update dimensions dynamically
       return `
-        <div class="card ${isSelected ? 'selected' : ''}">
+        <div class="card ${isSelected ? 'selected' : ''}" id="card_${asset.id}">
           <div class="check-overlay" onclick="event.stopPropagation(); toggleSelect('${asset.id}')">${isSelected ? '✓' : ''}</div>
           <div class="preview" onclick="openLightbox('${asset.id}')">
-            <img src="${src}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23555%22><path d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22/></svg>'">
+            <img src="${src}" loading="lazy" 
+              onload="window.onAssetLoad('${asset.id}', this)"
+              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23555%22><path d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22/></svg>'">
             <div class="ext-badge">${asset.ext}</div>
-            ${asset.w ? `<div class="dim-badge">${asset.w}×${asset.h}</div>` : ''}
+            <div class="dim-badge" id="dims_${asset.id}">${asset.w ? asset.w + '×' + asset.h : ''}</div>
           </div>
           <div class="meta">
             <div class="filename" title="${asset.name}">${asset.name}</div>
@@ -276,38 +302,53 @@ function updateUI() {
   downloadBtn.disabled = state.selection.size === 0 || state.loading;
 }
 
+/* --- DYNAMIC SIZE DETECTION --- */
+window.onAssetLoad = (id, imgEl) => {
+  const asset = state.assets.find(a => a.id === id);
+  if (asset && !asset.w) {
+    asset.w = imgEl.naturalWidth;
+    asset.h = imgEl.naturalHeight;
+    
+    // Update label without re-rendering entire grid (performance)
+    const badge = document.getElementById(`dims_${id}`);
+    if (badge) badge.textContent = `${asset.w}×${asset.h}`;
+    
+    // If sorting by size is active, we might need to re-sort. 
+    // To avoid jumping, we only re-sort if user toggles, 
+    // OR we could debounce a re-render. For now, we just update data.
+  }
+};
+
 window.toggleSelect = (id) => {
   if (state.selection.has(id)) state.selection.delete(id);
   else state.selection.add(id);
-  updateUI();
+  // Just toggle class for performance, full render on filter change
+  const card = document.getElementById(`card_${id}`);
+  if(card) {
+    if(state.selection.has(id)) card.classList.add('selected');
+    else card.classList.remove('selected');
+    card.querySelector('.check-overlay').textContent = state.selection.has(id) ? '✓' : '';
+  }
+  selCount.textContent = state.selection.size;
+  downloadBtn.disabled = state.selection.size === 0;
 };
 
+/* --- LIGHTBOX --- */
 window.openLightbox = (id) => {
   const asset = state.assets.find(a => a.id === id);
   if (!asset) return;
 
-  const src = proxyUrl(asset.url);
-  
-  // Populate Data
   lbTitle.textContent = asset.name;
-  lbMeta.textContent = `${asset.ext.toUpperCase()} • ${asset.source}`;
-  
-  // Populate Image
-  lbContent.innerHTML = `<img src="${src}">`;
+  lbMeta.textContent = `${asset.ext.toUpperCase()} • ${asset.w ? asset.w+'x'+asset.h : ''}`;
+  lbContent.innerHTML = `<img src="${proxyUrl(asset.url)}" onclick="event.stopPropagation()">`;
 
-  // Setup Actions
-  // 1. Open Original (Direct link, bypassing proxy if possible, or standard)
   lbOpenNew.href = asset.url; 
   
-  // 2. Download Single
   if (asset.url.startsWith('blob:') || asset.url.startsWith('data:')) {
-    // Local Data: Direct download
     lbDownload.href = asset.url;
     lbDownload.download = asset.name;
   } else {
-    // Remote URL: Use our Proxy with &download=1 to force headers
     lbDownload.href = proxyUrl(asset.url, true);
-    // We don't need the download attribute strictly for the proxy, but it helps
     lbDownload.removeAttribute('download'); 
   }
 
@@ -316,13 +357,18 @@ window.openLightbox = (id) => {
 
 window.closeLightbox = () => {
   lightbox.classList.remove('active');
-  lbContent.innerHTML = ''; // Clear memory
+  lbContent.innerHTML = '';
 };
 
 // Lightbox Events
 el('lbClose').addEventListener('click', window.closeLightbox);
+
+// Close when clicking the background (lightbox) or the container (lbContent)
+// But STOP if clicking the image (handled by stopPropagation on img tag above)
 lightbox.addEventListener('click', (e) => {
-  if(e.target === lightbox) window.closeLightbox();
+  if (e.target === lightbox || e.target === lbContent) {
+    window.closeLightbox();
+  }
 });
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape' && lightbox.classList.contains('active')) window.closeLightbox();
@@ -353,7 +399,7 @@ el('scrapeBtn').addEventListener('click', async () => {
       type: a.type === 'svg' ? 'svg' : 'image',
       ext: a.ext,
       source: a.source,
-      w: null, h: null
+      w: null, h: null // Will be filled by onAssetLoad
     }));
 
     state.assets.forEach(a => state.selection.add(a.id));
@@ -471,6 +517,11 @@ el('searchFilter').addEventListener('input', (e) => {
 el('toggleSelectAll').addEventListener('change', (e) => {
   if (e.target.checked) state.assets.forEach(a => state.selection.add(a.id));
   else state.selection.clear();
+  updateUI();
+});
+
+sortSelect.addEventListener('change', (e) => {
+  state.sort = e.target.value;
   updateUI();
 });
 
