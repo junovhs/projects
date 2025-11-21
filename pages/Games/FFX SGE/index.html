@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FFX Grid Builder v10 (Dev Config Loaded)</title>
+<style>
+    :root { --bg: #08080a; --panel: #141418; --accent: #00f2ff; --select: #ff00aa; --danger: #ff4444; --border: #333; --text: #ccc; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; user-select: none; }
+    
+    /* SIDEBAR */
+    #sidebar { width: 380px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; box-shadow: 5px 0 20px rgba(0,0,0,0.6); overflow-y: auto; }
+    .section { padding: 12px; border-bottom: 1px solid var(--border); }
+    .header { font-size: 11px; font-weight: bold; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display:flex; justify-content:space-between; align-items: center; }
+    
+    /* SCROLLBAR */
+    #sidebar::-webkit-scrollbar { width: 6px; }
+    #sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* BUTTONS */
+    .btn { width: 100%; padding: 6px; background: #333; color: #fff; border: none; font-size: 11px; cursor: pointer; border-radius: 3px; margin-top: 4px; transition:0.2s; }
+    .btn:hover { background: #444; }
+    .btn-primary { background: #111; border: 1px solid var(--accent); color: var(--accent); font-weight: bold; }
+    .btn-primary:hover { background: var(--accent); color: #000; }
+    .btn-danger { background: #511; color: #faa; border: 1px solid #833; }
+    .btn-danger:hover { background: #822; color: #fff; }
+
+    /* D-PAD & TEMPLATES */
+    .d-pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 10px; }
+    .d-btn { background: #222; border: 1px solid #444; color: #aaa; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 3px; }
+    .d-btn:hover { border-color: var(--accent); color: #fff; background: #333; }
+    
+    .template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .btn-temp { background: #222; border: 1px solid #444; color: #aaa; padding: 8px; font-size: 10px; cursor: pointer; text-align: left; }
+    .btn-temp:hover { border-color: var(--accent); color: white; }
+
+    /* PRESETS */
+    .preset-group { margin-bottom: 8px; }
+    .preset-lbl { font-size: 9px; color: #666; font-weight: bold; margin-bottom: 3px; text-transform: uppercase; }
+    .preset-row { display: flex; gap: 3px; flex-wrap: wrap; }
+    .tag { padding: 3px 6px; font-size: 9px; background: #1a1a1a; border: 1px solid #333; border-radius: 2px; cursor: pointer; color: #999; flex-grow: 1; text-align: center; }
+    .tag:hover { border-color: var(--accent); color: #fff; background: #222; }
+    /* Color coding tags */
+    .tag.hp { border-left: 2px solid #2ecc71; }
+    .tag.mp { border-left: 2px solid #3498db; }
+    .tag.str { border-left: 2px solid #e74c3c; }
+    .tag.mag { border-left: 2px solid #9b59b6; }
+    .tag.agi { border-left: 2px solid #f1c40f; }
+    .tag.lck { border-left: 2px solid #e67e22; }
+    .tag.ab { border-left: 2px solid #e94ce3; }
+
+    /* IO & EDIT */
+    .stat-box { background: #000; border: 1px solid #333; padding: 6px; border-radius: 4px; font-size: 10px; margin-bottom: 8px; color: #888; }
+    .active-anchor { border-color: var(--accent); color: var(--accent); }
+    
+    input, select { width: 100%; background: #111; border: 1px solid #444; color: white; padding: 5px; margin-bottom: 4px; box-sizing: border-box; font-size: 11px; }
+    textarea { width: 100%; height: 50px; background: #000; border: 1px solid #333; color: #0f0; font-family: monospace; font-size: 10px; resize: none; }
+
+    /* CANVAS */
+    #canvas-area { flex-grow: 1; position: relative; background: radial-gradient(#1a1a1a 1px, transparent 1px); background-size: 40px 40px; cursor: crosshair; overflow: hidden; }
+    #hud { position: absolute; top: 10px; left: 10px; pointer-events: none; font-family: monospace; font-size: 10px; color: #666; background: rgba(0,0,0,0.8); padding: 5px; border: 1px solid #333; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+    <!-- ANCHOR -->
+    <div class="section">
+        <div class="header">1. Anchor (Center)</div>
+        <div class="stat-box" id="lbl-anchor">No Anchor Set</div>
+        <button class="btn btn-primary" onclick="setAnchor()">Set Selection as Anchor</button>
+    </div>
+
+    <!-- RELATIVE SPAWNER -->
+    <div class="section">
+        <div class="header">2. Quick Spawn & Nudge</div>
+        <div class="d-pad-grid">
+            <button class="d-btn" onclick="spawnRel(-0.7, -0.7)">↖</button>
+            <button class="d-btn" onclick="spawnRel(0, -1)">↑</button>
+            <button class="d-btn" onclick="spawnRel(0.7, -0.7)">↗</button>
+            <button class="d-btn" onclick="spawnRel(-1, 0)">←</button>
+            <div class="d-btn" style="font-size:9px; border:none; background:none; cursor:default">SEL</div>
+            <button class="d-btn" onclick="spawnRel(1, 0)">→</button>
+            <button class="d-btn" onclick="spawnRel(-0.7, 0.7)">↙</button>
+            <button class="d-btn" onclick="spawnRel(0, 1)">↓</button>
+            <button class="d-btn" onclick="spawnRel(0.7, 0.7)">↘</button>
+        </div>
+        <div style="display:flex; gap:2px;">
+            <button class="btn" onclick="nudge(0, -0.1)">↑</button>
+            <button class="btn" onclick="nudge(-0.1, 0)">←</button>
+            <button class="btn" onclick="nudge(0.1, 0)">→</button>
+            <button class="btn" onclick="nudge(0, 0.1)">↓</button>
+        </div>
+    </div>
+
+    <!-- TEMPLATES -->
+    <div class="section">
+        <div class="header">3. Templates</div>
+        <div class="template-grid">
+            <button class="btn-temp" onclick="spawnTemplate('standard')">Standard (3 Rings)</button>
+            <button class="btn-temp" onclick="spawnTemplate('quad')">Quad (1 Ring)</button>
+            <button class="btn-temp" onclick="spawnTemplate('hybrid')">Hybrid</button>
+            <button class="btn-temp" onclick="spawnTemplate('ring8')">Single Ring (8)</button>
+        </div>
+    </div>
+
+    <!-- EDIT -->
+    <div class="section">
+        <div class="header">4. Node Details</div>
+        <button class="btn btn-primary" style="margin-bottom:10px" onclick="linkSelected()">Link Selected Chain</button>
+        
+        <!-- LIFE -->
+        <div class="preset-group">
+            <div class="preset-lbl">Vitality</div>
+            <div class="preset-row">
+                <div class="tag hp" onclick="applyPreset('stat','HP',200)">HP+200</div>
+                <div class="tag hp" onclick="applyPreset('stat','HP',300)">HP+300</div>
+                <div class="tag mp" onclick="applyPreset('stat','MP',20)">MP+20</div>
+                <div class="tag mp" onclick="applyPreset('stat','MP',40)">MP+40</div>
+            </div>
+        </div>
+
+        <!-- PRIMARY -->
+        <div class="preset-group">
+            <div class="preset-lbl">Strength & Magic</div>
+            <div class="preset-row">
+                <div class="tag str" onclick="applyPreset('stat','Str',2)">Str+2</div>
+                <div class="tag str" onclick="applyPreset('stat','Str',4)">+4</div>
+                <div class="tag str" onclick="applyPreset('stat','Def',2)">Def+2</div>
+                <div class="tag str" onclick="applyPreset('stat','Def',4)">+4</div>
+            </div>
+            <div class="preset-row" style="margin-top:3px">
+                <div class="tag mag" onclick="applyPreset('stat','Mag',2)">Mag+2</div>
+                <div class="tag mag" onclick="applyPreset('stat','Mag',4)">+4</div>
+                <div class="tag mag" onclick="applyPreset('stat','MDef',2)">MDf+2</div>
+                <div class="tag mag" onclick="applyPreset('stat','MDef',4)">+4</div>
+            </div>
+        </div>
+
+        <!-- SECONDARY -->
+        <div class="preset-group">
+            <div class="preset-lbl">Speed, Eva, Acc, Luck</div>
+            <div class="preset-row">
+                <div class="tag agi" onclick="applyPreset('stat','Agi',2)">Agi+2</div>
+                <div class="tag agi" onclick="applyPreset('stat','Agi',4)">+4</div>
+                <div class="tag agi" onclick="applyPreset('stat','Eva',2)">Eva+2</div>
+                <div class="tag agi" onclick="applyPreset('stat','Eva',4)">+4</div>
+            </div>
+            <div class="preset-row" style="margin-top:3px">
+                <div class="tag lck" onclick="applyPreset('stat','Acc',2)">Acc+2</div>
+                <div class="tag lck" onclick="applyPreset('stat','Acc',4)">+4</div>
+                <div class="tag lck" onclick="applyPreset('stat','Luk',2)">Luk+2</div>
+                <div class="tag lck" onclick="applyPreset('stat','Luk',4)">+4</div>
+            </div>
+        </div>
+
+        <!-- ABILITIES -->
+        <div class="preset-group">
+            <div class="preset-lbl">Abilities & Locks</div>
+            <div class="preset-row">
+                <div class="tag ab" onclick="applyPreset('ability','Skill','')">Skill</div>
+                <div class="tag ab" onclick="applyPreset('ability','Spec','')">Special</div>
+                <div class="tag ab" onclick="applyPreset('ability','W.Mag','')">W.Mag</div>
+                <div class="tag ab" onclick="applyPreset('ability','B.Mag','')">B.Mag</div>
+            </div>
+            <div class="preset-row" style="margin-top:3px">
+                <div class="tag" onclick="applyPreset('lock','Lv.1','')">Lock 1</div>
+                <div class="tag" onclick="applyPreset('lock','Lv.2','')">Lock 2</div>
+                <div class="tag" onclick="applyPreset('lock','Lv.3','')">Lock 3</div>
+                <div class="tag" onclick="applyPreset('lock','Lv.4','')">Lock 4</div>
+            </div>
+        </div>
+        
+        <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+            <select id="inp-type" onchange="updateNodeData()">
+                <option value="empty">Empty</option>
+                <option value="ability">Ability</option>
+                <option value="stat">Stat</option>
+                <option value="lock">Lock</option>
+                <option value="start">Start</option>
+            </select>
+            <input type="text" id="inp-label" placeholder="Label (e.g. HP)" oninput="updateNodeData()">
+            <input type="text" id="inp-val" placeholder="Value (e.g. 200)" oninput="updateNodeData()">
+        </div>
+        <button class="btn btn-danger" onclick="deleteSelected()">Delete Selected</button>
+    </div>
+
+    <!-- DATA -->
+    <div class="section" style="border:none; flex-grow:1;">
+        <div class="header">JSON</div>
+        <textarea id="json-box"></textarea>
+        <div style="display:flex; gap:5px">
+            <button class="btn" onclick="importJSON()">Load</button>
+            <button class="btn" onclick="exportJSON()">Copy</button>
+        </div>
+    </div>
+</div>
+
+<div id="canvas-area">
+    <div id="hud">Nodes: 0 | Edges: 0 | Zoom: 100%</div>
+    <canvas id="cvs"></canvas>
+</div>
+
+<script>
+    // --- DEFAULT DEV CONFIG ---
+    const DEFAULT_GRID = {
+      "nodes": [
+        {"id":"node_0","type":"stat","label":"CENTER","value":"","x":0,"y":0},
+        {"id":"node_1","type":"empty","label":"","value":null,"x":6.123233995736766e-17,"y":-1},
+        {"id":"node_2","type":"empty","label":"","value":null,"x":0.7071067811865476,"y":-0.7071067811865475},
+        {"id":"node_3","type":"empty","label":"","value":null,"x":1,"y":0},
+        {"id":"node_4","type":"empty","label":"","value":null,"x":0.7071067811865476,"y":0.7071067811865475},
+        {"id":"node_5","type":"stat","label":"Str","value":"2","x":6.123233995736766e-17,"y":1},
+        {"id":"node_6","type":"stat","label":"HP","value":"200","x":-0.7071067811865475,"y":0.7071067811865476},
+        {"id":"node_7","type":"stat","label":"Str","value":"2","x":-1,"y":1.2246467991473532e-16},
+        {"id":"node_8","type":"empty","label":"","value":null,"x":-0.7071067811865477,"y":-0.7071067811865475},
+        {"id":"node_9","type":"empty","label":"","value":null,"x":1.2246467991473532e-16,"y":-2},
+        {"id":"node_10","type":"empty","label":"","value":null,"x":1.4142135623730951,"y":-1.414213562373095},
+        {"id":"node_11","type":"empty","label":"","value":null,"x":2,"y":0},
+        {"id":"node_12","type":"empty","label":"","value":null,"x":1.4142135623730951,"y":1.414213562373095},
+        {"id":"node_13","type":"ability","label":"Extract Mana","value":"","x":1.2246467991473532e-16,"y":2},
+        {"id":"node_14","type":"empty","label":"","value":null,"x":-1.414213562373095,"y":1.4142135623730951},
+        {"id":"node_15","type":"empty","label":"","value":null,"x":-2,"y":2.4492935982947064e-16},
+        {"id":"node_16","type":"empty","label":"","value":null,"x":-1.4142135623730954,"y":-1.414213562373095},
+        {"id":"node_17","type":"empty","label":"","value":null,"x":1.8369701987210297e-16,"y":-3},
+        {"id":"node_18","type":"empty","label":"","value":null,"x":2.121320343559643,"y":-2.1213203435596424},
+        {"id":"node_19","type":"lock","label":"Lv.1","value":"","x":3,"y":0},
+        {"id":"node_20","type":"empty","label":"","value":null,"x":2.121320343559643,"y":2.1213203435596424},
+        {"id":"node_21","type":"empty","label":"","value":null,"x":1.8369701987210297e-16,"y":3},
+        {"id":"node_22","type":"start","label":"Lulu","value":"","x":-2.1213203435596424,"y":2.121320343559643},
+        {"id":"node_23","type":"empty","label":"","value":null,"x":-3,"y":3.6739403974420594e-16},
+        {"id":"node_24","type":"empty","label":"","value":null,"x":-2.121320343559643,"y":-2.1213203435596424}
+      ],
+      "edges": [
+        {"source":"node_0","target":"node_8"},{"source":"node_8","target":"node_7"},
+        {"source":"node_7","target":"node_6"},{"source":"node_6","target":"node_5"},
+        {"source":"node_5","target":"node_13"},{"source":"node_13","target":"node_14"},
+        {"source":"node_14","target":"node_22"},{"source":"node_22","target":"node_21"},
+        {"source":"node_21","target":"node_20"},{"source":"node_20","target":"node_19"},
+        {"source":"node_19","target":"node_11"},{"source":"node_11","target":"node_12"},
+        {"source":"node_11","target":"node_3"},{"source":"node_3","target":"node_4"},
+        {"source":"node_4","target":"node_0"},{"source":"node_0","target":"node_2"},
+        {"source":"node_2","target":"node_1"},{"source":"node_1","target":"node_9"},
+        {"source":"node_9","target":"node_10"},{"source":"node_10","target":"node_18"},
+        {"source":"node_18","target":"node_17"},{"source":"node_8","target":"node_16"},
+        {"source":"node_16","target":"node_15"},{"source":"node_15","target":"node_23"}
+      ]
+    };
+
+    // --- STATE ---
+    let nodes = [];
+    let edges = [];
+    let selection = [];
+    let anchorId = null;
+    let nextId = 1;
+    let hoverEdgeIndex = -1;
+    let hoverNodeIndex = -1;
+
+    // --- VIEW ---
+    const canvas = document.getElementById('cvs');
+    const ctx = canvas.getContext('2d');
+    let viewX = 0, viewY = 0;
+    let zoom = 1.0;
+    const BASE_SCALE = 60;
+
+    function init() {
+        // Load Default Configuration
+        nodes = DEFAULT_GRID.nodes;
+        edges = DEFAULT_GRID.edges;
+        
+        // Determine next ID based on loaded nodes
+        let max = 0;
+        nodes.forEach(n => {
+            const parts = n.id.split('_');
+            if(parts.length > 1) {
+                const i = parseInt(parts[1]);
+                if(!isNaN(i) && i > max) max = i;
+            }
+        });
+        nextId = max + 1;
+
+        // Set defaults
+        anchorId = "node_0"; // Default center
+        selection = ["node_0"];
+
+        window.addEventListener('resize', resize);
+        resize();
+        updateUI();
+    }
+
+    function resize() {
+        canvas.width = document.getElementById('canvas-area').clientWidth;
+        canvas.height = document.getElementById('canvas-area').clientHeight;
+        viewX = canvas.width / 2;
+        viewY = canvas.height / 2;
+        draw();
+    }
+
+    // --- ZOOM & PAN ---
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const zoomSpeed = 0.001;
+        const newZoom = Math.min(Math.max(0.2, zoom - e.deltaY * zoomSpeed), 3.0);
+        zoom = newZoom;
+        draw();
+        updateUI();
+    }, { passive: false });
+
+    // --- SPAWNERS ---
+    function spawnTemplate(type) {
+        if (!anchorId) return alert("Set an Anchor first.");
+        const anc = nodes.find(n => n.id === anchorId);
+        
+        const createRing = (r, c, off=0) => {
+            for(let i=0; i<c; i++) {
+                const angle = (i * 360 / c) + off - 90;
+                const rad = angle * Math.PI / 180;
+                const tx = anc.x + (Math.cos(rad) * r);
+                const ty = anc.y + (Math.sin(rad) * r);
+                if(!nodes.find(n => Math.hypot(n.x - tx, n.y - ty) < 0.3)) {
+                    addNodeRaw("node_" + nextId++, "empty", "", null, tx, ty);
+                }
+            }
+        };
+
+        if (type === 'standard') { createRing(1, 8); createRing(2, 8); createRing(3, 8); }
+        if (type === 'quad') { createRing(1, 4, 45); }
+        if (type === 'hybrid') { createRing(1, 4, 45); createRing(2, 8); createRing(3, 8); }
+        if (type === 'ring8') { createRing(2, 8); }
+        updateUI();
+    }
+
+    function spawnRel(dx, dy) {
+        if (selection.length !== 1) return alert("Select exactly 1 node to spawn from.");
+        const src = nodes.find(n => n.id === selection[0]);
+        
+        const tx = src.x + dx;
+        const ty = src.y + dy;
+        const hit = nodes.find(n => Math.hypot(n.x - tx, n.y - ty) < 0.3);
+        
+        if (hit) {
+            addEdge(src.id, hit.id);
+            selection = [hit.id];
+        } else {
+            const newId = "node_" + nextId++;
+            addNodeRaw(newId, "empty", "", null, tx, ty);
+            addEdge(src.id, newId);
+            selection = [newId];
+        }
+        updateUI();
+    }
+
+    function nudge(dx, dy) {
+        if(selection.length === 0) return;
+        selection.forEach(id => {
+            const n = nodes.find(node => node.id === id);
+            if(n) { n.x += dx; n.y += dy; }
+        });
+        draw(); exportJSON(false);
+    }
+
+    // --- EDITING ---
+    function setAnchor() {
+        if(selection.length !== 1) return alert("Select exactly one node.");
+        anchorId = selection[0];
+        updateUI();
+    }
+    function linkSelected() {
+        if(selection.length < 2) return;
+        for(let i=0; i < selection.length - 1; i++) { addEdge(selection[i], selection[i+1]); }
+        updateUI();
+    }
+    function deleteSelected() {
+        if(selection.length === 0) return;
+        nodes = nodes.filter(n => !selection.includes(n.id));
+        edges = edges.filter(e => !selection.includes(e.source) && !selection.includes(e.target));
+        selection = [];
+        if(nodes.length > 0 && !anchorId && nodes.find(n=>n.id==="node_0")) anchorId = "node_0";
+        else if(!nodes.find(n=>n.id===anchorId)) anchorId = null;
+        updateUI();
+    }
+    
+    function applyPreset(type, label, val) {
+        document.getElementById('inp-type').value = type;
+        document.getElementById('inp-label').value = label;
+        document.getElementById('inp-val').value = val;
+        updateNodeData();
+    }
+
+    function updateNodeData() {
+        const type = document.getElementById('inp-type').value;
+        const lbl = document.getElementById('inp-label').value;
+        const val = document.getElementById('inp-val').value;
+        
+        nodes.forEach(n => {
+            if(selection.includes(n.id)) {
+                n.type = type;
+                if(selection.length === 1) { n.label = lbl; n.value = val; }
+                else { if(lbl) n.label = lbl; if(val) n.value = val; }
+            }
+        });
+        draw(); exportJSON(false);
+    }
+
+    // --- CORE ---
+    function addNodeRaw(id, type, label, value, x, y) { nodes.push({ id, type, label, value, x, y }); }
+    function addEdge(s, t) {
+        if(s===t) return;
+        const exists = edges.find(e => (e.source===s && e.target===t) || (e.source===t && e.target===s));
+        if(!exists) edges.push({source:s, target:t});
+    }
+
+    // --- INPUT HANDLING ---
+    let isDrag=false, lx, ly, ds;
+    
+    canvas.addEventListener('mousedown', e => {
+        if (hoverNodeIndex !== -1) {
+            const id = nodes[hoverNodeIndex].id;
+            if (!e.shiftKey && !selection.includes(id)) selection = [id];
+            else if (e.shiftKey && !selection.includes(id)) selection.push(id);
+            updateUI();
+        }
+        isDrag=true; lx=e.clientX; ly=e.clientY; ds=Date.now();
+    });
+    
+    window.addEventListener('mousemove', e => {
+        const r = canvas.getBoundingClientRect();
+        const mx = (e.clientX - r.left - viewX) / (BASE_SCALE * zoom);
+        const my = (e.clientY - r.top - viewY) / (BASE_SCALE * zoom);
+
+        if(isDrag) {
+            viewX += e.clientX - lx; viewY += e.clientY - ly;
+            lx = e.clientX; ly = e.clientY;
+            draw();
+        } else {
+            checkHover(mx, my);
+        }
+    });
+    
+    window.addEventListener('mouseup', e => {
+        isDrag=false;
+        if(Date.now() - ds < 200) {
+            if (hoverNodeIndex !== -1) {
+                const id = nodes[hoverNodeIndex].id;
+                if (e.shiftKey && selection.includes(id) && selection.length > 1) {
+                    selection = selection.filter(x => x !== id);
+                }
+                updateUI();
+            } else if (hoverEdgeIndex !== -1) {
+                edges.splice(hoverEdgeIndex, 1);
+                hoverEdgeIndex = -1;
+                updateUI();
+            } else {
+                if(!e.shiftKey) selection = [];
+                updateUI();
+            }
+        }
+    });
+
+    function checkHover(mx, my) {
+        const prevNode = hoverNodeIndex;
+        const prevEdge = hoverEdgeIndex;
+        hoverNodeIndex = -1;
+        hoverEdgeIndex = -1;
+        
+        hoverNodeIndex = nodes.findIndex(n => Math.hypot(n.x - mx, n.y - my) < 0.4);
+
+        if (hoverNodeIndex === -1) {
+            const threshold = 0.08;
+            const anc = nodes.find(n => n.id === anchorId);
+            
+            edges.forEach((e, idx) => {
+                const s = nodes.find(n => n.id === e.source);
+                const t = nodes.find(n => n.id === e.target);
+                if(!s || !t) return;
+
+                let dist = 999;
+                let isCurve = false;
+
+                if (anc) {
+                    const ds = Math.hypot(s.x - anc.x, s.y - anc.y);
+                    const dt = Math.hypot(t.x - anc.x, t.y - anc.y);
+                    if (Math.abs(ds - dt) < 0.1 && ds > 0.1) {
+                        isCurve = true;
+                        let angS = Math.atan2(s.y - anc.y, s.x - anc.x);
+                        let angT = Math.atan2(t.y - anc.y, t.x - anc.x);
+                        let angM = Math.atan2(my - anc.y, mx - anc.x);
+                        const dMouseR = Math.abs(Math.hypot(mx - anc.x, my - anc.y) - ds);
+
+                        if (dMouseR < threshold) {
+                            let diff = angT - angS;
+                            while (diff <= -Math.PI) diff += 2*Math.PI;
+                            while (diff > Math.PI) diff -= 2*Math.PI;
+                            let diffM = angM - angS;
+                            while (diffM <= -Math.PI) diffM += 2*Math.PI;
+                            while (diffM > Math.PI) diffM -= 2*Math.PI;
+                            if (Math.sign(diff) === Math.sign(diffM) && Math.abs(diffM) <= Math.abs(diff)) dist = 0;
+                        }
+                    }
+                }
+                if (!isCurve) {
+                    const l2 = (s.x-t.x)**2 + (s.y-t.y)**2;
+                    if (l2 !== 0) {
+                        let proj = ((mx-s.x)*(t.x-s.x) + (my-s.y)*(t.y-s.y)) / l2;
+                        proj = Math.max(0, Math.min(1, proj));
+                        dist = Math.hypot(mx - (s.x + proj*(t.x-s.x)), my - (s.y + proj*(t.y-s.y)));
+                    }
+                }
+                if (dist < threshold) hoverEdgeIndex = idx;
+            });
+        }
+        
+        if (hoverNodeIndex !== -1) canvas.style.cursor = "pointer";
+        else if (hoverEdgeIndex !== -1) canvas.style.cursor = "alias";
+        else canvas.style.cursor = "crosshair";
+
+        if (prevNode !== hoverNodeIndex || prevEdge !== hoverEdgeIndex) draw();
+    }
+
+    function updateUI() {
+        const anc = nodes.find(n => n.id === anchorId);
+        const al = document.getElementById('lbl-anchor');
+        al.innerText = anc ? `Anchor: ${anc.label || anc.id}` : "No Anchor Set";
+        if(anc) al.classList.add('active-anchor'); else al.classList.remove('active-anchor');
+        
+        if(selection.length > 0) {
+            const s = nodes.find(n => n.id === selection[0]);
+            if(s) {
+                document.getElementById('inp-type').value = s.type;
+                if(selection.length === 1) {
+                    document.getElementById('inp-label').value = s.label || "";
+                    document.getElementById('inp-val').value = s.value || "";
+                }
+            }
+        }
+
+        document.getElementById('hud').innerText = `Nodes: ${nodes.length} | Edges: ${edges.length} | Zoom: ${Math.round(zoom*100)}%`;
+        draw(); exportJSON(false);
+    }
+
+    function draw() {
+        ctx.fillStyle = "#08080a";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        
+        ctx.save();
+        ctx.translate(viewX, viewY);
+        ctx.scale(zoom, zoom);
+
+        const anc = nodes.find(n => n.id === anchorId);
+
+        // EDGES
+        edges.forEach((e, idx) => {
+            const s = nodes.find(n => n.id === e.source);
+            const t = nodes.find(n => n.id === e.target);
+            if(!s || !t) return;
+
+            const isHover = (idx === hoverEdgeIndex);
+            ctx.lineWidth = isHover ? 3 : 2;
+            ctx.strokeStyle = isHover ? "#ff4444" : "#444";
+            ctx.beginPath();
+
+            let drawn = false;
+            if (anc) {
+                const ds = Math.hypot(s.x - anc.x, s.y - anc.y);
+                const dt = Math.hypot(t.x - anc.x, t.y - anc.y);
+                if (Math.abs(ds - dt) < 0.1 && ds > 0.1) {
+                    let angS = Math.atan2(s.y - anc.y, s.x - anc.x);
+                    let angT = Math.atan2(t.y - anc.y, t.x - anc.x);
+                    let diff = angT - angS;
+                    while (diff <= -Math.PI) diff += 2*Math.PI;
+                    while (diff > Math.PI) diff -= 2*Math.PI;
+                    ctx.arc(anc.x*BASE_SCALE, anc.y*BASE_SCALE, ds*BASE_SCALE, angS, angS+diff, diff<0);
+                    drawn = true;
+                }
+            }
+            if (!drawn) { ctx.moveTo(s.x*BASE_SCALE, s.y*BASE_SCALE); ctx.lineTo(t.x*BASE_SCALE, t.y*BASE_SCALE); }
+            ctx.stroke();
+        });
+
+        // NODES
+        nodes.forEach((n, idx) => {
+            const sx = n.x*BASE_SCALE, sy = n.y*BASE_SCALE;
+            const isHover = (idx === hoverNodeIndex);
+            const isSel = selection.includes(n.id);
+            const lbl = (n.label||"").toLowerCase();
+
+            ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI*2);
+            
+            if (n.type === 'empty') ctx.fillStyle = "#222";
+            else if (n.type === 'start') ctx.fillStyle = "#f1c40f";
+            else if (n.type === 'lock') ctx.fillStyle = "#111";
+            else if (n.type === 'ability') ctx.fillStyle = "#e94ce3";
+            // Color Coding
+            else if (lbl.includes('hp')) ctx.fillStyle = "#2ecc71";
+            else if (lbl.includes('mp')) ctx.fillStyle = "#3498db";
+            else if (lbl.includes('agi') || lbl.includes('eva')) ctx.fillStyle = "#f1c40f"; // Speed
+            else if (lbl.includes('luk') || lbl.includes('acc')) ctx.fillStyle = "#e67e22"; // Luck
+            else if (lbl.includes('mag') || lbl.includes('mdef')) ctx.fillStyle = "#9b59b6"; // Magic
+            else ctx.fillStyle = "#e74c3c"; // Str/Def
+
+            ctx.fill();
+
+            if(isSel) { ctx.strokeStyle = "#ff00aa"; ctx.lineWidth = 3; } 
+            else { ctx.strokeStyle = (n.id === anchorId) ? "#00f2ff" : "#000"; ctx.lineWidth = (n.id === anchorId) ? 2 : 1; }
+            if(isHover && !isSel) { ctx.strokeStyle = "#fff"; ctx.lineWidth=2; }
+
+            ctx.stroke();
+
+            if(n.type !== 'empty') {
+                ctx.fillStyle = "#fff"; ctx.font = "9px Arial";
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                let t = n.label || ""; 
+                if(n.value) {
+                    if(n.value.length <= 2) t += "+" + n.value;
+                    else t = n.value; 
+                }
+                ctx.fillText(t.substring(0,6), sx, sy);
+            }
+        });
+
+        if(anc) { ctx.beginPath(); ctx.arc(anc.x*BASE_SCALE, anc.y*BASE_SCALE, 4, 0, Math.PI*2); ctx.fillStyle = "#00f2ff"; ctx.fill(); }
+        ctx.restore();
+    }
+
+    function exportJSON(copy=true) {
+        const str = JSON.stringify({nodes,edges}, null, 2);
+        document.getElementById('json-box').value = str;
+        if(copy) { document.getElementById('json-box').select(); document.execCommand('copy'); }
+    }
+    function importJSON() {
+        try {
+            const d = JSON.parse(document.getElementById('json-box').value);
+            nodes=d.nodes; edges=d.edges;
+            let max=0; nodes.forEach(n => { const i=parseInt(n.id.split('_')[1]); if(i>max)max=i; });
+            nextId=max+1; selection=[]; anchorId=null; updateUI();
+        } catch(e){ alert("Invalid JSON"); }
+    }
+    init();
+</script>
+</body>
+</html>
