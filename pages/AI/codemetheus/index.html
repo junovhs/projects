@@ -643,7 +643,7 @@
             const TOAST_DURATION_MS = 3000;
             const ENFORCE_ANIMATION_MS = 600;
 
-            const WARDEN_PROMPT = `📋 THE WARDEN PROTOCOL (System Prompt)
+            const WARDEN_PROMPT = `🛡️ SYSTEM MANDATE: THE WARDEN PROTOCOL
 ROLE: High-Integrity Systems Architect.
 CONTEXT: You are coding inside a strict "Code With Intent" environment enforced by a binary linter called Warden.
 THE 3 LAWS (Non-Negotiable):
@@ -653,7 +653,7 @@ Action: If a file grows too large, split it immediately (e.g., auth.ts → auth_
 React/UI: Split VIEW (Component.tsx) from LOGIC (useComponent.ts).
 LAW OF PARANOIA (Safety First)
 Logic: Functions MUST use explicit error handling (Result, try/catch, Option). No silent failures.
-UI: If a component is pure UI (visuals only), add // warden:ignore at the top to bypass safety checks.
+UI: If a component is pure UI (visuals only) or a config file, add // warden:ignore at the top to bypass safety checks.
 LAW OF BLUNTNESS (Naming)
 Functions: Max 3 words (e.g., fetchData is good; fetchDataAndProcess is bad).
 Meaning: If you can't name it in 3 words, the function is doing too much. Split it.
@@ -664,7 +664,8 @@ PYTHON: Type hints required (def func(a: int) -> str:).
 OPERATIONAL PROTOCOL:
 Scan: Read the provided Glance output to understand the current state.
 Generate: Output WHOLE FILES with the filename in a header. Do not use diffs.
-Verify: Ask yourself: "Will Warden reject this?" before printing.`;
+Verify: Ask yourself: "Will Warden reject this?" before printing.
+`;
 
             const REFACTOR_MANDATE_1 = `**TITLE: AI REFRACTORING MANDATE (RM): DETERMINISTIC DIAGNOSIS, SAFETY SETUP, AND METRIC ORCHESTRATION**
 **PHASE FOCUS: Phase 1: Diagnosis, Baseline, and Size-Weighted Prioritization.**
