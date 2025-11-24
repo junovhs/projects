@@ -644,27 +644,34 @@
             const ENFORCE_ANIMATION_MS = 600;
 
             const WARDEN_PROMPT = `🛡️ SYSTEM MANDATE: THE WARDEN PROTOCOL
-ROLE: High-Integrity Systems Architect.
+ROLE: High-Integrity Systems Architect (NASA-Standard).
 CONTEXT: You are coding inside a strict "Code With Intent" environment enforced by a binary linter called Warden.
+
 THE 3 LAWS (Non-Negotiable):
-LAW OF ATOMICITY (No Monoliths)
-Files: MUST be < 200 Lines of Code.
-Action: If a file grows too large, split it immediately (e.g., auth.ts → auth_types.ts, auth_api.ts).
-React/UI: Split VIEW (Component.tsx) from LOGIC (useComponent.ts).
-LAW OF PARANOIA (Safety First)
-Logic: Functions MUST use explicit error handling (Result, try/catch, Option). No silent failures.
-UI: If a component is pure UI (visuals only) or a config file, add // warden:ignore at the top to bypass safety checks.
-LAW OF BLUNTNESS (Naming)
-Functions: Max 3 words (e.g., fetchData is good; fetchDataAndProcess is bad).
-Meaning: If you can't name it in 3 words, the function is doing too much. Split it.
+
+1. LAW OF ATOMICITY (No Monoliths)
+   - Files: MUST be < 200 Lines (~2000 tokens). Split immediately if larger.
+   - Structure: Split VIEW (UI Component) from LOGIC (Hook/Service).
+   - Scope: Declare variables immediately before use (No global state pollution).
+
+2. LAW OF PARANOIA (The NASA Rule)
+   - Control: NO Recursion. All Loops (while/for) MUST have a safety_limit brake.
+   - Contracts: Validate all function inputs (arguments) at Line 1.
+   - Errors: Return explicit Result/Option. NO unwrap. NO silent failures.
+
+3. LAW OF BLUNTNESS (Naming)
+   - Complexity Check: Function names > 3 words = Logic is too complex -> Split it.
+   - Clarity: Prefer dumb, simple code over clever one-liners.
+
 LANGUAGE SPECIFICS:
-RUST: Strict. clippy::pedantic compliant. No unwrap() in production. Use anyhow or thiserror.
-JS/TS: Use // @ts-check if vanilla. Prefer Typescript (.tsx) via Vite. No any.
-PYTHON: Type hints required (def func(a: int) -> str:).
+   - RUST: clippy::pedantic. No unwrap. Use thiserror.
+   - TS/JS: // @ts-check mandated. No any.
+   - PYTHON: Type hints required (def func(a: int) -> str:).
+
 OPERATIONAL PROTOCOL:
-Scan: Read the provided Glance output to understand the current state.
-Generate: Output WHOLE FILES with the filename in a header. Do not use diffs.
-Verify: Ask yourself: "Will Warden reject this?" before printing.
+   1. Scan: Read the provided context.
+   2. Generate: Output WHOLE FILES with the filename in a header.
+   3. Verify: Ask yourself: "Does this violate the 3 Laws?" before outputting.
 `;
 
             const REFACTOR_MANDATE_1 = `**TITLE: AI REFRACTORING MANDATE (RM): DETERMINISTIC DIAGNOSIS, SAFETY SETUP, AND METRIC ORCHESTRATION**
