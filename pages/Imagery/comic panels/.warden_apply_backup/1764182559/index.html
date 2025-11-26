@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Comic Panel Layout Designer</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            :root {
+                --bg: #f6f7f9;
+                --card: #ffffff;
+                --text: #111827;
+                --muted: #6b7280;
+                --border: #d1d5db;
+                --primary: #2563eb;
+                --danger: #ef4444;
+                --accent: #f3f4f6;
+                --guide-live: #2563eb; /* blue */
+                --guide-inset: #a855f7; /* purple */
+                --guide-bleed: #ef4444; /* red */
+            }
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                background: var(--bg);
+                color: var(--text);
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    Helvetica,
+                    Arial;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 12px;
+            }
+            h1 {
+                text-align: center;
+                font-size: 22px;
+                margin: 8px 0 10px;
+            }
+            .header {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 10px 12px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            }
+            .setup-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+            @media (min-width: 1100px) {
+                .setup-grid {
+                    grid-template-columns: repeat(6, minmax(0, 1fr));
+                }
+            }
+            .setup-item {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            label {
+                font-size: 12px;
+                color: #374151;
+            }
+            select,
+            input[type="number"] {
+                height: 32px;
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 0 8px;
+                font-size: 14px;
+                background: white;
+            }
+            .switch-wrap {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .switch {
+                appearance: none;
+                width: 42px;
+                height: 24px;
+                background: #e5e7eb;
+                border-radius: 999px;
+                position: relative;
+                outline: none;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .switch:checked {
+                background: var(--primary);
+            }
+            .switch::after {
+                content: "";
+                position: absolute;
+                width: 18px;
+                height: 18px;
+                top: 3px;
+                left: 3px;
+                background: white;
+                border-radius: 50%;
+                transition: transform 0.2s;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+            }
+            .switch:checked::after {
+                transform: translateX(18px);
+            }
+
+            .readout {
+                font-size: 12px;
+                color: var(--muted);
+                margin-top: 6px;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-top: 12px;
+            }
+            @media (min-width: 1100px) {
+                .grid {
+                    grid-template-columns: 320px 1fr;
+                }
+            }
+            .card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            }
+            .card h2 {
+                margin: 0;
+                padding: 10px 12px;
+                font-size: 15px;
+                border-bottom: 1px solid var(--border);
+            }
+            .content {
+                padding: 10px 12px;
+            }
+            .row {
+                margin-bottom: 10px;
+            }
+            .range-row {
+                display: grid;
+                grid-template-columns: 1fr 70px;
+                gap: 8px;
+                align-items: center;
+            }
+            input[type="range"] {
+                width: 100%;
+            }
+            .btn {
+                height: 34px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: white;
+                cursor: pointer;
+                font-size: 14px;
+                padding: 0 10px;
+            }
+            .btn.primary {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
+            .btn.danger {
+                background: var(--danger);
+                color: white;
+                border-color: var(--danger);
+            }
+            .btn:active {
+                transform: translateY(1px);
+            }
+            .flex {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            .canvas-wrap {
+                padding: 10px;
+            }
+            .canvas-frame {
+                display: flex;
+                justify-content: center;
+                position: relative;
+            }
+            canvas {
+                background: white;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+                max-width: 100%;
+                cursor: crosshair;
+            }
+            .floating {
+                position: absolute;
+                z-index: 10;
+                transform: translate(-50%, -50%);
+                display: flex;
+                gap: 6px;
+                pointer-events: none;
+            }
+            .iconbtn {
+                pointer-events: auto;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                background: white;
+                cursor: pointer;
+            }
+            .iconbtn.danger {
+                background: var(--danger);
+                color: white;
+                border-color: var(--danger);
+            }
+            .help {
+                color: var(--muted);
+                font-size: 12px;
+                margin-top: 8px;
+                line-height: 1.5;
+            }
+            .legend {
+                margin-top: 8px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: center;
+                color: var(--muted);
+                font-size: 12px;
+            }
+            .badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .dash {
+                width: 14px;
+                height: 2px;
+            }
+            .d-red {
+                background: #ff6b6b;
+                outline: 1px dashed #ff6b6b;
+                outline-offset: -1px;
+            }
+            .d-blue {
+                background: #74c0fc;
+                outline: 1px dashed #74c0fc;
+                outline-offset: -1px;
+            }
+            .d-purple {
+                background: #a855f7;
+                outline: 1px dashed #a855f7;
+                outline-offset: -1px;
+            }
+            .muted {
+                color: var(--muted);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Comic Panel Layout Designer</h1>
+
+            ```
+            <div class="header">
+                <div class="setup-grid">
+                    <div class="setup-item">
+                        <label>Size</label>
+                        <select id="size"></select>
+                    </div>
+                    <div class="setup-item">
+                        <label>Units</label>
+                        <select id="units"></select>
+                    </div>
+                    <div class="setup-item">
+                        <label>DPI</label>
+                        <select id="dpi"></select>
+                    </div>
+                    <div class="setup-item">
+                        <label>Orientation</label>
+                        <div class="switch-wrap">
+                            <input
+                                id="landscape"
+                                type="checkbox"
+                                class="switch"
+                            />
+                            <span style="font-size: 12px">Landscape</span>
+                        </div>
+                    </div>
+                    <div class="setup-item">
+                        <label>Width</label>
+                        <input id="w-inp" type="number" step="0.001" />
+                    </div>
+                    <div class="setup-item">
+                        <label>Height</label>
+                        <input id="h-inp" type="number" step="0.001" />
+                    </div>
+                </div>
+
+                <div class="setup-grid" style="margin-top: 10px">
+                    <div class="setup-item">
+                        <label>Bleed</label>
+                        <div class="range-row">
+                            <input
+                                id="bleed-range"
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.005"
+                            />
+                            <input id="bleed-num" type="number" step="0.005" />
+                        </div>
+                    </div>
+                    <div class="setup-item">
+                        <label>Live area</label>
+                        <div class="range-row">
+                            <input
+                                id="live-range"
+                                type="range"
+                                min="0"
+                                max="1.5"
+                                step="0.01"
+                            />
+                            <input id="live-num" type="number" step="0.01" />
+                        </div>
+                    </div>
+                    <div class="setup-item">
+                        <label>Panel inset</label>
+                        <div class="range-row">
+                            <input
+                                id="inset-range"
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.01"
+                            />
+                            <input id="inset-num" type="number" step="0.01" />
+                        </div>
+                    </div>
+                    <div class="setup-item" style="grid-column: span 3">
+                        <div id="export-readout" class="readout"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <div class="card" style="margin-top: 12px">
+                        <h2>Grid & Cut Settings</h2>
+                        <div class="content">
+                            <div class="row">
+                                <label>Gutter Width (px)</label>
+                                <div class="range-row">
+                                    <input
+                                        id="gutter-range"
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                    />
+                                    <input
+                                        id="gutter-num"
+                                        type="number"
+                                        step="1"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+                            <div class="row">
+                                <label>Stroke Width (px)</label>
+                                <div class="range-row">
+                                    <input
+                                        id="stroke-range"
+                                        type="range"
+                                        min="1"
+                                        max="10"
+                                        step="0.5"
+                                    />
+                                    <input
+                                        id="stroke-num"
+                                        type="number"
+                                        min="1"
+                                        step="0.5"
+                                    />
+                                </div>
+                            </div>
+                            <div class="row">
+                                <label>Quick Grid</label>
+                                <div class="flex">
+                                    <button id="grid-22" class="btn">
+                                        2x2
+                                    </button>
+                                    <button id="grid-33" class="btn">
+                                        3x3
+                                    </button>
+                                    <button id="grid-23" class="btn">
+                                        2x3
+                                    </button>
+                                    <button id="grid-32" class="btn">
+                                        3x2
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="flex">
+                                    <button id="reset" class="btn">
+                                        Reset (clears cuts)
+                                    </button>
+                                    <button id="merge-selected" class="btn">
+                                        Merge Selected
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="flex">
+                                    <button
+                                        id="export-line"
+                                        class="btn primary"
+                                    >
+                                        Export Linework
+                                    </button>
+                                    <button
+                                        id="export-fills"
+                                        class="btn primary"
+                                    >
+                                        Export Fills
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card canvas-wrap">
+                        <div class="canvas-frame">
+                            <canvas id="canvas"></canvas>
+
+                            <div
+                                id="split-overlay"
+                                class="floating"
+                                style="display: none"
+                            >
+                                <button
+                                    id="btn-split-v"
+                                    class="iconbtn"
+                                    title="Split Vertically"
+                                >
+                                    �
+                                </button>
+                                <button
+                                    id="btn-split-h"
+                                    class="iconbtn"
+                                    title="Split Horizontally"
+                                >
+                                    �
+                                </button>
+                                <button
+                                    id="btn-delete-panel"
+                                    class="iconbtn danger"
+                                    title="Delete Panel"
+                                >
+                                    x
+                                </button>
+                            </div>
+
+                            <div
+                                id="delete-overlay"
+                                class="floating"
+                                style="display: none"
+                            >
+                                <button
+                                    id="btn-delete-cut"
+                                    class="iconbtn danger"
+                                    title="Delete Cut"
+                                >
+                                    x
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="content">
+                            <div class="help">
+                                <div class="row" style="margin-bottom: 6px">
+                                    <strong>Instructions:</strong>
+                                </div>
+                                <ul
+                                    style="
+                                        margin: 0 0 6px 18px;
+                                        padding: 0;
+                                        line-height: 1.5;
+                                    "
+                                >
+                                    <li>
+                                        Drag across the document to create cuts
+                                    </li>
+                                    <li>
+                                        Global cuts = blue highlight; panel cuts
+                                        = green highlight
+                                    </li>
+                                    <li>
+                                        Click a cut to select it then delete, or
+                                        drag the line/endpoints to move it
+                                    </li>
+                                    <li>
+                                        Click a panel to reveal split options;
+                                        click multiple panels and press "Merge
+                                        Selected" to merge contiguous panels
+                                    </li>
+                                    <li>
+                                        Changing Size/Units/DPI/Bleed/Live
+                                        area/Panel inset never resets or removes
+                                        cuts
+                                    </li>
+                                </ul>
+                                <div class="legend">
+                                    <span class="badge"
+                                        ><span class="dash d-red"></span>
+                                        Bleed</span
+                                    >
+                                    <span class="badge"
+                                        ><span class="dash d-blue"></span> Live
+                                        area</span
+                                    >
+                                    <span class="badge"
+                                        ><span class="dash d-purple"></span>
+                                        Panel inset</span
+                                    >
+                                    <span id="doc-info" class="muted"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ```
+        </div>
+
+        <!-- Compiled TypeScript entrypoint (from src/main.ts) -->
+
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Comic Panel Layout Designer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #d1d5db;
+    --primary: #2563eb;
+    --danger: #ef4444;
+    --accent: #f3f4f6;
+    --guide-live: #2563eb;     /* blue */
+    --guide-inset: #a855f7;    /* purple */
+    --guide-bleed: #ef4444;    /* red */
+  }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 12px; }
+  h1 { text-align:center; font-size:22px; margin: 8px 0 10px; }
+  .header { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+  .setup-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
+  @media (min-width: 1100px) { .setup-grid { grid-template-columns: repeat(6, minmax(0,1fr)); } }
+  .setup-item { display:flex; flex-direction:column; gap:6px; }
+  label { font-size:12px; color:#374151; }
+  select, input[type="number"] { height:32px; border:1px solid var(--border); border-radius:6px; padding:0 8px; font-size:14px; background:white; }
+  .switch-wrap { display:flex; align-items:center; gap:6px; }
+  .switch { appearance:none; width:42px; height:24px; background:#e5e7eb; border-radius:999px; position:relative; outline:none; cursor:pointer; transition:background .2s; }
+  .switch:checked { background:var(--primary); }
+  .switch::after { content:""; position:absolute; width:18px; height:18px; top:3px; left:3px; background:white; border-radius:50%; transition:transform .2s; box-shadow:0 1px 2px rgba(0,0,0,0.25); }
+  .switch:checked::after { transform: translateX(18px); }
+
+  .readout { font-size:12px; color:var(--muted); margin-top:6px; }
+  .grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
+  @media (min-width: 1100px) { .grid { grid-template-columns: 320px 1fr; } }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+  .card h2 { margin:0; padding: 10px 12px; font-size:15px; border-bottom:1px solid var(--border); }
+  .content { padding:10px 12px; }
+  .row { margin-bottom:10px; }
+  .range-row { display:grid; grid-template-columns: 1fr 70px; gap:8px; align-items:center; }
+  input[type="range"] { width:100%; }
+  .btn { height:34px; border-radius:8px; border:1px solid var(--border); background:white; cursor:pointer; font-size:14px; padding:0 10px; }
+  .btn.primary { background:var(--primary); color:white; border-color:var(--primary); }
+  .btn.danger { background:var(--danger); color:white; border-color:var(--danger); }
+  .btn:active { transform: translateY(1px); }
+  .flex { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  .canvas-wrap { padding: 10px; }
+  .canvas-frame { display:flex; justify-content:center; position:relative; }
+  canvas { background:white; border:1px solid var(--border); border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.08); max-width:100%; cursor: crosshair; }
+  .floating { position:absolute; z-index:10; transform:translate(-50%,-50%); display:flex; gap:6px; pointer-events:none; }
+  .iconbtn { pointer-events:auto; width:32px; height:32px; border-radius:6px; border:1px solid var(--border); background:white; cursor:pointer; }
+  .iconbtn.danger { background:var(--danger); color:white; border-color:var(--danger); }
+  .help { color:var(--muted); font-size:12px; margin-top:8px; line-height:1.5; }
+  .legend { margin-top:8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; color:var(--muted); font-size:12px; }
+  .badge { display:inline-flex; align-items:center; gap:6px; }
+  .dash { width:14px; height:2px; }
+  .d-red { background:#ff6b6b; outline:1px dashed #ff6b6b; outline-offset:-1px; }
+  .d-blue { background:#74c0fc; outline:1px dashed #74c0fc; outline-offset:-1px; }
+  .d-purple { background:#a855f7; outline:1px dashed #a855f7; outline-offset:-1px; }
+  .muted { color:var(--muted); }
+</style>
+<script>
+(function(){
+  "use strict";
+
+  // --------- Constants and presets ----------
+  const UNITS = {
+    px: { name:"Pixels", factor:1, toIn:v=>v/96, fromIn:v=>v*96 },
+    in: { name:"Inches", factor:96, toIn:v=>v, fromIn:v=>v },
+    mm: { name:"Millimeters", factor:96/25.4, toIn:v=>v/25.4, fromIn:v=>v*25.4 },
+    cm: { name:"Centimeters", factor:96/2.54, toIn:v=>v/2.54, fromIn:v=>v*2.54 },
+  };
+  const PRESETS = {
+    letter: { wIn: 8.5, hIn: 11, name:'Letter (8.5" × 11")' },
+    a4: { wIn: 8.27, hIn: 11.69, name:"A4 (210mm × 297mm)" },
+    "comic-standard": { wIn: 6.875, hIn: 10.4375, name:'Comic Standard (6.875" × 10.4375")' },
+    manga: { wIn: 7.165, hIn: 10.118, name:"Manga (182mm × 257mm)" },
+    tabloid: { wIn: 11, hIn: 17, name:'Tabloid (11" × 17")' },
+    a3: { wIn: 11.69, hIn: 16.54, name:"A3 (297mm × 420mm)" },
+    square: { wIn: 8.333, hIn: 8.333, name:"Square (800 × 800 at 96DPI approx.)" },
+    custom: { wIn: 6.25, hIn: 5.208, name:"Custom" }, // defaults
+  };
+  const DPI_OPTIONS = [72, 150, 300, 600];
+  const MAX_CANVAS_W = 800, MAX_CANVAS_H = 600;
+  const EPS = 1e-6;
+
+  // --------- State ----------
+  const st = {
+    panels: [],
+    cuts: [],
+    currentCut: null,
+    isDragging: false,
+    dragStart: null,
+    dragMode: null,
+    hoveredCutIndex: -1,
+    selectedPanelId: null,
+    selectedCutIndex: null,
+    showSplitButtons: false,
+    showDeleteButton: false,
+    splitPos: { x:0, y:0 },
+    delPos: { x:0, y:0 },
+
+    mergeSel: [],
+
+    documentSize: "letter",
+    isLandscape: false,
+    units: "in",
+    dpi: 300,
+
+    // store size in inches internally for doc definition
+    docWIn: PRESETS.letter.wIn,
+    docHIn: PRESETS.letter.hIn,
+
+    // Guides in inches for print workflow
+    bleedIn: 0.125,     // typical 1/8"
+    liveIn: 0.25,       // safe area inset
+    insetIn: 0.35,      // panel inset from live area
+
+    gutterPx: 20,
+    strokePx: 3,
+
+    idSeq: 1,
+  };
+
+  // ---------- DOM ----------
+  const els = {};
+  function $(id){ return document.getElementById(id); }
+
+  // ---------- Units helpers ----------
+  function inchesToUnit(valIn, unit){ return UNITS[unit].fromIn(valIn); }
+  function unitToInches(val, unit){ return UNITS[unit].toIn(val); }
+  function fmtNum(n, d=2){ return (Math.round(n*10**d)/10**d).toString(); }
+
+  // ---------- Doc and canvas scale ----------
+  function docDimsPx(){
+    const wPx = Math.round(st.docWIn * st.dpi);
+    const hPx = Math.round(st.docHIn * st.dpi);
+    return { wPx, hPx };
+  }
+  function previewDimsPx(){
+    // preview uses CSS 96dpi doc units
+    const wCss = st.docWIn * 96;
+    const hCss = st.docHIn * 96;
+    const width = st.isLandscape ? hCss : wCss;
+    const height = st.isLandscape ? wCss : hCss;
+    const sW = MAX_CANVAS_W / width;
+    const sH = MAX_CANVAS_H / height;
+    const scale = Math.min(sW, sH, 1);
+    return { cw: width*scale, ch: height*scale, scale };
+  }
+
+  // ---------- Geometry ----------
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function clampPt(pt, cw, ch){ return { x: clamp(pt.x,0,cw), y: clamp(pt.y,0,ch) }; }
+  function distPointToSeg(p, a, b){
+    const A=p.x-a.x, B=p.y-a.y, C=b.x-a.x, D=b.y-a.y;
+    const dot=A*C+B*D, len=C*C+D*D;
+    if (len===0) return Math.hypot(A,B);
+    let t=dot/len; t=clamp(t,0,1);
+    const x=a.x+t*C, y=a.y+t*D;
+    return Math.hypot(p.x-x,p.y-y);
+  }
+  function pointInPoly(pt, poly){
+    let inside=false;
+    for (let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const a=poly[i], b=poly[j];
+      if (((a.y>pt.y)!==(b.y>pt.y)) && (pt.x < ( (b.x-a.x)*(pt.y-a.y) )/(b.y-a.y) + a.x)) inside=!inside;
+    }
+    return inside;
+  }
+  function polyCenter(poly){
+    const sx=poly.reduce((s,p)=>s+p.x,0), sy=poly.reduce((s,p)=>s+p.y,0);
+    return { x:sx/poly.length, y:sy/poly.length };
+  }
+  function dedupe(poly){
+    if (poly.length<=3) return poly.slice();
+    const out=[];
+    for (let i=0;i<poly.length;i++){
+      const p=poly[i], n=poly[(i+1)%poly.length];
+      if (Math.hypot(n.x-p.x, n.y-p.y) > 1e-4) out.push(p);
+    }
+    return out;
+  }
+  function normalize(vx,vy){
+    const L=Math.hypot(vx,vy); return L<1e-12 ? {x:0,y:0} : {x:vx/L,y:vy/L};
+  }
+  function signedDist(p, p0, nx, ny){ return (p.x-p0.x)*nx + (p.y-p0.y)*ny; }
+  function intersect(a,b,p0,nx,ny,side){
+    const da=signedDist(a,p0,nx,ny)-side;
+    const db=signedDist(b,p0,nx,ny)-side;
+    const t = da/(da - db + 1e-12);
+    return { x: a.x + (b.x-a.x)*t, y: a.y + (b.y-a.y)*t };
+  }
+  function clipHalfPlane(poly, p0, nx, ny, side, keepOut){
+    const out=[];
+    for (let i=0;i<poly.length;i++){
+      const a=poly[i], b=poly[(i+1)%poly.length];
+      const da=signedDist(a,p0,nx,ny)-side, db=signedDist(b,p0,nx,ny)-side;
+      const ina= keepOut ? (da<=0) : (da>=0);
+      const inb= keepOut ? (db<=0) : (db>=0);
+      if (ina && inb) { out.push(b); }
+      else if (ina && !inb) { out.push(intersect(a,b,p0,nx,ny,side)); }
+      else if (!ina && inb) { out.push(intersect(a,b,p0,nx,ny,side)); out.push(b); }
+    }
+    return dedupe(out);
+  }
+  // Split polygon by infinite strip around cut
+  function splitByStrip(poly, start, end, gutter){
+    const dx=end.x-start.x, dy=end.y-start.y;
+    const t = normalize(dx,dy); const nx=-t.y, ny=t.x; const off = gutter/2;
+    const high = clipHalfPlane(poly, start, nx, ny, +off, false); // dist >= +off
+    const low  = clipHalfPlane(poly, start, nx, ny, -off, true);  // dist <= -off
+    const res=[]; if (high.length>=3) res.push(high); if (low.length>=3) res.push(low);
+    return res.length ? res : [poly.slice()];
+  }
+
+  // ---------- Panels recompute ----------
+  function baseRects(){
+    // build rectangles in preview pixels:
+    const { cw, ch, scale } = previewDimsPx();
+    const bleed = st.bleedIn * 96 * scale;
+    const live = st.liveIn * 96 * scale;
+    const inset = st.insetIn * 96 * scale;
+
+    // trim = full canvas rect
+    const trimRect = [{x:0,y:0},{x:cw,y:0},{x:cw,y:ch},{x:0,y:ch}];
+    // live area inside trim
+    const liveRect = [{x:live,y:live},{x:cw-live,y:live},{x:cw-live,y:ch-live},{x:live,y:ch-live}];
+    // panel inset inside live
+    const insetRect = [{x:live+inset,y:live+inset},{x:cw-live-inset,y:live+inset},{x:cw-live-inset,y:ch-live-inset},{x:live+inset,y:ch-live-inset}];
+
+    return { cw, ch, scale, bleed, liveRect, insetRect, trimRect };
+  }
+
+  function recomputePanels(){
+    // Important: do not change cuts. Only recompute panels from the inset rect.
+    const { insetRect } = baseRects();
+    let acc = [{ id:"p0", points: insetRect }];
+    for (const cut of st.cuts){
+      const next=[];
+      for (const p of acc){
+        if (cut.type==="panel" && cut.panelId && p.id!==cut.panelId) { next.push(p); continue; }
+        const parts = splitByStrip(p.points, cut.start, cut.end, st.gutterPx);
+        for (const pts of parts) next.push({ id:`p${st.idSeq++}`, points: pts });
+      }
+      acc = next;
+    }
+    st.panels = acc;
+    draw();
+  }
+
+  // ---------- Merge panels ----------
+  function edgeShared(a, b){
+    // determine if polygons share an edge longer than threshold
+    const thr = 2; // px in preview space
+    function edges(poly){
+      const arr=[];
+      for (let i=0;i<poly.length;i++){
+        const p=poly[i], q=poly[(i+1)%poly.length];
+        arr.push([p,q]);
+      }
+      return arr;
+    }
+    function segOverlapLen(p1,p2,q1,q2){
+      // check if colinear and overlapping; return approx overlap length or 0
+      const v1x=p2.x-p1.x, v1y=p2.y-p1.y;
+      const v2x=q2.x-q1.x, v2y=q2.y-q1.y;
+      const cross = v1x*v2y - v1y*v2x;
+      if (Math.abs(cross)>1e-3) return 0;
+      // project onto axis with larger extent
+      const axis = Math.abs(v1x)>=Math.abs(v1y) ? 'x' : 'y';
+      const a1=Math.min(p1[axis], p2[axis]), a2=Math.max(p1[axis], p2[axis]);
+      const b1=Math.min(q1[axis], q2[axis]), b2=Math.max(q1[axis], q2[axis]);
+      const lo=Math.max(a1,b1), hi=Math.min(a2,b2);
+      const len = hi-lo;
+      return len>0 ? len : 0;
+    }
+    const ea=edges(a.points), eb=edges(b.points);
+    for (const [p1,p2] of ea){
+      for (const [q1,q2] of eb){
+        if (segOverlapLen(p1,p2,q1,q2) > thr) return true;
+      }
+    }
+    return false;
+  }
+
+  function buildAdjacency(panels){
+    const n=panels.length; const adj=new Map();
+    panels.forEach(p=>adj.set(p.id, new Set()));
+    for (let i=0;i<n;i++){
+      for (let j=i+1;j<n;j++){
+        if (edgeShared(panels[i], panels[j])) {
+          adj.get(panels[i].id).add(panels[j].id);
+          adj.get(panels[j].id).add(panels[i].id);
+        }
+      }
+    }
+    return adj;
+  }
+
+  function connectedSubset(ids, adj){
+    if (!ids.length) return [];
+    const want=new Set(ids);
+    const res=[]; const seen=new Set(); const q=[ids[0]]; seen.add(ids[0]);
+    while(q.length){
+      const u=q.shift(); if (want.has(u)) res.push(u);
+      for (const v of (adj.get(u)||[])){
+        if (!seen.has(v) && want.has(v)) { seen.add(v); q.push(v); }
+      }
+    }
+    return res;
+  }
+
+  function cutSeparatesPanels(cut, pa, pb){
+    // quick bbox and strip overlap heuristic
+    const gutter = st.gutterPx;
+    const minX = Math.min(cut.start.x, cut.end.x)-gutter, maxX = Math.max(cut.start.x, cut.end.x)+gutter;
+    const minY = Math.min(cut.start.y, cut.end.y)-gutter, maxY = Math.max(cut.start.y, cut.end.y)+gutter;
+    function polyBounds(poly){
+      let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+      for (const p of poly){ if(p.x<x1)x1=p.x; if(p.x>x2)x2=p.x; if(p.y<y1)y1=p.y; if(p.y>y2)y2=p.y; }
+      return {x1,y1,x2,y2};
+    }
+    function overlap(b){
+      return !(b.x1>maxX || b.x2<minX || b.y1>maxY || b.y2<minY);
+    }
+    return overlap(polyBounds(pa.points)) && overlap(polyBounds(pb.points));
+  }
+
+  function scopeGlobalCut(cut){
+    // Convert a global cut into panel-specific duplicates for all panels it affects.
+    // This keeps other separations intact when we remove only between selected panels.
+    const affected = [];
+    for (const p of st.panels) {
+      // if cut intersects panel bbox reasonably, consider it affecting
+      const bbox = (poly=>{
+        let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+        for (const q of poly){ if(q.x<x1)x1=q.x; if(q.x>x2)x2=q.x; if(q.y<y1)y1=q.y; if(q.y>y2)y2=q.y; }
+        return {x1,y1,x2,y2};
+      })(p.points);
+      const minX = Math.min(cut.start.x, cut.end.x)-st.gutterPx;
+      const maxX = Math.max(cut.start.x, cut.end.x)+st.gutterPx;
+      const minY = Math.min(cut.start.y, cut.end.y)-st.gutterPx;
+      const maxY = Math.max(cut.start.y, cut.end.y)+st.gutterPx;
+      const overlaps = !(bbox.x1>maxX || bbox.x2<minX || bbox.y1>maxY || bbox.y2<minY);
+      if (overlaps) affected.push(p.id);
+    }
+    // remove the global cut; add panel-scoped duplicates
+    st.cuts = st.cuts.filter(c=>c.id!==cut.id);
+    for (const pid of affected){
+      st.cuts.push({ id:`c${st.idSeq++}`, type:"panel", panelId:pid, start:{...cut.start}, end:{...cut.end} });
+    }
+  }
+
+  function mergeSelected(){
+    if (st.mergeSel.length<2) return;
+
+    // Build adjacency and verify connectivity among selected ids
+    const adj = buildAdjacency(st.panels);
+    const connectedIds = connectedSubset(st.mergeSel, adj);
+    if (connectedIds.length !== st.mergeSel.length) {
+      // Not fully connected; you can show a message if needed
+      // For now, proceed with the connected subset only.
+    }
+
+    // For every pair inside selected set that are adjacent, remove separating cuts only between them
+    const selSet = new Set(st.mergeSel);
+    const selectedPanels = st.panels.filter(p=>selSet.has(p.id));
+
+    for (let i=0;i<selectedPanels.length;i++){
+      for (let j=i+1;j<selectedPanels.length;j++){
+        const pa = selectedPanels[i], pb = selectedPanels[j];
+        if (!edgeShared(pa, pb)) continue;
+        // Find cuts that separate pa and pb
+        for (const cut of [...st.cuts]){
+          if (!cutSeparatesPanels(cut, pa, pb)) continue;
+          if (cut.type==="panel") {
+            // remove panel-scoped if it matches either panelId and separates these two
+            if (cut.panelId===pa.id || cut.panelId===pb.id) {
+              st.cuts = st.cuts.filter(c=>c!==cut);
+            }
+          } else {
+            // global cut: scope it first
+            scopeGlobalCut(cut);
+            // after scoping, there are two panel-specific copies (and others).
+            // remove only those copies for pa/pb
+            st.cuts = st.cuts.filter(c=>{
+              if (c.type!=="panel") return true;
+              if ((c.panelId===pa.id || c.panelId===pb.id) &&
+                  cutSeparatesPanels(c, pa, pb)) {
+                return false; // drop
+              }
+              return true;
+            });
+          }
+        }
+      }
+    }
+
+    st.mergeSel = [];
+    st.selectedPanelId = null;
+    st.showSplitButtons = false;
+    recomputePanels(); // recompute with modified cuts
+  }
+
+  // ---------- Canvas rendering ----------
+  function draw(){
+    const { cw, ch, scale, bleed, liveRect, insetRect, trimRect } = baseRects();
+    const cx = els.canvas;
+    cx.width = cw; cx.height = ch;
+    const ctx = cx.getContext("2d");
+
+    // background
+    ctx.fillStyle="#f8f9fa"; ctx.fillRect(0,0,cw,ch);
+
+    // bleed guide
+    ctx.save();
+    ctx.strokeStyle=varColor("--guide-bleed"); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.strokeRect(bleed, bleed, cw-2*bleed, ch-2*bleed);
+    ctx.restore();
+
+    // live area guide
+    strokePoly(ctx, liveRect, varColor("--guide-live"), [5,3], 1);
+
+    // panel inset guide
+    strokePoly(ctx, insetRect, varColor("--guide-inset"), [6,4], 1);
+
+    // panels
+    ctx.strokeStyle="black"; ctx.lineWidth=st.strokePx; ctx.lineJoin="miter"; ctx.lineCap="square";
+    for (const p of st.panels){
+      if (p.id===st.selectedPanelId || st.mergeSel.includes(p.id)) {
+        ctx.fillStyle="rgba(59,130,246,0.12)";
+        fillPoly(ctx, p.points);
+      }
+      strokePoly(ctx, p.points, "black", [], st.strokePx);
+    }
+
+    // active draw
+    if (st.isDragging && st.currentCut){
+      ctx.save();
+      ctx.strokeStyle="#ffcc00"; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+      ctx.beginPath(); ctx.moveTo(st.currentCut.start.x, st.currentCut.start.y);
+      ctx.lineTo(st.currentCut.end.x, st.currentCut.end.y); ctx.stroke();
+      ctx.restore();
+    }
+
+    // hovered cut
+    if (st.hoveredCutIndex>=0){
+      const cut = st.cuts[st.hoveredCutIndex];
+      ctx.save();
+      ctx.strokeStyle = (cut.type==="panel") ? "#10b981" : "#0066ff";
+      ctx.lineWidth=3; ctx.shadowBlur=10; ctx.shadowColor=ctx.strokeStyle;
+      ctx.beginPath(); ctx.moveTo(cut.start.x, cut.start.y); ctx.lineTo(cut.end.x, cut.end.y); ctx.stroke();
+      ctx.fillStyle=ctx.strokeStyle;
+      ctx.beginPath(); ctx.arc(cut.start.x, cut.start.y, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cut.end.x, cut.end.y, 5, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // selected cut
+    if (st.selectedCutIndex!==null && st.selectedCutIndex>=0){
+      const cut = st.cuts[st.selectedCutIndex];
+      ctx.save();
+      ctx.strokeStyle="#ff6b6b"; ctx.lineWidth=4; ctx.shadowBlur=15; ctx.shadowColor="#ff6b6b";
+      ctx.beginPath(); ctx.moveTo(cut.start.x, cut.start.y); ctx.lineTo(cut.end.x, cut.end.y); ctx.stroke();
+      ctx.fillStyle="#ff6b6b";
+      ctx.beginPath(); ctx.arc(cut.start.x, cut.start.y, 6, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cut.end.x, cut.end.y, 6, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // overlays
+    const split = els.splitOverlay;
+    split.style.display = (st.showSplitButtons && st.selectedPanelId) ? "flex" : "none";
+    if (st.showSplitButtons && st.selectedPanelId) {
+      split.style.left = (st.splitPos.x - 75) + "px";
+      split.style.top = (st.splitPos.y - 20) + "px";
+    }
+    const del = els.deleteOverlay;
+    del.style.display = (st.showDeleteButton && st.selectedCutIndex!==null) ? "flex" : "none";
+    if (st.showDeleteButton && st.selectedCutIndex!==null) {
+      del.style.left = st.delPos.x + "px";
+      del.style.top = (st.delPos.y - 30) + "px";
+    }
+
+    // readouts
+    const exp = exportReadout();
+    els.readout.textContent = `Export: ${exp.pxW} × ${exp.pxH} px (${exp.inW.toFixed(3)} × ${exp.inH.toFixed(3)} in @ ${st.dpi} DPI)`;
+    els.docInfo.textContent = `Document: ${Math.round(st.docWIn*96)} × ${Math.round(st.docHIn*96)} CSS px (${st.docWIn.toFixed(3)} × ${st.docHIn.toFixed(3)} in) ${st.isLandscape?"(Landscape)":"(Portrait)"}`;
+  }
+
+  function varColor(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function strokePoly(ctx, pts, color, dash, width){
+    ctx.save();
+    ctx.strokeStyle=color; ctx.lineWidth=width; if (dash && dash.length) ctx.setLineDash(dash);
+    ctx.beginPath(); for (let i=0;i<pts.length;i++){ const p=pts[i]; i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); }
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+  }
+  function fillPoly(ctx, pts){
+    ctx.beginPath(); for (let i=0;i<pts.length;i++){ const p=pts[i]; i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); }
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ---------- Canvas events ----------
+  let rafId=0;
+  function throttledRecompute(){ if (rafId) return; rafId=requestAnimationFrame(()=>{ rafId=0; recomputePanels(); }); }
+  function hitThreshold(){
+    const { scale } = previewDimsPx();
+    return 15 / Math.max(scale, 1e-3);
+  }
+
+  function canvasPos(e){
+    const r=els.canvas.getBoundingClientRect();
+    return { x:e.clientX-r.left, y:e.clientY-r.top };
+  }
+
+  function onMouseDown(e){
+    const { cw, ch } = previewDimsPx();
+    const pos = clampPt(canvasPos(e), cw, ch);
+    if (st.hoveredCutIndex>=0){
+      const cut=st.cuts[st.hoveredCutIndex];
+      const d1=Math.hypot(pos.x-cut.start.x,pos.y-cut.start.y);
+      const d2=Math.hypot(pos.x-cut.end.x,pos.y-cut.end.y);
+      if (d1<10){ st.dragMode="start"; st.currentCut=cut; }
+      else if (d2<10){ st.dragMode="end"; st.currentCut=cut; }
+      else { st.dragMode="line"; st.currentCut=cut; st.dragStart=pos; }
+      return;
+    }
+    st.isDragging=true; st.dragStart=pos;
+    st.currentCut={ id:`c${st.idSeq++}`, type:"global", start:pos, end:pos };
+    draw();
+  }
+  function onMouseMove(e){
+    const { cw, ch } = previewDimsPx();
+    const pos = clampPt(canvasPos(e), cw, ch);
+    if (!st.isDragging && !st.dragMode){
+      let idx=-1, thr=hitThreshold();
+      for (let i=0;i<st.cuts.length;i++){
+        const d=distPointToSeg(pos, st.cuts[i].start, st.cuts[i].end);
+        if (d<thr){ idx=i; break; }
+      }
+      st.hoveredCutIndex=idx;
+      els.canvas.style.cursor = idx>=0 ? "move" : "crosshair";
+      draw();
+    }
+    if (st.dragMode && st.currentCut){
+      const ci = st.cuts.findIndex(c=>c.id===st.currentCut.id);
+      if (ci>=0){
+        const next=st.cuts.slice(); const cur=next[ci];
+        if (st.dragMode==="line" && st.dragStart){
+          const dx=pos.x-st.dragStart.x, dy=pos.y-st.dragStart.y;
+          cur.start=clampPt({x:cur.start.x+dx, y:cur.start.y+dy}, cw, ch);
+          cur.end  =clampPt({x:cur.end.x+dx,   y:cur.end.y+dy  }, cw, ch);
+          st.dragStart=pos;
+        } else if (st.dragMode==="start"){ cur.start=pos; }
+        else if (st.dragMode==="end"){ cur.end=pos; }
+        st.cuts=next; st.currentCut=st.cuts[ci];
+        throttledRecompute();
+        return;
+      }
+    } else if (st.isDragging && st.currentCut){
+      st.currentCut.end=pos; draw();
+    }
+  }
+  function onMouseUp(){
+    if (st.isDragging && st.currentCut){
+      const dx=st.currentCut.end.x-st.currentCut.start.x, dy=st.currentCut.end.y-st.currentCut.start.y;
+      if (Math.hypot(dx,dy)>10){ st.cuts=[...st.cuts, st.currentCut]; recomputePanels(); }
+    }
+    st.isDragging=false; st.dragMode=null; st.currentCut=null; st.dragStart=null;
+    draw();
+  }
+  function onClickCanvas(e){
+    const { cw, ch } = previewDimsPx();
+    const pos = clampPt(canvasPos(e), cw, ch);
+    // Cuts first
+    for (let i=0;i<st.cuts.length;i++){
+      const d=distPointToSeg(pos, st.cuts[i].start, st.cuts[i].end);
+      if (d<hitThreshold()){
+        st.selectedCutIndex=i; st.showDeleteButton=true;
+        st.delPos={ x:(st.cuts[i].start.x+st.cuts[i].end.x)/2, y:(st.cuts[i].start.y+st.cuts[i].end.y)/2 };
+        st.selectedPanelId=null; st.showSplitButtons=false;
+        draw(); return;
+      }
+    }
+    // Panels
+    for (const p of st.panels){
+      if (pointInPoly(pos, p.points)){
+        st.selectedPanelId=p.id; st.showSplitButtons=true; st.splitPos=polyCenter(p.points);
+        st.selectedCutIndex=null; st.showDeleteButton=false;
+        if (!st.mergeSel.includes(p.id)){
+          if (st.mergeSel.length>=8) st.mergeSel.shift(); // cap selection history
+          st.mergeSel.push(p.id);
+        }
+        draw(); return;
+      }
+    }
+    st.selectedPanelId=null; st.showSplitButtons=false;
+    st.selectedCutIndex=null; st.showDeleteButton=false;
+    draw();
+  }
+
+  // ---------- Split helpers ----------
+  function splitPanelVertical(panelId){
+    const p=st.panels.find(x=>x.id===panelId); if (!p) return;
+    const ys=p.points.map(pt=>pt.y), xs=p.points.map(pt=>pt.x);
+    const minY=Math.min(...ys), maxY=Math.max(...ys);
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const cx=(minX+maxX)/2;
+    const newCut={ id:`c${st.idSeq++}`, type:"panel", panelId, start:{x:cx,y:minY-10}, end:{x:cx,y:maxY+10} };
+    st.cuts=[...st.cuts, newCut]; st.selectedPanelId=null; st.showSplitButtons=false; recomputePanels();
+  }
+  function splitPanelHorizontal(panelId){
+    const p=st.panels.find(x=>x.id===panelId); if (!p) return;
+    const ys=p.points.map(pt=>pt.y), xs=p.points.map(pt=>pt.x);
+    const minY=Math.min(...ys), maxY=Math.max(...ys);
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const cy=(minY+maxY)/2;
+    const newCut={ id:`c${st.idSeq++}`, type:"panel", panelId, start:{x:minX-10,y:cy}, end:{x:maxX+10,y:cy} };
+    st.cuts=[...st.cuts, newCut]; st.selectedPanelId=null; st.showSplitButtons=false; recomputePanels();
+  }
+  function deleteCut(idx){
+    st.cuts = st.cuts.filter((_,i)=>i!==idx);
+    st.selectedCutIndex=null; st.showDeleteButton=false; recomputePanels();
+  }
+  function deletePanel(panelId){
+    st.panels = st.panels.filter(p=>p.id!==panelId);
+    st.selectedPanelId=null; st.showSplitButtons=false; draw();
+  }
+
+  // ---------- Grid ----------
+  function generateGrid(rows, cols){
+    const { cw, ch, scale } = previewDimsPx();
+    const live = st.liveIn * 96 * scale;
+    const inset = st.insetIn * 96 * scale;
+    const x1=live+inset, y1=live+inset, x2=cw-live-inset, y2=ch-live-inset;
+    const w=x2-x1, h=y2-y1;
+    const cuts=[];
+    for (let i=1;i<cols;i++){
+      const x=x1 + (w/cols)*i;
+      cuts.push({ id:`c${st.idSeq++}`, type:"global", start:{x, y:y1}, end:{x, y:y2} });
+    }
+    for (let i=1;i<rows;i++){
+      const y=y1 + (h/rows)*i;
+      cuts.push({ id:`c${st.idSeq++}`, type:"global", start:{x:x1, y}, end:{x:x2, y} });
+    }
+    // Do not remove existing cuts; append grid
+    st.cuts = [...st.cuts, ...cuts];
+    recomputePanels();
+  }
+
+  // ---------- Reset ----------
+  function resetAll(){
+    // does not change doc setup; clears cuts/panels to fresh inset rect
+    st.cuts=[]; st.selectedPanelId=null; st.selectedCutIndex=null;
+    st.showSplitButtons=false; st.showDeleteButton=false; st.mergeSel=[];
+    recomputePanels();
+  }
+
+  // ---------- Export ----------
+  function exportReadout(){
+    const inW = st.isLandscape ? st.docHIn : st.docWIn;
+    const inH = st.isLandscape ? st.docWIn : st.docHIn;
+    const pxW = Math.round(inW * st.dpi);
+    const pxH = Math.round(inH * st.dpi);
+    return { inW, inH, pxW, pxH };
+  }
+
+  function exportSVG(kind){
+    const { pxW, pxH, inW, inH } = exportReadout();
+    const { cw, ch } = previewDimsPx();
+    const scaleX = pxW / cw, scaleY = pxH / ch;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    svg.setAttribute("width", String(pxW));
+    svg.setAttribute("height", String(pxH));
+    svg.setAttribute("xmlns","http://www.w3.org/2000/svg");
+
+    if (kind==="fills"){
+      for (const p of st.panels){
+        const path = document.createElementNS(svg.namespaceURI, "path");
+        let d=""; p.points.forEach((pt,i)=>{ const x=pt.x*scaleX, y=pt.y*scaleY; d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`); }); d+=" Z";
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "white");
+        const thin = Math.min(Math.max(st.strokePx*0.51, 0.5), 1.5);
+        path.setAttribute("stroke", "white");
+        path.setAttribute("stroke-width", String(thin));
+        path.setAttribute("stroke-linejoin","miter");
+        path.setAttribute("stroke-linecap","square");
+        svg.appendChild(path);
+      }
+    } else {
+      for (const p of st.panels){
+        const path = document.createElementNS(svg.namespaceURI, "path");
+        let d=""; p.points.forEach((pt,i)=>{ const x=pt.x*scaleX, y=pt.y*scaleY; d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`); }); d+=" Z";
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "black");
+        path.setAttribute("stroke-width", String(st.strokePx));
+        path.setAttribute("stroke-linejoin","miter");
+        path.setAttribute("stroke-linecap","square");
+        svg.appendChild(path);
+      }
+    }
+
+    const xml = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([xml], { type:"image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=`comic-panel-${kind}-${st.dpi}dpi.svg`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- UI wiring ----------
+  function populateSetup(){
+    // size presets
+    Object.entries(PRESETS).forEach(([k,p])=>{
+      const o=document.createElement("option"); o.value=k; o.textContent=p.name; els.size.appendChild(o);
+    });
+    // units
+    Object.entries(UNITS).forEach(([k,u])=>{
+      const o=document.createElement("option"); o.value=k; o.textContent=u.name; els.units.appendChild(o);
+    });
+    // dpi
+    DPI_OPTIONS.forEach(v=>{
+      const o=document.createElement("option"); o.value=String(v); o.textContent=`${v} DPI`; els.dpi.appendChild(o);
+    });
+    // init values
+    els.size.value=st.documentSize;
+    els.units.value=st.units;
+    els.dpi.value=String(st.dpi);
+    els.land.checked=st.isLandscape;
+
+    // show numeric size in chosen units
+    els.wInp.value = fmtNum(inchesToUnit(st.docWIn, st.units), 3);
+    els.hInp.value = fmtNum(inchesToUnit(st.docHIn, st.units), 3);
+
+    els.bleedRange.value = inchesToUnit(st.bleedIn, st.units);
+    els.bleedNum.value = fmtNum(inchesToUnit(st.bleedIn, st.units), 3);
+    els.liveRange.value = inchesToUnit(st.liveIn, st.units);
+    els.liveNum.value = fmtNum(inchesToUnit(st.liveIn, st.units), 3);
+    els.insetRange.value = inchesToUnit(st.insetIn, st.units);
+    els.insetNum.value = fmtNum(inchesToUnit(st.insetIn, st.units), 3);
+
+    els.gutterRange.value = st.gutterPx;
+    els.gutterNum.value = st.gutterPx;
+    els.strokeRange.value = st.strokePx;
+    els.strokeNum.value = st.strokePx;
+  }
+
+  function attachHandlers(){
+    // Size preset
+    els.size.addEventListener("change", ()=>{
+      st.documentSize = els.size.value;
+      const p = PRESETS[st.documentSize];
+      st.docWIn = p.wIn; st.docHIn = p.hIn;
+      els.wInp.value = fmtNum(inchesToUnit(st.docWIn, st.units), 3);
+      els.hInp.value = fmtNum(inchesToUnit(st.docHIn, st.units), 3);
+      recomputePanels();
+    });
+    // Orientation
+    els.land.addEventListener("change", ()=>{ st.isLandscape=els.land.checked; draw(); });
+    // Units
+    els.units.addEventListener("change", ()=>{
+      const old = st.units; st.units = els.units.value;
+      // convert display values only; internal inches remain
+      els.wInp.value = fmtNum(inchesToUnit(st.docWIn, st.units), 3);
+      els.hInp.value = fmtNum(inchesToUnit(st.docHIn, st.units), 3);
+      els.bleedRange.value = inchesToUnit(st.bleedIn, st.units);
+      els.bleedNum.value = fmtNum(inchesToUnit(st.bleedIn, st.units), 3);
+      els.liveRange.value = inchesToUnit(st.liveIn, st.units);
+      els.liveNum.value = fmtNum(inchesToUnit(st.liveIn, st.units), 3);
+      els.insetRange.value = inchesToUnit(st.insetIn, st.units);
+      els.insetNum.value = fmtNum(inchesToUnit(st.insetIn, st.units), 3);
+      draw();
+    });
+    // DPI
+    els.dpi.addEventListener("change", ()=>{ st.dpi=parseInt(els.dpi.value,10)||300; draw(); });
+
+    // Width/Height inputs in current units
+    els.wInp.addEventListener("input", ()=>{
+      const v=parseFloat(els.wInp.value); if (!isNaN(v)&&v>0) { st.docWIn = unitToInches(v, st.units); recomputePanels(); }
+    });
+    els.hInp.addEventListener("input", ()=>{
+      const v=parseFloat(els.hInp.value); if (!isNaN(v)&&v>0) { st.docHIn = unitToInches(v, st.units); recomputePanels(); }
+    });
+
+    // Bleed
+    function setBleed(valIn){ st.bleedIn = Math.max(0, valIn); els.bleedNum.value=fmtNum(inchesToUnit(st.bleedIn, st.units), 3); draw(); }
+    els.bleedRange.addEventListener("input", ()=>{ setBleed(unitToInches(parseFloat(els.bleedRange.value)||0, st.units)); });
+    els.bleedNum.addEventListener("input", ()=>{ const n=parseFloat(els.bleedNum.value); if(!isNaN(n)&&n>=0) setBleed(unitToInches(n, st.units)); });
+
+    // Live area
+    function setLive(valIn){ st.liveIn = Math.max(0, valIn); els.liveNum.value=fmtNum(inchesToUnit(st.liveIn, st.units), 3); recomputePanels(); }
+    els.liveRange.addEventListener("input", ()=>{ setLive(unitToInches(parseFloat(els.liveRange.value)||0, st.units)); });
+    els.liveNum.addEventListener("input", ()=>{ const n=parseFloat(els.liveNum.value); if(!isNaN(n)&&n>=0) setLive(unitToInches(n, st.units)); });
+
+    // Panel inset
+    function setInset(valIn){ st.insetIn = Math.max(0, valIn); els.insetNum.value=fmtNum(inchesToUnit(st.insetIn, st.units), 3); recomputePanels(); }
+    els.insetRange.addEventListener("input", ()=>{ setInset(unitToInches(parseFloat(els.insetRange.value)||0, st.units)); });
+    els.insetNum.addEventListener("input", ()=>{ const n=parseFloat(els.insetNum.value); if(!isNaN(n)&&n>=0) setInset(unitToInches(n, st.units)); });
+
+    // Gutter
+    function setGutter(px){ st.gutterPx = Math.max(0, px|0); els.gutterNum.value=st.gutterPx; recomputePanels(); }
+    els.gutterRange.addEventListener("input", ()=>{ setGutter(parseFloat(els.gutterRange.value)||0); });
+    els.gutterNum.addEventListener("input", ()=>{ const n=parseFloat(els.gutterNum.value); if(!isNaN(n)&&n>=0) setGutter(n); });
+
+    // Stroke
+    function setStroke(px){ st.strokePx = Math.max(1, parseFloat(px)||1); els.strokeNum.value=st.strokePx; draw(); }
+    els.strokeRange.addEventListener("input", ()=>{ setStroke(els.strokeRange.value); });
+    els.strokeNum.addEventListener("input", ()=>{ setStroke(els.strokeNum.value); });
+
+    // Grid
+    els.g22.addEventListener("click", ()=>generateGrid(2,2));
+    els.g33.addEventListener("click", ()=>generateGrid(3,3));
+    els.g23.addEventListener("click", ()=>generateGrid(2,3));
+    els.g32.addEventListener("click", ()=>generateGrid(3,2));
+
+    // Actions
+    els.reset.addEventListener("click", resetAll);
+    els.merge.addEventListener("click", mergeSelected);
+    els.exLine.addEventListener("click", ()=>exportSVG("line"));
+    els.exFill.addEventListener("click", ()=>exportSVG("fills"));
+
+    // Canvas
+    els.canvas.addEventListener("mousedown", onMouseDown);
+    els.canvas.addEventListener("mousemove", onMouseMove);
+    els.canvas.addEventListener("mouseup", onMouseUp);
+    els.canvas.addEventListener("click", onClickCanvas);
+
+    // Overlays
+    els.btnSplitV.addEventListener("click", ()=>{ if(st.selectedPanelId) splitPanelVertical(st.selectedPanelId); });
+    els.btnSplitH.addEventListener("click", ()=>{ if(st.selectedPanelId) splitPanelHorizontal(st.selectedPanelId); });
+    els.btnDelPanel.addEventListener("click", ()=>{ if(st.selectedPanelId) deletePanel(st.selectedPanelId); });
+    els.btnDelCut.addEventListener("click", ()=>{ if(st.selectedCutIndex!==null) deleteCut(st.selectedCutIndex); });
+  }
+
+  // ---------- Init ----------
+  window.addEventListener("DOMContentLoaded", ()=>{
+    // header
+    els.size = $("size");
+    els.units = $("units");
+    els.dpi = $("dpi");
+    els.land = $("landscape");
+    els.wInp = $("w-inp");
+    els.hInp = $("h-inp");
+    els.bleedRange = $("bleed-range");
+    els.bleedNum = $("bleed-num");
+    els.liveRange = $("live-range");
+    els.liveNum = $("live-num");
+    els.insetRange = $("inset-range");
+    els.insetNum = $("inset-num");
+    els.readout = $("export-readout");
+
+    // left panel controls
+    els.gutterRange = $("gutter-range");
+    els.gutterNum = $("gutter-num");
+    els.strokeRange = $("stroke-range");
+    els.strokeNum = $("stroke-num");
+    els.g22 = $("grid-22");
+    els.g33 = $("grid-33");
+    els.g23 = $("grid-23");
+    els.g32 = $("grid-32");
+    els.reset = $("reset");
+    els.merge = $("merge-selected");
+    els.exLine = $("export-line");
+    els.exFill = $("export-fills");
+
+    // canvas and overlays
+    els.canvas = $("canvas");
+    els.splitOverlay = $("split-overlay");
+    els.deleteOverlay = $("delete-overlay");
+    els.btnSplitV = $("btn-split-v");
+    els.btnSplitH = $("btn-split-h");
+    els.btnDelPanel = $("btn-delete-panel");
+    els.btnDelCut = $("btn-delete-cut");
+
+    els.docInfo = $("doc-info");
+
+    populateSetup();
+    recomputePanels();
+    attachHandlers();
+    draw();
+  });
+})();
+</script>
+</head>
+<body>
+  <div class="container">
+    <h1>Comic Panel Layout Designer</h1>
+
+    <div class="header">
+      <div class="setup-grid">
+        <div class="setup-item">
+          <label>Size</label>
+          <select id="size"></select>
+        </div>
+        <div class="setup-item">
+          <label>Units</label>
+          <select id="units"></select>
+        </div>
+        <div class="setup-item">
+          <label>DPI</label>
+          <select id="dpi"></select>
+        </div>
+        <div class="setup-item">
+          <label>Orientation</label>
+          <div class="switch-wrap"><input id="landscape" type="checkbox" class="switch" /><span style="font-size:12px;">Landscape</span></div>
+        </div>
+        <div class="setup-item">
+          <label>Width</label>
+          <input id="w-inp" type="number" step="0.001" />
+        </div>
+        <div class="setup-item">
+          <label>Height</label>
+          <input id="h-inp" type="number" step="0.001" />
+        </div>
+      </div>
+
+      <div class="setup-grid" style="margin-top:10px;">
+        <div class="setup-item">
+          <label>Bleed</label>
+          <div class="range-row">
+            <input id="bleed-range" type="range" min="0" max="1" step="0.005" />
+            <input id="bleed-num" type="number" step="0.005" />
+          </div>
+        </div>
+        <div class="setup-item">
+          <label>Live area</label>
+          <div class="range-row">
+            <input id="live-range" type="range" min="0" max="1.5" step="0.01" />
+            <input id="live-num" type="number" step="0.01" />
+          </div>
+        </div>
+        <div class="setup-item">
+          <label>Panel inset</label>
+          <div class="range-row">
+            <input id="inset-range" type="range" min="0" max="2" step="0.01" />
+            <input id="inset-num" type="number" step="0.01" />
+          </div>
+        </div>
+        <div class="setup-item" style="grid-column: span 3;">
+          <div id="export-readout" class="readout"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="card" style="margin-top:12px;">
+          <h2>Grid & Cut Settings</h2>
+          <div class="content">
+            <div class="row">
+              <label>Gutter Width (px)</label>
+              <div class="range-row">
+                <input id="gutter-range" type="range" min="0" max="100" step="1" />
+                <input id="gutter-num" type="number" step="1" min="0" />
+              </div>
+            </div>
+            <div class="row">
+              <label>Stroke Width (px)</label>
+              <div class="range-row">
+                <input id="stroke-range" type="range" min="1" max="10" step="0.5" />
+                <input id="stroke-num" type="number" min="1" step="0.5" />
+              </div>
+            </div>
+            <div class="row">
+              <label>Quick Grid</label>
+              <div class="flex">
+                <button id="grid-22" class="btn">2×2</button>
+                <button id="grid-33" class="btn">3×3</button>
+                <button id="grid-23" class="btn">2×3</button>
+                <button id="grid-32" class="btn">3×2</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="flex">
+                <button id="reset" class="btn">Reset (clears cuts)</button>
+                <button id="merge-selected" class="btn">Merge Selected</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="flex">
+                <button id="export-line" class="btn primary">Export Linework</button>
+                <button id="export-fills" class="btn primary">Export Fills</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card canvas-wrap">
+          <div class="canvas-frame">
+            <canvas id="canvas"></canvas>
+
+            <div id="split-overlay" class="floating" style="display:none;">
+              <button id="btn-split-v" class="iconbtn" title="Split Vertically">│</button>
+              <button id="btn-split-h" class="iconbtn" title="Split Horizontally">─</button>
+              <button id="btn-delete-panel" class="iconbtn danger" title="Delete Panel">×</button>
+            </div>
+
+            <div id="delete-overlay" class="floating" style="display:none;">
+              <button id="btn-delete-cut" class="iconbtn danger" title="Delete Cut">×</button>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="help">
+              <div class="row" style="margin-bottom:6px;"><strong>Instructions:</strong></div>
+              <ul style="margin:0 0 6px 18px; padding:0; line-height:1.5;">
+                <li>Drag across the document to create cuts</li>
+                <li>Global cuts = blue highlight; panel cuts = green highlight</li>
+                <li>Click a cut to select it then delete, or drag the line/endpoints to move it</li>
+                <li>Click a panel to reveal split options; click multiple panels and press “Merge Selected” to merge contiguous panels</li>
+                <li>Changing Size/Units/DPI/Bleed/Live area/Panel inset never resets or removes cuts</li>
+              </ul>
+              <div class="legend">
+                <span class="badge"><span class="dash d-red"></span> Bleed</span>
+                <span class="badge"><span class="dash d-blue"></span> Live area</span>
+                <span class="badge"><span class="dash d-purple"></span> Panel inset</span>
+                <span id="doc-info" class="muted"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
