@@ -48,36 +48,28 @@ async function scanDirectory(directory, relativePath, existingSlugs) {
 
 /**
  * Smart Copy:
- * - Detects package.json to trigger Modern Build.
- * - FALLBACK PREVENTION: If package.json exists, it MUST build or fail. It cannot fallback to copy.
+ * - If it finds a package.json, it treats it as a Modern App: Installs, Builds, and copies 'dist'.
+ * - Otherwise, it treats it as a Legacy App: Recursively copies source files.
  */
 async function smartCopyDir(src, dest) {
-  // 1. Check for Modern App indicators
+  // 1. Check for Modern App (package.json presence)
   const packageJsonPath = path.join(src, 'package.json');
   let isModernApp = false;
-  
   try {
     await fs.access(packageJsonPath);
     isModernApp = true;
   } catch {
-    // Double check for vite config just in case
-    try {
-      await fs.access(path.join(src, 'vite.config.ts'));
-      isModernApp = true;
-      console.log(`??  Found vite.config.ts but no package.json in ${src}. This might fail.`);
-    } catch {
-      // Truly legacy
-    }
+    // No package.json, treat as directory/legacy
   }
 
   if (isModernApp) {
-    console.log(`\n?? DETECTED MODERN APP: ${path.basename(src)}`);
+    console.log(`\n?? Detected Modern App: ${path.basename(src)}`);
     console.log(`   ?? Source: ${src}`);
     
     try {
-      console.log(`   ???  Running "npm install && npm run build"...`);
-      
+      console.log(`   ???  Installing & Building...`);
       // Run install and build inside the sub-project
+      // We inherit stdio so we can see the build output in Vercel logs
       execSync('npm install && npm run build', { 
         cwd: src, 
         stdio: 'inherit',
@@ -86,31 +78,29 @@ async function smartCopyDir(src, dest) {
 
       const distPath = path.join(src, 'dist');
       
-      // Verify build succeeded
+      // Verify build succeeded (dist exists)
       await fs.access(distPath);
       
-      console.log(`   ? Build success. Copying ${distPath} -> ${dest}`);
+      console.log(`   ? Build complete. Copying artifacts to public...`);
       
       // Copy the *built* artifacts (dist) to the public destination
-      // Using fs.cp (Node 16.7+)
+      // fs.cp is available in Node 16.7+ (Vercel uses 22.x)
       await fs.cp(distPath, dest, { recursive: true });
-      return; // STOP HERE. Do not fall through to legacy copy.
+      return; 
 
     } catch (err) {
-      console.error(`\n? FATAL ERROR building modern app: ${src}`);
-      console.error(`   The build command failed, or dist/ was not created.`);
-      console.error(`   Error details: ${err.message}`);
-      // Throwing stops the entire deploy, preventing broken code from going live
-      throw new Error(`Build failed for ${src}`);
+      console.error(`   ? FATAL: Failed to build ${src}`);
+      // We throw here to fail the deployment if a modern app fails to build
+      throw err;
     }
   }
 
   // 2. Legacy/Normal Directory Logic: Recursive Copy
-  // Only runs if NO package.json was found.
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
   
   for (let entry of entries) {
+    // Skip system/build folders to avoid cluttering output or copying node_modules
     if (['node_modules', '.git', '.warden_apply_backup', 'dist', '.DS_Store'].includes(entry.name)) continue;
     
     const srcPath = path.join(src, entry.name);
