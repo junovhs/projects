@@ -17,23 +17,6 @@ function createUniqueSlug(baseSlug, existingSlugs) {
   existingSlugs.add(slug); return slug;
 }
 
-// Robust recursive copy that doesn't rely on fs.cp (Node version safe)
-async function copyFolderRecursive(source, target) {
-  await fs.mkdir(target, { recursive: true });
-  const entries = await fs.readdir(source, { withFileTypes: true });
-  
-  for (const entry of entries) {
-    const srcPath = path.join(source, entry.name);
-    const destPath = path.join(target, entry.name);
-    
-    if (entry.isDirectory()) {
-      await copyFolderRecursive(srcPath, destPath);
-    } else {
-      await fs.copyFile(srcPath, destPath);
-    }
-  }
-}
-
 async function scanDirectory(directory, relativePath, existingSlugs) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const nodes = [];
@@ -65,20 +48,36 @@ async function scanDirectory(directory, relativePath, existingSlugs) {
 
 /**
  * Smart Copy:
- * - Checks file list for package.json to trigger Modern Build.
+ * - Detects package.json to trigger Modern Build.
+ * - FALLBACK PREVENTION: If package.json exists, it MUST build or fail. It cannot fallback to copy.
  */
 async function smartCopyDir(src, dest) {
-  const entries = await fs.readdir(src, { withFileTypes: true });
+  // 1. Check for Modern App indicators
+  const packageJsonPath = path.join(src, 'package.json');
+  let isModernApp = false;
   
-  // 1. Detection via File List (More reliable than fs.access)
-  const hasPackageJson = entries.some(e => e.name === 'package.json');
-  
-  if (hasPackageJson) {
-    console.log(`\n? MODERN APP DETECTED: ${path.basename(src)}`);
-    console.log(`   (Found package.json)`);
+  try {
+    await fs.access(packageJsonPath);
+    isModernApp = true;
+  } catch {
+    // Double check for vite config just in case
+    try {
+      await fs.access(path.join(src, 'vite.config.ts'));
+      isModernApp = true;
+      console.log(`??  Found vite.config.ts but no package.json in ${src}. This might fail.`);
+    } catch {
+      // Truly legacy
+    }
+  }
+
+  if (isModernApp) {
+    console.log(`\n?? DETECTED MODERN APP: ${path.basename(src)}`);
+    console.log(`   ?? Source: ${src}`);
     
     try {
-      console.log(`   ???  Building...`);
+      console.log(`   ???  Running "npm install && npm run build"...`);
+      
+      // Run install and build inside the sub-project
       execSync('npm install && npm run build', { 
         cwd: src, 
         stdio: 'inherit',
@@ -87,26 +86,29 @@ async function smartCopyDir(src, dest) {
 
       const distPath = path.join(src, 'dist');
       
-      // Verify dist exists
-      try {
-        await fs.access(distPath);
-      } catch {
-        throw new Error(`Build finished but dist/ folder is missing in ${src}`);
-      }
+      // Verify build succeeded
+      await fs.access(distPath);
       
-      console.log(`   ? Build success. Deploying artifacts...`);
-      await copyFolderRecursive(distPath, dest);
-      return; // STOP. Do not legacy copy.
+      console.log(`   ? Build success. Copying ${distPath} -> ${dest}`);
+      
+      // Copy the *built* artifacts (dist) to the public destination
+      // Using fs.cp (Node 16.7+)
+      await fs.cp(distPath, dest, { recursive: true });
+      return; // STOP HERE. Do not fall through to legacy copy.
 
     } catch (err) {
-      console.error(`\n? BUILD FAILED for ${src}`);
-      console.error(err.message);
-      process.exit(1); // Hard fail to prevent broken deploy
+      console.error(`\n? FATAL ERROR building modern app: ${src}`);
+      console.error(`   The build command failed, or dist/ was not created.`);
+      console.error(`   Error details: ${err.message}`);
+      // Throwing stops the entire deploy, preventing broken code from going live
+      throw new Error(`Build failed for ${src}`);
     }
   }
 
-  // 2. Legacy Recursive Copy
+  // 2. Legacy/Normal Directory Logic: Recursive Copy
+  // Only runs if NO package.json was found.
   await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
   
   for (let entry of entries) {
     if (['node_modules', '.git', '.warden_apply_backup', 'dist', '.DS_Store'].includes(entry.name)) continue;
@@ -129,13 +131,15 @@ async function main() {
     const existingSlugs = new Set();
     const projectTree = await scanDirectory(PAGES_DIR, '', existingSlugs);
     await fs.writeFile(path.join(PUBLIC_DIR, 'projects.json'), JSON.stringify(projectTree, null, 2), 'utf8');
-    
-    console.log('2. Processing project pages...');
+    console.log('   -> public/projects.json created.');
+
+    console.log('2. Processing project pages (Build/Copy)...');
     await smartCopyDir(PAGES_DIR, path.join(PUBLIC_DIR, 'pages'));
-    
-    console.log('\n? Build script complete.');
+    console.log('   -> public/pages/ populated.');
+
+    console.log('\n? Prepare build step complete.');
   } catch (error) {
-    console.error('\n? Script failed:');
+    console.error('\n? Prepare build step failed:');
     console.error(error);
     process.exit(1);
   }
